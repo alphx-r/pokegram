@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PokéGram</title>
+<title>Pokégram</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -26,50 +26,10 @@
         <h1 class="brand-name">PokéGram</h1>
       </div>
 
-      <div id="login-form" class="auth-form">
+      <div class="auth-form">
         <input type="text" id="login-username" placeholder="Treinador" autocomplete="off">
         <input type="password" id="login-password" placeholder="Senha">
         <button class="btn-primary" onclick="doLogin()">Entrar</button>
-        <div class="or-divider"><span>OU</span></div>
-        <button class="btn-google" onclick="doLogin()">
-          <span>⚡</span> Entrar com Conta Pokémon
-        </button>
-        <p class="auth-hint">Demo: <strong>ash</strong> / <strong>pikachu</strong></p>
-      </div>
-
-      <div id="register-form" class="auth-form hidden">
-        <input type="text" id="reg-name" placeholder="Nome do Treinador">
-        <input type="text" id="reg-username" placeholder="@usuário">
-        <input type="password" id="reg-password" placeholder="Senha">
-        <select id="reg-starter">
-          <option value="">Escolha seu Pokémon inicial</option>
-          <option value="🌿 Bulbasaur">🌿 Bulbasaur</option>
-          <option value="🔥 Charmander">🔥 Charmander</option>
-          <option value="💧 Squirtle">💧 Squirtle</option>
-          <option value="⚡ Pikachu">⚡ Pikachu</option>
-          <option value="🌸 Clefairy">🌸 Clefairy</option>
-          <option value="👻 Gengar">👻 Gengar</option>
-        </select>
-        <button class="btn-primary" onclick="doRegister()">Cadastre-se</button>
-      </div>
-    </div>
-
-    <!-- Card switch -->
-    <div class="auth-card auth-switch-card">
-      <div id="login-switch">
-        Não tem uma conta? <a href="#" onclick="showRegister()">Cadastre-se</a>
-      </div>
-      <div id="register-switch" class="hidden">
-        Já tem uma conta? <a href="#" onclick="showLogin()">Entre</a>
-      </div>
-    </div>
-
-    <!-- App promo -->
-    <div class="auth-app-row">
-      <p>Baixe o aplicativo</p>
-      <div class="app-badges">
-        <span>App Store</span>
-        <span>Google Play</span>
       </div>
     </div>
   </div>
