@@ -61,7 +61,7 @@ input, select, textarea { font-family: var(--font); }
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 30px 40px 24px;
+  padding: 36px 40px 32px;
 }
 .auth-switch-card {
   padding: 18px 40px;
