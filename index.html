@@ -180,16 +180,22 @@
   }
   async function applyLogos() {
     const url = await getNetworkLogo();
-    if (!url) return;
-    document.querySelectorAll('.brand-logo-img').forEach(img => {
-      img.src = url;
-      img.style.display = 'inline-block';
-      img.previousElementSibling && img.previousElementSibling.classList.contains('brand-logo-placeholder') && (img.previousElementSibling.style.display = 'none');
-    });
-    document.querySelectorAll('.brand-logo-placeholder').forEach(el => el.style.display = 'none');
+    if (url) {
+      document.querySelectorAll('.brand-logo-img').forEach(img => {
+        img.src = url;
+        img.style.display = 'inline-block';
+      });
+      document.querySelectorAll('.brand-logo-placeholder').forEach(el => el.style.display = 'none');
+    } else {
+      // sem logo configurada: mostra o texto
+      document.querySelectorAll('.brand-logo-placeholder').forEach(el => el.style.display = '');
+      document.querySelectorAll('.brand-logo-img').forEach(img => img.style.display = 'none');
+    }
   }
   window.applyLogos = applyLogos;
   window.getNetworkLogo = getNetworkLogo;
+  // carrega logo imediatamente para evitar flash do texto
+  applyLogos();
 
   // Estado de autenticação — declarado aqui para evitar "before initialization"
   var isRegisterMode = false;
@@ -222,7 +228,7 @@
             <div class="pb-bottom"></div>
           </div>
           <h1 class="brand-name">
-            <span class="brand-logo-placeholder">PokéGram</span>
+            <span class="brand-logo-placeholder" style="display:none">PokéGram</span>
             <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:54px;max-width:200px;object-fit:contain;vertical-align:middle;">
           </h1>
         </div>
@@ -259,7 +265,7 @@
     <!-- TOP NAV -->
     <nav class="topnav">
       <div class="topnav-logo" onclick="showView('feed')">
-        <span class="brand-logo-placeholder">PokéGram</span>
+        <span class="brand-logo-placeholder" style="display:none">PokéGram</span>
         <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:32px;max-width:130px;object-fit:contain;vertical-align:middle;">
       </div>
       <div class="topnav-search">
@@ -576,7 +582,7 @@
         <div class="adm-nlb-bottom"></div>
       </div>
       <div class="adm-nav-text">
-        <span class="brand-logo-placeholder">Poké<span>Gram</span></span>
+        <span class="brand-logo-placeholder" style="display:none">Poké<span>Gram</span></span>
         <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:28px;max-width:110px;object-fit:contain;vertical-align:middle;filter:brightness(0) invert(1);">
       </div>
       <div class="adm-nav-badge">ADM</div>
@@ -969,8 +975,9 @@ async function fazerLoginAdm() {
   try {
     const { data, error } = await db.rpc('login_admin', { p_username: username, p_password: password });
     if (error) throw error;
-    if (!data) { errEl.textContent = 'Usuário ou senha incorretos.'; errEl.style.display = 'block'; return; }
-    admLogado = data; admSaveSession(data); mostrarPainelAdm();
+    const admData = Array.isArray(data) ? data[0] : data;
+    if (!admData) { errEl.textContent = 'Usuário ou senha incorretos.'; errEl.style.display = 'block'; return; }
+    admLogado = admData; admSaveSession(admData); mostrarPainelAdm();
   } catch(e) { console.error(e); errEl.textContent = 'Erro de conexão.'; errEl.style.display = 'block'; }
 }
 
@@ -1816,13 +1823,20 @@ function avatarHTML(u, size, extraStyle) {
 // ── Build profile HTML (shared by own + other users) ──────
 function buildProfileHTML(u, userPosts, followers, following, isMe) {
   const postCount = (userPosts||[]).length;
+  const avatarInner = u.avatar_url
+    ? `<img src="${u.avatar_url}" alt="${u.username}">`
+    : `<span>${initials(u.username)}</span>`;
+  const avatarBg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+
   return `
     <div class="profile-page">
 
       <!-- Linha avatar + meta (username + stats) -->
       <div class="profile-header">
         <div class="profile-avatar-wrap">
-          ${avatarHTML(u, 86, 'cursor:pointer')}
+          <div class="profile-avatar-circle" style="background:${avatarBg}" onclick="">
+            ${avatarInner}
+          </div>
         </div>
         <div class="profile-meta">
           <div class="profile-top-row">
@@ -2595,8 +2609,22 @@ function confirmCrop() {
     cropW = wSize * 0.45;  cropH = hSize * 0.90;
   } else if (_cropMode === 'square') {
     outW = outH = 1080;
-    // recorta exatamente o que está visível no wrap (quadrado inteiro)
-    cropX = 0; cropY = 0; cropW = wSize; cropH = hSize;
+    // recorta a área visível da imagem dentro do wrap (sem as barras pretas)
+    const imgLeft = parseFloat(img.style.left) || 0;
+    const imgTop  = parseFloat(img.style.top)  || 0;
+    // interseção entre o wrap [0,wSize] x [0,hSize] e a imagem [imgLeft, imgLeft+imgW]
+    cropX = Math.max(0, -imgLeft);
+    cropY = Math.max(0, -imgTop);
+    cropW = Math.min(wSize,  imgLeft + imgW) - Math.max(0, imgLeft);
+    cropH = Math.min(hSize,  imgTop  + imgH) - Math.max(0, imgTop);
+    // garante valores positivos
+    cropW = Math.max(1, cropW);
+    cropH = Math.max(1, cropH);
+    // mantém quadrado: usa o menor lado
+    const side = Math.min(cropW, cropH);
+    cropX += (cropW - side) / 2;
+    cropY += (cropH - side) / 2;
+    cropW = cropH = side;
   } else {
     outW = outH = 400;
     cropX = 0; cropY = 0; cropW = wSize; cropH = hSize;
