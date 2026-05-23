@@ -1237,7 +1237,7 @@ async function admNpcSalvar() {
     _npcPendingAvatarFile = null;
   }
 
-  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true, password: 'npc_locked_' + Date.now() };
+  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true };
 
   let error;
   if (editId) {
