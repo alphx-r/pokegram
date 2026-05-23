@@ -931,7 +931,7 @@ input, select, textarea { font-family: var(--font); }
 .pf-row select { color: var(--text-mid); }
 
 /* Comments modal */
-.comments-modal-box {
+.comments-modal-box-OLD_SKIP {
   max-width: 500px;
 }
 .comments-list {
@@ -1033,6 +1033,113 @@ input, select, textarea { font-family: var(--font); }
 .toast.hidden { opacity: 0; pointer-events: none; }
 
 
+/* ============================
+   MODAL COMENTÁRIOS — SPLIT
+   ============================ */
+.comments-modal-box {
+  max-width: 900px;
+  width: 95vw;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+.comments-split {
+  display: flex;
+  height: min(85vh, 600px);
+}
+.comments-post-side {
+  flex: 0 0 55%;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.comments-post-image {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 100px;
+}
+.comments-post-caption {
+  padding: 12px 14px;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cpc-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.cpc-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.comments-right-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--white);
+}
+.comments-right-side .modal-header {
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.comments-right-side .comments-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.comment-actions-bar {
+  padding: 8px 12px 4px;
+  border-top: 1px solid var(--border-lt);
+  flex-shrink: 0;
+}
+.cab-actions { display: flex; gap: 4px; }
+.cab-likes { font-size: 13px; font-weight: 700; color: var(--text); padding: 2px 4px; }
+
+/* ============================
+   MODAL NOVO POST — TABS + UPLOAD
+   ============================ */
+.post-type-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+  flex-shrink: 0;
+}
+.post-type-tab {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-light);
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all .15s;
+}
+.post-type-tab svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.post-type-tab.active { color: var(--text); border-bottom-color: var(--text); }
+.post-photo-upload-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  gap: 4px;
+  transition: background .15s;
+}
+.post-photo-upload-area:hover { background: #f5f5f5; }
+
 /* RPG badge no perfil */
 .rpg-profile-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px; background: var(--text); color: var(--white); opacity: 0.5; letter-spacing: 0.5px; margin-left: 4px; vertical-align: middle; }
 /* ============================
@@ -1056,9 +1163,15 @@ input, select, textarea { font-family: var(--font); }
   .stat-item { font-size: 14px; }
   .profile-bio { padding: 0 16px; }
   .post-modal-body { flex-direction: column; min-height: auto; }
-  .post-img-area { width: 100%; aspect-ratio: 1/1; }
+  .post-img-area { width: 100%; min-height: 280px; }
   .toast { bottom: 16px; }
+  /* Comments split → stack no mobile */
+  .comments-split { flex-direction: column; height: auto; max-height: 90vh; overflow-y: auto; }
+  .comments-post-side { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .comments-post-image { min-height: 260px; }
+  .comments-right-side { min-height: 300px; }
 }
 @media (max-width: 935px) and (min-width: 769px) {
   .feed-aside { width: 230px; }
+  .comments-post-side { flex: 0 0 45%; }
 }
