@@ -846,6 +846,583 @@ function admToggleEye(inputId, btn) {
 }
 </script>
 
-<script src="app.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════
+// POKÉGRAM APP — Supabase
+// ════════════════════════════════════════════════════════════
+
+const POKEMON_LIST = [
+  "Bulbasaur","Ivysaur","Venusaur","Charmander","Charmeleon","Charizard",
+  "Squirtle","Wartortle","Blastoise","Caterpie","Metapod","Butterfree",
+  "Pikachu","Raichu","Clefairy","Clefable","Jigglypuff","Meowth","Psyduck",
+  "Gengar","Eevee","Vaporeon","Jolteon","Flareon","Snorlax","Mewtwo","Mew",
+  "Chikorita","Cyndaquil","Totodile","Togepi","Espeon","Umbreon","Lucario",
+  "Garchomp","Glaceon","Leafeon","Sylveon","Greninja","Mimikyu"
+];
+
+const EMOJI_BG_OPTIONS = [
+  {emoji:"⚡",bg:"#fff9c4"},{emoji:"🔥",bg:"#ffccbc"},{emoji:"💧",bg:"#b3e5fc"},
+  {emoji:"🌿",bg:"#c8e6c9"},{emoji:"👻",bg:"#e1bee7"},{emoji:"🌙",bg:"#263238"},
+  {emoji:"❄️",bg:"#e3f2fd"},{emoji:"🌊",bg:"#01579b"},{emoji:"🌸",bg:"#fce4ec"},
+  {emoji:"🏔️",bg:"#cfd8dc"},{emoji:"🌋",bg:"#bf360c"},{emoji:"🌈",bg:"#f3e5f5"},
+  {emoji:"⭐",bg:"#f57f17"},{emoji:"🎮",bg:"#1a237e"},{emoji:"🏅",bg:"#ff6f00"},
+  {emoji:"🦋",bg:"#f8bbd0"}
+];
+
+// ── Estado ────────────────────────────────────────────────
+let appPosts    = [];
+let appUsers    = {};   // cache username → user
+let followState = {};
+let currentCommentPostId = null;
+let selectedPostEmoji    = null;
+let currentViewHistory   = ['feed'];
+
+// ── Init ──────────────────────────────────────────────────
+async function initApp(user) {
+  currentUser = user;
+  renderSidebarAvatar();
+  await showView('feed');
+}
+
+function renderSidebarAvatar() {
+  const el = document.getElementById('sn-avatar');
+  if (!el || !currentUser) return;
+  el.style.background = currentUser.color || '#e53935';
+  el.textContent = initials(currentUser.username);
+}
+
+// ── View Routing ──────────────────────────────────────────
+async function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  const v = document.getElementById('view-' + name);
+  if (v) v.classList.remove('hidden');
+
+  document.querySelectorAll('.sn-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  const sb = document.getElementById('btn-' + name);
+  if (sb) sb.classList.add('active');
+  const bn = document.getElementById('bn-' + name);
+  if (bn) bn.classList.add('active');
+
+  if (name === 'feed')    await renderFeed();
+  if (name === 'explore') await renderExplore();
+  if (name === 'profile') await renderProfile(currentUser.username);
+
+  currentViewHistory.push(name);
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  currentViewHistory.pop();
+  const prev = currentViewHistory[currentViewHistory.length - 1] || 'feed';
+  showView(prev);
+}
+
+// ── Feed ──────────────────────────────────────────────────
+async function renderFeed() {
+  renderAsideMini();
+  await renderPosts();
+  await renderStories();
+  await renderSuggestions();
+}
+
+async function renderStories() {
+  const list = document.getElementById('stories-list');
+  if (!list) return;
+  const myPic = document.getElementById('my-story-pic');
+  if (myPic) {
+    myPic.style.background = currentUser.color || '#e53935';
+    myPic.textContent = initials(currentUser.username);
+  }
+
+  const { data: users } = await db.from('users').select('id,username,color').neq('id', currentUser.id).limit(12);
+  list.innerHTML = (users || []).map(u => `
+    <div class="story-item" onclick="showUserProfile('${u.username}')">
+      <div class="story-ring">
+        <div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username)}</div>
+      </div>
+      <span>${u.username}</span>
+    </div>`).join('');
+}
+
+async function renderPosts() {
+  const container = document.getElementById('feed-posts');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
+
+  const { data: posts, error } = await db
+    .from('posts')
+    .select('*, users(id, username, color)')
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
+  if (!posts.length)   { container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>Seja o primeiro a postar! 🎉</div>'; return; }
+
+  appPosts = posts;
+
+  // buscar likes do usuário atual de uma vez
+  const postIds = posts.map(p => p.id);
+  const { data: myLikes } = await db.from('likes').select('post_id').eq('user_id', currentUser.id).in('post_id', postIds);
+  const likedSet = new Set((myLikes || []).map(l => l.post_id));
+
+  // buscar contagem de likes e comentários
+  const { data: likeCounts }   = await db.from('likes').select('post_id').in('post_id', postIds);
+  const { data: commentCounts } = await db.from('comments').select('post_id').in('post_id', postIds);
+
+  const likeMap    = {};
+  const commentMap = {};
+  (likeCounts || []).forEach(l => { likeMap[l.post_id] = (likeMap[l.post_id] || 0) + 1; });
+  (commentCounts || []).forEach(c => { commentMap[c.post_id] = (commentMap[c.post_id] || 0) + 1; });
+
+  container.innerHTML = posts.map(p => buildPostHTML(p, likedSet.has(p.id), likeMap[p.id] || 0, commentMap[p.id] || 0)).join('');
+}
+
+function buildPostHTML(p, liked, likeCount, commentCount) {
+  const author    = p.users || { username: '?', color: '#999' };
+  const likeColor = liked ? 'color:#e53935' : '';
+  const likeFill  = liked ? 'fill:#e53935;stroke:#e53935' : 'fill:none';
+
+  return `
+<div class="post-card" id="post-${p.id}">
+  <div class="post-header">
+    <div class="post-avatar" style="background:${author.color||'#e53935'}" onclick="showUserProfile('${author.username}')">${initials(author.username)}</div>
+    <div class="post-header-info">
+      <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}</div>
+      ${p.location ? `<div class="post-location-tag">${p.location}</div>` : ''}
+    </div>
+    <button class="post-header-more">···</button>
+  </div>
+
+  <div class="post-image" style="background:${p.bg||'#f0f0f0'}">
+    <span>${p.emoji||'📸'}</span>
+  </div>
+
+  <div class="post-actions">
+    <button class="post-action-btn ${liked?'liked':''}" onclick="toggleLike('${p.id}',this)" style="${likeColor}">
+      <svg viewBox="0 0 24 24" style="${likeFill};stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+    </button>
+    <button class="post-action-btn" onclick="openComments('${p.id}')">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    </button>
+    <button class="post-action-btn">
+      <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+    </button>
+    <button class="post-save-btn" style="margin-left:auto">
+      <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+    </button>
+  </div>
+
+  <div class="post-likes" id="likes-${p.id}">${fmtNum(likeCount)} curtida${likeCount !== 1 ? 's' : ''}</div>
+  <div class="post-caption-text">
+    <span class="cap-user">${author.username}</span>${formatCaption(p.caption||'')}
+  </div>
+  ${commentCount > 0 ? `<div class="post-view-comments" onclick="openComments('${p.id}')">Ver todos os ${commentCount} comentários</div>` : ''}
+  <div class="post-timestamp">${fmtTimeAgo(p.created_at)}</div>
+
+  <div class="post-comment-bar">
+    <div class="mini-avatar" style="background:${currentUser.color||'#e53935'}">${initials(currentUser.username)}</div>
+    <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
+      oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
+    <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
+  </div>
+</div>`;
+}
+
+function formatCaption(cap) {
+  return cap.replace(/#(\w+)/g, '<span class="cap-tag">#$1</span>');
+}
+
+// ── Likes ─────────────────────────────────────────────────
+async function toggleLike(postId, btn) {
+  const liked = btn.classList.contains('liked');
+  btn.classList.toggle('liked', !liked);
+  const svg = btn.querySelector('svg');
+  if (svg) svg.style.cssText = !liked ? 'fill:#e53935;stroke:#e53935;stroke-width:2' : 'fill:none;stroke-width:2';
+  btn.style.color = !liked ? '#e53935' : '';
+
+  const countEl = document.getElementById('likes-' + postId);
+  if (countEl) {
+    const cur = parseInt(countEl.textContent) || 0;
+    const next = !liked ? cur + 1 : Math.max(0, cur - 1);
+    countEl.textContent = `${fmtNum(next)} curtida${next !== 1 ? 's' : ''}`;
+  }
+
+  if (!liked) {
+    await db.from('likes').insert({ post_id: postId, user_id: currentUser.id });
+  } else {
+    await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+  }
+}
+
+// ── Comments ──────────────────────────────────────────────
+async function openComments(postId) {
+  currentCommentPostId = postId;
+  const list = document.getElementById('comments-list');
+  if (list) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:#8e8e8e">Carregando...</div>';
+    await renderCommentsList(postId);
+  }
+  const myAv = document.getElementById('my-comment-avatar');
+  if (myAv) { myAv.style.background = currentUser.color||'#e53935'; myAv.textContent = initials(currentUser.username); }
+  document.getElementById('new-comment').value = '';
+  openModal('modal-comments');
+}
+
+async function renderCommentsList(postId) {
+  const list = document.getElementById('comments-list');
+  if (!list) return;
+  const { data: comments } = await db
+    .from('comments')
+    .select('*, users(username, color)')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+
+  if (!comments || !comments.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e;font-size:14px">Nenhum comentário ainda.<br>Seja o primeiro! 🎤</div>';
+    return;
+  }
+  list.innerHTML = comments.map(c => {
+    const u = c.users || { username: '?', color: '#999' };
+    return `
+      <div class="comment-item">
+        <div class="comment-avatar" style="background:${u.color||'#999'}">${initials(u.username)}</div>
+        <div class="comment-body">
+          <strong>${u.username}</strong><span> ${c.text}</span>
+          <div class="comment-time">${fmtTimeAgo(c.created_at)}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function submitComment() {
+  const input = document.getElementById('new-comment');
+  const text  = input?.value.trim();
+  if (!text) return;
+  await db.from('comments').insert({ post_id: currentCommentPostId, user_id: currentUser.id, text });
+  input.value = '';
+  await renderCommentsList(currentCommentPostId);
+  toast('Comentário publicado!');
+}
+
+async function submitInlineComment(postId) {
+  const input = document.getElementById('inline-comment-' + postId);
+  if (!input || !input.value.trim()) return;
+  await db.from('comments').insert({ post_id: postId, user_id: currentUser.id, text: input.value.trim() });
+  input.value = '';
+  document.getElementById('inline-send-' + postId)?.classList.remove('ready');
+  toast('Comentário publicado!');
+  await renderPosts();
+}
+
+// ── Aside ─────────────────────────────────────────────────
+function renderAsideMini() {
+  const el = document.getElementById('aside-profile-mini');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="profile-mini-card">
+      <div class="pm-avatar" style="background:${currentUser.color||'#e53935'}" onclick="showView('profile')">${initials(currentUser.username)}</div>
+      <div class="pm-info">
+        <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
+        <div class="pm-name">${currentUser.name || currentUser.username}</div>
+      </div>
+      <div class="pm-switch"><a href="#" onclick="doLogout();return false">Sair</a></div>
+    </div>`;
+}
+
+async function renderSuggestions() {
+  const el = document.getElementById('suggestions-list');
+  if (!el) return;
+  const { data: users } = await db.from('users').select('id,username,color,rpg').neq('id', currentUser.id).limit(5);
+  el.innerHTML = (users || []).map(u => `
+    <div class="suggestion-item">
+      <div class="sug-avatar" style="background:${u.color||'#e53935'}" onclick="showUserProfile('${u.username}')">${initials(u.username)}</div>
+      <div class="sug-info">
+        <div class="sug-name" onclick="showUserProfile('${u.username}')">${u.username}</div>
+        <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
+      </div>
+      <button class="btn-follow-sm" id="follow-btn-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id] ? 'Seguindo' : 'Seguir'}</button>
+    </div>`).join('');
+}
+
+async function toggleFollow(btn, userId, username) {
+  const following = followState[userId];
+  if (!following) {
+    await db.from('follows').insert({ follower_id: currentUser.id, following_id: userId });
+    followState[userId] = true;
+    btn.textContent = 'Seguindo';
+    toast(`Seguindo ${username}!`);
+  } else {
+    await db.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', userId);
+    followState[userId] = false;
+    btn.textContent = 'Seguir';
+    toast(`Deixou de seguir ${username}`);
+  }
+}
+
+// ── Explore ───────────────────────────────────────────────
+async function renderExplore(query) {
+  const grid = document.getElementById('explore-grid');
+  if (!grid) return;
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
+
+  let q = db.from('posts').select('id,emoji,bg,caption,location,users(username)').order('created_at', { ascending: false }).limit(60);
+  const { data: posts } = await q;
+
+  let filtered = posts || [];
+  if (query && query.trim()) {
+    const ql = query.toLowerCase();
+    filtered = filtered.filter(p =>
+      p.users?.username?.toLowerCase().includes(ql) ||
+      p.caption?.toLowerCase().includes(ql) ||
+      p.location?.toLowerCase().includes(ql)
+    );
+  }
+
+  if (!filtered.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#8e8e8e">Nenhum resultado.</div>';
+    return;
+  }
+  grid.innerHTML = filtered.map(p => `
+    <div class="explore-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
+      <span>${p.emoji||'📸'}</span>
+    </div>`).join('');
+}
+
+function doSearch(q) { renderExplore(q); }
+
+// ── Profile ───────────────────────────────────────────────
+async function renderProfile(username) {
+  const container = document.getElementById('profile-content');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
+
+  const { data: u } = await db.from('users').select('*').eq('username', username).single();
+  if (!u) return;
+
+  const { data: userPosts } = await db.from('posts').select('id,emoji,bg').eq('user_id', u.id).order('created_at', { ascending: false });
+  const { count: followers } = await db.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', u.id);
+  const { count: following } = await db.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', u.id);
+  const isMe = u.id === currentUser.id;
+
+  container.innerHTML = `
+    <div class="profile-page">
+      <div class="profile-header">
+        <div class="profile-avatar-wrap">
+          <div class="profile-avatar" style="background:${u.color||'#e53935'}">${initials(u.username)}</div>
+        </div>
+        <div class="profile-meta">
+          <div class="profile-top-row">
+            <span class="profile-username-text">${u.username}</span>
+            ${isMe
+              ? `<button class="btn-edit-profile" onclick="editProfile()">Editar perfil</button>`
+              : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
+            }
+          </div>
+          <div class="profile-stats">
+            <div class="stat-item"><strong>${(userPosts||[]).length}</strong> publicações</div>
+            <div class="stat-item"><strong>${fmtNum(followers||0)}</strong> seguidores</div>
+            <div class="stat-item"><strong>${fmtNum(following||0)}</strong> seguindo</div>
+          </div>
+          <div class="profile-bio">
+            <div class="prof-name">${u.name || u.username}</div>
+            ${u.rpg ? `<div class="prof-starter">${u.rpg === 'kingdom_platinum' ? '👑 Kingdom Platinum' : '📖 PChapters'}</div>` : ''}
+            ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="profile-tabs">
+        <button class="tab-btn active">
+          <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Publicações
+        </button>
+      </div>
+      <div class="profile-grid">
+        ${(userPosts||[]).length
+          ? userPosts.map(p => `
+              <div class="profile-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
+                <span>${p.emoji||'📸'}</span>
+              </div>`).join('')
+          : `<div class="profile-empty">Nenhuma publicação ainda.</div>`
+        }
+      </div>
+    </div>`;
+}
+
+async function showUserProfile(username) {
+  if (username === currentUser.username) { showView('profile'); return; }
+  const container = document.getElementById('user-profile-content');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
+
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-user').classList.remove('hidden');
+  currentViewHistory.push('user');
+  window.scrollTo(0, 0);
+
+  const { data: u } = await db.from('users').select('*').eq('username', username).single();
+  if (!u) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Usuário não encontrado.</div>'; return; }
+
+  const { data: userPosts } = await db.from('posts').select('id,emoji,bg').eq('user_id', u.id).order('created_at', { ascending: false });
+  const { count: followers } = await db.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', u.id);
+  const { count: following } = await db.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', u.id);
+
+  container.innerHTML = `
+    <div class="profile-page">
+      <div class="profile-header">
+        <div class="profile-avatar-wrap">
+          <div class="profile-avatar" style="background:${u.color||'#e53935'}">${initials(u.username)}</div>
+        </div>
+        <div class="profile-meta">
+          <div class="profile-top-row">
+            <span class="profile-username-text">${u.username}</span>
+            <button class="btn-follow-profile ${followState[u.id]?'following':''}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>
+          </div>
+          <div class="profile-stats">
+            <div class="stat-item"><strong>${(userPosts||[]).length}</strong> publicações</div>
+            <div class="stat-item"><strong>${fmtNum(followers||0)}</strong> seguidores</div>
+            <div class="stat-item"><strong>${fmtNum(following||0)}</strong> seguindo</div>
+          </div>
+          <div class="profile-bio">
+            <div class="prof-name">${u.name || u.username}</div>
+            ${u.rpg ? `<div class="prof-starter">${u.rpg === 'kingdom_platinum' ? '👑 Kingdom Platinum' : '📖 PChapters'}</div>` : ''}
+            ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="profile-tabs">
+        <button class="tab-btn active">
+          <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Publicações
+        </button>
+      </div>
+      <div class="profile-grid">
+        ${(userPosts||[]).length
+          ? userPosts.map(p => `
+              <div class="profile-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
+                <span>${p.emoji||'📸'}</span>
+              </div>`).join('')
+          : `<div class="profile-empty">Nenhuma publicação ainda.</div>`
+        }
+      </div>
+    </div>`;
+}
+
+// ── Edit Profile ──────────────────────────────────────────
+async function editProfile() {
+  const bio = prompt('Editar bio:', currentUser.bio || '');
+  if (bio === null) return;
+  const { error } = await db.from('users').update({ bio }).eq('id', currentUser.id);
+  if (error) { toast('Erro ao salvar.'); return; }
+  currentUser.bio = bio;
+  saveSession(currentUser);
+  renderProfile(currentUser.username);
+  toast('Perfil atualizado!');
+}
+
+// ── New Post ──────────────────────────────────────────────
+function showNewPost() {
+  selectedPostEmoji = null;
+  document.getElementById('post-caption').value  = '';
+  document.getElementById('post-location').value = '';
+
+  const row = document.getElementById('post-author-row');
+  if (row) row.innerHTML = `
+    <div class="pa-avatar" style="background:${currentUser.color||'#e53935'}">${initials(currentUser.username)}</div>
+    <span class="pa-name">${currentUser.username}</span>`;
+
+  const picker = document.getElementById('emoji-bg-picker');
+  if (picker) picker.innerHTML = EMOJI_BG_OPTIONS.map((o, i) => `
+    <div class="emoji-pick-btn" onclick="selectPostEmoji(${i})" data-idx="${i}">${o.emoji}</div>`).join('');
+
+  const sel = document.getElementById('post-pokemon');
+  if (sel) sel.innerHTML = '<option value="">Pokémon em destaque</option>' +
+    POKEMON_LIST.map(pk => `<option value="${pk}">${pk}</option>`).join('');
+
+  // reset preview area
+  const area = document.getElementById('post-image-area');
+  if (area) {
+    area.style.background = '';
+    area.innerHTML = '<div id="emoji-bg-picker" class="emoji-picker-grid"></div>';
+    const p2 = document.getElementById('emoji-bg-picker');
+    if (p2) p2.innerHTML = EMOJI_BG_OPTIONS.map((o, i) => `
+      <div class="emoji-pick-btn" onclick="selectPostEmoji(${i})" data-idx="${i}">${o.emoji}</div>`).join('');
+  }
+
+  openModal('modal-post');
+}
+
+function selectPostEmoji(idx) {
+  selectedPostEmoji = EMOJI_BG_OPTIONS[idx];
+  document.querySelectorAll('.emoji-pick-btn').forEach((b, i) => b.classList.toggle('selected', i === idx));
+  const area = document.getElementById('post-image-area');
+  if (area) {
+    area.style.background = selectedPostEmoji.bg;
+    area.innerHTML = `<div class="post-selected-preview">${selectedPostEmoji.emoji}</div>`;
+  }
+}
+
+async function submitPost() {
+  const caption  = document.getElementById('post-caption').value.trim();
+  const location = document.getElementById('post-location').value.trim();
+  const pokemon  = document.getElementById('post-pokemon').value;
+  if (!caption)          return toast('Escreva uma legenda!');
+  if (!selectedPostEmoji) return toast('Escolha uma imagem!');
+
+  const { error } = await db.from('posts').insert({
+    user_id:  currentUser.id,
+    caption, location, pokemon,
+    emoji: selectedPostEmoji.emoji,
+    bg:    selectedPostEmoji.bg
+  });
+
+  if (error) { toast('Erro ao publicar. Tente novamente.'); return; }
+  closeModal('modal-post');
+  await showView('feed');
+  toast('Publicação criada! 🎉');
+}
+
+// ── Modal Helpers ─────────────────────────────────────────
+function openModal(id)  { document.getElementById(id)?.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+function closeModal(id) { document.getElementById(id)?.classList.add('hidden');    document.body.style.overflow = ''; }
+
+// ── Utils ─────────────────────────────────────────────────
+function initials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/[\s_]+/);
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+
+function fmtNum(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000)    return (n / 1000).toFixed(1) + 'K';
+  return String(n);
+}
+
+function fmtTimeAgo(iso) {
+  if (!iso) return '';
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60)   return 'agora';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+  return Math.floor(diff / 86400) + 'd';
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 2500);
+}
+
+// ── Keyboard ──────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-comments'); }
+});
+</script>
 </body>
 </html>
