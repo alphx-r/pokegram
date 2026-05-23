@@ -1702,6 +1702,35 @@ async function toggleLike(postId, btn) {
 // ── Comments ──────────────────────────────────────────────
 async function openComments(postId) {
   currentCommentPostId = postId;
+
+  // Preenche a imagem/caption do post no lado esquerdo do modal
+  const imgEl = document.getElementById('comments-post-image');
+  const capEl = document.getElementById('comments-post-caption');
+  if (imgEl) {
+    // tenta achar no cache local primeiro
+    let post = (appPosts || []).find(p => p.id === postId);
+    // se não achou (ex: veio do explorar ou perfil de outro usuário), busca no banco
+    if (!post) {
+      const { data } = await db.from('posts').select('id,image_url,emoji,bg,caption,users(username)').eq('id', postId).maybeSingle();
+      post = data;
+    }
+    if (post) {
+      if (post.image_url) {
+        imgEl.style.background = '#000';
+        imgEl.innerHTML = `<img src="${post.image_url}" alt="post" style="width:100%;height:100%;object-fit:contain;display:block">`;
+      } else {
+        imgEl.style.background = post.bg || '#f0f0f0';
+        imgEl.innerHTML = `<span style="font-size:64px">${post.emoji || '📸'}</span>`;
+      }
+      if (capEl) {
+        const u = post.users || {};
+        capEl.innerHTML = post.caption
+          ? `<span style="font-weight:700">${u.username || ''}</span> ${post.caption}`
+          : '';
+      }
+    }
+  }
+
   const list = document.getElementById('comments-list');
   if (list) {
     list.innerHTML = '<div style="text-align:center;padding:20px;color:#8e8e8e">Carregando...</div>';
