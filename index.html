@@ -2472,12 +2472,13 @@ if (IS_ADM) {
       <button onclick="_cropRotate(-90)" title="Girar -90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">↺</button>
       <button onclick="_cropRotate(90)"  title="Girar +90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">↻</button>
       <button onclick="_cropFlipX()"     title="Espelhar"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">⇄</button>
+      <button id="btn-toggle-filters" onclick="_toggleFilterStrip()" title="Filtros" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;letter-spacing:.3px">✦ Filtros</button>
     </div>
     <div style="max-height:360px;overflow:hidden;border-radius:8px;background:#000">
       <img id="crop-img" style="max-width:100%;display:block;transition:filter .2s"/>
     </div>
-    <!-- Filter strip -->
-    <div id="crop-filter-strip" style="display:flex;gap:10px;overflow-x:auto;padding:12px 2px 4px;scrollbar-width:thin;-webkit-overflow-scrolling:touch"></div>
+    <!-- Filter strip (hidden by default) -->
+    <div id="crop-filter-strip" style="display:none;gap:10px;overflow-x:auto;padding:12px 2px 4px;scrollbar-width:thin;-webkit-overflow-scrolling:touch"></div>
     <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
       <button onclick="fecharCrop()" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer">Cancelar</button>
       <button onclick="confirmarCrop()" style="background:#0095f6;border:none;color:#fff;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer">✔ Usar</button>
@@ -2517,6 +2518,20 @@ function getFilterCSS(id) {
   return (_activeFilters.find(f => f.id === id) || {}).css || '';
 }
 
+// ── toggle faixa de filtros ────────────────────────────────
+function _toggleFilterStrip() {
+  const strip = document.getElementById('crop-filter-strip');
+  const btn   = document.getElementById('btn-toggle-filters');
+  if (!strip) return;
+  const isVisible = strip.style.display === 'flex';
+  strip.style.display = isVisible ? 'none' : 'flex';
+  if (btn) {
+    btn.style.background = isVisible ? '#2a2a2a' : '#0095f6';
+    btn.style.borderColor = isVisible ? '#444' : '#0095f6';
+  }
+  if (!isVisible) renderFilterStrip();
+}
+
 // ── renderiza a faixa de filtros dentro do modal de crop ───
 function renderFilterStrip() {
   const wrap = document.getElementById('crop-filter-strip');
@@ -2547,7 +2562,10 @@ function _resetFilterOnOpen() {
   _selectedFilter = 'normal';
   const img = document.getElementById('crop-img');
   if (img) img.style.filter = '';
-  setTimeout(renderFilterStrip, 400);
+  const strip = document.getElementById('crop-filter-strip');
+  const btn   = document.getElementById('btn-toggle-filters');
+  if (strip) strip.style.display = 'none';
+  if (btn) { btn.style.background = '#2a2a2a'; btn.style.borderColor = '#444'; }
 }
 
 // ── ADM: gerenciar filtros ──────────────────────────────────
@@ -2668,12 +2686,16 @@ function _abrirCrop(src, callback, aspectRatio) {
       zoomOnWheel:      true,
       initialAspectRatio: 1,
     });
-    // mostra faixa de filtros após cropper inicializar
+    // reset filtro ao abrir — faixa permanece escondida até o usuário clicar
     setTimeout(() => {
       _selectedFilter = 'normal';
       const ci = document.getElementById('crop-img');
       if (ci) ci.style.filter = '';
-      renderFilterStrip();
+      // não chama renderFilterStrip — faixa fica oculta por padrão
+      const strip = document.getElementById('crop-filter-strip');
+      const btn   = document.getElementById('btn-toggle-filters');
+      if (strip) strip.style.display = 'none';
+      if (btn) { btn.style.background = '#2a2a2a'; btn.style.borderColor = '#444'; }
     }, 350);
   };
   img.onerror = () => alert('Erro ao carregar a imagem.');
@@ -2692,7 +2714,21 @@ function confirmarCrop() {
   if (!_cropperInstance || !_cropCallback) return;
   const cb = _cropCallback; // salva referência antes de fechar
   const canvas = _cropperInstance.getCroppedCanvas({ maxWidth: 1080, maxHeight: 1080, imageSmoothingQuality: 'high' });
-  canvas.toBlob(blob => {
+  const filterCSS = getFilterCSS(_selectedFilter);
+
+  // aplica filtro no canvas via offscreen canvas
+  let finalCanvas = canvas;
+  if (filterCSS) {
+    const off = document.createElement('canvas');
+    off.width  = canvas.width;
+    off.height = canvas.height;
+    const ctx = off.getContext('2d');
+    ctx.filter = filterCSS;
+    ctx.drawImage(canvas, 0, 0);
+    finalCanvas = off;
+  }
+
+  finalCanvas.toBlob(blob => {
     const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
     fecharCrop();
     _cropCallback = null; // limpa só depois de usar
