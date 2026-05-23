@@ -823,9 +823,9 @@
                   <label>Nome de exibição</label>
                   <input type="text" id="npc-name" placeholder="Nome do Personagem"/>
                 </div>
-                <div>
-                  <label class="adm-field-label">Senha <span style="font-size:11px;font-weight:400;color:var(--muted)">(opcional — permite login como perfil normal)</span></label>
-                  <input type="text" id="npc-password" placeholder="Deixe vazio para NPC sem login" autocomplete="off"/>
+                <div class="adm-field" style="margin-bottom:0">
+                  <label>Senha <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(opcional)</span></label>
+                  <input type="password" id="npc-password" placeholder="Permite login como perfil normal" autocomplete="new-password"/>
                 </div>
               </div>
               <div class="adm-field" style="margin-top:12px">
@@ -961,6 +961,10 @@
           <label>Nome de exibição</label>
           <input type="text" id="npc-modal-name" placeholder="Nome do Personagem">
         </div>
+      </div>
+      <div class="adm-field">
+        <label>Senha <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(opcional — deixe vazio para não alterar)</span></label>
+        <input type="password" id="npc-modal-password" placeholder="Nova senha para login" autocomplete="new-password">
       </div>
       <div class="adm-field">
         <label>Bio</label>
@@ -1447,6 +1451,7 @@ async function admNpcModalSalvar() {
   const pronoun  = document.getElementById('npc-modal-pronoun').value;
   const rpg      = document.getElementById('npc-modal-rpg').value;
   const color    = document.getElementById('npc-modal-color').value;
+  const password = document.getElementById('npc-modal-password').value.trim() || null;
   const okEl     = document.getElementById('npc-modal-fb-ok');
   const errEl    = document.getElementById('npc-modal-fb-err');
   okEl.style.display = errEl.style.display = 'none';
@@ -1462,7 +1467,7 @@ async function admNpcModalSalvar() {
     _npcModalPendingAvatarFile = null;
   }
 
-  const { error } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url }).eq('id', id);
+  const { error } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url, ...(password ? { password } : {}) }).eq('id', id);
   if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
 
   okEl.style.display = 'block';
