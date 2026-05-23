@@ -2566,9 +2566,8 @@ if (IS_ADM) {
       <button onclick="_cropFlipX()"     title="Espelhar"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">⇄</button>
       <button id="btn-toggle-filters" onclick="_toggleFilterStrip()" title="Filtros" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;letter-spacing:.3px">✦ Filtros</button>
     </div>
-    <div style="max-height:360px;overflow:hidden;border-radius:8px;background:#000;position:relative">
+    <div id="crop-area-wrap" style="max-height:360px;overflow:hidden;border-radius:8px;background:#000;transition:filter .25s">
       <img id="crop-img" style="max-width:100%;display:block"/>
-      <div id="crop-filter-overlay" style="position:absolute;inset:0;pointer-events:none;transition:filter .2s"></div>
     </div>
     <!-- Filter strip (hidden by default) -->
     <div id="crop-filter-strip" style="display:none;gap:10px;overflow-x:auto;padding:12px 2px 4px;scrollbar-width:thin;-webkit-overflow-scrolling:touch"></div>
@@ -2643,12 +2642,9 @@ function renderFilterStrip() {
 function selectFilter(id) {
   _selectedFilter = id;
   const css = getFilterCSS(id);
-  // Aplica o filtro diretamente no canvas interno do Cropper.js
-  const cropCanvas = document.querySelector('#modal-crop-overlay .cropper-canvas');
-  if (cropCanvas) cropCanvas.style.filter = css || 'none';
-  // fallback: também aplica na img caso o cropper ainda não tenha inicializado
-  const img = document.getElementById('crop-img');
-  if (img) img.style.filter = css || 'none';
+  // Aplica o filtro no wrapper da área inteira do crop (inclui tudo que o Cropper.js injeta)
+  const wrap = document.getElementById('crop-area-wrap');
+  if (wrap) wrap.style.filter = css || 'none';
   renderFilterStrip();
 }
 
@@ -2657,13 +2653,10 @@ function selectFilter(id) {
 // reset ao abrir o crop — chamado de dentro de _abrirCrop (cropper.js block)
 function _resetFilterOnOpen() {
   _selectedFilter = 'normal';
-  const img     = document.getElementById('crop-img');
-  const overlay = document.getElementById('crop-filter-overlay');
-  if (img)     img.style.filter     = '';
-  if (overlay) overlay.style.filter = 'none';
-  // limpa filtro do canvas interno do cropper (se já inicializado)
-  const cropCanvas = document.querySelector('#modal-crop-overlay .cropper-canvas');
-  if (cropCanvas) cropCanvas.style.filter = 'none';
+  const img  = document.getElementById('crop-img');
+  const wrap = document.getElementById('crop-area-wrap');
+  if (img)  img.style.filter  = '';
+  if (wrap) wrap.style.filter = 'none';
   const strip = document.getElementById('crop-filter-strip');
   const btn   = document.getElementById('btn-toggle-filters');
   if (strip) strip.style.display = 'none';
@@ -2792,12 +2785,10 @@ function _abrirCrop(src, callback, aspectRatio) {
     setTimeout(() => {
       _selectedFilter = 'normal';
       const ci      = document.getElementById('crop-img');
-      const overlay = document.getElementById('crop-filter-overlay');
-      if (ci)      ci.style.filter      = '';
-      if (overlay) overlay.style.filter = 'none';
-      // limpa o canvas interno do Cropper.js
-      const cropCanvas = document.querySelector('#modal-crop-overlay .cropper-canvas');
-      if (cropCanvas) cropCanvas.style.filter = 'none';
+      if (ci) ci.style.filter = '';
+      // limpa o filtro do wrapper do crop
+      const wrapEl = document.getElementById('crop-area-wrap');
+      if (wrapEl) wrapEl.style.filter = 'none';
       // não chama renderFilterStrip — faixa fica oculta por padrão
       const strip = document.getElementById('crop-filter-strip');
       const btn   = document.getElementById('btn-toggle-filters');
