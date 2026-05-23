@@ -645,9 +645,7 @@
           <button class="adm-snav-btn" onclick="admTab(this,'stats')">📊 Estatísticas</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
-          <button class="adm-snav-btn" onclick="admTab(this,'logo')">🖼 Logo da Rede</button>
-          <button class="adm-snav-btn" onclick="admTab(this,'loading-gif')">🌀 GIF do Loading</button>
-          <button class="adm-snav-btn" onclick="admTab(this,'sprites')">🎨 Sprites do Nav</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'imagens')">🖼 Imagens Pokégram</button>
           <button class="adm-snav-btn" onclick="admTab(this,'filtros')">✨ Filtros de Foto</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'npcs')">🤖 NPCs</button>
@@ -758,76 +756,84 @@
             </div>
           </div>
 
-          <!-- LOGO DA REDE -->
-          <div class="adm-section" id="sec-logo">
-            <div class="adm-sec-title">Logo da Rede Social</div>
-            <div class="adm-sec-sub">Faça upload da logo que aparece no lugar do nome "Pokégram" em todo o site. Ela fica armazenada no banco de dados.</div>
-            <div class="adm-box" style="max-width:480px">
-              <div class="adm-box-title">Logo atual</div>
-              <div id="logo-preview-wrap" style="margin-bottom:16px;min-height:60px;display:flex;align-items:center;gap:12px">
-                <img id="logo-preview-adm" src="" alt="" style="display:none;max-height:70px;max-width:220px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
-                <span id="logo-preview-empty" style="font-size:13px;color:var(--muted)">Nenhuma logo cadastrada.</span>
+          <!-- IMAGENS POKÉGRAM (logo + gif loading + sprites) -->
+          <div class="adm-section" id="sec-imagens">
+            <div class="adm-sec-title">Imagens Pokégram</div>
+            <div class="adm-sec-sub">Gerencie todas as imagens personalizadas da rede: logo, tela de loading e ícones da navegação.</div>
+
+            <!-- ── SUB-ABAS ── -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;border-bottom:2px solid var(--border);padding-bottom:14px">
+              <button class="adm-img-tab active" onclick="admImgTab(this,'img-logo')"    style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:var(--brand-mid);color:#fff;transition:all .2s">🖼 Logo da Rede</button>
+              <button class="adm-img-tab"         onclick="admImgTab(this,'img-gif')"     style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">🌀 GIF do Loading</button>
+              <button class="adm-img-tab"         onclick="admImgTab(this,'img-sprites')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">🎨 Sprites do Nav</button>
+            </div>
+
+            <!-- ── LOGO DA REDE ── -->
+            <div id="img-logo">
+              <div class="adm-box" style="max-width:480px">
+                <div class="adm-box-title">Logo atual</div>
+                <div id="logo-preview-wrap" style="margin-bottom:16px;min-height:60px;display:flex;align-items:center;gap:12px">
+                  <img id="logo-preview-adm" src="" alt="" style="display:none;max-height:70px;max-width:220px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                  <span id="logo-preview-empty" style="font-size:13px;color:var(--muted)">Nenhuma logo cadastrada.</span>
+                </div>
+                <div class="adm-field">
+                  <label>Selecionar imagem (PNG, JPG, SVG — máx 500 KB)</label>
+                  <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
+                    onchange="previewLogoUpload(this)"/>
+                </div>
+                <div id="logo-new-preview-wrap" style="display:none;margin-bottom:14px">
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
+                  <img id="logo-new-preview" src="" alt="" style="max-height:70px;max-width:220px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                </div>
+                <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarLogo()">💾 Salvar Logo</button>
+                <button class="adm-btn adm-btn-danger adm-btn-sm" style="margin-left:8px" onclick="removerLogo()">🗑 Remover Logo</button>
+                <div class="adm-fb adm-fb-ok" id="logo-fb-ok">✓ Logo salva com sucesso!</div>
+                <div class="adm-fb adm-fb-err" id="logo-fb-err">—</div>
               </div>
-              <div class="adm-field">
-                <label>Selecionar imagem (PNG, JPG, SVG — máx 500 KB)</label>
-                <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                  style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
-                  onchange="previewLogoUpload(this)"/>
+            </div>
+
+            <!-- ── GIF DO LOADING ── -->
+            <div id="img-gif" style="display:none">
+              <div class="adm-box" style="max-width:480px">
+                <div class="adm-box-title">GIF atual</div>
+                <div id="loading-gif-preview-wrap" style="margin-bottom:16px;min-height:80px;display:flex;align-items:center;gap:12px">
+                  <img id="loading-gif-preview-adm" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                  <span id="loading-gif-preview-empty" style="font-size:13px;color:var(--muted)">Nenhum GIF cadastrado — pokeball padrão será usada.</span>
+                </div>
+                <div class="adm-field">
+                  <label>Selecionar GIF animado (máx 2 MB)</label>
+                  <input type="file" id="loading-gif-file-input" accept="image/gif"
+                    style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
+                    onchange="previewLoadingGifUpload(this)"/>
+                </div>
+                <div id="loading-gif-new-preview-wrap" style="display:none;margin-bottom:14px">
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
+                  <img id="loading-gif-new-preview" src="" alt="" style="width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarLoadingGif()">💾 Salvar GIF</button>
+                  <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="removerLoadingGif()">🗑 Remover GIF</button>
+                </div>
+                <div class="adm-fb adm-fb-ok" id="loading-gif-fb-ok">✓ GIF salvo com sucesso!</div>
+                <div class="adm-fb adm-fb-err" id="loading-gif-fb-err">—</div>
               </div>
-              <div id="logo-new-preview-wrap" style="display:none;margin-bottom:14px">
-                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
-                <img id="logo-new-preview" src="" alt="" style="max-height:70px;max-width:220px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+            </div>
+
+            <!-- ── SPRITES DO NAV ── -->
+            <div id="img-sprites" style="display:none">
+              <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Substitua os ícones SVG padrão da barra de navegação por imagens personalizadas (PNG/WebP/GIF, máx 100 KB cada).</div>
+              <div id="sprites-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px"></div>
+              <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+                <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarSprites()">💾 Salvar todos</button>
+                <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="resetarSprites()">↩ Resetar para SVG padrão</button>
               </div>
-              <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarLogo()">💾 Salvar Logo</button>
-              <button class="adm-btn adm-btn-danger adm-btn-sm" style="margin-left:8px" onclick="removerLogo()">🗑 Remover Logo</button>
-              <div class="adm-fb adm-fb-ok" id="logo-fb-ok">✓ Logo salva com sucesso!</div>
-              <div class="adm-fb adm-fb-err" id="logo-fb-err">—</div>
+              <div class="adm-fb adm-fb-ok" id="sprites-fb-ok">✓ Sprites salvos!</div>
+              <div class="adm-fb adm-fb-err" id="sprites-fb-err">—</div>
             </div>
           </div>
 
-          <!-- GIF DO LOADING -->
-          <div class="adm-section" id="sec-loading-gif">
-            <div class="adm-sec-title">GIF do Loading</div>
-            <div class="adm-sec-sub">Substitua a pokeball animada da tela de carregamento por um GIF personalizado. Ele será exibido enquanto o site verifica a sessão do usuário.</div>
-            <div class="adm-box" style="max-width:480px">
-              <div class="adm-box-title">GIF atual</div>
-              <div id="loading-gif-preview-wrap" style="margin-bottom:16px;min-height:80px;display:flex;align-items:center;gap:12px">
-                <img id="loading-gif-preview-adm" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
-                <span id="loading-gif-preview-empty" style="font-size:13px;color:var(--muted)">Nenhum GIF cadastrado — pokeball padrão será usada.</span>
-              </div>
-              <div class="adm-field">
-                <label>Selecionar GIF (GIF animado — máx 2 MB)</label>
-                <input type="file" id="loading-gif-file-input" accept="image/gif"
-                  style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
-                  onchange="previewLoadingGifUpload(this)"/>
-              </div>
-              <div id="loading-gif-new-preview-wrap" style="display:none;margin-bottom:14px">
-                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
-                <img id="loading-gif-new-preview" src="" alt="" style="width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
-              </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarLoadingGif()">💾 Salvar GIF</button>
-                <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="removerLoadingGif()">🗑 Remover GIF</button>
-              </div>
-              <div class="adm-fb adm-fb-ok" id="loading-gif-fb-ok">✓ GIF salvo com sucesso!</div>
-              <div class="adm-fb adm-fb-err" id="loading-gif-fb-err">—</div>
-            </div>
-          </div>
-
-          <!-- SPRITES DO TOPNAV -->
-          <div class="adm-section" id="sec-sprites">
-            <div class="adm-sec-title">Sprites do Topnav</div>
-            <div class="adm-sec-sub">Substitua os ícones SVG padrão da barra de navegação superior por imagens personalizadas (PNG/WebP/GIF, máx 100KB cada).</div>
-            <div id="sprites-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px"></div>
-            <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
-              <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarSprites()">💾 Salvar todos</button>
-              <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="resetarSprites()">↩ Resetar para SVG padrão</button>
-            </div>
-            <div class="adm-fb adm-fb-ok" id="sprites-fb-ok">✓ Sprites salvos!</div>
-            <div class="adm-fb adm-fb-err" id="sprites-fb-err">—</div>
-          </div>
-
-
+          <!-- FILTROS DE FOTO -->
           <div class="adm-section" id="sec-filtros">
             <div class="adm-sec-title">Filtros de Foto</div>
             <div class="adm-sec-sub">Crie, edite e reordene os filtros disponíveis no editor de foto dos jogadores.</div>
@@ -1777,17 +1783,33 @@ function mostrarPainelAdm() {
   carregarUsuarios();
 }
 
+function admImgTab(btn, id) {
+  document.querySelectorAll('.adm-img-tab').forEach(b => {
+    b.style.background = '#fff';
+    b.style.color      = 'var(--text)';
+    b.classList.remove('active');
+  });
+  btn.style.background = 'var(--brand-mid)';
+  btn.style.color      = '#fff';
+  btn.classList.add('active');
+  ['img-logo','img-gif','img-sprites'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.style.display = (s === id) ? 'block' : 'none';
+  });
+  if (id === 'img-logo')    carregarLogoAdm();
+  if (id === 'img-gif')     carregarLoadingGifAdm();
+  if (id === 'img-sprites') carregarSpritesAdm();
+}
+
 function admTab(btn, id) {
   document.querySelectorAll('.adm-snav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.adm-section').forEach(s => s.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('sec-' + id).classList.add('active');
-  if (id === 'posts') carregarPosts();
-  if (id === 'stats') carregarStats();
-  if (id === 'logo')         carregarLogoAdm();
-  if (id === 'loading-gif')  carregarLoadingGifAdm();
+  if (id === 'posts')   carregarPosts();
+  if (id === 'stats')   carregarStats();
+  if (id === 'imagens') { carregarLogoAdm(); }
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
-  if (id === 'sprites') carregarSpritesAdm();
   if (id === 'npcs')    admNpcLoad();
 }
 
@@ -2081,10 +2103,12 @@ async function removerLoadingGif() {
 // ── Sprites do Topnav ─────────────────────────────────────
 // Definição dos sprites gerenciáveis (id, label, seletor do elemento, tamanho padrão)
 const SPRITE_DEFS = [
-  { key: 'nav_home',    label: 'Início (casa)',     sel: '#btn-feed svg',    dbKey: 'sprite_nav_home' },
-  { key: 'nav_create',  label: 'Criar publicação',  sel: '.tn-btn[onclick="showNewPost()"] svg', dbKey: 'sprite_nav_create' },
-  { key: 'nav_explore', label: 'Explorar (lupa)',   sel: '#btn-explore svg', dbKey: 'sprite_nav_explore' },
-  { key: 'nav_logout',  label: 'Sair (logout)',     sel: '.tn-btn[onclick="doLogout()"] svg', dbKey: 'sprite_nav_logout' },
+  { key: 'nav_home',    label: 'Início (casa)',        sel: '#btn-feed svg',                              dbKey: 'sprite_nav_home' },
+  { key: 'nav_create',  label: 'Criar publicação',     sel: '.tn-btn[onclick="showNewPost()"] svg',        dbKey: 'sprite_nav_create' },
+  { key: 'nav_explore', label: 'Explorar (lupa)',      sel: '#btn-explore svg',                           dbKey: 'sprite_nav_explore' },
+  { key: 'nav_notif',   label: 'Notificações (sino)',  sel: '#btn-notif svg',                             dbKey: 'sprite_nav_notif' },
+  { key: 'nav_profile', label: 'Perfil (avatar nav)',  sel: '#btn-profile',                               dbKey: 'sprite_nav_profile' },
+  { key: 'nav_logout',  label: 'Sair (logout)',        sel: '.tn-btn[onclick="doLogout()"] svg',           dbKey: 'sprite_nav_logout' },
 ];
 let _pendingSprites = {}; // key → base64
 
@@ -2197,24 +2221,54 @@ async function applyTopnavSprites() {
       if (def.key === 'nav_explore') return document.getElementById('btn-explore');
       if (def.key === 'nav_create')  return document.querySelector('.tn-btn[onclick="showNewPost()"]');
       if (def.key === 'nav_logout')  return document.querySelector('.tn-btn[onclick="doLogout()"]');
+      if (def.key === 'nav_notif')   return document.getElementById('btn-notif');
+      if (def.key === 'nav_profile') return document.getElementById('btn-profile');
     })();
     if (!tnBtn) return;
     if (val) {
-      // substituir o SVG por uma tag <img> de sprite
-      const existing = tnBtn.querySelector('svg');
-      if (existing) existing.remove();
-      let spriteImg = tnBtn.querySelector('.tn-sprite-img');
-      if (!spriteImg) {
-        spriteImg = document.createElement('img');
-        spriteImg.className = 'tn-sprite-img';
-        spriteImg.style.cssText = 'width:22px;height:22px;object-fit:contain;display:block';
-        tnBtn.insertBefore(spriteImg, tnBtn.firstChild);
+      if (def.key === 'nav_profile') {
+        // O botão de perfil tem um div.tn-avatar — substitui por sprite mas preserva o clique
+        let spriteImg = tnBtn.querySelector('.tn-sprite-img');
+        if (!spriteImg) {
+          spriteImg = document.createElement('img');
+          spriteImg.className = 'tn-sprite-img';
+          spriteImg.style.cssText = 'width:28px;height:28px;object-fit:contain;display:block;border-radius:50%';
+          Array.from(tnBtn.children).forEach(c => { if (!c.classList.contains('tn-sprite-img')) c.style.display = 'none'; });
+          tnBtn.insertBefore(spriteImg, tnBtn.firstChild);
+        }
+        spriteImg.src = val;
+      } else if (def.key === 'nav_notif') {
+        // Preserva o badge de notificação — apenas troca o SVG
+        const existing = tnBtn.querySelector('svg');
+        if (existing) existing.remove();
+        let spriteImg = tnBtn.querySelector('.tn-sprite-img');
+        if (!spriteImg) {
+          spriteImg = document.createElement('img');
+          spriteImg.className = 'tn-sprite-img';
+          spriteImg.style.cssText = 'width:22px;height:22px;object-fit:contain;display:block';
+          tnBtn.insertBefore(spriteImg, tnBtn.firstChild);
+        }
+        spriteImg.src = val;
+      } else {
+        // substituir o SVG por uma tag <img> de sprite
+        const existing = tnBtn.querySelector('svg');
+        if (existing) existing.remove();
+        let spriteImg = tnBtn.querySelector('.tn-sprite-img');
+        if (!spriteImg) {
+          spriteImg = document.createElement('img');
+          spriteImg.className = 'tn-sprite-img';
+          spriteImg.style.cssText = 'width:22px;height:22px;object-fit:contain;display:block';
+          tnBtn.insertBefore(spriteImg, tnBtn.firstChild);
+        }
+        spriteImg.src = val;
       }
-      spriteImg.src = val;
     } else {
-      // remove sprite e mantém svg original (não podemos restaurar o SVG removido sem recarga, ignora)
+      // remove sprite e restaura visibilidade dos filhos originais
       const spriteImg = tnBtn.querySelector('.tn-sprite-img');
       if (spriteImg) spriteImg.remove();
+      if (def.key === 'nav_profile') {
+        Array.from(tnBtn.children).forEach(c => { c.style.display = ''; });
+      }
     }
   });
 }
