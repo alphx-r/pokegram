@@ -734,7 +734,8 @@ input, select, textarea { font-family: var(--font); }
 .profile-stats {
   display: flex;
   gap: 40px;
-  margin-bottom: 6px;
+margin-top: -16px;
+  margin-bottom: 16px;
 }
 .stat-item { font-size: 16px; }
 .stat-item strong { font-weight: 700; }
