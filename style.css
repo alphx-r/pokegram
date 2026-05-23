@@ -690,7 +690,7 @@ input, select, textarea { font-family: var(--font); }
 }
 .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-.profile-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; padding-top: 8px; }
+.profile-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; padding-top: 3px; margin-top: -5px; }
 .profile-top-row {
   display: flex;
   align-items: center;
@@ -1224,6 +1224,7 @@ input, select, textarea { font-family: var(--font); }
   .profile-meta {
     flex: 1; min-width: 0; overflow: hidden;
     display: flex; flex-direction: column; justify-content: center;
+    margin-top: -5px;
   }
   .profile-top-row {
     flex-wrap: nowrap; gap: 8px; margin-bottom: 4px; align-items: center;
