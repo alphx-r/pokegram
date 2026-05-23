@@ -952,11 +952,16 @@ function enterApp(user) {
 
 function doLogout() { clearSession(); currentUser = null; location.reload(); }
 
-function initPokegram() {
+async function initPokegram() {
   const saved = loadSession();
   if (saved) {
     currentUser = saved;
-    enterApp(saved);
+    // Re-fetch dados frescos do banco para garantir avatar_url e demais campos atualizados
+    try {
+      const { data: fresh } = await db.from('users').select('*').eq('id', saved.id).maybeSingle();
+      if (fresh) { currentUser = fresh; saveSession(fresh); }
+    } catch(_) {}
+    enterApp(currentUser);
   } else {
     hideSplash();
     document.getElementById('auth-screen').style.display = 'flex';
