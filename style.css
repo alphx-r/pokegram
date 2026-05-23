@@ -8,17 +8,17 @@
   --red-dark:   #b71c1c;
   --red-light:  #ffebee;
   --yellow:     #fdd835;
-  --bg:         #efefef;
+  --bg:         #fafafa;
   --white:      #ffffff;
-  --border:     #d8d8d8;
-  --border-lt:  #e8e8e8;
-  --text:       #1a1a1a;
-  --text-mid:   #555555;
-  --text-light: #909090;
-  --link:       #385185;
+  --border:     #dbdbdb;
+  --border-lt:  #efefef;
+  --text:       #262626;
+  --text-mid:   #737373;
+  --text-light: #8e8e8e;
+  --link:       #00376b;
   --sidebar-w:  244px;
   --topnav-h:   54px;
-  --radius:     4px;
+  --radius:     8px;
   --font:       'Nunito', sans-serif;
 }
 
@@ -358,7 +358,7 @@ input, select, textarea { font-family: var(--font); }
 .topnav-search-inner {
   display: flex;
   align-items: center;
-  background: #f0f0f0;
+  background: #fafafa;
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 6px 12px;
@@ -390,7 +390,7 @@ input, select, textarea { font-family: var(--font); }
   color: var(--text);
   transition: background .1s;
 }
-.tn-btn:hover { background: #e8e8e8; }
+.tn-btn:hover { background: #f0f0f0; }
 .tn-btn.active svg { stroke-width: 2.5; }
 .tn-btn svg {
   width: 22px; height: 22px;
@@ -764,7 +764,8 @@ input, select, textarea { font-family: var(--font); }
 .search-wrap {
   display: flex;
   align-items: center;
-  background: #efefef;
+  background: #fafafa;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 12px;
   gap: 8px;
@@ -833,7 +834,7 @@ input, select, textarea { font-family: var(--font); }
 .profile-avatar {
   width: 150px; height: 150px;
   border-radius: 50%;
-  background: #cccccc;
+  background: var(--red);
   color: white;
   display: flex; align-items: center; justify-content: center;
   font-size: 52px; font-weight: 800;
@@ -869,14 +870,14 @@ input, select, textarea { font-family: var(--font); }
 .btn-edit-profile:hover { background: #f5f5f5; }
 .btn-follow-profile {
   padding: 7px 16px;
-  background: #385185;
+  background: #0095f6;
   color: white;
   border-radius: var(--radius);
   font-size: 14px;
   font-weight: 700;
   transition: background .1s;
 }
-.btn-follow-profile:hover { background: #2a3d63; }
+.btn-follow-profile:hover { background: #00376b; }
 .btn-follow-profile.following {
   background: transparent;
   border: 1px solid var(--border);
