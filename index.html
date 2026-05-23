@@ -347,7 +347,7 @@
       </div>
       <div class="post-modal-body">
         <div class="post-img-area" id="post-image-area">
-          <!-- Tabs: foto ou emoji -->
+          <!-- Tabs: foto, emoji ou story -->
           <div class="post-type-tabs">
             <button class="post-type-tab active" id="tab-photo" onclick="switchPostTab('photo')">
               <svg viewBox="0 0 24 24" width="16" height="16"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -356,6 +356,10 @@
             <button class="post-type-tab" id="tab-emoji" onclick="switchPostTab('emoji')">
               <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               Emoji
+            </button>
+            <button class="post-type-tab" id="tab-story" onclick="switchPostTab('story')">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
+              Story
             </button>
           </div>
           <!-- Área foto -->
@@ -368,6 +372,20 @@
           <!-- Área emoji (oculta por padrão) -->
           <div id="post-emoji-area" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100%">
             <div id="emoji-bg-picker" class="emoji-picker-grid"></div>
+          </div>
+          <!-- Área story -->
+          <div id="post-story-area" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:20px">
+            <div id="story-preview-wrap" style="width:100%;max-width:180px;aspect-ratio:9/16;background:#111;border-radius:10px;overflow:hidden;position:relative;cursor:pointer" onclick="document.getElementById('story-img-file').click()">
+              <img id="story-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
+              <div id="story-upload-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#666">
+                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span style="font-size:12px;text-align:center">Selecionar foto<br><small style="color:#888">1080 × 1920 (9:16)</small></span>
+              </div>
+            </div>
+            <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
+            <div style="font-size:11px;color:#8e8e8e;text-align:center;line-height:1.5">
+              Stories ficam disponíveis por <strong>24 horas</strong><br>e não aparecem no feed principal.
+            </div>
           </div>
         </div>
         <div class="post-caption-side">
@@ -414,6 +432,32 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
+
+  <!-- MODAL STORY VIEWER -->
+  <div id="modal-story" style="display:none;position:fixed;inset:0;z-index:8000;background:#000;flex-direction:column;align-items:center;justify-content:center">
+    <!-- barra de progresso -->
+    <div id="story-progress-bar" style="position:absolute;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,0.3);z-index:10">
+      <div id="story-progress-fill" style="height:100%;background:#fff;width:0%;transition:none"></div>
+    </div>
+    <!-- header -->
+    <div style="position:absolute;top:10px;left:0;right:0;display:flex;align-items:center;padding:0 16px;z-index:10;gap:10px">
+      <div id="sv-avatar" style="width:36px;height:36px;border-radius:50%;border:2px solid #fff;overflow:hidden;flex-shrink:0"></div>
+      <div>
+        <div id="sv-username" style="color:#fff;font-weight:700;font-size:14px;font-family:'Nunito',sans-serif"></div>
+        <div id="sv-time" style="color:rgba(255,255,255,0.7);font-size:11px;font-family:'Nunito',sans-serif"></div>
+      </div>
+      <button onclick="closeStoryViewer()" style="margin-left:auto;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;padding:4px">✕</button>
+    </div>
+    <!-- imagem -->
+    <img id="sv-image" style="max-width:100%;max-height:100vh;object-fit:contain;user-select:none" draggable="false">
+    <!-- navegação tap -->
+    <div style="position:absolute;inset:0;display:flex">
+      <div style="flex:1;cursor:pointer" onclick="storyNav(-1)"></div>
+      <div style="flex:1;cursor:pointer" onclick="storyNav(1)"></div>
+    </div>
+    <!-- delete (só dono) -->
+    <button id="sv-delete-btn" style="display:none;position:absolute;bottom:24px;right:20px;background:rgba(229,57,53,0.85);color:#fff;border:none;border-radius:20px;padding:8px 18px;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer" onclick="deleteCurrentStory()">🗑 Apagar story</button>
+  </div>
 
   <!-- MODAL EDITAR PERFIL -->
   <div id="modal-edit-profile" class="modal hidden">
@@ -1234,9 +1278,11 @@ async function renderFeed() {
 }
 
 async function renderStories() {
-  const list = document.getElementById('stories-list');
-  if (!list) return;
+  const list  = document.getElementById('stories-list');
   const myPic = document.getElementById('my-story-pic');
+  if (!list) return;
+
+  // avatar do usuário no "Seu story"
   if (myPic) {
     if (currentUser.avatar_url) {
       myPic.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
@@ -1247,17 +1293,53 @@ async function renderStories() {
     }
   }
 
-  const { data: users } = await db.from('users').select('id,username,color,avatar_url').neq('id', currentUser.id).limit(12);
-  list.innerHTML = (users || []).map(u => `
-    <div class="story-item" onclick="showUserProfile('${u.username}')">
-      <div class="story-ring">
-        ${u.avatar_url
-          ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
-          : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username)}</div>`
-        }
-      </div>
+  // buscar stories ativos (não expirados) de outros usuários
+  const { data: stories } = await db
+    .from('stories')
+    .select('user_id, users(id, username, color, avatar_url)')
+    .gt('expires_at', new Date().toISOString())
+    .neq('user_id', currentUser.id);
+
+  // buscar se eu tenho story ativo (para mostrar anel no meu avatar)
+  const { data: myStories } = await db
+    .from('stories')
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .gt('expires_at', new Date().toISOString())
+    .limit(1);
+
+  // anel no "Seu story" se eu tiver story ativo
+  const myRing = document.querySelector('.story-mine .story-ring');
+  if (myRing) {
+    myRing.classList.toggle('story-ring-active', !!(myStories && myStories.length > 0));
+  }
+  // tornar "Seu story" clicável para ver o próprio story se tiver
+  const mineItem = document.querySelector('.story-mine');
+  if (mineItem) {
+    if (myStories && myStories.length > 0) {
+      mineItem.onclick = () => openStoryViewer(currentUser.id);
+    } else {
+      mineItem.onclick = () => { showNewPost(); switchPostTab('story'); };
+    }
+  }
+
+  // agrupar por user_id (1 bolha por usuário)
+  const seen = new Set();
+  const unique = (stories || []).filter(s => {
+    if (seen.has(s.user_id)) return false;
+    seen.add(s.user_id); return true;
+  });
+
+  list.innerHTML = unique.map(s => {
+    const u = s.users || {};
+    const pic = u.avatar_url
+      ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
+      : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username||'?')}</div>`;
+    return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
+      <div class="story-ring story-ring-active">${pic}</div>
       <span>${u.username}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function renderPosts() {
@@ -1843,19 +1925,28 @@ function showNewPost() {
 
 function switchPostTab(tab) {
   _postActiveTab = tab;
-  document.getElementById('tab-photo')?.classList.toggle('active', tab === 'photo');
-  document.getElementById('tab-emoji')?.classList.toggle('active', tab === 'emoji');
-  const photoArea = document.getElementById('post-photo-area');
-  const emojiArea = document.getElementById('post-emoji-area');
-  if (photoArea) photoArea.style.display = tab === 'photo' ? '' : 'none';
-  if (emojiArea) emojiArea.style.display = tab === 'emoji' ? 'flex' : 'none';
+  ['photo','emoji','story'].forEach(t => {
+    document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
+  });
+  document.getElementById('post-photo-area').style.display  = tab === 'photo' ? ''     : 'none';
+  document.getElementById('post-emoji-area').style.display  = tab === 'emoji' ? 'flex' : 'none';
+  document.getElementById('post-story-area').style.display  = tab === 'story' ? 'flex' : 'none';
+
+  // título e botão do modal
+  const title = document.querySelector('#modal-post .modal-header h3');
+  const btn   = document.querySelector('#modal-post .btn-share-modal');
+  if (title) title.textContent = tab === 'story' ? 'Novo story' : 'Nova publicação';
+  if (btn)   btn.textContent   = tab === 'story' ? 'Publicar story' : 'Compartilhar';
+
+  // caption side — stories não têm legenda
+  const side = document.querySelector('.post-caption-side');
+  if (side) side.style.display = tab === 'story' ? 'none' : '';
 }
 
 function previewPostImage(input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 15 * 1024 * 1024) { toast('Imagem muito grande. Máximo 15MB.'); return; }
-  // open square cropper
   openCropper(file, 'square', croppedFile => {
     _postPendingImageFile = croppedFile;
     const reader = new FileReader();
@@ -1872,6 +1963,144 @@ function previewPostImage(input) {
     reader.readAsDataURL(croppedFile);
   });
   input.value = '';
+}
+
+// ── Stories ───────────────────────────────────────────────
+let _storyPendingFile = null;
+let _storyViewList    = [];
+let _storyViewIdx     = 0;
+let _storyTimer       = null;
+
+function previewStoryImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { toast('Imagem muito grande. Máximo 20MB.'); return; }
+  openCropper(file, 'story', croppedFile => {
+    _storyPendingFile = croppedFile;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img  = document.getElementById('story-preview-img');
+      const ph   = document.getElementById('story-upload-placeholder');
+      if (img) { img.src = e.target.result; img.style.display = 'block'; }
+      if (ph)  ph.style.display = 'none';
+    };
+    reader.readAsDataURL(croppedFile);
+  });
+  input.value = '';
+}
+
+async function submitStory() {
+  if (!_storyPendingFile) { toast('Selecione uma foto para o story!'); return; }
+  const btn = document.querySelector('#modal-post .btn-share-modal');
+  if (btn) { btn.textContent = 'Publicando...'; btn.disabled = true; }
+
+  const path = `${currentUser.id}_${Date.now()}.jpg`;
+  const { error: upErr } = await db.storage.from('stories').upload(path, _storyPendingFile, { upsert: false, contentType: 'image/jpeg' });
+  if (upErr) {
+    toast('Erro ao enviar story: ' + upErr.message);
+    if (btn) { btn.textContent = 'Publicar story'; btn.disabled = false; }
+    return;
+  }
+  const { data: urlData } = db.storage.from('stories').getPublicUrl(path);
+  const image_url = urlData.publicUrl;
+
+  const { error } = await db.from('stories').insert({ user_id: currentUser.id, image_url });
+  if (btn) { btn.textContent = 'Publicar story'; btn.disabled = false; }
+  if (error) { toast('Erro ao publicar story: ' + error.message); return; }
+
+  _storyPendingFile = null;
+  closeModal('modal-post');
+  await renderStories();
+  toast('Story publicado! Disponível por 24h 🕐');
+}
+
+// ── Story Viewer ──────────────────────────────────────────
+async function openStoryViewer(userId) {
+  // busca stories do usuário (não expirados)
+  const { data: stories } = await db
+    .from('stories')
+    .select('*, users(id, username, color, avatar_url)')
+    .eq('user_id', userId)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: true });
+
+  if (!stories || !stories.length) { toast('Nenhum story disponível.'); return; }
+  _storyViewList = stories;
+  _storyViewIdx  = 0;
+  showStory(_storyViewIdx);
+  document.getElementById('modal-story').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function showStory(idx) {
+  clearTimeout(_storyTimer);
+  const story = _storyViewList[idx];
+  if (!story) { closeStoryViewer(); return; }
+  const u = story.users || {};
+
+  // imagem
+  document.getElementById('sv-image').src = story.image_url;
+
+  // avatar
+  const avEl = document.getElementById('sv-avatar');
+  avEl.innerHTML = u.avatar_url
+    ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover">`
+    : `<div style="width:100%;height:100%;background:${u.color||'#e53935'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif">${initials(u.username||'?')}</div>`;
+
+  document.getElementById('sv-username').textContent = u.username || '?';
+  document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás · expira em ' + expiresIn(story.expires_at);
+
+  // botão apagar (só dono)
+  const delBtn = document.getElementById('sv-delete-btn');
+  delBtn.style.display = u.id === currentUser.id ? 'block' : 'none';
+  delBtn.dataset.storyId = story.id;
+  delBtn.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
+
+  // barra de progresso — 5s por story
+  const fill = document.getElementById('story-progress-fill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+  requestAnimationFrame(() => {
+    fill.style.transition = 'width 5s linear';
+    fill.style.width = '100%';
+  });
+  _storyTimer = setTimeout(() => storyNav(1), 5000);
+}
+
+function storyNav(dir) {
+  const next = _storyViewIdx + dir;
+  if (next < 0 || next >= _storyViewList.length) { closeStoryViewer(); return; }
+  _storyViewIdx = next;
+  showStory(_storyViewIdx);
+}
+
+function closeStoryViewer() {
+  clearTimeout(_storyTimer);
+  document.getElementById('modal-story').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function deleteCurrentStory() {
+  const btn    = document.getElementById('sv-delete-btn');
+  const id     = btn.dataset.storyId;
+  const path   = btn.dataset.storyPath;
+  if (!confirm('Apagar este story?')) return;
+  if (path) await db.storage.from('stories').remove([path]);
+  await db.from('stories').delete().eq('id', id);
+  _storyViewList.splice(_storyViewIdx, 1);
+  if (!_storyViewList.length) { closeStoryViewer(); await renderStories(); return; }
+  if (_storyViewIdx >= _storyViewList.length) _storyViewIdx = _storyViewList.length - 1;
+  showStory(_storyViewIdx);
+  await renderStories();
+  toast('Story apagado.');
+}
+
+function expiresIn(isoStr) {
+  const diff = Math.max(0, new Date(isoStr) - Date.now());
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
 function selectPostEmoji(idx) {
@@ -1935,6 +2164,8 @@ async function deletePost(postId) {
   toast('Publicação apagada.');
 }
 
+async function submitPost() {
+  if (_postActiveTab === 'story') { await submitStory(); return; }
 
   const caption  = document.getElementById('post-caption').value.trim();
   const location = document.getElementById('post-location').value.trim();
@@ -2073,7 +2304,14 @@ function openCropper(file, mode, callback) {
   // update overlay based on mode
   const overlay = document.getElementById('cropper-overlay');
   if (overlay) {
-    if (_cropMode === 'square') {
+    if (_cropMode === 'story') {
+      // overlay 9:16 centralizado
+      overlay.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs><mask id="hole3"><rect width="100" height="100" fill="white"/><rect x="27.5" y="5" width="45" height="90" rx="3" fill="black"/></mask></defs>
+        <rect width="100" height="100" fill="rgba(0,0,0,0.6)" mask="url(#hole3)"/>
+        <rect x="27.5" y="5" width="45" height="90" rx="3" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="0.5"/>
+      </svg>`;
+    } else if (_cropMode === 'square') {
       overlay.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs><mask id="hole2"><rect width="100" height="100" fill="white"/><rect x="8" y="8" width="84" height="84" fill="black"/></mask></defs>
         <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#hole2)"/>
@@ -2177,36 +2415,44 @@ function confirmCrop() {
   const img   = document.getElementById('cropper-img');
   const wrap  = document.getElementById('cropper-wrap');
   const wSize = wrap.offsetWidth;
+  const hSize = wrap.offsetHeight;
   const base  = _cropState.baseScale || 1;
   const scale = base * _cropState.scale;
   const imgW  = img.naturalWidth  * scale;
   const imgH  = img.naturalHeight * scale;
   const offX  = wSize/2 - imgW/2 + _cropState.x;
-  const offY  = wSize/2 - imgH/2 + _cropState.y;
+  const offY  = hSize/2 - imgH/2 + _cropState.y;
 
-  const size   = _cropMode === 'square' ? 1080 : 400;
+  let outW, outH, cropX, cropY, cropW, cropH;
+  if (_cropMode === 'story') {
+    outW = 1080; outH = 1920;
+    cropX = wSize * 0.275; cropY = hSize * 0.05;
+    cropW = wSize * 0.45;  cropH = hSize * 0.90;
+  } else if (_cropMode === 'square') {
+    outW = outH = 1080;
+    cropX = wSize * 0.08; cropY = hSize * 0.08;
+    cropW = wSize * 0.84; cropH = hSize * 0.84;
+  } else {
+    outW = outH = 400;
+    cropX = 0; cropY = 0; cropW = wSize; cropH = hSize;
+  }
+
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
+  canvas.width = outW; canvas.height = outH;
   const ctx = canvas.getContext('2d');
 
   if (_cropMode === 'circle') {
     ctx.beginPath();
-    ctx.arc(size/2, size/2, size/2, 0, Math.PI*2);
+    ctx.arc(outW/2, outH/2, outW/2, 0, Math.PI*2);
     ctx.clip();
   }
 
-  const ratio = size / wSize;
-  // crop region: for square use 84% of wrap (matching the overlay rect)
-  const cropPad = _cropMode === 'square' ? wSize * 0.08 : 0;
-  const cropSize = wSize - cropPad * 2;
-  const srcX = (cropPad - offX) / (imgW / img.naturalWidth / (base * _cropState.scale / (base * _cropState.scale)));
-  // simpler: just draw scaled and offset
   ctx.drawImage(img,
-    (offX - cropPad) * (img.naturalWidth  / imgW),
-    (offY - cropPad) * (img.naturalHeight / imgH),
-    cropSize * (img.naturalWidth  / imgW),
-    cropSize * (img.naturalHeight / imgH),
-    0, 0, size, size
+    (cropX - offX) * (img.naturalWidth  / imgW),
+    (cropY - offY) * (img.naturalHeight / imgH),
+    cropW          * (img.naturalWidth  / imgW),
+    cropH          * (img.naturalHeight / imgH),
+    0, 0, outW, outH
   );
 
   canvas.toBlob(blob => {
