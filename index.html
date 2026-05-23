@@ -1749,34 +1749,43 @@ async function submitEditProfile() {
     usernErr.textContent = 'Apenas letras, números, _ e . (2–30 caracteres).';
     usernErr.style.display = 'block'; return;
   }
-
   if (username !== currentUser.username) {
     const { data: exists } = await db.from('users').select('id').eq('username', username).maybeSingle();
     if (exists) { usernErr.textContent = 'Este username já está em uso.'; usernErr.style.display = 'block'; return; }
   }
 
-  // 1 — salva campos de texto (sem avatar_url para não depender da coluna)
-  const { error: textErr } = await db.from('users')
-    .update({ username, name, bio, rpg, pokemon, pronoun, color })
-    .eq('id', currentUser.id);
-  if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
-  if (textErr) { errEl.textContent = 'Erro ao salvar: ' + textErr.message; errEl.style.display = 'block'; return; }
-  Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color });
+  if (saveBtn) { saveBtn.textContent = 'Salvando...'; saveBtn.disabled = true; }
 
-  // 2 — upload de foto (separado)
+  // 1 — upload da foto PRIMEIRO (antes de salvar o resto)
+  let avatar_url = currentUser.avatar_url || null;
   if (_epPendingAvatarFile) {
-    const path = `${currentUser.id}.jpg`;
-    const { error: upErr } = await db.storage.from('avatars').upload(path, _epPendingAvatarFile, { upsert: true, contentType: 'image/jpeg' });
+    // usar path com timestamp para forçar nova URL sem cache
+    const path = `${currentUser.id}_${Date.now()}.jpg`;
+    const { error: upErr } = await db.storage
+      .from('avatars')
+      .upload(path, _epPendingAvatarFile, { upsert: false, contentType: 'image/jpeg' });
     if (upErr) {
-      toast('Perfil salvo! Mas a foto falhou: ' + upErr.message);
-    } else {
-      const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
-      const avatar_url = urlData.publicUrl + '?t=' + Date.now();
-      await db.from('users').update({ avatar_url }).eq('id', currentUser.id);
-      currentUser.avatar_url = avatar_url;
+      errEl.textContent = 'Erro ao enviar foto: ' + upErr.message + '. Verifique as políticas do bucket "avatars" no Supabase.';
+      errEl.style.display = 'block';
+      if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
+      return;
     }
+    const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
+    avatar_url = urlData.publicUrl; // URL limpa, sem ?t= — evita duplicatas no banco
     _epPendingAvatarFile = null;
   }
+
+  // 2 — salva todos os campos juntos (incluindo avatar_url se mudou)
+  const updatePayload = { username, name, bio, rpg, pokemon, pronoun, color, avatar_url };
+  const { error: textErr } = await db.from('users')
+    .update(updatePayload)
+    .eq('id', currentUser.id);
+
+  if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
+  if (textErr) { errEl.textContent = 'Erro ao salvar: ' + textErr.message; errEl.style.display = 'block'; return; }
+
+  // 3 — atualiza estado local
+  Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color, avatar_url });
   saveSession(currentUser);
   renderSidebarAvatar();
   closeModal('modal-edit-profile');
