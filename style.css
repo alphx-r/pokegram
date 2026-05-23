@@ -426,9 +426,15 @@ input, select, textarea { font-family: var(--font); }
   font-size: 14px;
   line-height: 1.5;
 }
-.post-caption-text .cap-user {
+.post-caption-text .cap-user,
+.post-comment-preview .cap-user {
   font-weight: 700;
   margin-right: 6px;
+  cursor: pointer;
+}
+.post-caption-text .cap-user:hover,
+.post-comment-preview .cap-user:hover {
+  text-decoration: underline;
 }
 .post-caption-text .cap-tag {
   color: #00376b;
@@ -1199,7 +1205,10 @@ input, select, textarea { font-family: var(--font); }
   }
   .stat-item { font-size: 13px; }
   .stat-item strong { font-size: 14px; }
-  .profile-bio { margin-top: 6px; }
+  .profile-bio {
+    margin-top: 4px;
+    width: 100%;
+  }
   .profile-bio .prof-name { font-size: 13px; font-weight: 700; }
   .profile-bio .prof-desc { font-size: 13px; }
 
