@@ -1181,13 +1181,12 @@ input, select, textarea { font-family: var(--font); }
 
   /* Avatar menor no mobile */
   .profile-avatar-wrap { flex-shrink: 0; }
-  .profile-avatar-wrap > div,
-  .profile-avatar-wrap > div > div {
+  .profile-avatar,
+  .profile-avatar-circle {
     width: 86px !important;
     height: 86px !important;
     font-size: 28px !important;
   }
-  .profile-avatar-wrap > div img { width: 100% !important; height: 100% !important; }
 
   /* Meta ao lado do avatar */
   .profile-meta { flex: 1; min-width: 0; overflow: hidden; }
@@ -1315,3 +1314,23 @@ input, select, textarea { font-family: var(--font); }
 
 /* ── Story viewer ─────────────────────────────────────── */
 #modal-story { display: none; }
+
+/* ── Profile avatar circle (usado pelo buildProfileHTML) ── */
+.profile-avatar-circle {
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 52px; font-weight: 800;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.profile-avatar-circle img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+}
+@media (max-width: 768px) {
+  .profile-avatar-circle {
+    width: 86px !important; height: 86px !important; font-size: 28px !important;
+  }
+}
