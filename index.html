@@ -2505,6 +2505,8 @@ const DEFAULT_FILTERS = [
 ];
 
 let _activeFilters = [...DEFAULT_FILTERS];
+window._selectedFilter = 'normal';
+Object.defineProperty(window, '_selectedFilter', { get(){ return this.__sf||'normal'; }, set(v){ this.__sf=v; } });
 let _selectedFilter = 'normal';  // id do filtro ativo no crop
 
 async function loadFilters() {
@@ -2541,46 +2543,13 @@ function selectFilter(id) {
   renderFilterStrip();
 }
 
-// aplica filtro ao canvas na hora de confirmar
-const _origConfirmarCrop = window.confirmarCrop;
-function confirmarCrop() {
-  if (!_cropperInstance || !_cropCallback) return;
-  const cb = _cropCallback;
-  const filterCSS = getFilterCSS(_selectedFilter);
-  const canvas = _cropperInstance.getCroppedCanvas({ maxWidth:1080, maxHeight:1080, imageSmoothingQuality:'high' });
+// confirmarCrop com filtro — definido no bloco do cropper abaixo
 
-  if (!filterCSS) {
-    // sem filtro — usa canvas direto
-    canvas.toBlob(blob => {
-      fecharCrop();
-      _cropCallback = null;
-      cb(new File([blob],'image.jpg',{type:'image/jpeg'}));
-    }, 'image/jpeg', 0.92);
-    return;
-  }
-
-  // aplica filtro via canvas 2d offscreen
-  const out = document.createElement('canvas');
-  out.width  = canvas.width;
-  out.height = canvas.height;
-  const ctx  = out.getContext('2d');
-  ctx.filter = filterCSS;
-  ctx.drawImage(canvas, 0, 0);
-  out.toBlob(blob => {
-    fecharCrop();
-    _cropCallback = null;
-    cb(new File([blob],'image.jpg',{type:'image/jpeg'}));
-  }, 'image/jpeg', 0.92);
-}
-
-// reset ao abrir o crop
-const _origAbrirCrop = _abrirCrop;
-function _abrirCrop(src, callback, aspectRatio) {
+// reset ao abrir o crop — chamado de dentro de _abrirCrop (cropper.js block)
+function _resetFilterOnOpen() {
   _selectedFilter = 'normal';
   const img = document.getElementById('crop-img');
   if (img) img.style.filter = '';
-  _origAbrirCrop(src, callback, aspectRatio);
-  // renderiza strip após cropper inicializar
   setTimeout(renderFilterStrip, 400);
 }
 
@@ -2741,6 +2710,12 @@ function openCropper(file, mode, callback) {
   const reader = new FileReader();
   reader.onload = e => _abrirCrop(e.target.result, callback, ratio);
   reader.readAsDataURL(file);
+}
+
+function closeCropper() { fecharCrop(); }
+function confirmCrop()  { confirmarCrop(); }
+
+</script>URL(file);
 }
 
 function closeCropper() { fecharCrop(); }
