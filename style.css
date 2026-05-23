@@ -644,7 +644,7 @@ input, select, textarea { font-family: var(--font); }
   display: flex;
   align-items: flex-start;
   gap: 80px;
-  margin-bottom: 44px;
+  margin-bottom: 16px;
 }
 .profile-avatar-wrap {
   flex-shrink: 0;
@@ -681,6 +681,11 @@ input, select, textarea { font-family: var(--font); }
   font-weight: 700;
   color: var(--text);
   transition: background .1s;
+  /* desktop: renderizado fora do header mas inline */
+  display: inline-block;
+  margin-left: 20px;
+  margin-bottom: 12px;
+  margin-top: -4px;
 }
 .btn-edit-profile:hover { background: #f5f5f5; }
 .btn-follow-profile {
@@ -691,6 +696,9 @@ input, select, textarea { font-family: var(--font); }
   font-size: 14px;
   font-weight: 700;
   transition: background .1s;
+  display: inline-block;
+  margin-left: 20px;
+  margin-bottom: 12px;
 }
 .btn-follow-profile:hover { background: #1877d2; }
 .btn-follow-profile.following {
@@ -708,6 +716,9 @@ input, select, textarea { font-family: var(--font); }
 .stat-item strong { font-weight: 700; }
 .stat-item span { color: var(--text); }
 
+.profile-bio {
+  padding: 0 0 16px;
+}
 .profile-bio .prof-name {
   font-weight: 700;
   font-size: 14px;
@@ -1156,15 +1167,91 @@ input, select, textarea { font-family: var(--font); }
   .post-card { border-radius: 0; border-left: none; border-right: none; margin-bottom: 0; border-bottom: 1px solid var(--border-lt); width: 100%; }
   .explore-grid { padding: 2px 0 20px; gap: 2px; }
   .explore-top { display: block; padding: 10px 12px; }
-  .profile-page { padding: 16px 0 40px; }
-  .profile-header { gap: 20px; padding: 0 16px; }
-  .profile-avatar { width: 100px; height: 100px; font-size: 34px; }
-  .profile-stats { gap: 20px; }
-  .stat-item { font-size: 14px; }
-  .profile-bio { padding: 0 16px; }
+
+  /* ── Perfil mobile ── */
+  .profile-page { padding: 0 0 60px; }
+
+  .profile-header {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 16px 12px;
+    margin-bottom: 0;
+  }
+
+  /* Avatar menor no mobile */
+  .profile-avatar-wrap { flex-shrink: 0; }
+  .profile-avatar-wrap > div,
+  .profile-avatar-wrap > div > div {
+    width: 86px !important;
+    height: 86px !important;
+    font-size: 28px !important;
+  }
+  .profile-avatar-wrap > div img { width: 100% !important; height: 100% !important; }
+
+  /* Meta ao lado do avatar */
+  .profile-meta { flex: 1; min-width: 0; overflow: hidden; }
+
+  .profile-top-row {
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .profile-username-text { font-size: 15px; font-weight: 600; }
+  .rpg-profile-badge { font-size: 10px; padding: 2px 6px; }
+
+  /* Stats em linha compacta */
+  .profile-stats {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0;
+    justify-content: space-between;
+  }
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 13px;
+    flex: 1;
+    text-align: center;
+  }
+  .stat-item strong { font-size: 15px; font-weight: 700; display: block; }
+
+  /* Bio abaixo do bloco avatar+meta (full width) */
+  .profile-bio {
+    padding: 0 16px 14px;
+    border-bottom: 1px solid var(--border-lt);
+  }
+  .profile-bio .prof-name { font-size: 13px; font-weight: 700; }
+  .profile-bio .prof-desc { font-size: 13px; }
+
+  /* Botão editar perfil full-width abaixo da bio */
+  .btn-edit-profile {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 12px 16px 4px;
+    text-align: center;
+    padding: 7px 16px;
+    font-size: 14px;
+  }
+  .btn-follow-profile {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 12px 16px 4px;
+    text-align: center;
+  }
+
+  /* Tabs e grid */
+  .profile-tabs { margin-top: 0; }
+  .profile-grid { gap: 2px; }
+  .profile-thumb { font-size: 32px; }
+
+  /* Modais */
   .post-modal-body { flex-direction: column; min-height: auto; }
   .post-img-area { width: 100%; min-height: 280px; }
   .toast { bottom: 16px; }
+
   /* Comments split → stack no mobile */
   .comments-split { flex-direction: column; height: auto; max-height: 90vh; overflow-y: auto; }
   .comments-post-side { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--border); }
