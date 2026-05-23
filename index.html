@@ -2581,31 +2581,53 @@ function confirmCrop() {
   const wrap  = document.getElementById('cropper-wrap');
   const wSize = wrap.offsetWidth;
   const hSize = wrap.offsetHeight;
-  const base  = _cropState.baseScale || 1;
-  const scale = base * _cropState.scale;
-  const imgW  = img.naturalWidth  * scale;
-  const imgH  = img.naturalHeight * scale;
-  const offX  = wSize/2 - imgW/2 + _cropState.x;
-  const offY  = hSize/2 - imgH/2 + _cropState.y;
 
-  let outW, outH, cropX, cropY, cropW, cropH;
+  // escala total aplicada à imagem (base × zoom do slider)
+  const scale = (_cropState.baseScale || 1) * _cropState.scale;
+
+  // posição da borda superior-esquerda da imagem renderizada, em pixels do wrap
+  const imgLeft = wSize / 2 - (img.naturalWidth  * scale) / 2 + _cropState.x;
+  const imgTop  = hSize / 2 - (img.naturalHeight * scale) / 2 + _cropState.y;
+
+  // área de recorte em pixels do wrap (o "visor" que queremos capturar)
+  let outW, outH, viewX, viewY, viewW, viewH;
   if (_cropMode === 'story') {
     outW = 1080; outH = 1920;
-    cropX = wSize * 0.275; cropY = hSize * 0.05;
-    cropW = wSize * 0.45;  cropH = hSize * 0.90;
+    viewX = wSize * 0.275; viewY = hSize * 0.05;
+    viewW = wSize * 0.45;  viewH = hSize * 0.90;
   } else if (_cropMode === 'square') {
     outW = outH = 1080;
-    const sqSide = Math.min(wSize, hSize);
-    cropX = (wSize - sqSide) / 2;
-    cropY = (hSize - sqSide) / 2;
-    cropW = cropH = sqSide;
+    const side = Math.min(wSize, hSize);
+    viewX = (wSize - side) / 2;
+    viewY = (hSize - side) / 2;
+    viewW = viewH = side;
   } else {
+    // circle / avatar
     outW = outH = 400;
-    const ciSide = Math.min(wSize, hSize);
-    cropX = (wSize - ciSide) / 2;
-    cropY = (hSize - ciSide) / 2;
-    cropW = cropH = ciSide;
+    const side = Math.min(wSize, hSize);
+    viewX = (wSize - side) / 2;
+    viewY = (hSize - side) / 2;
+    viewW = viewH = side;
   }
+
+  // converte coordenadas do visor → coordenadas na imagem natural
+  // (visor está em pixels do wrap; subtrai posição da imagem e divide pela escala)
+  const srcX = (viewX - imgLeft) / scale;
+  const srcY = (viewY - imgTop)  / scale;
+  const srcW = viewW / scale;
+  const srcH = viewH / scale;
+
+  // garante que não ultrapasse os limites da imagem natural (evita barras pretas)
+  const clampedSrcX = Math.max(0, srcX);
+  const clampedSrcY = Math.max(0, srcY);
+  const clampedSrcW = Math.min(srcW - (clampedSrcX - srcX), img.naturalWidth  - clampedSrcX);
+  const clampedSrcH = Math.min(srcH - (clampedSrcY - srcY), img.naturalHeight - clampedSrcY);
+
+  // destino no canvas (proporcional ao que foi clampado)
+  const dstX = (clampedSrcX - srcX) / srcW * outW;
+  const dstY = (clampedSrcY - srcY) / srcH * outH;
+  const dstW = clampedSrcW / srcW * outW;
+  const dstH = clampedSrcH / srcH * outH;
 
   const canvas = document.createElement('canvas');
   canvas.width = outW; canvas.height = outH;
@@ -2613,17 +2635,11 @@ function confirmCrop() {
 
   if (_cropMode === 'circle') {
     ctx.beginPath();
-    ctx.arc(outW/2, outH/2, outW/2, 0, Math.PI*2);
+    ctx.arc(outW / 2, outH / 2, outW / 2, 0, Math.PI * 2);
     ctx.clip();
   }
 
-  ctx.drawImage(img,
-    (cropX - offX) * (img.naturalWidth  / imgW),
-    (cropY - offY) * (img.naturalHeight / imgH),
-    cropW          * (img.naturalWidth  / imgW),
-    cropH          * (img.naturalHeight / imgH),
-    0, 0, outW, outH
-  );
+  ctx.drawImage(img, clampedSrcX, clampedSrcY, clampedSrcW, clampedSrcH, dstX, dstY, dstW, dstH);
 
   canvas.toBlob(blob => {
     const croppedFile = new File([blob], 'image.jpg', { type: 'image/jpeg' });
