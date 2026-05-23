@@ -362,6 +362,9 @@
       </div>
 
       <div id="view-user" class="view hidden">
+        <button class="back-btn" onclick="goBack()">
+          <svg viewBox="0 0 24 24" width="20" height="20"><polyline points="15,18 9,12 15,6"/></svg> Voltar
+        </button>
         <div id="user-profile-content"></div>
       </div>
     </main>
@@ -1364,7 +1367,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-timestamp">${fmtTimeAgo(p.created_at)}</div>
 
   <div class="post-comment-bar">
-    <div class="mini-avatar" style="background:${currentUser.color||'#e53935'}">${initials(currentUser.username)}</div>
+    <div class="mini-avatar" style="background:${currentUser.avatar_url ? 'transparent' : (currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(currentUser.username)}</div>
     <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
       oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
     <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
@@ -1417,7 +1420,7 @@ async function renderCommentsList(postId) {
   if (!list) return;
   const { data: comments } = await db
     .from('comments')
-    .select('*, users(username, color)')
+    .select('*, users(username, color, avatar_url)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
 
@@ -1429,7 +1432,7 @@ async function renderCommentsList(postId) {
     const u = c.users || { username: '?', color: '#999' };
     return `
       <div class="comment-item">
-        <div class="comment-avatar" style="background:${u.color||'#999'}">${initials(u.username)}</div>
+        <div class="comment-avatar">${u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : `<span style="background:${u.color||'#999'};width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:800;font-size:12px">${initials(u.username)}</span>`}</div>
         <div class="comment-body">
           <strong>${u.username}</strong><span> ${c.text}</span>
           <div class="comment-time">${fmtTimeAgo(c.created_at)}</div>
@@ -1464,7 +1467,7 @@ function renderAsideMini() {
   if (!el) return;
   el.innerHTML = `
     <div class="profile-mini-card">
-      <div class="pm-avatar" style="background:${currentUser.color||'#e53935'}" onclick="showView('profile')">${initials(currentUser.username)}</div>
+      <div class="pm-avatar" onclick="showView('profile')">${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : `<span style="background:${currentUser.color||'#e53935'};width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:50%">${initials(currentUser.username)}</span>`}</div>
       <div class="pm-info">
         <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
         <div class="pm-name">${currentUser.name || currentUser.username}</div>
@@ -1476,10 +1479,10 @@ function renderAsideMini() {
 async function renderSuggestions() {
   const el = document.getElementById('suggestions-list');
   if (!el) return;
-  const { data: users } = await db.from('users').select('id,username,color,rpg').neq('id', currentUser.id).limit(5);
+  const { data: users } = await db.from('users').select('id,username,color,avatar_url,rpg').neq('id', currentUser.id).limit(5);
   el.innerHTML = (users || []).map(u => `
     <div class="suggestion-item">
-      <div class="sug-avatar" style="background:${u.color||'#e53935'}" onclick="showUserProfile('${u.username}')">${initials(u.username)}</div>
+      <div class="sug-avatar" onclick="showUserProfile('${u.username}')">${u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : `<span style="background:${u.color||'#e53935'};width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:800;font-size:12px">${initials(u.username)}</span>`}</div>
       <div class="sug-info">
         <div class="sug-name" onclick="showUserProfile('${u.username}')">${u.username}</div>
         <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
