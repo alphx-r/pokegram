@@ -210,6 +210,14 @@
               <option value="kingdom_platinum">Kingdom Platinum</option>
               <option value="pchapters">PChapters</option>
             </select>
+            <select id="login-pronoun">
+              <option value="">Pronomes (opcional)</option>
+              <option value="ele/dele">ele/dele</option>
+              <option value="ela/dela">ela/dela</option>
+              <option value="elu/delu">elu/delu</option>
+              <option value="ele/ela">ele/ela</option>
+              <option value="qualquer">qualquer pronome</option>
+            </select>
           </div>
           <div id="auth-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
           <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
@@ -421,6 +429,18 @@
           <label style="font-size:12px;font-weight:700;color:#8e8e8e">Nome de exibição</label>
           <input id="ep-name" type="text" maxlength="40" placeholder="Seu Nome"
             style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:12px;font-weight:700;color:#8e8e8e">Pronomes</label>
+          <select id="ep-pronoun" style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;background:#fff">
+            <option value="">Prefiro não informar</option>
+            <option value="ele/dele">ele/dele</option>
+            <option value="ela/dela">ela/dela</option>
+            <option value="elu/delu">elu/delu</option>
+            <option value="ele/ela">ele/ela</option>
+            <option value="qualquer">qualquer pronome</option>
+          </select>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:4px">
@@ -728,11 +748,16 @@ async function dbLogin(username, password) {
   if (Array.isArray(data)) return data[0] || null;
   return data;
 }
-async function dbRegister(username, password, rpg, emoji) {
+async function dbRegister(username, password, rpg, emoji, pronoun) {
   const { data, error } = await db.rpc('register_user', { p_username: username, p_password: password, p_rpg: rpg, p_emoji: emoji || '🎮' });
   if (error) throw error;
-  if (Array.isArray(data)) return data[0] || null;
-  return data;
+  const user = Array.isArray(data) ? data[0] : data;
+  // salva pronome separadamente pois a RPC pode não suportá-lo ainda
+  if (user && pronoun) {
+    await db.from('users').update({ pronoun }).eq('id', user.id);
+    user.pronoun = pronoun;
+  }
+  return user || null;
 }
 async function dbCheckUserExists(username) {
   const { data } = await db.from('users').select('id').eq('username', username).maybeSingle();
@@ -774,10 +799,11 @@ async function doAuth() {
     if (isRegisterMode) {
       const confirm = document.getElementById('login-confirm').value;
       const rpg     = document.getElementById('login-rpg').value;
+      const pronoun = document.getElementById('login-pronoun').value;
       if (password !== confirm) { showAuthError('As senhas não coincidem.'); return; }
       if (!rpg)                 { showAuthError('Selecione seu RPG.'); return; }
       if (password.length < 6)  { showAuthError('Senha deve ter ao menos 6 caracteres.'); return; }
-      const user = await dbRegister(username, password, rpg);
+      const user = await dbRegister(username, password, rpg, null, pronoun);
       if (!user) { showAuthError('Erro ao cadastrar. Tente novamente.'); return; }
       currentUser = user; saveSession(user); enterApp(user);
     } else {
@@ -1472,7 +1498,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
             <div class="stat-item"><strong>${fmtNum(following||0)}</strong> seguindo</div>
           </div>
           <div class="profile-bio">
-            <div class="prof-name">${u.name || u.username}</div>
+            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:13px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
             ${rpgLabel ? `<div class="prof-starter">${rpgLabel}</div>` : ''}
             ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
             ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
@@ -1552,6 +1578,7 @@ function openEditProfile() {
   document.getElementById('ep-bio').value      = u.bio     || '';
   document.getElementById('ep-bio-count').textContent = (u.bio||'').length + '/150';
   document.getElementById('ep-rpg').value      = u.rpg     || '';
+  document.getElementById('ep-pronoun').value  = u.pronoun || '';
   document.getElementById('ep-username-err').style.display = 'none';
   document.getElementById('ep-save-err').style.display     = 'none';
 
@@ -1598,6 +1625,7 @@ async function submitEditProfile() {
   const bio      = document.getElementById('ep-bio').value.trim();
   const rpg      = document.getElementById('ep-rpg').value;
   const pokemon  = document.getElementById('ep-pokemon').value;
+  const pronoun  = document.getElementById('ep-pronoun').value;
   const color    = _epSelectedColor || currentUser.color || '#e53935';
   const errEl    = document.getElementById('ep-save-err');
   const usernErr = document.getElementById('ep-username-err');
@@ -1615,11 +1643,11 @@ async function submitEditProfile() {
     if (exists) { usernErr.textContent = 'Este username já está em uso.'; usernErr.style.display = 'block'; return; }
   }
 
-  const { error } = await db.from('users').update({ username, name, bio, rpg, pokemon, color }).eq('id', currentUser.id);
+  const { error } = await db.from('users').update({ username, name, bio, rpg, pokemon, pronoun, color }).eq('id', currentUser.id);
   if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
 
   // atualiza sessão local
-  Object.assign(currentUser, { username, name, bio, rpg, pokemon, color });
+  Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color });
   saveSession(currentUser);
   renderSidebarAvatar();
   closeModal('modal-edit-profile');
