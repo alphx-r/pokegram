@@ -1,2523 +1,1285 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pokégram</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+/* ============================
+   POKÉGRAM — style.css
+   Instagram-style UI
+   ============================ */
 
-<style>
-/* ══════════════════════════════════════
-   ADM — estilos (só ativos em /adm)
-══════════════════════════════════════ */
-#adm-root{
-  --brand:#b71c1c;--brand-mid:#e53935;--brand-light:#ffebee;
-  --accent:#fdd835;
-  --bg:#f4f4f4;--surface:#fff;--surface2:#f8f8f8;
-  --border:#e0e0e0;
-  --text:#1a1a1a;--muted:#6b7280;
-  --red:#c03030;--green:#1a7a1a;
-  --r:10px;
-}
-.adm-body{background:#f4f4f4!important}
-
-/* NAV ADM */
-.adm-nav{display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:58px;background:var(--brand);position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.adm-nav-logo{display:flex;align-items:center;gap:10px}
-.adm-nlb{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.6);overflow:hidden;position:relative;flex-shrink:0}
-.adm-nlb-top{height:50%;background:#fff}
-.adm-nlb-band{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:4px;background:rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center}
-.adm-nlb-btn{width:8px;height:8px;border-radius:50%;background:#fff;border:1.5px solid rgba(0,0,0,.2)}
-.adm-nlb-bottom{height:50%;background:rgba(255,255,255,.25)}
-.adm-nav-text{font-family:'Cinzel',serif;font-size:15px;color:#fff;letter-spacing:.5px}
-.adm-nav-text span{color:var(--accent)}
-.adm-nav-badge{font-size:10px;font-weight:700;background:rgba(255,255,255,.2);color:#fff;padding:2px 8px;border-radius:20px;letter-spacing:.5px;border:1px solid rgba(255,255,255,.3)}
-.adm-nav-right{display:flex;align-items:center;gap:10px}
-.adm-nav-user{font-size:12px;color:rgba(255,255,255,.8);font-weight:600}
-.adm-nav-logout{font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.4);background:transparent;color:#fff;cursor:pointer;transition:all .2s;font-family:'Nunito',sans-serif}
-.adm-nav-logout:hover{background:rgba(255,255,255,.15)}
-
-/* LOGIN ADM */
-.adm-login-page{min-height:calc(100vh - 58px);display:flex;align-items:center;justify-content:center;padding:28px;background:var(--bg)}
-.adm-login-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:40px 36px;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
-.adm-login-icon{width:64px;height:64px;background:var(--brand-light);border-radius:50%;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:28px}
-.adm-login-title{font-family:'Cinzel',serif;font-size:20px;color:var(--brand);text-align:center;margin-bottom:4px}
-.adm-login-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:28px}
-
-/* FIELDS ADM */
-.adm-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
-.adm-field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
-.adm-field input{padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:14px;color:var(--text);transition:border .2s;width:100%}
-.adm-field input:focus{outline:none;border-color:var(--brand-mid)}
-.adm-pw-wrap{position:relative}
-.adm-pw-wrap input{padding-right:38px}
-.adm-pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;padding:0;line-height:1}
-
-/* BUTTONS ADM */
-.adm-btn{padding:9px 18px;border-radius:8px;border:none;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
-.adm-btn-primary{background:var(--brand-mid);color:#fff}
-.adm-btn-primary:hover{background:var(--brand)}
-.adm-btn-warn{background:#fff8e0;color:#7a5010;border:1px solid #e8d080}
-.adm-btn-warn:hover{background:#fdf0b0}
-.adm-btn-danger{background:#fde8e8;color:var(--red);border:1px solid #f0c0c0}
-.adm-btn-danger:hover{background:#f8c8c8}
-.adm-btn-sm{padding:5px 11px;font-size:12px}
-.adm-btn-full{width:100%}
-.adm-fb{font-size:12px;font-weight:700;text-align:center;padding:8px 12px;border-radius:6px;margin-top:8px;display:none}
-.adm-fb-ok{background:#e0f0e0;color:var(--green)}
-.adm-fb-err{background:#fde8e8;color:var(--red)}
-
-/* LAYOUT ADM */
-.adm-wrap{max-width:1100px;margin:0 auto;padding:24px 20px;background:var(--bg);min-height:calc(100vh - 58px)}
-.adm-layout{display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start}
-.adm-sidebar{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:16px;position:sticky;top:78px}
-.adm-sidebar-user{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);word-break:break-all}
-.adm-snav-btn{display:block;width:100%;text-align:left;padding:9px 12px;border-radius:8px;border:none;background:transparent;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;transition:all .15s;margin-bottom:3px}
-.adm-snav-btn:hover{background:var(--brand-light);color:var(--brand-mid)}
-.adm-snav-btn.active{background:var(--brand-light);color:var(--brand-mid)}
-.adm-snav-sep{height:1px;background:var(--border);margin:8px 0}
-.adm-snav-danger{color:var(--red)!important}
-.adm-snav-danger:hover{background:#fde8e8!important}
-.adm-content{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:24px;min-height:500px}
-.adm-section{display:none}
-.adm-section.active{display:block}
-.adm-sec-title{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);margin-bottom:4px}
-.adm-sec-sub{font-size:13px;color:var(--muted);margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border)}
-.adm-box{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:18px;margin-bottom:20px}
-.adm-box-title{font-size:12px;font-weight:700;color:var(--brand-mid);margin-bottom:14px;text-transform:uppercase;letter-spacing:.4px}
-
-/* TABLE ADM */
-.adm-table-wrap{overflow-x:auto}
-.adm-table{width:100%;border-collapse:collapse;font-size:13px}
-.adm-table th{text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1.5px solid var(--border)}
-.adm-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
-.adm-table tr:last-child td{border-bottom:none}
-.adm-table tr:hover td{background:var(--surface2)}
-
-/* STAT CARDS */
-.adm-stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
-.adm-stat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:18px 16px}
-.adm-stat-value{font-family:'Cinzel',serif;font-size:28px;font-weight:700;color:var(--brand);line-height:1}
-.adm-stat-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
-
-/* RPG BADGES */
-.rpg-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px}
-.rpg-kp{background:#e8f0fb;color:#1a3a5c}
-.rpg-pc{background:#fff3e0;color:#7a3a00}
-
-/* MODAL CONFIRM */
-.adm-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;display:none;align-items:center;justify-content:center}
-.adm-modal-overlay.open{display:flex}
-.adm-modal-box{background:var(--surface);border-radius:var(--r);padding:28px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,.2);position:relative}
-.adm-modal-title{font-family:'Cinzel',serif;font-size:15px;color:var(--brand);margin-bottom:18px}
-.adm-modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)}
-
-/* LOADING ADM */
-.adm-loading{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
-.adm-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--brand-mid);border-radius:50%;animation:spin .7s linear infinite}
-.adm-loading-text{font-size:14px;color:var(--muted);font-weight:600}
-
-@keyframes spin{to{transform:rotate(360deg)}}
-
-@media(max-width:768px){
-  .adm-nav{padding:0 14px;height:52px}
-  .adm-wrap{padding:16px 12px}
-  .adm-layout{grid-template-columns:1fr;gap:12px}
-  .adm-sidebar{position:static}
-  .adm-sidebar-user{display:none}
-  .adm-snav-btn{display:inline-block;width:auto;margin-right:4px;margin-bottom:4px;padding:7px 10px;font-size:12px}
-  .adm-content{padding:16px;min-height:auto}
-  .adm-stats-grid{grid-template-columns:1fr 1fr}
+:root {
+  --red:        #e53935;
+  --red-dark:   #b71c1c;
+  --red-light:  #ffebee;
+  --yellow:     #fdd835;
+  --bg:         #fafafa;
+  --white:      #ffffff;
+  --border:     #dbdbdb;
+  --border-lt:  #efefef;
+  --text:       #262626;
+  --text-mid:   #737373;
+  --text-light: #8e8e8e;
+  --link:       #00376b;
+  --sidebar-w:  244px;
+  --topnav-h:   54px;
+  --radius:     8px;
+  --font:       'Nunito', sans-serif;
 }
 
-/* Modal editar perfil — focus states */
-#modal-edit-profile input:focus,
-#modal-edit-profile textarea:focus,
-#modal-edit-profile select:focus {
-  border-color: #262626 !important;
-  outline: none;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
 }
 
-/* Comentário preview no feed */
-.post-comment-preview {
-  padding: 1px 12px 6px;
-  font-size: 13px;
-  line-height: 1.4;
-  color: #262626;
+.hidden { display: none !important; }
+
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: var(--font); background: none; border: none; }
+input, select, textarea { font-family: var(--font); }
+
+/* ============================
+   AUTH
+   ============================ */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+.auth-wrap {
+  width: 100%;
+  max-width: 350px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 36px 40px 32px;
+}
+.auth-switch-card {
+  padding: 18px 40px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text);
+}
+.auth-switch-card a { color: var(--red); font-weight: 700; }
+
+.auth-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+/* Pokéball */
+.pokeball-logo {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 3px solid #1a1a1a;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  position: relative;
+  flex-shrink: 0;
 }
-.post-comment-preview .cap-user {
+.pb-top    { height: 50%; background: var(--red); }
+.pb-bottom { height: 50%; background: var(--white); }
+.pb-band {
+  position: absolute; top: 50%; left: 0; right: 0;
+  transform: translateY(-50%);
+  height: 6px; background: #1a1a1a;
+  display: flex; align-items: center; justify-content: center;
+}
+.pb-btn {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid #1a1a1a;
+  position: absolute;
+}
+
+.brand-name {
+  font-family: 'Pacifico', cursive;
+  font-size: 36px;
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.auth-form input,
+.auth-form select {
+  width: 100%;
+  padding: 10px 10px;
+  background: #fafafa;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+}
+.auth-form input:focus,
+.auth-form select:focus { border-color: #aaa; background: #fff; }
+.auth-form select { color: var(--text-mid); }
+
+.btn-primary {
+  width: 100%;
+  padding: 9px;
+  background: var(--red);
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 700;
-  margin-right: 4px;
+  transition: opacity .15s;
+  margin-top: 6px;
 }
-</style>
-</head>
-<body>
+.btn-primary:hover { opacity: .85; }
 
-<!-- ════════════════════════════════════════════════════════
-     ROTEAMENTO: decide se é /adm ou app normal
-════════════════════════════════════════════════════════ -->
-<script>
-  const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  const IS_ADM = window.location.pathname.startsWith('/adm');
-
-  // ── Logo da rede social (armazenada no Supabase) ──────────
-  let _logoUrl = null;
-  async function getNetworkLogo() {
-    if (_logoUrl) return _logoUrl;
-    try {
-      const { data } = await db.from('settings').select('value').eq('key', 'network_logo').maybeSingle();
-      if (data && data.value) { _logoUrl = data.value; return _logoUrl; }
-    } catch(e) { console.warn('Logo não carregada:', e); }
-    return null;
-  }
-  async function applyLogos() {
-    const url = await getNetworkLogo();
-    if (url) {
-      document.querySelectorAll('.brand-logo-img').forEach(img => { img.src = url; img.style.display = 'inline-block'; });
-      document.querySelectorAll('.brand-logo-placeholder').forEach(el => el.style.display = 'none');
-    } else {
-      document.querySelectorAll('.brand-logo-placeholder').forEach(el => el.style.display = '');
-      document.querySelectorAll('.brand-logo-img').forEach(img => img.style.display = 'none');
-    }
-  }
-  window.applyLogos = applyLogos;
-  window.getNetworkLogo = getNetworkLogo;
-  applyLogos(); // carrega logo antes do splash
-
-  // Estado de autenticação — declarado aqui para evitar "before initialization"
-  var isRegisterMode = false;
-  var currentUser    = null;
-</script>
-
-<!-- ════════════════════════════════════════════════════════
-     APP POKÉGRAM (visível quando não é /adm)
-════════════════════════════════════════════════════════ -->
-<div id="pokegram-root">
-
-  <!-- LOADING SPLASH (mostrado enquanto verifica sessão) -->
-  <div id="pg-splash" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
-    <div class="pokeball-logo" style="width:56px;height:56px;animation:spin .8s linear infinite">
-      <div class="pb-top"></div>
-      <div class="pb-band"><div class="pb-btn"></div></div>
-      <div class="pb-bottom"></div>
-    </div>
-    <span style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
-  </div>
-
-  <!-- AUTH SCREEN -->
-  <div id="auth-screen" class="auth-screen" style="display:none">
-    <div class="auth-wrap">
-      <div class="auth-card">
-        <div class="auth-logo">
-          <div class="pokeball-logo">
-            <div class="pb-top"></div>
-            <div class="pb-band"><div class="pb-btn"></div></div>
-            <div class="pb-bottom"></div>
-          </div>
-          <h1 class="brand-name">
-            <span class="brand-logo-placeholder" style="display:none">PokéGram</span>
-            <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:54px;max-width:200px;object-fit:contain;vertical-align:middle;">
-          </h1>
-        </div>
-        <div class="auth-form" id="auth-form">
-          <input type="text" id="login-username" placeholder="Usuário" autocomplete="off" oninput="onAuthInput()">
-          <input type="password" id="login-password" placeholder="Senha">
-          <div id="register-fields" style="display:none;flex-direction:column;gap:6px;">
-            <input type="password" id="login-confirm" placeholder="Confirmar senha">
-            <select id="login-rpg">
-              <option value="">Selecione seu RPG...</option>
-              <option value="kingdom_platinum">Kingdom Platinum</option>
-              <option value="pchapters">PChapters</option>
-            </select>
-            <select id="login-pronoun">
-              <option value="">Pronomes (opcional)</option>
-              <option value="ele/dele">ele/dele</option>
-              <option value="ela/dela">ela/dela</option>
-              <option value="elu/delu">elu/delu</option>
-              <option value="ele/ela">ele/ela</option>
-              <option value="qualquer">qualquer pronome</option>
-            </select>
-          </div>
-          <div id="auth-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
-          <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
-          <div id="auth-hint" class="auth-hint" style="margin-top:4px;"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MAIN APP -->
-  <div id="app" class="hidden">
-
-    <!-- TOP NAV -->
-    <nav class="topnav">
-      <div class="topnav-logo" onclick="showView('feed')">
-        <span class="brand-logo-placeholder" style="display:none">PokéGram</span>
-        <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:32px;max-width:130px;object-fit:contain;vertical-align:middle;">
-      </div>
-      <div class="topnav-search">
-        <div class="topnav-search-inner">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="topnav-search-input" placeholder="Buscar..." oninput="doSearch(this.value)" onclick="showView('explore')">
-        </div>
-      </div>
-      <div class="topnav-actions">
-        <button class="tn-btn active" id="btn-feed" onclick="showView('feed')" title="Início">
-          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-        </button>
-        <button class="tn-btn" onclick="showNewPost()" title="Criar">
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-        </button>
-        <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        </button>
-        <button class="tn-btn" id="btn-profile" onclick="showView('profile')" title="Perfil">
-          <div class="tn-avatar" id="sn-avatar"></div>
-        </button>
-        <button class="tn-btn" onclick="doLogout()" title="Sair">
-          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
-      </div>
-    </nav>
-
-    <main class="main-content">
-      <div id="view-feed" class="view">
-        <div class="feed-layout">
-          <div class="feed-center">
-            <div class="stories-row" id="stories-row">
-              <div class="story-item story-mine" onclick="showNewStory()">
-                <div class="story-ring story-ring-add">
-                  <div class="story-pic" id="my-story-pic"></div>
-                  <div class="story-plus">+</div>
-                </div>
-                <span>Seu story</span>
-              </div>
-              <div id="stories-list"></div>
-            </div>
-            <div id="feed-posts"></div>
-          </div>
-          <aside class="feed-aside">
-            <div id="aside-profile-mini"></div>
-            <div class="suggestions-box">
-              <div class="suggestions-title">
-                <span>Sugestões para você</span>
-                <a href="#" onclick="showView('explore'); return false;">Ver tudo</a>
-              </div>
-              <div id="suggestions-list"></div>
-            </div>
-          </aside>
-        </div>
-      </div>
-
-      <div id="view-explore" class="view hidden">
-        <div class="explore-top">
-          <div class="search-wrap">
-            <svg viewBox="0 0 24 24" class="search-ic"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="search-input" placeholder="Buscar treinadores, #tags..." oninput="doSearch(this.value)">
-          </div>
-        </div>
-        <div id="explore-grid" class="explore-grid"></div>
-      </div>
-
-      <div id="view-profile" class="view hidden">
-        <div id="profile-content"></div>
-      </div>
-
-      <div id="view-user" class="view hidden">
-        <div id="user-profile-content"></div>
-      </div>
-    </main>
-  </div>
-
-  <!-- MODAIS POKÉGRAM -->
-  <div id="modal-post" class="modal hidden">
-    <div class="modal-backdrop" onclick="closeModal('modal-post')"></div>
-    <div class="modal-box" style="max-width:700px;width:95vw">
-      <!-- Step 1: selecionar foto -->
-      <div id="post-step-select">
-        <div class="modal-header">
-          <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
-          <h3>Nova publicação</h3>
-          <span></span>
-        </div>
-        <div id="post-drop-area" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:340px;gap:14px;cursor:pointer;padding:40px 20px" onclick="document.getElementById('post-img-file').click()">
-          <svg viewBox="0 0 24 24" width="52" height="52" stroke="#8e8e8e" fill="none" stroke-width="1.3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          <span style="color:#262626;font-size:18px;font-weight:600">Arraste e solte uma foto aqui</span>
-          <span style="color:#8e8e8e;font-size:14px">ou clique para selecionar</span>
-          <span style="background:#0095f6;color:#fff;font-weight:700;font-size:14px;padding:8px 20px;border-radius:8px;pointer-events:none">Selecionar do computador</span>
-        </div>
-        <input type="file" id="post-img-file" accept="image/*" style="display:none" onchange="previewPostImage(this)">
-      </div>
-
-      <!-- Step 2: caption + preview -->
-      <div id="post-step-caption" style="display:none">
-        <div class="modal-header">
-          <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
-          <h3>Nova publicação</h3>
-          <button class="btn-share-modal" onclick="submitPost()">Compartilhar</button>
-        </div>
-        <div class="post-modal-body">
-          <div class="post-img-area" id="post-image-area">
-            <div id="post-photo-area" style="width:100%;height:100%;background:#000;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden" onclick="document.getElementById('post-img-file-change').click()">
-              <img id="post-preview-img" style="width:100%;height:100%;object-fit:cover;display:none">
-              <div id="post-change-hint" style="display:none;position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px">Alterar foto</div>
-            </div>
-            <input type="file" id="post-img-file-change" accept="image/*" style="display:none" onchange="previewPostImage(this)">
-          </div>
-          <div class="post-caption-side">
-            <div id="post-author-row" class="post-author-row"></div>
-            <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
-            <div class="post-fields">
-              <div class="pf-row">
-                <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL NOVO STORY (exclusivo 9:16) -->
-  <div id="modal-story-new" class="modal hidden">
-    <div class="modal-backdrop" onclick="closeModal('modal-story-new')"></div>
-    <div class="modal-box" style="max-width:420px">
-      <div class="modal-header">
-        <button class="modal-x" onclick="closeModal('modal-story-new')">✕</button>
-        <h3>Novo story</h3>
-        <button class="btn-share-modal" onclick="submitStory()">Publicar story</button>
-      </div>
-      <div style="padding:20px;display:flex;flex-direction:column;align-items:center;gap:16px">
-        <!-- preview 9:16 -->
-        <div id="story-new-preview-wrap" style="width:180px;aspect-ratio:9/16;background:#111;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3)" onclick="document.getElementById('story-img-file').click()">
-          <img id="story-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
-          <div id="story-upload-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#888">
-            <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-            <span style="font-size:13px;font-weight:600;text-align:center;line-height:1.4">Selecionar foto<br><small style="color:#666;font-weight:400">1080 × 1920 (9:16)</small></span>
-          </div>
-        </div>
-        <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
-        <div style="font-size:12px;color:#8e8e8e;text-align:center;line-height:1.6;background:#f8f8f8;border-radius:8px;padding:10px 14px;width:100%">
-          📸 Stories ficam disponíveis por <strong>24 horas</strong><br>e não aparecem no feed principal.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="modal-comments" class="modal hidden">
-    <div class="modal-backdrop" onclick="closeModal('modal-comments')"></div>
-    <div class="modal-box comments-modal-box">
-      <!-- Split layout: post à esq, comentários à dir -->
-      <div class="comments-split">
-        <!-- Lado esquerdo: post visual -->
-        <div class="comments-post-side" id="comments-post-side">
-          <div class="comments-post-image" id="comments-post-image"></div>
-          <div class="comments-post-caption" id="comments-post-caption"></div>
-        </div>
-        <!-- Lado direito: comentários -->
-        <div class="comments-right-side">
-          <div class="modal-header">
-            <button class="modal-x" onclick="closeModal('modal-comments')">✕</button>
-            <h3>Comentários</h3>
-            <span></span>
-          </div>
-          <div id="comments-list" class="comments-list"></div>
-          <div class="comment-actions-bar" id="comments-actions-bar"></div>
-          <div class="comment-input-bar">
-            <div class="comment-avatar-sm" id="my-comment-avatar"></div>
-            <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
-            <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast" class="toast hidden"></div>
-
-  <!-- MODAL STORY VIEWER -->
-  <div id="modal-story" style="display:none;position:fixed;inset:0;z-index:8000;background:#000;flex-direction:column;align-items:center;justify-content:center">
-    <!-- barra de progresso -->
-    <div id="story-progress-bar" style="position:absolute;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,0.3);z-index:10">
-      <div id="story-progress-fill" style="height:100%;background:#fff;width:0%;transition:none"></div>
-    </div>
-    <!-- header -->
-    <div style="position:absolute;top:10px;left:0;right:0;display:flex;align-items:center;padding:0 16px;z-index:10;gap:10px">
-      <div id="sv-avatar" style="width:36px;height:36px;border-radius:50%;border:2px solid #fff;overflow:hidden;flex-shrink:0"></div>
-      <div>
-        <div id="sv-username" style="color:#fff;font-weight:700;font-size:14px;font-family:'Nunito',sans-serif"></div>
-        <div id="sv-time" style="color:rgba(255,255,255,0.7);font-size:11px;font-family:'Nunito',sans-serif"></div>
-      </div>
-      <button onclick="closeStoryViewer()" style="margin-left:auto;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;padding:4px">✕</button>
-    </div>
-    <!-- imagem -->
-    <img id="sv-image" style="max-width:100%;max-height:100vh;object-fit:contain;user-select:none" draggable="false">
-    <!-- navegação tap -->
-    <div style="position:absolute;inset:0;display:flex">
-      <div style="flex:1;cursor:pointer" onclick="storyNav(-1)"></div>
-      <div style="flex:1;cursor:pointer" onclick="storyNav(1)"></div>
-    </div>
-    <!-- delete (só dono) -->
-    <button id="sv-delete-btn" style="display:none;position:absolute;bottom:24px;right:20px;background:rgba(229,57,53,0.85);color:#fff;border:none;border-radius:20px;padding:8px 18px;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer" onclick="deleteCurrentStory()">🗑 Apagar story</button>
-  </div>
-
-  <!-- MODAL EDITAR PERFIL -->
-  <div id="modal-edit-profile" class="modal hidden">
-    <div class="modal-backdrop" onclick="closeModal('modal-edit-profile')"></div>
-    <div class="modal-box" style="max-width:480px;max-height:90vh;overflow-y:auto">
-      <div class="modal-header">
-        <button class="modal-x" onclick="closeModal('modal-edit-profile')">✕</button>
-        <h3>Editar perfil</h3>
-        <button class="btn-share-modal" onclick="submitEditProfile()">Salvar</button>
-      </div>
-      <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
-
-        <!-- Avatar -->
-        <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
-          <div style="position:relative;cursor:pointer" onclick="document.getElementById('ep-avatar-file').click()">
-            <div id="ep-avatar-preview" style="width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif;flex-shrink:0;overflow:hidden;background:#e53935">
-              <img id="ep-avatar-img" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%">
-              <span id="ep-avatar-initials"></span>
-            </div>
-            <div style="position:absolute;bottom:0;right:0;width:26px;height:26px;background:#262626;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </div>
-          </div>
-          <input type="file" id="ep-avatar-file" accept="image/*" style="display:none" onchange="previewAvatarUpload(this)">
-          <div id="ep-avatar-upload-hint" style="font-size:11px;color:#0095f6;font-weight:600;cursor:pointer" onclick="document.getElementById('ep-avatar-file').click()">Alterar foto</div>
-          <div style="font-size:12px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px">Cor do avatar</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center" id="ep-color-picker">
-            <!-- preenchido por JS -->
-          </div>
-        </div>
-
-        <div style="height:1px;background:#efefef"></div>
-
-        <!-- Campos -->
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:12px;font-weight:700;color:#8e8e8e">Username</label>
-          <input id="ep-username" type="text" maxlength="30" placeholder="seu_usuario"
-            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none"
-            oninput="this.style.borderColor='#dbdbdb'">
-          <span id="ep-username-err" style="font-size:11px;color:#e53935;display:none"></span>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:12px;font-weight:700;color:#8e8e8e">Nome de exibição</label>
-          <input id="ep-name" type="text" maxlength="40" placeholder="Seu Nome"
-            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none">
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:12px;font-weight:700;color:#8e8e8e">Pronomes</label>
-          <select id="ep-pronoun" style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;background:#fff">
-            <option value="">Prefiro não informar</option>
-            <option value="ele/dele">ele/dele</option>
-            <option value="ela/dela">ela/dela</option>
-            <option value="elu/delu">elu/delu</option>
-            <option value="ele/ela">ele/ela</option>
-            <option value="qualquer">qualquer pronome</option>
-          </select>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:12px;font-weight:700;color:#8e8e8e">Bio</label>
-          <textarea id="ep-bio" maxlength="150" placeholder="Conte um pouco sobre você..." rows="3"
-            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;resize:none;outline:none"></textarea>
-          <span style="font-size:11px;color:#8e8e8e;text-align:right" id="ep-bio-count">0/150</span>
-        </div>
-
-
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:12px;font-weight:700;color:#8e8e8e">RPG</label>
-          <select id="ep-rpg" style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;background:#fff">
-            <option value="">Nenhum</option>
-            <option value="kingdom_platinum">👑 Kingdom Platinum</option>
-            <option value="pchapters">📖 PChapters</option>
-          </select>
-        </div>
-
-        <div id="ep-save-err" style="display:none;font-size:12px;color:#e53935;text-align:center;padding:8px;background:#fde8e8;border-radius:8px"></div>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /pokegram-root -->
-
-
-<!-- ════════════════════════════════════════════════════════
-     ADM PANEL (visível quando é /adm)
-════════════════════════════════════════════════════════ -->
-<div id="adm-root" style="display:none">
-
-  <!-- Loading -->
-  <div class="adm-loading" id="adm-loading">
-    <div class="adm-spinner"></div>
-    <div class="adm-loading-text">Verificando acesso...</div>
-  </div>
-
-  <!-- Nav ADM -->
-  <nav class="adm-nav">
-    <div class="adm-nav-logo">
-      <div class="adm-nlb">
-        <div class="adm-nlb-top"></div>
-        <div class="adm-nlb-band"><div class="adm-nlb-btn"></div></div>
-        <div class="adm-nlb-bottom"></div>
-      </div>
-      <div class="adm-nav-text">
-        <span class="brand-logo-placeholder" style="display:none">Poké<span>Gram</span></span>
-        <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:28px;max-width:110px;object-fit:contain;vertical-align:middle;filter:brightness(0) invert(1);">
-      </div>
-      <div class="adm-nav-badge">ADM</div>
-    </div>
-    <div class="adm-nav-right">
-      <span class="adm-nav-user" id="adm-nav-user" style="display:none"></span>
-      <button class="adm-nav-logout" id="adm-btn-logout" style="display:none" onclick="admLogout()">Sair</button>
-    </div>
-  </nav>
-
-  <!-- Login ADM -->
-  <div id="adm-login-page" class="adm-login-page" style="display:none">
-    <div class="adm-login-card">
-      <div class="adm-login-icon">🔐</div>
-      <div class="adm-login-title">Área Restrita</div>
-      <div class="adm-login-sub">Acesso exclusivo para administradores do PokéGram</div>
-      <div class="adm-field">
-        <label>Usuário</label>
-        <input type="text" id="adm-username" placeholder="seu_usuario" autocomplete="off" onkeydown="if(event.key==='Enter')fazerLoginAdm()"/>
-      </div>
-      <div class="adm-field">
-        <label>Senha</label>
-        <div class="adm-pw-wrap">
-          <input type="password" id="adm-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLoginAdm()"/>
-          <button class="adm-pw-eye" type="button" onclick="admToggleEye('adm-password',this)">👁</button>
-        </div>
-      </div>
-      <div class="adm-fb adm-fb-err" id="adm-login-err">Usuário ou senha incorretos.</div>
-      <button class="adm-btn adm-btn-primary adm-btn-full" style="margin-top:4px" onclick="fazerLoginAdm()">Entrar como ADM</button>
-    </div>
-  </div>
-
-  <!-- Painel ADM -->
-  <div id="adm-panel" style="display:none">
-    <div class="adm-wrap">
-      <div class="adm-layout">
-
-        <!-- Sidebar -->
-        <aside class="adm-sidebar">
-          <div class="adm-sidebar-user" id="adm-sidebar-user"></div>
-          <button class="adm-snav-btn active" onclick="admTab(this,'usuarios')">👥 Usuários</button>
-          <button class="adm-snav-btn" onclick="admTab(this,'posts')">📸 Publicações</button>
-          <button class="adm-snav-btn" onclick="admTab(this,'stats')">📊 Estatísticas</button>
-          <div class="adm-snav-sep"></div>
-          <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
-          <button class="adm-snav-btn" onclick="admTab(this,'logo')">🖼 Logo da Rede</button>
-          <button class="adm-snav-btn" onclick="admTab(this,'sprites')">🎨 Sprites do Nav</button>
-          <div class="adm-snav-sep"></div>
-          <button class="adm-snav-btn adm-snav-danger" onclick="admLogout()">⬅ Sair</button>
-        </aside>
-
-        <!-- Content -->
-        <div class="adm-content">
-
-          <!-- USUÁRIOS -->
-          <div class="adm-section active" id="sec-usuarios">
-            <div class="adm-sec-title">Usuários</div>
-            <div class="adm-sec-sub">Gerencie os jogadores cadastrados no PokéGram</div>
-            <div class="adm-box">
-              <div class="adm-box-title">🔑 Resetar Senha de Usuário</div>
-              <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Insira o usuário e defina uma nova senha. O usuário deverá trocar na próxima vez que entrar.</p>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-                <div class="adm-field" style="margin-bottom:0">
-                  <label>Usuário</label>
-                  <input type="text" id="reset-username" placeholder="nome_do_usuario"/>
-                </div>
-                <div class="adm-field" style="margin-bottom:0">
-                  <label>Nova Senha</label>
-                  <div class="adm-pw-wrap">
-                    <input type="password" id="reset-password" placeholder="Mín. 6 caracteres"/>
-                    <button class="adm-pw-eye" type="button" onclick="admToggleEye('reset-password',this)">👁</button>
-                  </div>
-                </div>
-              </div>
-              <button class="adm-btn adm-btn-warn adm-btn-sm" onclick="resetarSenha()">🔄 Resetar Senha</button>
-              <div class="adm-fb adm-fb-ok" id="reset-fb-ok">✓ Senha redefinida com sucesso!</div>
-              <div class="adm-fb adm-fb-err" id="reset-fb-err">—</div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-              <div style="font-size:12px;color:var(--muted)" id="users-count"></div>
-              <input type="text" placeholder="Buscar usuário..." id="users-search" oninput="filtrarUsuarios(this.value)"
-                style="padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;width:200px;outline:none;color:var(--text)"/>
-            </div>
-            <div class="adm-table-wrap">
-              <table class="adm-table">
-                <thead><tr><th>Usuário</th><th>RPG</th><th>Cadastro</th><th>Ações</th></tr></thead>
-                <tbody id="tbody-usuarios"></tbody>
-              </table>
-            </div>
-            <div id="users-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
-          </div>
-
-          <!-- POSTS -->
-          <div class="adm-section" id="sec-posts">
-            <div class="adm-sec-title">Publicações</div>
-            <div class="adm-sec-sub">Visualize e remova publicações do feed</div>
-            <div class="adm-table-wrap">
-              <table class="adm-table">
-                <thead><tr><th>Autor</th><th>Legenda</th><th>Local</th><th>Data</th><th>Ações</th></tr></thead>
-                <tbody id="tbody-posts"></tbody>
-              </table>
-            </div>
-            <div id="posts-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
-          </div>
-
-          <!-- STATS -->
-          <div class="adm-section" id="sec-stats">
-            <div class="adm-sec-title">Estatísticas</div>
-            <div class="adm-sec-sub">Visão geral do PokéGram</div>
-            <div class="adm-stats-grid">
-              <div class="adm-stat-card"><div class="adm-stat-value" id="stat-users">—</div><div class="adm-stat-label">Usuários</div></div>
-              <div class="adm-stat-card"><div class="adm-stat-value" id="stat-posts">—</div><div class="adm-stat-label">Publicações</div></div>
-              <div class="adm-stat-card"><div class="adm-stat-value" id="stat-kp">—</div><div class="adm-stat-label">Kingdom Platinum</div></div>
-              <div class="adm-stat-card"><div class="adm-stat-value" id="stat-pc">—</div><div class="adm-stat-label">PChapters</div></div>
-            </div>
-            <div class="adm-box">
-              <div class="adm-box-title">Usuários recentes</div>
-              <div id="recent-users-list"></div>
-            </div>
-          </div>
-
-          <!-- MINHA SENHA -->
-          <div class="adm-section" id="sec-senha-adm">
-            <div class="adm-sec-title">Minha Senha</div>
-            <div class="adm-sec-sub">Altere sua senha de administrador</div>
-            <div class="adm-box" style="max-width:380px">
-              <div class="adm-box-title">Nova senha</div>
-              <div class="adm-field">
-                <label>Senha atual</label>
-                <div class="adm-pw-wrap">
-                  <input type="password" id="adm-senha-atual" placeholder="••••••••"/>
-                  <button class="adm-pw-eye" type="button" onclick="admToggleEye('adm-senha-atual',this)">👁</button>
-                </div>
-              </div>
-              <div class="adm-field">
-                <label>Nova senha</label>
-                <div class="adm-pw-wrap">
-                  <input type="password" id="adm-senha-nova" placeholder="Mín. 6 caracteres"/>
-                  <button class="adm-pw-eye" type="button" onclick="admToggleEye('adm-senha-nova',this)">👁</button>
-                </div>
-              </div>
-              <div class="adm-field">
-                <label>Confirmar nova senha</label>
-                <div class="adm-pw-wrap">
-                  <input type="password" id="adm-senha-conf" placeholder="••••••••"/>
-                  <button class="adm-pw-eye" type="button" onclick="admToggleEye('adm-senha-conf',this)">👁</button>
-                </div>
-              </div>
-              <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="alterarSenhaAdm()">💾 Salvar nova senha</button>
-              <div class="adm-fb adm-fb-ok" id="adm-pw-ok">✓ Senha alterada!</div>
-              <div class="adm-fb adm-fb-err" id="adm-pw-err">—</div>
-            </div>
-          </div>
-
-          <!-- LOGO DA REDE -->
-          <div class="adm-section" id="sec-logo">
-            <div class="adm-sec-title">Logo da Rede Social</div>
-            <div class="adm-sec-sub">Faça upload da logo que aparece no lugar do nome "PokéGram" em todo o site. Ela fica armazenada no banco de dados.</div>
-            <div class="adm-box" style="max-width:480px">
-              <div class="adm-box-title">Logo atual</div>
-              <div id="logo-preview-wrap" style="margin-bottom:16px;min-height:60px;display:flex;align-items:center;gap:12px">
-                <img id="logo-preview-adm" src="" alt="" style="display:none;max-height:70px;max-width:220px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
-                <span id="logo-preview-empty" style="font-size:13px;color:var(--muted)">Nenhuma logo cadastrada.</span>
-              </div>
-              <div class="adm-field">
-                <label>Selecionar imagem (PNG, JPG, SVG — máx 500 KB)</label>
-                <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                  style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
-                  onchange="previewLogoUpload(this)"/>
-              </div>
-              <div id="logo-new-preview-wrap" style="display:none;margin-bottom:14px">
-                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
-                <img id="logo-new-preview" src="" alt="" style="max-height:70px;max-width:220px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
-              </div>
-              <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarLogo()">💾 Salvar Logo</button>
-              <button class="adm-btn adm-btn-danger adm-btn-sm" style="margin-left:8px" onclick="removerLogo()">🗑 Remover Logo</button>
-              <div class="adm-fb adm-fb-ok" id="logo-fb-ok">✓ Logo salva com sucesso!</div>
-              <div class="adm-fb adm-fb-err" id="logo-fb-err">—</div>
-            </div>
-          </div>
-
-          <!-- SPRITES DO TOPNAV -->
-          <div class="adm-section" id="sec-sprites">
-            <div class="adm-sec-title">Sprites do Topnav</div>
-            <div class="adm-sec-sub">Substitua os ícones SVG padrão da barra de navegação superior por imagens personalizadas (PNG/WebP/GIF, máx 100KB cada).</div>
-            <div id="sprites-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px"></div>
-            <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
-              <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarSprites()">💾 Salvar todos</button>
-              <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="resetarSprites()">↩ Resetar para SVG padrão</button>
-            </div>
-            <div class="adm-fb adm-fb-ok" id="sprites-fb-ok">✓ Sprites salvos!</div>
-            <div class="adm-fb adm-fb-err" id="sprites-fb-err">—</div>
-          </div>
-
-        </div><!-- /adm-content -->
-      </div><!-- /adm-layout -->
-    </div><!-- /adm-wrap -->
-  </div><!-- /adm-panel -->
-
-  <!-- Modal confirmação -->
-  <div class="adm-modal-overlay" id="adm-confirm-modal">
-    <div class="adm-modal-box">
-      <button class="adm-modal-close" onclick="fecharModalAdm()">✕</button>
-      <div class="adm-modal-title" id="adm-confirm-title">Confirmar ação</div>
-      <p id="adm-confirm-msg" style="font-size:13px;color:var(--muted);margin-bottom:20px"></p>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button class="adm-btn adm-btn-sm" style="background:var(--surface2);border:1.5px solid var(--border);color:var(--text)" onclick="fecharModalAdm()">Cancelar</button>
-        <button class="adm-btn adm-btn-danger adm-btn-sm" id="adm-confirm-ok">Confirmar</button>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /adm-root -->
-
-
-<!-- ════════════════════════════════════════════════════════
-     SCRIPTS
-════════════════════════════════════════════════════════ -->
-<script>
-// ════════════════════════════════════════════════════════════
-// POKÉGRAM AUTH
-// ════════════════════════════════════════════════════════════
-
-function saveSession(u) { localStorage.setItem('pg_user', JSON.stringify(u)); }
-function loadSession()  {
-  try {
-    const val = JSON.parse(localStorage.getItem('pg_user'));
-    if (!val) return null;
-    // corrige sessão antiga que foi salva como array
-    if (Array.isArray(val)) return val[0] || null;
-    return val;
-  } catch { return null; }
+.btn-google {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background .15s;
 }
-function clearSession() { localStorage.removeItem('pg_user'); }
+.btn-google:hover { background: #f5f5f5; }
 
-async function dbLogin(username, password) {
-  let result;
-  try {
-    result = await db.rpc('login_user', { p_username: username, p_password: password });
-  } catch (netErr) {
-    throw new Error('network');
-  }
-  const { data, error } = result;
-  if (error) {
-    const msg = error.message || '';
-    if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('senha') || msg.toLowerCase().includes('password')) {
-      return null;
-    }
-    throw error;
-  }
-  // RPC pode retornar array ou objeto — normaliza sempre para objeto único
-  if (Array.isArray(data)) return data[0] || null;
-  return data;
+.or-divider {
+  display: flex; align-items: center; gap: 16px;
+  color: var(--text-light); font-size: 12px; font-weight: 700;
+  margin: 4px 0;
 }
-async function dbRegister(username, password, rpg, emoji, pronoun) {
-  const { data, error } = await db.rpc('register_user', { p_username: username, p_password: password, p_rpg: rpg, p_emoji: emoji || '🎮' });
-  if (error) throw error;
-  const user = Array.isArray(data) ? data[0] : data;
-  // salva pronome separadamente pois a RPC pode não suportá-lo ainda
-  if (user && pronoun) {
-    await db.from('users').update({ pronoun }).eq('id', user.id);
-    user.pronoun = pronoun;
-  }
-  return user || null;
-}
-async function dbCheckUserExists(username) {
-  const { data } = await db.from('users').select('id').eq('username', username).maybeSingle();
-  return !!data;
+.or-divider::before, .or-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
 }
 
-let authCheckTimeout = null;
-async function onAuthInput() {
-  const username = document.getElementById('login-username').value.trim();
-  clearTimeout(authCheckTimeout);
-  if (username.length < 2) { setAuthMode('login'); document.getElementById('auth-hint').textContent = ''; return; }
-  authCheckTimeout = setTimeout(async () => {
-    const exists = await dbCheckUserExists(username);
-    setAuthMode(exists ? 'login' : 'register');
-    document.getElementById('auth-hint').textContent = exists ? 'Bem-vindo de volta!' : 'Usuário não encontrado — complete o cadastro abaixo.';
-  }, 500);
+.auth-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 4px;
 }
 
-function setAuthMode(mode) {
-  isRegisterMode = mode === 'register';
-  const rf  = document.getElementById('register-fields');
-  const btn = document.getElementById('auth-btn');
-  rf.style.display  = isRegisterMode ? 'flex' : 'none';
-  btn.textContent   = isRegisterMode ? 'Cadastrar' : 'Entrar';
-  hideAuthError();
+.auth-app-row {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.app-badges {
+  display: flex; gap: 8px; justify-content: center;
+}
+.app-badges span {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .1s;
+}
+.app-badges span:hover { background: #f0f0f0; }
+
+/* ============================
+   APP LAYOUT
+   ============================ */
+#app { display: flex; flex-direction: column; min-height: 100vh; width: 100%; }
+
+/* ============================
+   TOP NAV
+   ============================ */
+.topnav { position: sticky; top: 0; height: var(--topnav-h); background: var(--white); border-bottom: 1px solid var(--border); z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+.topnav-logo { font-family: 'Pacifico', cursive; font-size: 22px; font-weight: 400; color: var(--text); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.topnav-search { flex: 1; max-width: 240px; margin: 0 20px; }
+.topnav-search-inner { display: flex; align-items: center; background: #fafafa; border: 1px solid var(--border); border-radius: 20px; padding: 6px 12px; gap: 6px; }
+.topnav-search-inner svg { width: 14px; height: 14px; stroke: var(--text-light); fill: none; stroke-width: 2; flex-shrink: 0; }
+.topnav-search-inner input { border: none; outline: none; background: transparent; font-size: 13px; color: var(--text); width: 100%; }
+.topnav-search-inner input::placeholder { color: var(--text-light); }
+.topnav-actions { display: flex; align-items: center; gap: 2px; }
+.tn-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--text); transition: background .1s; }
+.tn-btn:hover { background: #f0f0f0; }
+.tn-btn.active svg { stroke-width: 2.5; }
+.tn-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tn-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--red); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; overflow: hidden; pointer-events: none; }
+.tn-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ============================
+   MAIN CONTENT
+   ============================ */
+.main-content { margin-left: 0; flex: 1; width: 100%; min-height: calc(100vh - var(--topnav-h)); }
+.view { width: 100%; }
+
+/* ============================
+   FEED LAYOUT
+   ============================ */
+.feed-layout {
+  max-width: 935px;
+  margin: 0 auto;
+  padding: 30px 20px 60px;
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+.feed-center {
+  flex: 1;
+  max-width: 470px;
+  min-width: 0;
 }
 
-function showAuthError(msg) { const e = document.getElementById('auth-error'); e.textContent = msg; e.style.display = 'block'; }
-function hideAuthError()    { document.getElementById('auth-error').style.display = 'none'; }
+/* ============================
+   STORIES
+   ============================ */
+.stories-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  scrollbar-width: none;
+}
+.stories-row::-webkit-scrollbar { display: none; }
+#stories-list { display: flex; gap: 16px; }
 
-async function doAuth() {
-  hideAuthError();
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value;
-  const btn      = document.getElementById('auth-btn');
-  if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
-  btn.disabled = true; btn.textContent = 'Aguarde...';
-  try {
-    if (isRegisterMode) {
-      const confirm = document.getElementById('login-confirm').value;
-      const rpg     = document.getElementById('login-rpg').value;
-      const pronoun = document.getElementById('login-pronoun').value;
-      if (password !== confirm) { showAuthError('As senhas não coincidem.'); return; }
-      if (!rpg)                 { showAuthError('Selecione seu RPG.'); return; }
-      if (password.length < 6)  { showAuthError('Senha deve ter ao menos 6 caracteres.'); return; }
-      const user = await dbRegister(username, password, rpg, null, pronoun);
-      if (!user) { showAuthError('Erro ao cadastrar. Tente novamente.'); return; }
-      currentUser = user; saveSession(user); enterApp(user);
-    } else {
-      const user = await dbLogin(username, password);
-      if (!user) { showAuthError('Usuário ou senha incorretos.'); return; }
-      currentUser = user; saveSession(user); enterApp(user);
-    }
-  } catch(err) {
-    console.error(err);
-    if (err && err.message === 'network') {
-      showAuthError('Erro de conexão. Verifique sua internet e tente novamente.');
-    } else if (err && err.message) {
-      showAuthError('Erro: ' + err.message);
-    } else {
-      showAuthError('Erro inesperado. Tente novamente.');
-    }
-  }
-  finally { btn.disabled = false; btn.textContent = isRegisterMode ? 'Cadastrar' : 'Entrar'; }
+.story-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.story-item span {
+  font-size: 12px;
+  max-width: 64px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--text);
 }
 
-function hideSplash() {
-  const s = document.getElementById('pg-splash');
-  if (s) s.style.display = 'none';
+.story-ring {
+  width: 62px; height: 62px;
+  border-radius: 50%;
+  padding: 2.5px;
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  position: relative;
+}
+.story-ring-add {
+  background: #dbdbdb;
+}
+.story-pic {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: #eee;
+  border: 2px solid white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  overflow: hidden;
+}
+.story-pic img { width: 100%; height: 100%; object-fit: cover; }
+.story-plus {
+  position: absolute;
+  bottom: 2px; right: 2px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  border: 2px solid white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
 }
 
-function enterApp(user) {
-  hideSplash();
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('app').classList.remove('hidden');
-  if (typeof initApp === 'function') initApp(user);
-  // Se a URL já tem /<username>, abre aquele perfil
-  const path = window.location.pathname.replace(/^\//, '');
-  if (path && path !== 'adm' && path !== user.username) {
-    setTimeout(() => showUserProfile(path), 100);
-  } else if (path === user.username) {
-    setTimeout(() => showView('profile'), 100);
-  }
+/* ============================
+   POST CARD
+   ============================ */
+.post-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+  overflow: hidden;
 }
 
-function doLogout() { clearSession(); currentUser = null; location.reload(); }
-
-function initPokegram() {
-  const saved = loadSession();
-  if (saved) {
-    currentUser = saved;
-    enterApp(saved);
-  } else {
-    hideSplash();
-    document.getElementById('auth-screen').style.display = 'flex';
-  }
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doAuth();
-  });
+.post-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 10px;
+}
+.post-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800;
+  flex-shrink: 0; overflow: hidden;
+  cursor: pointer;
+}
+.post-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.post-header-info { flex: 1; min-width: 0; }
+.post-username {
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.post-username:hover { text-decoration: underline; }
+.post-location-tag {
+  font-size: 12px;
+  color: var(--text-mid);
+}
+.post-header-more {
+  font-size: 20px;
+  color: var(--text);
+  padding: 4px 8px;
+  line-height: 1;
 }
 
-// ════════════════════════════════════════════════════════════
-// ADM
-// ════════════════════════════════════════════════════════════
-let admLogado  = null;
-let allUsers   = [];
-let allPosts   = [];
+.post-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 80px;
+  background: #f0f0f0;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+.post-image img { width: 100%; height: 100%; object-fit: cover; }
 
-function admSaveSession(a) { sessionStorage.setItem('pg_adm', JSON.stringify(a)); }
-function admLoadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_adm')); } catch { return null; } }
-function admClearSession() { sessionStorage.removeItem('pg_adm'); }
-
-async function initAdm() {
-  const saved = admLoadSession();
-  if (saved) { admLogado = saved; mostrarPainelAdm(); }
-  else { document.getElementById('adm-login-page').style.display = 'flex'; }
-  document.getElementById('adm-loading').style.display = 'none';
+.post-actions {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px 4px;
+  gap: 16px;
+}
+.post-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  font-size: 14px;
+  color: var(--text);
+  transition: color .15s;
+}
+.post-action-btn svg {
+  width: 24px; height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .1s;
+}
+.post-action-btn:hover svg { transform: scale(1.1); }
+.post-action-btn.liked svg { fill: var(--red); stroke: var(--red); }
+.post-save-btn {
+  margin-left: auto;
+  padding: 4px 0;
+  color: var(--text);
+}
+.post-save-btn svg {
+  width: 24px; height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-async function fazerLoginAdm() {
-  const username = document.getElementById('adm-username').value.trim();
-  const password = document.getElementById('adm-password').value;
-  const errEl    = document.getElementById('adm-login-err');
-  errEl.style.display = 'none';
-  if (!username || !password) { errEl.textContent = 'Preencha todos os campos.'; errEl.style.display = 'block'; return; }
-  try {
-    const { data, error } = await db.rpc('login_admin', { p_username: username, p_password: password });
-    if (error) throw error;
-    const admData = Array.isArray(data) ? data[0] : data;
-    if (!admData) { errEl.textContent = 'Usuário ou senha incorretos.'; errEl.style.display = 'block'; return; }
-    admLogado = admData; admSaveSession(admData); mostrarPainelAdm();
-  } catch(e) { console.error(e); errEl.textContent = 'Erro de conexão.'; errEl.style.display = 'block'; }
+.post-likes {
+  padding: 0 16px 4px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.post-caption-text {
+  padding: 0 16px 4px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.post-caption-text .cap-user {
+  font-weight: 700;
+  margin-right: 6px;
+}
+.post-caption-text .cap-tag {
+  color: #00376b;
+}
+.post-view-comments {
+  padding: 0 16px 4px;
+  font-size: 14px;
+  color: var(--text-light);
+  cursor: pointer;
+}
+.post-view-comments:hover { color: var(--text-mid); }
+.post-timestamp {
+  padding: 4px 16px 12px;
+  font-size: 11px;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: .3px;
 }
 
-function admLogout() { admClearSession(); admLogado = null; location.reload(); }
+.post-comment-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-lt);
+  gap: 12px;
+}
+.post-comment-bar .mini-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+  flex-shrink: 0;
+}
+.post-comment-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: var(--text);
+  background: transparent;
+}
+.post-comment-bar input::placeholder { color: var(--text-light); }
+.post-comment-bar .btn-inline-send {
+  color: var(--red);
+  font-weight: 700;
+  font-size: 14px;
+  opacity: .4;
+  transition: opacity .15s;
+}
+.post-comment-bar .btn-inline-send.ready { opacity: 1; }
 
-function mostrarPainelAdm() {
-  document.getElementById('adm-login-page').style.display = 'none';
-  document.getElementById('adm-panel').style.display      = 'block';
-  document.getElementById('adm-nav-user').textContent     = '👤 ' + admLogado.username;
-  document.getElementById('adm-nav-user').style.display   = 'inline';
-  document.getElementById('adm-btn-logout').style.display = 'inline-block';
-  document.getElementById('adm-sidebar-user').textContent = admLogado.username;
-  carregarUsuarios();
+/* ============================
+   FEED ASIDE (desktop)
+   ============================ */
+.feed-aside {
+  width: 293px;
+  flex-shrink: 0;
+  position: sticky;
+  top: calc(var(--topnav-h) + 16px);
 }
 
-function admTab(btn, id) {
-  document.querySelectorAll('.adm-snav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.adm-section').forEach(s => s.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('sec-' + id).classList.add('active');
-  if (id === 'posts') carregarPosts();
-  if (id === 'stats') carregarStats();
-  if (id === 'logo')  carregarLogoAdm();
-  if (id === 'sprites') carregarSpritesAdm();
+.profile-mini-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 0 16px;
+}
+.pm-avatar {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 800;
+  flex-shrink: 0; overflow: hidden;
+  cursor: pointer;
+}
+.pm-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pm-info { flex: 1; min-width: 0; }
+.pm-username {
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.pm-username:hover { text-decoration: underline; }
+.pm-name { font-size: 13px; color: var(--text-mid); }
+.pm-switch a {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--red);
 }
 
-// ── Usuários ──────────────────────────────────────────────
-async function carregarUsuarios() {
-  const tbody = document.getElementById('tbody-usuarios');
-  const load  = document.getElementById('users-loading');
-  tbody.innerHTML = ''; load.style.display = 'block';
-  const { data, error } = await db.from('users').select('*').order('created_at', { ascending: false });
-  load.style.display = 'none';
-  if (error) { load.textContent = 'Erro ao carregar usuários.'; load.style.display = 'block'; return; }
-  allUsers = data || [];
-  document.getElementById('users-count').textContent = `${allUsers.length} usuário(s) cadastrado(s)`;
-  renderUsuarios(allUsers);
+.suggestions-box { margin-top: 4px; }
+.suggestions-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.suggestions-title span {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-mid);
+}
+.suggestions-title a {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.sug-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  flex-shrink: 0; cursor: pointer; overflow: hidden;
+}
+.sug-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sug-info { flex: 1; min-width: 0; }
+.sug-name {
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.sug-name:hover { text-decoration: underline; }
+.sug-sub { font-size: 12px; color: var(--text-light); }
+.btn-follow-sm {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0095f6;
+  padding: 0;
+}
+.btn-follow-sm:hover { color: #00376b; }
+
+/* ============================
+   EXPLORE
+   ============================ */
+.explore-top {
+  display: none;
+  padding: 12px 16px 12px;
+  max-width: 935px;
+  margin: 0 auto;
+}
+.search-wrap {
+  display: flex;
+  align-items: center;
+  background: #efefef;
+  border-radius: 10px;
+  padding: 8px 12px;
+  gap: 8px;
+}
+.search-ic {
+  width: 16px; height: 16px;
+  stroke: var(--text-light);
+  fill: none;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+.search-wrap input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: var(--text);
+}
+.search-wrap input::placeholder { color: var(--text-light); }
+
+.explore-grid {
+  max-width: 935px;
+  margin: 0 auto;
+  padding: 2px 16px 80px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+.explore-thumb {
+  aspect-ratio: 1/1;
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+.explore-thumb:hover::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.25);
 }
 
-function renderUsuarios(list) {
-  const tbody = document.getElementById('tbody-usuarios');
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Nenhum usuário encontrado.</td></tr>'; return; }
-  tbody.innerHTML = list.map(u => `
-    <tr>
-      <td><strong>${esc(u.username)}</strong></td>
-      <td>${rpgBadge(u.rpg)}</td>
-      <td style="color:var(--muted)">${fmtDate(u.created_at)}</td>
-      <td>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="adm-btn adm-btn-warn adm-btn-sm" onclick="abrirResetSenha('${esc(u.username)}')">🔑 Resetar Senha</button>
-          <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="confirmarDeletar('usuario','${u.id}','${esc(u.username)}')">🗑 Remover</button>
-        </div>
-      </td>
-    </tr>`).join('');
+/* ============================
+   PROFILE PAGE
+   ============================ */
+.profile-page {
+  max-width: 935px;
+  margin: 0 auto;
+  padding: 30px 20px 80px;
 }
 
-function filtrarUsuarios(q) { renderUsuarios(allUsers.filter(u => u.username.toLowerCase().includes(q.toLowerCase()))); }
+.profile-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 80px;
+  margin-bottom: 16px;
+}
+.profile-avatar-wrap {
+  flex-shrink: 0;
+}
+.profile-avatar {
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 52px; font-weight: 800;
+  overflow: hidden;
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-function abrirResetSenha(username) {
-  document.getElementById('reset-username').value = username;
-  document.getElementById('reset-password').value = '';
-  document.getElementById('reset-username').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  document.getElementById('reset-password').focus();
+.profile-meta { flex: 1; min-width: 0; }
+.profile-top-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.profile-username-text {
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text);
+}
+.btn-edit-profile {
+  padding: 7px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  transition: background .1s;
+  display: inline-block;
+}
+.btn-edit-profile:hover { background: #f5f5f5; }
+.btn-follow-profile {
+  padding: 7px 16px;
+  background: #0095f6;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background .1s;
+  display: inline-block;
+}
+.btn-follow-profile:hover { background: #1877d2; }
+.btn-follow-profile.following {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
-async function resetarSenha() {
-  const username = document.getElementById('reset-username').value.trim();
-  const password = document.getElementById('reset-password').value;
-  const okEl  = document.getElementById('reset-fb-ok');
-  const errEl = document.getElementById('reset-fb-err');
-  okEl.style.display = errEl.style.display = 'none';
-  if (!username)                   { errEl.textContent = 'Informe o nome do usuário.'; errEl.style.display = 'block'; return; }
-  if (!password || password.length < 6) { errEl.textContent = 'A nova senha deve ter ao menos 6 caracteres.'; errEl.style.display = 'block'; return; }
-  const { data, error } = await db.rpc('admin_reset_password', { p_username: username, p_new_password: password });
-  if (error || data === false) { errEl.textContent = error ? 'Erro: ' + error.message : 'Usuário não encontrado.'; errEl.style.display = 'block'; return; }
-  okEl.style.display = 'block';
-  document.getElementById('reset-username').value = '';
-  document.getElementById('reset-password').value = '';
-  setTimeout(() => okEl.style.display = 'none', 3000);
+.profile-stats {
+  display: flex;
+  gap: 40px;
+  margin-bottom: 16px;
+}
+.stat-item { font-size: 16px; }
+.stat-item strong { font-weight: 700; }
+.stat-item span { color: var(--text); }
+
+.profile-bio {
+  padding: 0;
+  margin-top: 8px;
+}
+.profile-bio .prof-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+.profile-bio .prof-starter {
+  font-size: 14px;
+  color: var(--text-mid);
+}
+.profile-bio .prof-desc {
+  font-size: 14px;
+  white-space: pre-wrap;
+  margin-top: 4px;
 }
 
-// ── Posts ─────────────────────────────────────────────────
-async function carregarPosts() {
-  const tbody = document.getElementById('tbody-posts');
-  const load  = document.getElementById('posts-loading');
-  tbody.innerHTML = ''; load.style.display = 'block';
-  const { data, error } = await db.from('posts').select('*, users(username)').order('created_at', { ascending: false });
-  load.style.display = 'none';
-  if (error) { load.textContent = 'Erro ao carregar posts.'; load.style.display = 'block'; return; }
-  allPosts = data || [];
-  tbody.innerHTML = allPosts.length ? allPosts.map(p => `
-    <tr>
-      <td><strong>${esc(p.users?.username||'—')}</strong></td>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.caption||'—')}</td>
-      <td style="color:var(--muted)">${esc(p.location||'—')}</td>
-      <td style="color:var(--muted);white-space:nowrap">${fmtDate(p.created_at)}</td>
-      <td><button class="adm-btn adm-btn-danger adm-btn-sm" onclick="confirmarDeletar('post','${p.id}','post de ${esc(p.users?.username||'?')}')">🗑 Remover</button></td>
-    </tr>`).join('')
-  : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhuma publicação.</td></tr>';
+.profile-tabs {
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 4px;
+}
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--text-light);
+  border-top: 2px solid transparent;
+  margin-top: -1px;
+  transition: color .1s, border-color .1s;
+}
+.tab-btn.active {
+  color: var(--text);
+  border-top-color: var(--text);
+}
+.tab-btn svg {
+  width: 16px; height: 16px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.8; stroke-linecap: round;
 }
 
-// ── Stats ─────────────────────────────────────────────────
-async function carregarStats() {
-  const { data: users } = await db.from('users').select('id,username,rpg,created_at').order('created_at', { ascending: false });
-  const { data: posts } = await db.from('posts').select('id', { count: 'exact' });
-  const u = users || [];
-  document.getElementById('stat-users').textContent = u.length;
-  document.getElementById('stat-posts').textContent = (posts||[]).length;
-  document.getElementById('stat-kp').textContent    = u.filter(x => x.rpg === 'kingdom_platinum').length;
-  document.getElementById('stat-pc').textContent    = u.filter(x => x.rpg === 'pchapters').length;
-  document.getElementById('recent-users-list').innerHTML = u.slice(0,8).map(u => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div>
-        <div style="font-weight:700;font-size:13px">${esc(u.username)}</div>
-        <div style="font-size:11px;color:var(--muted)">${fmtDate(u.created_at)}</div>
-      </div>
-      ${rpgBadge(u.rpg)}
-    </div>`).join('') || '<div style="color:var(--muted);font-size:13px">Nenhum usuário ainda.</div>';
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+.profile-thumb {
+  aspect-ratio: 1/1;
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+.profile-thumb:hover::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.22);
+}
+.profile-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-light);
+  font-size: 16px;
+  grid-column: 1/-1;
 }
 
-// ── Minha senha ───────────────────────────────────────────
-async function alterarSenhaAdm() {
-  const atual = document.getElementById('adm-senha-atual').value;
-  const nova  = document.getElementById('adm-senha-nova').value;
-  const conf  = document.getElementById('adm-senha-conf').value;
-  const okEl  = document.getElementById('adm-pw-ok');
-  const errEl = document.getElementById('adm-pw-err');
-  okEl.style.display = errEl.style.display = 'none';
-  if (!atual||!nova||!conf)   { errEl.textContent = 'Preencha todos os campos.'; errEl.style.display = 'block'; return; }
-  if (nova !== conf)           { errEl.textContent = 'As novas senhas não coincidem.'; errEl.style.display = 'block'; return; }
-  if (nova.length < 6)         { errEl.textContent = 'A nova senha deve ter ao menos 6 caracteres.'; errEl.style.display = 'block'; return; }
-  const { data: check } = await db.rpc('login_admin', { p_username: admLogado.username, p_password: atual });
-  if (!check) { errEl.textContent = 'Senha atual incorreta.'; errEl.style.display = 'block'; return; }
-  const { error: rpcErr } = await db.rpc('admin_reset_password', { p_username: admLogado.username, p_new_password: nova });
-  if (rpcErr) { errEl.textContent = 'Erro ao salvar: ' + rpcErr.message; errEl.style.display = 'block'; return; }
-  okEl.style.display = 'block';
-  ['adm-senha-atual','adm-senha-nova','adm-senha-conf'].forEach(id => document.getElementById(id).value = '');
-  setTimeout(() => okEl.style.display = 'none', 3000);
+/* ============================
+   MODALS
+   ============================ */
+.modal {
+  position: fixed; inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.65);
+}
+.modal-box {
+  position: relative;
+  background: var(--white);
+  border-radius: var(--radius);
+  overflow: hidden;
+  z-index: 1;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 700px;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+.modal-x {
+  font-size: 18px;
+  color: var(--text);
+  padding: 4px;
+  line-height: 1;
+}
+.btn-share-modal {
+  color: #0095f6;
+  font-weight: 700;
+  font-size: 14px;
+}
+.btn-share-modal:hover { color: #00376b; }
+
+/* Post modal body */
+.post-modal-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 400px;
+}
+.post-img-area {
+  width: 50%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 12px;
+  width: 100%;
+  align-content: center;
+}
+.emoji-pick-btn {
+  aspect-ratio: 1/1;
+  font-size: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .1s;
+  background: rgba(255,255,255,.1);
+}
+.emoji-pick-btn:hover { background: rgba(255,255,255,.25); }
+.emoji-pick-btn.selected { background: rgba(255,255,255,.35); outline: 2px solid white; }
+
+.post-selected-preview {
+  font-size: 120px;
+  text-align: center;
 }
 
-// ── Deletar ───────────────────────────────────────────────
-let pendingDelete = null;
-function confirmarDeletar(tipo, id, label) {
-  pendingDelete = { tipo, id };
-  document.getElementById('adm-confirm-title').textContent = 'Confirmar remoção';
-  document.getElementById('adm-confirm-msg').textContent   = `Deseja remover "${label}"? Esta ação não pode ser desfeita.`;
-  document.getElementById('adm-confirm-modal').classList.add('open');
-  document.getElementById('adm-confirm-ok').onclick = executarDelete;
+.post-caption-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
 }
-async function executarDelete() {
-  if (!pendingDelete) return;
-  const { tipo, id } = pendingDelete;
-  fecharModalAdm();
-  const table = tipo === 'usuario' ? 'users' : 'posts';
-  const { error } = await db.from(table).delete().eq('id', id);
-  if (error) { alert('Erro ao remover: ' + error.message); return; }
-  if (tipo === 'usuario') carregarUsuarios(); else carregarPosts();
+.post-author-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
 }
-function fecharModalAdm() { document.getElementById('adm-confirm-modal').classList.remove('open'); pendingDelete = null; }
-
-// ── Helpers ───────────────────────────────────────────────
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fmtDate(iso) { if(!iso) return '—'; const d=new Date(iso); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
-function rpgBadge(rpg) {
-  if (rpg==='kingdom_platinum') return '<span class="rpg-badge rpg-kp">Kingdom Platinum</span>';
-  if (rpg==='pchapters')        return '<span class="rpg-badge rpg-pc">PChapters</span>';
-  return '<span style="color:var(--muted)">—</span>';
+.post-author-row .pa-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800;
+  overflow: hidden;
 }
-function admToggleEye(inputId, btn) {
-  const input = document.getElementById(inputId);
-  input.type = input.type === 'password' ? 'text' : 'password';
-  btn.textContent = input.type === 'password' ? '👁' : '🙈';
+.post-author-row .pa-name { font-size: 14px; font-weight: 700; }
+
+#post-caption {
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 15px;
+  padding: 4px 16px 16px;
+  flex: 1;
+  min-height: 120px;
+  color: var(--text);
+  background: var(--white);
 }
+#post-caption::placeholder { color: var(--text-light); }
 
-// ── Logo da Rede Social ───────────────────────────────────
-let _pendingLogoBase64 = null;
-
-async function carregarLogoAdm() {
-  const url = await getNetworkLogo();
-  const previewImg   = document.getElementById('logo-preview-adm');
-  const previewEmpty = document.getElementById('logo-preview-empty');
-  if (url) {
-    previewImg.src = url;
-    previewImg.style.display = 'block';
-    previewEmpty.style.display = 'none';
-  } else {
-    previewImg.style.display = 'none';
-    previewEmpty.style.display = 'inline';
-  }
+.post-fields {
+  border-top: 1px solid var(--border-lt);
 }
-
-function previewLogoUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 512 * 1024) {
-    const errEl = document.getElementById('logo-fb-err');
-    errEl.textContent = 'Imagem muito grande. Máximo: 500 KB.';
-    errEl.style.display = 'block';
-    return;
-  }
-  document.getElementById('logo-fb-err').style.display = 'none';
-  const reader = new FileReader();
-  reader.onload = e => {
-    _pendingLogoBase64 = e.target.result; // data URL (base64)
-    const wrap = document.getElementById('logo-new-preview-wrap');
-    const img  = document.getElementById('logo-new-preview');
-    img.src = _pendingLogoBase64;
-    wrap.style.display = 'block';
-  };
-  reader.readAsDataURL(file);
+.pf-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-lt);
 }
-
-async function salvarLogo() {
-  const okEl  = document.getElementById('logo-fb-ok');
-  const errEl = document.getElementById('logo-fb-err');
-  okEl.style.display = errEl.style.display = 'none';
-  if (!_pendingLogoBase64) { errEl.textContent = 'Selecione uma imagem primeiro.'; errEl.style.display = 'block'; return; }
-  const { error } = await db.from('settings').upsert({ key: 'network_logo', value: _pendingLogoBase64 }, { onConflict: 'key' });
-  if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
-  _logoUrl = _pendingLogoBase64;
-  _pendingLogoBase64 = null;
-  document.getElementById('logo-file-input').value = '';
-  document.getElementById('logo-new-preview-wrap').style.display = 'none';
-  carregarLogoAdm();
-  applyLogos();
-  okEl.style.display = 'block';
-  setTimeout(() => okEl.style.display = 'none', 3000);
+.pf-row svg { stroke: var(--text-mid); fill: none; stroke-width: 2; flex-shrink: 0; }
+.pf-row input,
+.pf-row select {
+  border: none; outline: none;
+  font-size: 14px; color: var(--text);
+  flex: 1; background: transparent;
 }
+.pf-row select { color: var(--text-mid); }
 
-async function removerLogo() {
-  if (!confirm('Remover a logo? O nome texto voltará a ser exibido.')) return;
-  const okEl  = document.getElementById('logo-fb-ok');
-  const errEl = document.getElementById('logo-fb-err');
-  okEl.style.display = errEl.style.display = 'none';
-  const { error } = await db.from('settings').delete().eq('key', 'network_logo');
-  if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
-  _logoUrl = null;
-  _pendingLogoBase64 = null;
-  carregarLogoAdm();
-  // Revert all logos to text placeholder
-  document.querySelectorAll('.brand-logo-img').forEach(img => { img.src = ''; img.style.display = 'none'; });
-  document.querySelectorAll('.brand-logo-placeholder').forEach(el => el.style.display = '');
-  okEl.textContent = '✓ Logo removida.';
-  okEl.style.display = 'block';
-  setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ Logo salva com sucesso!'; }, 3000);
+/* Comments modal */
+.comments-modal-box-OLD_SKIP {
+  max-width: 500px;
 }
-</script>
-
-<script>
-// ── Sprites do Topnav ─────────────────────────────────────
-// Definição dos sprites gerenciáveis (id, label, seletor do elemento, tamanho padrão)
-const SPRITE_DEFS = [
-  { key: 'nav_home',    label: 'Início (casa)',     sel: '#btn-feed svg',    dbKey: 'sprite_nav_home' },
-  { key: 'nav_create',  label: 'Criar publicação',  sel: '.tn-btn[onclick="showNewPost()"] svg', dbKey: 'sprite_nav_create' },
-  { key: 'nav_explore', label: 'Explorar (lupa)',   sel: '#btn-explore svg', dbKey: 'sprite_nav_explore' },
-  { key: 'nav_logout',  label: 'Sair (logout)',     sel: '.tn-btn[onclick="doLogout()"] svg', dbKey: 'sprite_nav_logout' },
-];
-let _pendingSprites = {}; // key → base64
-
-async function carregarSpritesAdm() {
-  const grid = document.getElementById('sprites-grid');
-  if (!grid) return;
-
-  // Busca valores salvos do Supabase
-  const keys = SPRITE_DEFS.map(d => d.dbKey);
-  const { data: rows } = await db.from('settings').select('key,value').in('key', keys);
-  const saved = {};
-  (rows || []).forEach(r => { saved[r.key] = r.value; });
-
-  grid.innerHTML = SPRITE_DEFS.map(def => {
-    const current = saved[def.dbKey] || '';
-    return `
-    <div class="adm-box" style="display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center">
-      <div class="adm-box-title" style="margin-bottom:0">${def.label}</div>
-      <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:#fafafa" id="sprite-preview-${def.key}">
-        ${current
-          ? `<img src="${current}" style="width:100%;height:100%;object-fit:contain">`
-          : `<span style="font-size:11px;color:var(--muted)">SVG<br>padrão</span>`}
-      </div>
-      <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="file" accept="image/png,image/webp,image/gif,image/jpeg" style="display:none"
-          onchange="previewSprite('${def.key}','${def.dbKey}',this)" id="sprite-file-${def.key}">
-        <span class="adm-btn adm-btn-warn adm-btn-sm" onclick="document.getElementById('sprite-file-${def.key}').click()">📁 Selecionar</span>
-      </label>
-      <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="limparSprite('${def.key}','${def.dbKey}')" style="${current?'':'display:none'}" id="sprite-clear-${def.key}">✕ Remover</button>
-    </div>`;
-  }).join('');
+.comments-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  min-height: 200px;
+  max-height: 50vh;
 }
-
-function previewSprite(key, dbKey, input) {
-  const file = input.files[0];
-  if (!file) return;
-  const errEl = document.getElementById('sprites-fb-err');
-  if (file.size > 100 * 1024) {
-    errEl.textContent = `"${file.name}" é muito grande. Máximo: 100 KB por sprite.`;
-    errEl.style.display = 'block';
-    return;
-  }
-  errEl.style.display = 'none';
-  const reader = new FileReader();
-  reader.onload = e => {
-    _pendingSprites[dbKey] = e.target.result;
-    const prev = document.getElementById('sprite-preview-' + key);
-    if (prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain">`;
-    const clearBtn = document.getElementById('sprite-clear-' + key);
-    if (clearBtn) clearBtn.style.display = '';
-  };
-  reader.readAsDataURL(file);
+.comment-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 16px;
+  align-items: flex-start;
 }
-
-async function limparSprite(key, dbKey) {
-  _pendingSprites[dbKey] = null; // marca para remoção
-  const prev = document.getElementById('sprite-preview-' + key);
-  if (prev) prev.innerHTML = `<span style="font-size:11px;color:var(--muted)">SVG<br>padrão</span>`;
-  const clearBtn = document.getElementById('sprite-clear-' + key);
-  if (clearBtn) clearBtn.style.display = 'none';
+.comment-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  flex-shrink: 0; overflow: hidden;
 }
+.comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.comment-body { flex: 1; }
+.comment-body strong { font-weight: 700; margin-right: 6px; font-size: 14px; }
+.comment-body span { font-size: 14px; }
+.comment-time { font-size: 12px; color: var(--text-light); margin-top: 4px; }
 
-async function salvarSprites() {
-  const okEl  = document.getElementById('sprites-fb-ok');
-  const errEl = document.getElementById('sprites-fb-err');
-  okEl.style.display = errEl.style.display = 'none';
-
-  const pending = Object.entries(_pendingSprites);
-  if (!pending.length) { errEl.textContent = 'Nenhuma alteração para salvar.'; errEl.style.display = 'block'; return; }
-
-  for (const [dbKey, val] of pending) {
-    if (val === null) {
-      // remover
-      await db.from('settings').delete().eq('key', dbKey);
-    } else {
-      await db.from('settings').upsert({ key: dbKey, value: val }, { onConflict: 'key' });
-    }
-  }
-  _pendingSprites = {};
-  await applyTopnavSprites();
-  okEl.style.display = 'block';
-  setTimeout(() => okEl.style.display = 'none', 3000);
+.comment-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
-
-async function resetarSprites() {
-  if (!confirm('Resetar todos os sprites para os ícones SVG padrão?')) return;
-  const keys = SPRITE_DEFS.map(d => d.dbKey);
-  await db.from('settings').delete().in('key', keys);
-  _pendingSprites = {};
-  await applyTopnavSprites();
-  await carregarSpritesAdm();
-  const okEl = document.getElementById('sprites-fb-ok');
-  okEl.textContent = '✓ Sprites resetados para padrão.';
-  okEl.style.display = 'block';
-  setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ Sprites salvos!'; }, 3000);
+.comment-avatar-sm {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  flex-shrink: 0; overflow: hidden;
 }
-
-// Aplica sprites salvos no topnav (chamada no initApp)
-async function applyTopnavSprites() {
-  const keys = SPRITE_DEFS.map(d => d.dbKey);
-  const { data: rows } = await db.from('settings').select('key,value').in('key', keys);
-  if (!rows || !rows.length) return;
-  const saved = {};
-  rows.forEach(r => { saved[r.key] = r.value; });
-
-  SPRITE_DEFS.forEach(def => {
-    const val = saved[def.dbKey];
-    const tnBtn = (() => {
-      if (def.key === 'nav_home')    return document.getElementById('btn-feed');
-      if (def.key === 'nav_explore') return document.getElementById('btn-explore');
-      if (def.key === 'nav_create')  return document.querySelector('.tn-btn[onclick="showNewPost()"]');
-      if (def.key === 'nav_logout')  return document.querySelector('.tn-btn[onclick="doLogout()"]');
-    })();
-    if (!tnBtn) return;
-    if (val) {
-      // substituir o SVG por uma tag <img> de sprite
-      const existing = tnBtn.querySelector('svg');
-      if (existing) existing.remove();
-      let spriteImg = tnBtn.querySelector('.tn-sprite-img');
-      if (!spriteImg) {
-        spriteImg = document.createElement('img');
-        spriteImg.className = 'tn-sprite-img';
-        spriteImg.style.cssText = 'width:22px;height:22px;object-fit:contain;display:block';
-        tnBtn.insertBefore(spriteImg, tnBtn.firstChild);
-      }
-      spriteImg.src = val;
-    } else {
-      // remove sprite e mantém svg original (não podemos restaurar o SVG removido sem recarga, ignora)
-      const spriteImg = tnBtn.querySelector('.tn-sprite-img');
-      if (spriteImg) spriteImg.remove();
-    }
-  });
+.comment-avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
+#new-comment {
+  flex: 1;
+  border: none; outline: none;
+  font-size: 14px; color: var(--text);
+  background: transparent;
 }
-window.applyTopnavSprites = applyTopnavSprites;
-
-// ════════════════════════════════════════════════════════════
-
-const POKEMON_LIST = [
-  "Bulbasaur","Ivysaur","Venusaur","Charmander","Charmeleon","Charizard",
-  "Squirtle","Wartortle","Blastoise","Caterpie","Metapod","Butterfree",
-  "Pikachu","Raichu","Clefairy","Clefable","Jigglypuff","Meowth","Psyduck",
-  "Gengar","Eevee","Vaporeon","Jolteon","Flareon","Snorlax","Mewtwo","Mew",
-  "Chikorita","Cyndaquil","Totodile","Togepi","Espeon","Umbreon","Lucario",
-  "Garchomp","Glaceon","Leafeon","Sylveon","Greninja","Mimikyu"
-];
-
-const EMOJI_BG_OPTIONS = [
-  {emoji:"⚡",bg:"#fff9c4"},{emoji:"🔥",bg:"#ffccbc"},{emoji:"💧",bg:"#b3e5fc"},
-  {emoji:"🌿",bg:"#c8e6c9"},{emoji:"👻",bg:"#e1bee7"},{emoji:"🌙",bg:"#263238"},
-  {emoji:"❄️",bg:"#e3f2fd"},{emoji:"🌊",bg:"#01579b"},{emoji:"🌸",bg:"#fce4ec"},
-  {emoji:"🏔️",bg:"#cfd8dc"},{emoji:"🌋",bg:"#bf360c"},{emoji:"🌈",bg:"#f3e5f5"},
-  {emoji:"⭐",bg:"#f57f17"},{emoji:"🎮",bg:"#1a237e"},{emoji:"🏅",bg:"#ff6f00"},
-  {emoji:"🦋",bg:"#f8bbd0"}
-];
-
-// ── Estado ────────────────────────────────────────────────
-let appPosts    = [];
-let appUsers    = {};   // cache username → user
-let followState = {};
-let currentCommentPostId = null;
-let selectedPostEmoji    = null;
-let currentViewHistory   = ['feed'];
-
-// ── Init ──────────────────────────────────────────────────
-async function initApp(user) {
-  currentUser = user;
-  renderSidebarAvatar();
-  await showView('feed');
-  applyTopnavSprites();
+#new-comment::placeholder { color: var(--text-light); }
+.btn-comment-send {
+  color: #0095f6;
+  font-weight: 700;
+  font-size: 14px;
+  opacity: .4;
+  transition: opacity .1s;
 }
+.btn-comment-send:hover { opacity: 1; }
 
-function renderSidebarAvatar() {
-  const el = document.getElementById('sn-avatar');
-  if (!el || !currentUser) return;
-  el.style.overflow        = 'hidden';
-  el.style.display         = 'flex';
-  el.style.alignItems      = 'center';
-  el.style.justifyContent  = 'center';
-  el.style.borderRadius    = '50%';
-  el.style.background      = currentUser.avatar_url ? 'transparent' : (currentUser.color || '#e53935');
-  if (currentUser.avatar_url) {
-    el.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
-  } else {
-    el.innerHTML = '';
-    el.textContent = initials(currentUser.username);
-  }
+/* ============================
+   BACK BTN
+   ============================ */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  transition: color .1s;
 }
+.back-btn:hover { color: var(--red); }
+.back-btn svg { stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-// ── View Routing ──────────────────────────────────────────
-async function showView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-  const v = document.getElementById('view-' + name);
-  if (v) v.classList.remove('hidden');
-
-  document.querySelectorAll('.sn-item').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
-  const sb = document.getElementById('btn-' + name);
-  if (sb) sb.classList.add('active');
-  const bn = document.getElementById('bn-' + name);
-  if (bn) bn.classList.add('active');
-
-  if (name === 'feed')    { history.replaceState(null,'','/'); await renderFeed(); }
-  if (name === 'explore') { history.replaceState(null,'','/'); await renderExplore(); }
-  if (name === 'profile') await renderProfile(currentUser.username);
-
-  currentViewHistory.push(name);
-  window.scrollTo(0, 0);
+/* ============================
+   TOAST
+   ============================ */
+.toast {
+  position: fixed;
+  bottom: 60px; left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 300;
+  opacity: 1;
+  transition: opacity .3s;
+  white-space: nowrap;
 }
+.toast.hidden { opacity: 0; pointer-events: none; }
 
-function goBack() {
-  currentViewHistory.pop();
-  const prev = currentViewHistory[currentViewHistory.length - 1] || 'feed';
-  showView(prev);
+
+/* ============================
+   MODAL COMENTÁRIOS — SPLIT
+   ============================ */
+.comments-modal-box {
+  max-width: 900px;
+  width: 95vw;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
 }
-
-// ── Feed ──────────────────────────────────────────────────
-async function renderFeed() {
-  renderAsideMini();
-  await renderPosts();
-  await renderStories();
-  await renderSuggestions();
+.comments-split {
+  display: flex;
+  height: min(85vh, 600px);
 }
+.comments-post-side {
+  flex: 0 0 55%;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.comments-post-image {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 100px;
+}
+.comments-post-caption {
+  padding: 12px 14px;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cpc-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.cpc-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.comments-right-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--white);
+}
+.comments-right-side .modal-header {
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.comments-right-side .comments-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.comment-actions-bar {
+  padding: 8px 12px 4px;
+  border-top: 1px solid var(--border-lt);
+  flex-shrink: 0;
+}
+.cab-actions { display: flex; gap: 4px; }
+.cab-likes { font-size: 13px; font-weight: 700; color: var(--text); padding: 2px 4px; }
 
-async function renderStories() {
-  const list  = document.getElementById('stories-list');
-  const myPic = document.getElementById('my-story-pic');
-  if (!list) return;
+/* ============================
+   MODAL NOVO POST — TABS + UPLOAD
+   ============================ */
+.post-type-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+  flex-shrink: 0;
+}
+.post-type-tab {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-light);
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all .15s;
+}
+.post-type-tab svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.post-type-tab.active { color: var(--text); border-bottom-color: var(--text); }
+.post-photo-upload-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  gap: 4px;
+  transition: background .15s;
+}
+.post-photo-upload-area:hover { background: #f5f5f5; }
 
-  // avatar do usuário no "Seu story"
-  if (myPic) {
-    if (currentUser.avatar_url) {
-      myPic.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-      myPic.style.background = 'transparent';
-    } else {
-      myPic.style.background = currentUser.color || '#e53935';
-      myPic.textContent = initials(currentUser.username);
-    }
+/* RPG badge no perfil */
+.rpg-profile-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px; background: var(--text); color: var(--white); opacity: 0.5; letter-spacing: 0.5px; margin-left: 4px; vertical-align: middle; }
+/* ============================
+   RESPONSIVE — MOBILE
+   ============================ */
+@media (max-width: 768px) {
+  .topnav { padding: 0 12px; }
+  .topnav-search { display: none; }
+  .main-content { padding-bottom: 0; width: 100%; }
+  .feed-layout { padding: 0; flex-direction: column; gap: 0; width: 100%; }
+  .feed-aside  { display: none; }
+  .feed-center { max-width: 100%; width: 100%; }
+  .stories-row { padding: 12px 12px 12px; margin-bottom: 0; border-bottom: none; }
+  .post-card { border-radius: 0; border-left: none; border-right: none; margin-bottom: 0; border-bottom: 1px solid var(--border-lt); width: 100%; }
+  .explore-grid { padding: 2px 0 20px; gap: 2px; }
+  .explore-top { display: block; padding: 10px 12px; }
+
+  /* ── Perfil mobile ── */
+  .profile-page { padding: 0 0 60px; }
+
+  .profile-header {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 16px 12px;
+    margin-bottom: 0;
   }
 
-  // buscar stories ativos (não expirados) de outros usuários
-  const { data: stories } = await db
-    .from('stories')
-    .select('user_id, users(id, username, color, avatar_url)')
-    .gt('expires_at', new Date().toISOString())
-    .neq('user_id', currentUser.id);
-
-  // buscar se eu tenho story ativo (para mostrar anel no meu avatar)
-  const { data: myStories } = await db
-    .from('stories')
-    .select('id')
-    .eq('user_id', currentUser.id)
-    .gt('expires_at', new Date().toISOString())
-    .limit(1);
-
-  // anel no "Seu story" se eu tiver story ativo
-  const myRing = document.querySelector('.story-mine .story-ring');
-  if (myRing) {
-    myRing.classList.toggle('story-ring-active', !!(myStories && myStories.length > 0));
+  /* Avatar + meta lado a lado no mobile */
+  .profile-avatar-wrap { flex-shrink: 0; }
+  .profile-avatar,
+  .profile-avatar-circle {
+    width: 77px !important; height: 77px !important; font-size: 26px !important;
   }
-  // tornar "Seu story" clicável para ver o próprio story se tiver
-  const mineItem = document.querySelector('.story-mine');
-  if (mineItem) {
-    if (myStories && myStories.length > 0) {
-      mineItem.onclick = () => openStoryViewer(currentUser.id);
-    } else {
-      mineItem.onclick = () => showNewStory();
-    }
+  .profile-meta { flex: 1; min-width: 0; overflow: hidden; }
+  .profile-top-row {
+    flex-wrap: nowrap; gap: 8px; margin-bottom: 8px; align-items: center;
   }
-
-  // agrupar por user_id (1 bolha por usuário)
-  const seen = new Set();
-  const unique = (stories || []).filter(s => {
-    if (seen.has(s.user_id)) return false;
-    seen.add(s.user_id); return true;
-  });
-
-  list.innerHTML = unique.map(s => {
-    const u = s.users || {};
-    const pic = u.avatar_url
-      ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
-      : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username||'?')}</div>`;
-    return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
-      <div class="story-ring story-ring-active">${pic}</div>
-      <span>${u.username}</span>
-    </div>`;
-  }).join('');
-}
-
-async function renderPosts() {
-  const container = document.getElementById('feed-posts');
-  if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
-
-  const { data: posts, error } = await db
-    .from('posts')
-    .select('*, users(id, username, color, avatar_url)')
-    .order('created_at', { ascending: false })
-    .limit(30);
-
-  if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
-  if (!posts.length)   { container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>Seja o primeiro a postar! 🎉</div>'; return; }
-
-  appPosts = posts;
-
-  // buscar likes do usuário atual de uma vez
-  const postIds = posts.map(p => p.id);
-  const { data: myLikes } = await db.from('likes').select('post_id').eq('user_id', currentUser.id).in('post_id', postIds);
-  const likedSet = new Set((myLikes || []).map(l => l.post_id));
-
-  // buscar contagem de likes e comentários
-  const { data: likeCounts }    = await db.from('likes').select('post_id').in('post_id', postIds);
-  const { data: commentCounts } = await db.from('comments').select('post_id').in('post_id', postIds);
-
-  // buscar último comentário de cada post
-  const { data: lastComments } = await db
-    .from('comments')
-    .select('post_id, text, users(username)')
-    .in('post_id', postIds)
-    .order('created_at', { ascending: false });
-
-  const likeMap    = {};
-  const commentMap = {};
-  const lastCommentMap = {};
-  (likeCounts || []).forEach(l => { likeMap[l.post_id] = (likeMap[l.post_id] || 0) + 1; });
-  (commentCounts || []).forEach(c => { commentMap[c.post_id] = (commentMap[c.post_id] || 0) + 1; });
-  // pega só o primeiro (mais recente) por post
-  (lastComments || []).forEach(c => {
-    if (!lastCommentMap[c.post_id]) lastCommentMap[c.post_id] = c;
-  });
-
-  container.innerHTML = posts.map(p => buildPostHTML(p, likedSet.has(p.id), likeMap[p.id] || 0, commentMap[p.id] || 0, lastCommentMap[p.id] || null)).join('');
-}
-
-function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
-  const author    = p.users || { username: '?', color: '#999' };
-  const likeColor = liked ? 'color:#e53935' : '';
-  const likeFill  = liked ? 'fill:#e53935;stroke:#e53935' : 'fill:none';
-
-  const commentPreview = lastComment
-    ? `<div class="post-comment-preview">
-        <span class="cap-user">${lastComment.users?.username || '?'}</span>
-        <span>${formatCaption(lastComment.text || '')}</span>
-       </div>`
-    : '';
-
-  return `
-<div class="post-card" id="post-${p.id}">
-  <div class="post-header">
-    <div onclick="showUserProfile('${author.username}')" style="cursor:pointer">${avatarHTML(author, 32, 'border:1px solid #dbdbdb')}</div>
-    <div class="post-header-info">
-      <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}</div>
-      ${p.location ? `<div class="post-location-tag">${p.location}</div>` : ''}
-    </div>
-    <div class="post-header-more-wrap">
-      <button class="post-header-more" onclick="togglePostMenu('${p.id}', this)">···</button>
-      <div class="post-menu" id="post-menu-${p.id}">
-        ${author.id === currentUser.id
-          ? `<button class="post-menu-item post-menu-danger" onclick="deletePost('${p.id}')">
-               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-               Apagar publicação
-             </button>`
-          : `<button class="post-menu-item" onclick="closePostMenu('${p.id}')">
-               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-               Denunciar
-             </button>`
-        }
-        <button class="post-menu-item" onclick="closePostMenu('${p.id}')">Cancelar</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="post-image" style="background:${p.image_url ? '#000' : (p.bg||'#f0f0f0')}">
-    ${p.image_url
-      ? `<img src="${p.image_url}" alt="post" style="width:100%;height:100%;object-fit:cover;display:block">`
-      : `<span>${p.emoji||'📸'}</span>`}
-  </div>
-
-  <div class="post-actions">
-    <button class="post-action-btn ${liked?'liked':''}" onclick="toggleLike('${p.id}',this)" style="${likeColor}">
-      <svg viewBox="0 0 24 24" style="${likeFill};stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-    </button>
-    <button class="post-action-btn" onclick="openComments('${p.id}')">
-      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-    </button>
-    <button class="post-action-btn">
-      <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
-    </button>
-    <button class="post-save-btn" style="margin-left:auto">
-      <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-    </button>
-  </div>
-
-  <div class="post-likes" id="likes-${p.id}">${fmtNum(likeCount)} curtida${likeCount !== 1 ? 's' : ''}</div>
-  <div class="post-caption-text">
-    <span class="cap-user">${author.username}</span>${formatCaption(p.caption||'')}
-  </div>
-  ${commentCount > 1 ? `<div class="post-view-comments" onclick="openComments('${p.id}')">Ver todos os ${commentCount} comentários</div>` : ''}
-  ${commentPreview}
-  <div class="post-timestamp">${fmtTimeAgo(p.created_at)}</div>
-
-  <div class="post-comment-bar">
-    <div class="mini-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
-    <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
-      oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
-    <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
-  </div>
-</div>`;
-}
-
-function formatCaption(cap) {
-  return cap.replace(/#(\w+)/g, '<span class="cap-tag">#$1</span>');
-}
-
-// ── Likes ─────────────────────────────────────────────────
-async function toggleLike(postId, btn) {
-  const liked = btn.classList.contains('liked');
-  btn.classList.toggle('liked', !liked);
-  const svg = btn.querySelector('svg');
-  if (svg) svg.style.cssText = !liked ? 'fill:#e53935;stroke:#e53935;stroke-width:2' : 'fill:none;stroke-width:2';
-  btn.style.color = !liked ? '#e53935' : '';
-
-  const countEl = document.getElementById('likes-' + postId);
-  if (countEl) {
-    const cur = parseInt(countEl.textContent) || 0;
-    const next = !liked ? cur + 1 : Math.max(0, cur - 1);
-    countEl.textContent = `${fmtNum(next)} curtida${next !== 1 ? 's' : ''}`;
+  .profile-username-text { font-size: 14px; font-weight: 600; }
+  .rpg-profile-badge { font-size: 10px; padding: 2px 6px; }
+  .btn-edit-profile, .btn-follow-profile {
+    padding: 5px 12px; font-size: 13px; margin: 0;
   }
-
-  if (!liked) {
-    await db.from('likes').insert({ post_id: postId, user_id: currentUser.id });
-  } else {
-    await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+  .profile-stats {
+    display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: nowrap;
   }
+  .stat-item { font-size: 13px; }
+  .stat-item strong { font-size: 14px; }
+  .profile-bio { margin-top: 6px; }
+  .profile-bio .prof-name { font-size: 13px; font-weight: 700; }
+  .profile-bio .prof-desc { font-size: 13px; }
+
+  /* Tabs e grid */
+  .profile-tabs { margin-top: 0; }
+  .profile-grid { gap: 2px; }
+  .profile-thumb { font-size: 32px; }
+
+  /* Modais */
+  .post-modal-body { flex-direction: column; min-height: auto; }
+  .post-img-area { width: 100%; min-height: 280px; }
+  .toast { bottom: 16px; }
+
+  /* Comments split → stack no mobile */
+  .comments-split { flex-direction: column; height: auto; max-height: 90vh; overflow-y: auto; }
+  .comments-post-side { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .comments-post-image { min-height: 260px; }
+  .comments-right-side { min-height: 300px; }
+}
+@media (max-width: 935px) and (min-width: 769px) {
+  .feed-aside { width: 230px; }
+  .comments-post-side { flex: 0 0 45%; }
+}
+/* ── Post menu (···) ──────────────────────────────────── */
+.post-header-more-wrap {
+  position: relative;
+}
+.post-menu {
+  display: none;
+  position: absolute;
+  right: 0; top: 32px;
+  background: #fff;
+  border: 1px solid #dbdbdb;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  min-width: 200px;
+  z-index: 50;
+  overflow: hidden;
+  animation: menuPop .15s ease;
+}
+.post-menu.open { display: block; }
+@keyframes menuPop {
+  from { opacity: 0; transform: scale(.95) translateY(-4px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+.post-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 16px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #262626;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background .1s;
+}
+.post-menu-item:last-child { border-bottom: none; }
+.post-menu-item:hover { background: #fafafa; }
+.post-menu-item.post-menu-danger { color: #e53935; font-weight: 700; }
+
+/* ── Stories ring ativo ───────────────────────────────── */
+.story-ring-active {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888) !important;
+}
+.story-ring-active .story-pic {
+  border: 2.5px solid #fff;
 }
 
-// ── Comments ──────────────────────────────────────────────
-async function openComments(postId) {
-  currentCommentPostId = postId;
-  const list = document.getElementById('comments-list');
-  if (list) {
-    list.innerHTML = '<div style="text-align:center;padding:20px;color:#8e8e8e">Carregando...</div>';
-    await renderCommentsList(postId);
-  }
-  const myAv = document.getElementById('my-comment-avatar');
-  if (myAv) {
-    if (currentUser.avatar_url) { myAv.style.background='transparent'; myAv.innerHTML=`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
-    else { myAv.style.background=currentUser.color||'#e53935'; myAv.textContent=initials(currentUser.username); }
-  }
-  document.getElementById('new-comment').value = '';
-  openModal('modal-comments');
+/* ── Story viewer ─────────────────────────────────────── */
+#modal-story { display: none; }
+
+/* ── Profile avatar circle ── */
+.profile-avatar-circle {
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  background: var(--red);
+  color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 52px; font-weight: 800;
+  overflow: hidden; flex-shrink: 0;
 }
-
-async function renderCommentsList(postId) {
-  const list = document.getElementById('comments-list');
-  if (!list) return;
-  const { data: comments } = await db
-    .from('comments')
-    .select('*, users(username, color, avatar_url)')
-    .eq('post_id', postId)
-    .order('created_at', { ascending: true });
-
-  if (!comments || !comments.length) {
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e;font-size:14px">Nenhum comentário ainda.<br>Seja o primeiro! 🎤</div>';
-    return;
-  }
-  list.innerHTML = comments.map(c => {
-    const u = c.users || { username: '?', color: '#999' };
-    return `
-      <div class="comment-item">
-        <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
-        <div class="comment-body">
-          <strong>${u.username}</strong><span> ${c.text}</span>
-          <div class="comment-time">${fmtTimeAgo(c.created_at)}</div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-async function submitComment() {
-  const input = document.getElementById('new-comment');
-  const text  = input?.value.trim();
-  if (!text) return;
-  await db.from('comments').insert({ post_id: currentCommentPostId, user_id: currentUser.id, text });
-  input.value = '';
-  await renderCommentsList(currentCommentPostId);
-  toast('Comentário publicado!');
-}
-
-async function submitInlineComment(postId) {
-  const input = document.getElementById('inline-comment-' + postId);
-  if (!input || !input.value.trim()) return;
-  await db.from('comments').insert({ post_id: postId, user_id: currentUser.id, text: input.value.trim() });
-  input.value = '';
-  document.getElementById('inline-send-' + postId)?.classList.remove('ready');
-  toast('Comentário publicado!');
-  await renderPosts();
-}
-
-// ── Aside ─────────────────────────────────────────────────
-function renderAsideMini() {
-  const el = document.getElementById('aside-profile-mini');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="profile-mini-card">
-      <div class="pm-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden" onclick="showView('profile')">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
-      <div class="pm-info">
-        <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
-        <div class="pm-name">${currentUser.name || currentUser.username}</div>
-      </div>
-      <div class="pm-switch"><a href="#" onclick="doLogout();return false">Sair</a></div>
-    </div>`;
-}
-
-async function renderSuggestions() {
-  const el = document.getElementById('suggestions-list');
-  if (!el) return;
-  const { data: users } = await db.from('users').select('id,username,color,avatar_url,rpg').neq('id', currentUser.id).limit(5);
-  el.innerHTML = (users || []).map(u => `
-    <div class="suggestion-item">
-      <div class="sug-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
-      <div class="sug-info">
-        <div class="sug-name" onclick="showUserProfile('${u.username}')">${u.username}</div>
-        <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
-      </div>
-      <button class="btn-follow-sm" id="follow-btn-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id] ? 'Seguindo' : 'Seguir'}</button>
-    </div>`).join('');
-}
-
-async function toggleFollow(btn, userId, username) {
-  const following = followState[userId];
-  if (!following) {
-    await db.from('follows').insert({ follower_id: currentUser.id, following_id: userId });
-    followState[userId] = true;
-    btn.textContent = 'Seguindo';
-    toast(`Seguindo ${username}!`);
-  } else {
-    await db.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', userId);
-    followState[userId] = false;
-    btn.textContent = 'Seguir';
-    toast(`Deixou de seguir ${username}`);
-  }
-}
-
-// ── Explore ───────────────────────────────────────────────
-async function renderExplore(query) {
-  const grid = document.getElementById('explore-grid');
-  if (!grid) return;
-  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
-
-  let q = db.from('posts').select('id,emoji,bg,caption,location,users(username)').order('created_at', { ascending: false }).limit(60);
-  const { data: posts } = await q;
-
-  let filtered = posts || [];
-  if (query && query.trim()) {
-    const ql = query.toLowerCase();
-    filtered = filtered.filter(p =>
-      p.users?.username?.toLowerCase().includes(ql) ||
-      p.caption?.toLowerCase().includes(ql) ||
-      p.location?.toLowerCase().includes(ql)
-    );
-  }
-
-  if (!filtered.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#8e8e8e">Nenhum resultado.</div>';
-    return;
-  }
-  grid.innerHTML = filtered.map(p => `
-    <div class="explore-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
-      <span>${p.emoji||'📸'}</span>
-    </div>`).join('');
-}
-
-function doSearch(q) { renderExplore(q); }
-
-// ── Avatar color palette ──────────────────────────────────
-const AVATAR_COLORS = [
-  '#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5',
-  '#00897b','#43a047','#f4511e','#fb8c00','#fdd835',
-  '#6d4c41','#546e7a','#000000','#c0392b','#2980b9'
-];
-
-function avatarHTML(u, size, extraStyle) {
-  const sz = size || 40;
-  const bg = u.color || '#e53935';
-  if (u.avatar_url) {
-    return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;overflow:hidden;flex-shrink:0;${extraStyle||''}"><img src="${u.avatar_url}" alt="${u.username}" style="width:100%;height:100%;object-fit:cover"></div>`;
-  }
-  return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*0.35)}px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif;flex-shrink:0;${extraStyle||''}">${initials(u.username)}</div>`;
-}
-
-// ── Build profile HTML (shared by own + other users) ──────
-function buildProfileHTML(u, userPosts, followers, following, isMe) {
-  const postCount = (userPosts||[]).length;
-  const avatarInner = u.avatar_url
-    ? `<img src="${u.avatar_url}" alt="${u.username}">`
-    : `<span>${initials(u.username)}</span>`;
-  const avatarBg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
-
-  return `
-    <div class="profile-page">
-
-      <div class="profile-header">
-        <div class="profile-avatar-wrap">
-          <div class="profile-avatar-circle" style="background:${avatarBg}">
-            ${avatarInner}
-          </div>
-        </div>
-        <div class="profile-meta">
-          <div class="profile-top-row">
-            <span class="profile-username-text">${u.username}</span>
-            ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
-            ${isMe
-              ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
-              : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
-            }
-          </div>
-          <div class="profile-stats">
-            <div class="stat-item"><strong>${fmtNum(postCount)}</strong><span> posts</span></div>
-            <div class="stat-item"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
-            <div class="stat-item"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
-          </div>
-          <div class="profile-bio">
-            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
-            ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
-            ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
-          </div>
-        </div>
-      </div>
-
-      <div class="profile-tabs">
-        <button class="tab-btn active">
-          <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          Publicações
-        </button>
-      </div>
-
-      <div class="profile-grid">
-        ${postCount
-          ? userPosts.map(p => `
-              <div class="profile-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
-                ${p.image_url
-                  ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;display:block">`
-                  : `<span>${p.emoji||'📸'}</span>`}
-              </div>`).join('')
-          : `<div class="profile-empty">Nenhuma publicação ainda.</div>`
-        }
-      </div>
-    </div>`;
-}
-
-// ── Load user data helper ─────────────────────────────────
-async function loadUserData(username) {
-  const { data: u, error } = await db.from('users').select('*').eq('username', username).maybeSingle();
-  if (error) console.error('Erro ao carregar usuário:', error);
-  if (!u) return null;
-  const [postsRes, followersRes, followingRes] = await Promise.all([
-    db.from('posts').select('id,emoji,bg,image_url').eq('user_id', u.id).order('created_at', { ascending: false }),
-    db.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', u.id),
-    db.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', u.id),
-  ]);
-  return { u, userPosts: postsRes.data || [], followers: followersRes.count || 0, following: followingRes.count || 0 };
-}
-
-// ── Profile (own) ─────────────────────────────────────────
-async function renderProfile(username) {
-  const container = document.getElementById('profile-content');
-  if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
-  history.replaceState(null, '', '/' + username);
-  const res = await loadUserData(username);
-  if (!res) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Perfil não encontrado.</div>'; return; }
-  const { u, userPosts, followers, following } = res;
-  container.innerHTML = buildProfileHTML(u, userPosts, followers, following, true);
-}
-
-// ── Profile (other users) ─────────────────────────────────
-async function showUserProfile(username) {
-  if (username === currentUser.username) { showView('profile'); return; }
-  const container = document.getElementById('user-profile-content');
-  if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
-  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-  document.getElementById('view-user').classList.remove('hidden');
-  currentViewHistory.push('user');
-  window.scrollTo(0, 0);
-  history.pushState(null, '', '/' + username);
-  const res = await loadUserData(username);
-  if (!res) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Usuário não encontrado.</div>'; return; }
-  const { u, userPosts, followers, following } = res;
-  container.innerHTML = buildProfileHTML(u, userPosts, followers, following, false);
-}
-
-// ── Edit Profile modal ────────────────────────────────────
-let _epSelectedColor = null;
-
-function openEditProfile() {
-  const u = currentUser;
-  _epSelectedColor = u.color || '#e53935';
-
-  // preenche campos
-  document.getElementById('ep-username').value = u.username || '';
-  document.getElementById('ep-name').value     = u.name    || '';
-  document.getElementById('ep-bio').value      = u.bio     || '';
-  document.getElementById('ep-bio-count').textContent = (u.bio||'').length + '/150';
-  document.getElementById('ep-rpg').value      = u.rpg     || '';
-  document.getElementById('ep-pronoun').value  = u.pronoun || '';
-  document.getElementById('ep-username-err').style.display = 'none';
-  document.getElementById('ep-save-err').style.display     = 'none';
-
-
-  // avatar preview — foto ou iniciais
-  _epPendingAvatarFile = null;
-  const imgEl  = document.getElementById('ep-avatar-img');
-  const initEl = document.getElementById('ep-avatar-initials');
-  const prev   = document.getElementById('ep-avatar-preview');
-  prev.style.background = _epSelectedColor;
-  if (u.avatar_url) {
-    imgEl.src = u.avatar_url;
-    imgEl.style.display = 'block';
-    initEl.style.display = 'none';
-  } else {
-    imgEl.style.display = 'none';
-    initEl.style.display = '';
-    initEl.textContent = initials(u.username);
-  }
-  document.getElementById('ep-avatar-file').value = '';
-
-  // color picker
-  const picker = document.getElementById('ep-color-picker');
-  picker.innerHTML = AVATAR_COLORS.map(c => `
-    <div onclick="selectEpColor('${c}')" id="ep-color-${c.replace('#','')}"
-      style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${c===_epSelectedColor?'#fff':'transparent'};box-shadow:${c===_epSelectedColor?'0 0 0 2px #262626':'none'};transition:all .15s"></div>
-  `).join('');
-
-  // bio counter
-  document.getElementById('ep-bio').oninput = function() {
-    document.getElementById('ep-bio-count').textContent = this.value.length + '/150';
-  };
-
-  openModal('modal-edit-profile');
-}
-
-let _epPendingAvatarFile = null;
-
-function previewAvatarUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { toast('Imagem muito grande. Máximo 10MB.'); return; }
-  openCropper(file, 'circle', croppedFile => {
-    _epPendingAvatarFile = croppedFile;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const imgEl  = document.getElementById('ep-avatar-img');
-      const initEl = document.getElementById('ep-avatar-initials');
-      if (imgEl)  { imgEl.src = e.target.result; imgEl.style.display = 'block'; }
-      if (initEl) initEl.style.display = 'none';
-    };
-    reader.readAsDataURL(croppedFile);
-  });
-  input.value = '';
-}
-
-function selectEpColor(color) {
-  _epSelectedColor = color;
-  const prev = document.getElementById('ep-avatar-preview');
-  prev.style.background = color;
-  AVATAR_COLORS.forEach(c => {
-    const el = document.getElementById('ep-color-' + c.replace('#',''));
-    if (!el) return;
-    const sel = c === color;
-    el.style.border      = `3px solid ${sel?'#fff':'transparent'}`;
-    el.style.boxShadow   = sel ? '0 0 0 2px #262626' : 'none';
-  });
-}
-
-async function submitEditProfile() {
-  const username = document.getElementById('ep-username').value.trim();
-  const name     = document.getElementById('ep-name').value.trim();
-  const bio      = document.getElementById('ep-bio').value.trim();
-  const rpg      = document.getElementById('ep-rpg').value;
-  const pronoun  = document.getElementById('ep-pronoun').value;
-  const color    = _epSelectedColor || currentUser.color || '#e53935';
-  const errEl    = document.getElementById('ep-save-err');
-  const usernErr = document.getElementById('ep-username-err');
-  const saveBtn  = document.querySelector('#modal-edit-profile .btn-share-modal');
-  errEl.style.display = usernErr.style.display = 'none';
-
-  if (!username) { usernErr.textContent = 'Username obrigatório.'; usernErr.style.display = 'block'; return; }
-  if (!/^[a-zA-Z0-9_.]{2,30}$/.test(username)) {
-    usernErr.textContent = 'Apenas letras, números, _ e . (2–30 caracteres).';
-    usernErr.style.display = 'block'; return;
-  }
-  if (username !== currentUser.username) {
-    const { data: exists } = await db.from('users').select('id').eq('username', username).maybeSingle();
-    if (exists) { usernErr.textContent = 'Este username já está em uso.'; usernErr.style.display = 'block'; return; }
-  }
-
-  if (saveBtn) { saveBtn.textContent = 'Salvando...'; saveBtn.disabled = true; }
-
-  // 1 — upload da foto PRIMEIRO (antes de salvar o resto)
-  let avatar_url = currentUser.avatar_url || null;
-  if (_epPendingAvatarFile) {
-    // usar path com timestamp para forçar nova URL sem cache
-    const path = `${currentUser.id}_${Date.now()}.jpg`;
-    const { error: upErr } = await db.storage
-      .from('avatars')
-      .upload(path, _epPendingAvatarFile, { upsert: false, contentType: 'image/jpeg' });
-    if (upErr) {
-      errEl.textContent = 'Erro ao enviar foto: ' + upErr.message + '. Verifique as políticas do bucket "avatars" no Supabase.';
-      errEl.style.display = 'block';
-      if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
-      return;
-    }
-    const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
-    avatar_url = urlData.publicUrl; // URL limpa, sem ?t= — evita duplicatas no banco
-    _epPendingAvatarFile = null;
-  }
-
-  // 2 — salva todos os campos juntos (incluindo avatar_url se mudou)
-  const updatePayload = { username, name, bio, rpg, pronoun, color, avatar_url };
-  const { error: textErr } = await db.from('users')
-    .update(updatePayload)
-    .eq('id', currentUser.id);
-
-  if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
-  if (textErr) { errEl.textContent = 'Erro ao salvar: ' + textErr.message; errEl.style.display = 'block'; return; }
-
-  // 3 — atualiza estado local
-  Object.assign(currentUser, { username, name, bio, rpg, pronoun, color, avatar_url });
-  saveSession(currentUser);
-  renderSidebarAvatar();
-  closeModal('modal-edit-profile');
-  await renderProfile(currentUser.username);
-  toast('Perfil atualizado! ✨');
-}
-
-// ── New Story ─────────────────────────────────────────────
-function showNewStory() {
-  _storyPendingFile = null;
-  const img = document.getElementById('story-preview-img');
-  const ph  = document.getElementById('story-upload-placeholder');
-  const fileInput = document.getElementById('story-img-file');
-  if (img) { img.src = ''; img.style.display = 'none'; }
-  if (ph)  ph.style.display = 'flex';
-  if (fileInput) fileInput.value = '';
-  openModal('modal-story-new');
-}
-
-// ── New Post ─────────────────────────────────────────────
-let _postPendingImageFile = null;
-
-function showNewPost() {
-  _postPendingImageFile = null;
-  document.getElementById('post-caption').value  = '';
-  document.getElementById('post-location').value = '';
-  document.getElementById('post-img-file').value = '';
-
-  // volta para step 1 (seleção)
-  document.getElementById('post-step-select').style.display  = '';
-  document.getElementById('post-step-caption').style.display = 'none';
-
-  // reset preview
-  const prevImg = document.getElementById('post-preview-img');
-  if (prevImg) { prevImg.src = ''; prevImg.style.display = 'none'; }
-  const hint = document.getElementById('post-change-hint');
-  if (hint) hint.style.display = 'none';
-
-  // drag-and-drop
-  const dropArea = document.getElementById('post-drop-area');
-  if (dropArea) {
-    dropArea.ondragover  = e => { e.preventDefault(); dropArea.style.background = '#f0f8ff'; };
-    dropArea.ondragleave = () => { dropArea.style.background = ''; };
-    dropArea.ondrop      = e => {
-      e.preventDefault();
-      dropArea.style.background = '';
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith('image/')) handlePostImageFile(file);
-    };
-  }
-
-  const row = document.getElementById('post-author-row');
-  if (row) row.innerHTML = `
-    <div class="pa-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
-    <span class="pa-name">${currentUser.username}</span>`;
-
-  openModal('modal-post');
-}
-
-function previewPostImage(input) {
-  const file = input.files[0];
-  if (!file) return;
-  handlePostImageFile(file);
-  input.value = '';
-}
-
-function handlePostImageFile(file) {
-  if (file.size > 15 * 1024 * 1024) { toast('Imagem muito grande. Máximo 15MB.'); return; }
-  openCropper(file, 'square', croppedFile => {
-    _postPendingImageFile = croppedFile;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img  = document.getElementById('post-preview-img');
-      const hint = document.getElementById('post-change-hint');
-      if (img)  { img.src = e.target.result; img.style.display = 'block'; }
-      if (hint) hint.style.display = 'block';
-      // avança para step 2
-      document.getElementById('post-step-select').style.display  = 'none';
-      document.getElementById('post-step-caption').style.display = '';
-    };
-    reader.readAsDataURL(croppedFile);
-  });
-}
-
-function switchPostTab() {} // mantido para compatibilidade, sem uso
-
-// ── Stories ───────────────────────────────────────────────
-let _storyPendingFile = null;
-let _storyViewList    = [];
-let _storyViewIdx     = 0;
-let _storyTimer       = null;
-
-function previewStoryImage(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 20 * 1024 * 1024) { toast('Imagem muito grande. Máximo 20MB.'); return; }
-  openCropper(file, 'story', croppedFile => {
-    _storyPendingFile = croppedFile;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img  = document.getElementById('story-preview-img');
-      const ph   = document.getElementById('story-upload-placeholder');
-      if (img) { img.src = e.target.result; img.style.display = 'block'; }
-      if (ph)  ph.style.display = 'none';
-    };
-    reader.readAsDataURL(croppedFile);
-  });
-  input.value = '';
-}
-
-async function submitStory() {
-  if (!_storyPendingFile) { toast('Selecione uma foto para o story!'); return; }
-  const btn = document.querySelector('#modal-story-new .btn-share-modal');
-  if (btn) { btn.textContent = 'Publicando...'; btn.disabled = true; }
-
-  const path = `${currentUser.id}_${Date.now()}.jpg`;
-  const { error: upErr } = await db.storage.from('stories').upload(path, _storyPendingFile, { upsert: false, contentType: 'image/jpeg' });
-  if (upErr) {
-    toast('Erro ao enviar story: ' + upErr.message);
-    if (btn) { btn.textContent = 'Publicar story'; btn.disabled = false; }
-    return;
-  }
-  const { data: urlData } = db.storage.from('stories').getPublicUrl(path);
-  const image_url = urlData.publicUrl;
-
-  const { error } = await db.from('stories').insert({ user_id: currentUser.id, image_url });
-  if (btn) { btn.textContent = 'Publicar story'; btn.disabled = false; }
-  if (error) { toast('Erro ao publicar story: ' + error.message); return; }
-
-  _storyPendingFile = null;
-  closeModal('modal-story-new');
-  await renderStories();
-  toast('Story publicado! Disponível por 24h 🕐');
-}
-
-// ── Story Viewer ──────────────────────────────────────────
-async function openStoryViewer(userId) {
-  // busca stories do usuário (não expirados)
-  const { data: stories } = await db
-    .from('stories')
-    .select('*, users(id, username, color, avatar_url)')
-    .eq('user_id', userId)
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: true });
-
-  if (!stories || !stories.length) { toast('Nenhum story disponível.'); return; }
-  _storyViewList = stories;
-  _storyViewIdx  = 0;
-  showStory(_storyViewIdx);
-  document.getElementById('modal-story').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-
-function showStory(idx) {
-  clearTimeout(_storyTimer);
-  const story = _storyViewList[idx];
-  if (!story) { closeStoryViewer(); return; }
-  const u = story.users || {};
-
-  // imagem
-  document.getElementById('sv-image').src = story.image_url;
-
-  // avatar
-  const avEl = document.getElementById('sv-avatar');
-  avEl.innerHTML = u.avatar_url
-    ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover">`
-    : `<div style="width:100%;height:100%;background:${u.color||'#e53935'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif">${initials(u.username||'?')}</div>`;
-
-  document.getElementById('sv-username').textContent = u.username || '?';
-  document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás';
-
-  // botão apagar (só dono)
-  const delBtn = document.getElementById('sv-delete-btn');
-  delBtn.style.display = u.id === currentUser.id ? 'block' : 'none';
-  delBtn.dataset.storyId = story.id;
-  delBtn.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
-
-  // barra de progresso — 5s por story
-  const fill = document.getElementById('story-progress-fill');
-  fill.style.transition = 'none';
-  fill.style.width = '0%';
-  requestAnimationFrame(() => {
-    fill.style.transition = 'width 5s linear';
-    fill.style.width = '100%';
-  });
-  _storyTimer = setTimeout(() => storyNav(1), 5000);
-}
-
-function storyNav(dir) {
-  const next = _storyViewIdx + dir;
-  if (next < 0 || next >= _storyViewList.length) { closeStoryViewer(); return; }
-  _storyViewIdx = next;
-  showStory(_storyViewIdx);
-}
-
-function closeStoryViewer() {
-  clearTimeout(_storyTimer);
-  document.getElementById('modal-story').style.display = 'none';
-  document.body.style.overflow = '';
-}
-
-async function deleteCurrentStory() {
-  const btn    = document.getElementById('sv-delete-btn');
-  const id     = btn.dataset.storyId;
-  const path   = btn.dataset.storyPath;
-  if (!confirm('Apagar este story?')) return;
-  if (path) await db.storage.from('stories').remove([path]);
-  await db.from('stories').delete().eq('id', id);
-  _storyViewList.splice(_storyViewIdx, 1);
-  if (!_storyViewList.length) { closeStoryViewer(); await renderStories(); return; }
-  if (_storyViewIdx >= _storyViewList.length) _storyViewIdx = _storyViewList.length - 1;
-  showStory(_storyViewIdx);
-  await renderStories();
-  toast('Story apagado.');
-}
-
-function expiresIn(isoStr) {
-  const diff = Math.max(0, new Date(isoStr) - Date.now());
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
-function selectPostEmoji(idx) {
-  selectedPostEmoji = EMOJI_BG_OPTIONS[idx];
-  document.querySelectorAll('.emoji-pick-btn').forEach((b, i) => b.classList.toggle('selected', i === idx));
-  const area = document.getElementById('post-emoji-area');
-  if (area) {
-    area.style.background = selectedPostEmoji.bg;
-    const existing = area.querySelector('.post-selected-preview');
-    if (existing) existing.remove();
-    const prev = document.createElement('div');
-    prev.className = 'post-selected-preview';
-    prev.textContent = selectedPostEmoji.emoji;
-    area.insertBefore(prev, area.firstChild);
-  }
-}
-
-// ── Post Menu (···) ───────────────────────────────────────
-function togglePostMenu(postId, btn) {
-  // fecha todos os outros menus abertos
-  document.querySelectorAll('.post-menu.open').forEach(m => {
-    if (m.id !== 'post-menu-' + postId) m.classList.remove('open');
-  });
-  const menu = document.getElementById('post-menu-' + postId);
-  if (menu) menu.classList.toggle('open');
-  // fecha ao clicar fora
-  setTimeout(() => {
-    document.addEventListener('click', function handler(e) {
-      if (!menu?.contains(e.target) && e.target !== btn) {
-        menu?.classList.remove('open');
-        document.removeEventListener('click', handler);
-      }
-    });
-  }, 10);
-}
-
-function closePostMenu(postId) {
-  document.getElementById('post-menu-' + postId)?.classList.remove('open');
-}
-
-async function deletePost(postId) {
-  closePostMenu(postId);
-  if (!confirm('Tem certeza que quer apagar esta publicação?')) return;
-  // remove do storage se tiver imagem
-  const post = appPosts?.find(p => p.id === postId);
-  if (post?.image_url) {
-    try {
-      const url  = new URL(post.image_url);
-      const path = url.pathname.split('/posts/')[1]?.split('?')[0];
-      if (path) await db.storage.from('posts').remove([path]);
-    } catch {}
-  }
-  // apaga likes e comentários primeiro
-  await db.from('likes').delete().eq('post_id', postId);
-  await db.from('comments').delete().eq('post_id', postId);
-  const { error } = await db.from('posts').delete().eq('id', postId);
-  if (error) { toast('Erro ao apagar: ' + error.message); return; }
-  // remove o card do DOM imediatamente
-  const card = document.getElementById('post-' + postId);
-  if (card) { card.style.transition = 'opacity .25s'; card.style.opacity = '0'; setTimeout(() => card.remove(), 250); }
-  toast('Publicação apagada.');
-}
-
-async function submitPost() {
-  const caption  = document.getElementById('post-caption').value.trim();
-  const location = document.getElementById('post-location').value.trim();
-  if (!caption)              return toast('Escreva uma legenda!');
-  if (!_postPendingImageFile) return toast('Selecione uma foto!');
-
-  const shareBtn = document.querySelector('#modal-post .btn-share-modal');
-  if (shareBtn) { shareBtn.textContent = 'Publicando...'; shareBtn.disabled = true; }
-
-  const path = `${currentUser.id}_${Date.now()}.jpg`;
-  const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/jpeg' });
-  if (upErr) {
-    toast('Erro ao enviar foto: ' + upErr.message);
-    if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
-    return;
-  }
-  const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
-  const image_url = urlData.publicUrl;
-
-  const payload = { user_id: currentUser.id, caption, location, image_url, emoji: null, bg: null };
-  const { error } = await db.from('posts').insert(payload);
-  if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
-  if (error) { toast('Erro ao publicar. Tente novamente.'); return; }
-  _postPendingImageFile = null;
-  closeModal('modal-post');
-  await showView('feed');
-  toast('Publicação criada! 🎉');
-}
-
-// ── Modal Helpers ─────────────────────────────────────────
-function openModal(id)  { document.getElementById(id)?.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
-function closeModal(id) { document.getElementById(id)?.classList.add('hidden');    document.body.style.overflow = ''; }
-
-// ── Utils ─────────────────────────────────────────────────
-function initials(name) {
-  if (!name) return '?';
-  const parts = name.trim().split(/[\s_]+/);
-  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
-}
-
-function fmtNum(n) {
-  n = Number(n) || 0;
-  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-  if (n >= 1000)    return (n / 1000).toFixed(1) + 'K';
-  return String(n);
-}
-
-function fmtTimeAgo(iso) {
-  if (!iso) return '';
-  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
-  if (diff < 60)   return 'agora';
-  if (diff < 3600) return Math.floor(diff / 60) + 'm';
-  if (diff < 86400) return Math.floor(diff / 3600) + 'h';
-  return Math.floor(diff / 86400) + 'd';
-}
-
-let toastTimer;
-function toast(msg) {
-  const t = document.getElementById('toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.classList.remove('hidden');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.add('hidden'), 2500);
-}
-
-// ── Keyboard ──────────────────────────────────────────────
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-story-new'); closeModal('modal-comments'); closeCropper(); }
-});
-
-// ── Roteamento — executado após todas as funções estarem definidas ──
-if (IS_ADM) {
-  document.getElementById('pokegram-root').style.display = 'none';
-  document.getElementById('adm-root').style.display = 'block';
-  document.body.classList.add('adm-body');
-  document.title = 'PokéGram — ADM';
-  applyLogos();
-  initAdm();
-} else {
-  applyLogos();
-  initPokegram();
-}
-</script>
-
-<!-- CROPPER MODAL -->
-<div id="modal-crop-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#1a1a1a;border-radius:14px;padding:18px;width:min(500px,96vw);box-shadow:0 12px 48px rgba(0,0,0,.6)">
-    <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#fff;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-      <span>✂️ Ajustar imagem</span>
-      <button onclick="fecharCrop()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa;line-height:1">✕</button>
-    </div>
-    <!-- apenas girar e espelhar -->
-    <div style="display:flex;gap:6px;margin-bottom:10px;justify-content:flex-end">
-      <button onclick="_cropRotate(-90)" title="Girar -90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">↺</button>
-      <button onclick="_cropRotate(90)"  title="Girar +90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">↻</button>
-      <button onclick="_cropFlipX()"     title="Espelhar"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">⇄</button>
-    </div>
-    <div style="max-height:360px;overflow:hidden;border-radius:8px;background:#000">
-      <img id="crop-img" style="max-width:100%;display:block"/>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
-      <button onclick="fecharCrop()" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer">Cancelar</button>
-      <button onclick="confirmarCrop()" style="background:#0095f6;border:none;color:#fff;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer">✔ Usar</button>
-    </div>
-  </div>
-</div>
-
-<script>
-// ── Image Cropper (Cropper.js) ─────────────────────────────
-let _cropperInstance = null, _cropCallback = null, _cropFlipXState = false;
-
-function _abrirCrop(src, callback, aspectRatio) {
-  _cropCallback   = callback;
-  _cropFlipXState = false;
-  const overlay = document.getElementById('modal-crop-overlay');
-  overlay.style.display = 'flex';
-  const img = document.getElementById('crop-img');
-  if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
-  img.onload = () => {
-    _cropperInstance = new Cropper(img, {
-      aspectRatio:      (aspectRatio === undefined || isNaN(aspectRatio)) ? NaN : aspectRatio,
-      viewMode:         1,
-      autoCropArea:     1,
-      background:       false,
-      responsive:       true,
-      checkOrientation: false,
-      guides:           true,
-    });
-  };
-  img.onerror = () => alert('Erro ao carregar a imagem.');
-  img.crossOrigin = src.startsWith('data:') ? null : 'anonymous';
-  img.src = '';
-  img.src = src;
-}
-
-function fecharCrop() {
-  document.getElementById('modal-crop-overlay').style.display = 'none';
-  if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
-  // NÃO zera _cropCallback aqui — confirmarCrop precisa dele ainda
-}
-
-function confirmarCrop() {
-  if (!_cropperInstance || !_cropCallback) return;
-  const cb = _cropCallback; // salva referência antes de fechar
-  const canvas = _cropperInstance.getCroppedCanvas({ maxWidth: 1080, maxHeight: 1080, imageSmoothingQuality: 'high' });
-  canvas.toBlob(blob => {
-    const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
-    fecharCrop();
-    _cropCallback = null; // limpa só depois de usar
-    cb(file);             // dispara o callback com o arquivo recortado
-  }, 'image/jpeg', 0.92);
-}
-
-function _cropRotate(deg) { if (_cropperInstance) _cropperInstance.rotate(deg); }
-function _cropFlipX() {
-  if (!_cropperInstance) return;
-  _cropFlipXState = !_cropFlipXState;
-  _cropperInstance.scaleX(_cropFlipXState ? -1 : 1);
-}
-
-// adapters — mantém compatibilidade com openCropper(file, mode, callback)
-function openCropper(file, mode, callback) {
-  // sempre 1:1 para postagens e avatar; 9:16 para stories
-  const ratio = (mode === 'story') ? 9/16 : 1;
-  const reader = new FileReader();
-  reader.onload = e => _abrirCrop(e.target.result, callback, ratio);
-  reader.readAsDataURL(file);
-}
-
-function closeCropper() { fecharCrop(); }
-function confirmCrop()  { confirmarCrop(); }
-
-</script>
-</body>
-</html>
+.profile-avatar-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
