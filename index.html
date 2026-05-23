@@ -948,13 +948,6 @@ function enterApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
   if (typeof initApp === 'function') initApp(user);
-  // Se a URL já tem /<username>, abre aquele perfil
-  const path = window.location.pathname.replace(/^\//, '');
-  if (path && path !== 'adm' && path !== user.username) {
-    setTimeout(() => showUserProfile(path), 100);
-  } else if (path === user.username) {
-    setTimeout(() => showView('profile'), 100);
-  }
 }
 
 function doLogout() { clearSession(); currentUser = null; location.reload(); }
@@ -1427,8 +1420,21 @@ let currentViewHistory   = ['feed'];
 async function initApp(user) {
   currentUser = user;
   renderSidebarAvatar();
-  await showView('feed');
   applyTopnavSprites();
+
+  // Roteamento inicial: respeita a URL atual em vez de sempre ir para feed
+  const urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
+  if (!urlPath || urlPath === 'feed') {
+    await showView('feed');
+  } else if (urlPath === user.username) {
+    await showView('profile');
+  } else if (urlPath !== 'adm') {
+    // /outrousuario → abre perfil desse usuário
+    await showView('feed'); // carrega feed em background
+    await showUserProfile(urlPath);
+  } else {
+    await showView('feed');
+  }
 }
 
 function renderSidebarAvatar() {
@@ -1797,32 +1803,105 @@ async function toggleFollow(btn, userId, username) {
 }
 
 // ── Explore ───────────────────────────────────────────────
+// ── Explore com paginação infinita ───────────────────────
+const EXPLORE_FIRST_SIZE = 25; // itens no primeiro carregamento
+const EXPLORE_PAGE_SIZE  = 9;  // itens por página subsequente
+let _explorePage    = 0;      // próxima página a carregar (0-based, após o primeiro)
+let _exploreQuery   = '';     // filtro de busca ativo
+let _exploreLoading = false;  // evita requisições duplas
+let _exploreEnd     = false;  // não há mais resultados
+let _exploreSentinel = null;  // elemento IntersectionObserver
+
 async function renderExplore(query) {
+  // nova busca: zera estado
+  _exploreQuery   = query || '';
+  _explorePage    = 0;
+  _exploreEnd     = false;
+  _exploreLoading = false;
+  if (_exploreSentinel) { _exploreSentinel.remove(); _exploreSentinel = null; }
+
   const grid = document.getElementById('explore-grid');
   if (!grid) return;
   grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
+  await _exploreLoadMore(true);
+}
 
-  let q = db.from('posts').select('id,emoji,bg,caption,location,users(username)').order('created_at', { ascending: false }).limit(60);
-  const { data: posts } = await q;
+async function _exploreLoadMore(reset) {
+  if (_exploreLoading || _exploreEnd) return;
+  _exploreLoading = true;
 
-  let filtered = posts || [];
-  if (query && query.trim()) {
-    const ql = query.toLowerCase();
-    filtered = filtered.filter(p =>
+  const grid = document.getElementById('explore-grid');
+  if (!grid) { _exploreLoading = false; return; }
+
+  const isFirst = _explorePage === 0;
+  const pageSize = isFirst ? EXPLORE_FIRST_SIZE : EXPLORE_PAGE_SIZE;
+  const from = isFirst ? 0 : EXPLORE_FIRST_SIZE + (_explorePage - 1) * EXPLORE_PAGE_SIZE;
+  const to   = from + pageSize - 1;
+
+  const { data: posts } = await db.from('posts')
+    .select('id,emoji,bg,caption,location,image_url,users(username)')
+    .order('created_at', { ascending: false })
+    .range(from, to);
+  const results = (posts || []);
+
+  // filtra no cliente quando há query
+  let filtered = results;
+  if (_exploreQuery && _exploreQuery.trim()) {
+    const ql = _exploreQuery.toLowerCase();
+    filtered = results.filter(p =>
       p.users?.username?.toLowerCase().includes(ql) ||
       p.caption?.toLowerCase().includes(ql) ||
       p.location?.toLowerCase().includes(ql)
     );
   }
 
-  if (!filtered.length) {
+  if (reset) grid.innerHTML = '';
+
+  if (!filtered.length && _explorePage === 0) {
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:#8e8e8e">Nenhum resultado.</div>';
+    _exploreEnd = true;
+    _exploreLoading = false;
     return;
   }
-  grid.innerHTML = filtered.map(p => `
-    <div class="explore-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
-      <span>${p.emoji||'📸'}</span>
-    </div>`).join('');
+
+  filtered.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'explore-thumb';
+    div.style.background = p.bg || '#eee';
+    div.onclick = () => openComments(p.id);
+    div.innerHTML = p.image_url
+      ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">`
+      : `<span>${p.emoji||'📸'}</span>`;
+    grid.appendChild(div);
+  });
+
+  // se veio menos que o tamanho esperado, acabou
+  if (results.length < pageSize) {
+    _exploreEnd = true;
+  } else {
+    _explorePage++;
+    _attachExploreSentinel(grid);
+  }
+
+  _exploreLoading = false;
+}
+
+function _attachExploreSentinel(grid) {
+  if (_exploreSentinel) _exploreSentinel.remove();
+  const sentinel = document.createElement('div');
+  sentinel.id = 'explore-sentinel';
+  sentinel.style.cssText = 'grid-column:1/-1;height:1px';
+  grid.appendChild(sentinel);
+  _exploreSentinel = sentinel;
+
+  const obs = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) {
+      obs.disconnect();
+      _exploreSentinel = null;
+      _exploreLoadMore(false);
+    }
+  }, { rootMargin: '200px' });
+  obs.observe(sentinel);
 }
 
 function doSearch(q) { renderExplore(q); }
@@ -2446,6 +2525,19 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-story-new'); closeModal('modal-comments'); closeCropper(); }
 });
 
+// ── Browser back/forward ──────────────────────────────────
+window.addEventListener('popstate', async () => {
+  if (!currentUser) return;
+  const urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
+  if (!urlPath || urlPath === 'feed') {
+    await showView('feed');
+  } else if (urlPath === currentUser.username) {
+    await showView('profile');
+  } else if (urlPath !== 'adm') {
+    await showUserProfile(urlPath);
+  }
+});
+
 // ── Roteamento — executado após todas as funções estarem definidas ──
 if (IS_ADM) {
   document.getElementById('pokegram-root').style.display = 'none';
@@ -2474,8 +2566,9 @@ if (IS_ADM) {
       <button onclick="_cropFlipX()"     title="Espelhar"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">⇄</button>
       <button id="btn-toggle-filters" onclick="_toggleFilterStrip()" title="Filtros" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;letter-spacing:.3px">✦ Filtros</button>
     </div>
-    <div style="max-height:360px;overflow:hidden;border-radius:8px;background:#000">
-      <img id="crop-img" style="max-width:100%;display:block;transition:filter .2s"/>
+    <div style="max-height:360px;overflow:hidden;border-radius:8px;background:#000;position:relative">
+      <img id="crop-img" style="max-width:100%;display:block"/>
+      <div id="crop-filter-overlay" style="position:absolute;inset:0;pointer-events:none;transition:filter .2s"></div>
     </div>
     <!-- Filter strip (hidden by default) -->
     <div id="crop-filter-strip" style="display:none;gap:10px;overflow-x:auto;padding:12px 2px 4px;scrollbar-width:thin;-webkit-overflow-scrolling:touch"></div>
@@ -2550,8 +2643,9 @@ function renderFilterStrip() {
 function selectFilter(id) {
   _selectedFilter = id;
   const css = getFilterCSS(id);
-  const img = document.getElementById('crop-img');
-  if (img) img.style.filter = css;
+  // Aplica o filtro no overlay visível em cima do cropper
+  const overlay = document.getElementById('crop-filter-overlay');
+  if (overlay) overlay.style.filter = css || 'none';
   renderFilterStrip();
 }
 
@@ -2560,8 +2654,10 @@ function selectFilter(id) {
 // reset ao abrir o crop — chamado de dentro de _abrirCrop (cropper.js block)
 function _resetFilterOnOpen() {
   _selectedFilter = 'normal';
-  const img = document.getElementById('crop-img');
-  if (img) img.style.filter = '';
+  const img     = document.getElementById('crop-img');
+  const overlay = document.getElementById('crop-filter-overlay');
+  if (img)     img.style.filter     = '';
+  if (overlay) overlay.style.filter = 'none';
   const strip = document.getElementById('crop-filter-strip');
   const btn   = document.getElementById('btn-toggle-filters');
   if (strip) strip.style.display = 'none';
@@ -2689,8 +2785,10 @@ function _abrirCrop(src, callback, aspectRatio) {
     // reset filtro ao abrir — faixa permanece escondida até o usuário clicar
     setTimeout(() => {
       _selectedFilter = 'normal';
-      const ci = document.getElementById('crop-img');
-      if (ci) ci.style.filter = '';
+      const ci      = document.getElementById('crop-img');
+      const overlay = document.getElementById('crop-filter-overlay');
+      if (ci)      ci.style.filter      = '';
+      if (overlay) overlay.style.filter = 'none';
       // não chama renderFilterStrip — faixa fica oculta por padrão
       const strip = document.getElementById('crop-filter-strip');
       const btn   = document.getElementById('btn-toggle-filters');
