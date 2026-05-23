@@ -347,7 +347,28 @@
       </div>
       <div class="post-modal-body">
         <div class="post-img-area" id="post-image-area">
-          <div id="emoji-bg-picker" class="emoji-picker-grid"></div>
+          <!-- Tabs: foto ou emoji -->
+          <div class="post-type-tabs">
+            <button class="post-type-tab active" id="tab-photo" onclick="switchPostTab('photo')">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Foto
+            </button>
+            <button class="post-type-tab" id="tab-emoji" onclick="switchPostTab('emoji')">
+              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              Emoji
+            </button>
+          </div>
+          <!-- Área foto -->
+          <div id="post-photo-area" class="post-photo-upload-area" onclick="document.getElementById('post-img-file').click()">
+            <svg viewBox="0 0 24 24" width="40" height="40" stroke="#8e8e8e" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span style="color:#8e8e8e;font-size:14px;margin-top:8px">Clique para selecionar uma foto</span>
+            <span style="color:#b0b0b0;font-size:12px">JPG, PNG ou GIF</span>
+          </div>
+          <input type="file" id="post-img-file" accept="image/*" style="display:none" onchange="previewPostImage(this)">
+          <!-- Área emoji (oculta por padrão) -->
+          <div id="post-emoji-area" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100%">
+            <div id="emoji-bg-picker" class="emoji-picker-grid"></div>
+          </div>
         </div>
         <div class="post-caption-side">
           <div id="post-author-row" class="post-author-row"></div>
@@ -356,10 +377,6 @@
             <div class="pf-row">
               <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
               <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
-            </div>
-            <div class="pf-row">
-              <span style="font-size:15px">🎮</span>
-              <select id="post-pokemon"><option value="">Pokémon em destaque</option></select>
             </div>
           </div>
         </div>
@@ -370,16 +387,28 @@
   <div id="modal-comments" class="modal hidden">
     <div class="modal-backdrop" onclick="closeModal('modal-comments')"></div>
     <div class="modal-box comments-modal-box">
-      <div class="modal-header">
-        <button class="modal-x" onclick="closeModal('modal-comments')">✕</button>
-        <h3>Comentários</h3>
-        <span></span>
-      </div>
-      <div id="comments-list" class="comments-list"></div>
-      <div class="comment-input-bar">
-        <div class="comment-avatar-sm" id="my-comment-avatar"></div>
-        <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
-        <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
+      <!-- Split layout: post à esq, comentários à dir -->
+      <div class="comments-split">
+        <!-- Lado esquerdo: post visual -->
+        <div class="comments-post-side" id="comments-post-side">
+          <div class="comments-post-image" id="comments-post-image"></div>
+          <div class="comments-post-caption" id="comments-post-caption"></div>
+        </div>
+        <!-- Lado direito: comentários -->
+        <div class="comments-right-side">
+          <div class="modal-header">
+            <button class="modal-x" onclick="closeModal('modal-comments')">✕</button>
+            <h3>Comentários</h3>
+            <span></span>
+          </div>
+          <div id="comments-list" class="comments-list"></div>
+          <div class="comment-actions-bar" id="comments-actions-bar"></div>
+          <div class="comment-input-bar">
+            <div class="comment-avatar-sm" id="my-comment-avatar"></div>
+            <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
+            <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1299,8 +1328,10 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
     <button class="post-header-more">···</button>
   </div>
 
-  <div class="post-image" style="background:${p.bg||'#f0f0f0'}">
-    <span>${p.emoji||'📸'}</span>
+  <div class="post-image" style="background:${p.image_url ? '#000' : (p.bg||'#f0f0f0')}">
+    ${p.image_url
+      ? `<img src="${p.image_url}" alt="post" style="width:100%;height:100%;object-fit:cover;display:block">`
+      : `<span>${p.emoji||'📸'}</span>`}
   </div>
 
   <div class="post-actions">
@@ -1327,7 +1358,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-timestamp">${fmtTimeAgo(p.created_at)}</div>
 
   <div class="post-comment-bar">
-    <div class="mini-avatar" style="background:${currentUser.avatar_url ? 'transparent' : (currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(currentUser.username)}</div>
+    <div class="mini-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
       oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
     <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
@@ -1371,8 +1402,8 @@ async function openComments(postId) {
   }
   const myAv = document.getElementById('my-comment-avatar');
   if (myAv) {
-    if (currentUser.avatar_url) { myAv.style.background = 'transparent'; myAv.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
-    else { myAv.style.background = currentUser.color||'#e53935'; myAv.textContent = initials(currentUser.username); }
+    if (currentUser.avatar_url) { myAv.style.background='transparent'; myAv.innerHTML=`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
+    else { myAv.style.background=currentUser.color||'#e53935'; myAv.textContent=initials(currentUser.username); }
   }
   document.getElementById('new-comment').value = '';
   openModal('modal-comments');
@@ -1395,7 +1426,7 @@ async function renderCommentsList(postId) {
     const u = c.users || { username: '?', color: '#999' };
     return `
       <div class="comment-item">
-        <div class="comment-avatar" style="background:${u.avatar_url ? 'transparent' : (u.color||'#999')};overflow:hidden">${u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
+        <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
         <div class="comment-body">
           <strong>${u.username}</strong><span> ${c.text}</span>
           <div class="comment-time">${fmtTimeAgo(c.created_at)}</div>
@@ -1430,7 +1461,7 @@ function renderAsideMini() {
   if (!el) return;
   el.innerHTML = `
     <div class="profile-mini-card">
-      <div class="pm-avatar" style="background:${currentUser.avatar_url ? 'transparent' : (currentUser.color||'#e53935')};overflow:hidden" onclick="showView('profile')">${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(currentUser.username)}</div>
+      <div class="pm-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden" onclick="showView('profile')">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
       <div class="pm-info">
         <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
         <div class="pm-name">${currentUser.name || currentUser.username}</div>
@@ -1445,7 +1476,7 @@ async function renderSuggestions() {
   const { data: users } = await db.from('users').select('id,username,color,avatar_url,rpg').neq('id', currentUser.id).limit(5);
   el.innerHTML = (users || []).map(u => `
     <div class="suggestion-item">
-      <div class="sug-avatar" style="background:${u.avatar_url ? 'transparent' : (u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
+      <div class="sug-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
       <div class="sug-info">
         <div class="sug-name" onclick="showUserProfile('${u.username}')">${u.username}</div>
         <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
@@ -1540,6 +1571,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
           </div>
           <div class="profile-bio">
             <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:13px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
             ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
           </div>
         </div>
@@ -1758,7 +1790,7 @@ function showNewPost() {
 
   const row = document.getElementById('post-author-row');
   if (row) row.innerHTML = `
-    <div class="pa-avatar" style="background:${currentUser.avatar_url ? 'transparent' : (currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(currentUser.username)}</div>
+    <div class="pa-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <span class="pa-name">${currentUser.username}</span>`;
 
   const picker = document.getElementById('emoji-bg-picker');
@@ -1792,17 +1824,42 @@ function selectPostEmoji(idx) {
 async function submitPost() {
   const caption  = document.getElementById('post-caption').value.trim();
   const location = document.getElementById('post-location').value.trim();
-  if (!caption)          return toast('Escreva uma legenda!');
-  if (!selectedPostEmoji) return toast('Escolha uma imagem!');
+  if (!caption) return toast('Escreva uma legenda!');
 
-  const { error } = await db.from('posts').insert({
-    user_id:  currentUser.id,
+  const isPhoto = _postActiveTab === 'photo';
+  const isEmoji = _postActiveTab === 'emoji';
+
+  if (isPhoto && !_postPendingImageFile) return toast('Selecione uma foto!');
+  if (isEmoji && !selectedPostEmoji)     return toast('Escolha um emoji!');
+
+  const shareBtn = document.querySelector('#modal-post .btn-share-modal');
+  if (shareBtn) { shareBtn.textContent = 'Publicando...'; shareBtn.disabled = true; }
+
+  let image_url = null;
+  if (isPhoto && _postPendingImageFile) {
+    const path = `${currentUser.id}_${Date.now()}.jpg`;
+    const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/jpeg' });
+    if (upErr) {
+      toast('Erro ao enviar foto: ' + upErr.message);
+      if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
+      return;
+    }
+    const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
+    image_url = urlData.publicUrl;
+  }
+
+  const payload = {
+    user_id: currentUser.id,
     caption, location,
-    emoji: selectedPostEmoji.emoji,
-    bg:    selectedPostEmoji.bg
-  });
+    image_url,
+    emoji: isEmoji ? selectedPostEmoji.emoji : null,
+    bg:    isEmoji ? selectedPostEmoji.bg    : null,
+  };
 
+  const { error } = await db.from('posts').insert(payload);
+  if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
   if (error) { toast('Erro ao publicar. Tente novamente.'); return; }
+  _postPendingImageFile = null;
   closeModal('modal-post');
   await showView('feed');
   toast('Publicação criada! 🎉');
