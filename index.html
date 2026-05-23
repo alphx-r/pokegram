@@ -1604,7 +1604,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 
   const commentPreview = lastComment
     ? `<div class="post-comment-preview">
-        <span class="cap-user">${lastComment.users?.username || '?'}</span>
+        <span class="cap-user" onclick="showUserProfile('${lastComment.users?.username || ''}'); event.stopPropagation()" style="cursor:pointer">${lastComment.users?.username || '?'}</span>
         <span>${formatCaption(lastComment.text || '')}</span>
        </div>`
     : '';
@@ -1658,7 +1658,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 
   <div class="post-likes" id="likes-${p.id}">${fmtNum(likeCount)} curtida${likeCount !== 1 ? 's' : ''}</div>
   <div class="post-caption-text">
-    <span class="cap-user">${author.username}</span>${formatCaption(p.caption||'')}
+    <span class="cap-user" onclick="showUserProfile('${author.username}')" style="cursor:pointer">${author.username}</span>${formatCaption(p.caption||'')}
   </div>
   ${commentCount > 1 ? `<div class="post-view-comments" onclick="openComments('${p.id}')">Ver todos os ${commentCount} comentários</div>` : ''}
   ${commentPreview}
@@ -1766,7 +1766,7 @@ async function renderCommentsList(postId) {
       <div class="comment-item">
         <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
         <div class="comment-body">
-          <strong>${u.username}</strong><span> ${c.text}</span>
+          <strong onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</strong><span> ${c.text}</span>
           <div class="comment-time">${fmtTimeAgo(c.created_at)}</div>
         </div>
       </div>`;
@@ -1816,7 +1816,7 @@ async function renderSuggestions() {
     <div class="suggestion-item">
       <div class="sug-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
       <div class="sug-info">
-        <div class="sug-name" onclick="showUserProfile('${u.username}')">${u.username}</div>
+        <div class="sug-name" onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</div>
         <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
       </div>
       <button class="btn-follow-sm" id="follow-btn-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id] ? 'Seguindo' : 'Seguir'}</button>
