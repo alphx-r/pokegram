@@ -1253,8 +1253,7 @@ async function initPokegram() {
 
 function openEditPost(postId, caption, location) {
   document.getElementById('edit-post-id').value       = postId;
-  document.getElementById('edit-post-caption').value  = caption.replace(/\n/g, '
-');
+  document.getElementById('edit-post-caption').value  = caption.replace(/\n/g, '\n');
   document.getElementById('edit-post-location').value = location;
   closePostMenu(postId);
   openModal('modal-edit-post');
@@ -2508,8 +2507,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
       <button class="post-header-more" onclick="togglePostMenu('${p.id}', this)">···</button>
       <div class="post-menu" id="post-menu-${p.id}">
         ${author.id === currentUser.id
-          ? `<button class="post-menu-item" onclick="openEditPost('${p.id}','${(p.caption||'').replace(/'/g,"\'").replace(/
-/g,'\n')}','${(p.location||'').replace(/'/g,"\'")}')">
+          ? `<button class="post-menu-item" onclick="openEditPost('${p.id}','${(p.caption||'').replace(/'/g,"\'" ).replace(/\n/g,'\n')}','${(p.location||'').replace(/'/g,"\'")}')">
                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                Editar publicação
              </button>
