@@ -698,7 +698,15 @@ if (IS_ADM) {
 // ════════════════════════════════════════════════════════════
 
 function saveSession(u) { localStorage.setItem('pg_user', JSON.stringify(u)); }
-function loadSession()  { try { return JSON.parse(localStorage.getItem('pg_user')); } catch { return null; } }
+function loadSession()  {
+  try {
+    const val = JSON.parse(localStorage.getItem('pg_user'));
+    if (!val) return null;
+    // corrige sessão antiga que foi salva como array
+    if (Array.isArray(val)) return val[0] || null;
+    return val;
+  } catch { return null; }
+}
 function clearSession() { localStorage.removeItem('pg_user'); }
 
 async function dbLogin(username, password) {
@@ -710,18 +718,20 @@ async function dbLogin(username, password) {
   }
   const { data, error } = result;
   if (error) {
-    // Erro do Supabase/RPC (ex: credenciais) — não é erro de conexão
     const msg = error.message || '';
     if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('senha') || msg.toLowerCase().includes('password')) {
-      return null; // trata como credenciais erradas
+      return null;
     }
     throw error;
   }
+  // RPC pode retornar array ou objeto — normaliza sempre para objeto único
+  if (Array.isArray(data)) return data[0] || null;
   return data;
 }
 async function dbRegister(username, password, rpg, emoji) {
   const { data, error } = await db.rpc('register_user', { p_username: username, p_password: password, p_rpg: rpg, p_emoji: emoji || '🎮' });
   if (error) throw error;
+  if (Array.isArray(data)) return data[0] || null;
   return data;
 }
 async function dbCheckUserExists(username) {
