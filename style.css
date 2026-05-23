@@ -650,7 +650,7 @@ input, select, textarea { font-family: var(--font); }
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 8px 40px;
+  gap: 4px 40px;
   margin-bottom: 8px;
   padding: 0;
 }
@@ -678,8 +678,9 @@ input, select, textarea { font-family: var(--font); }
   flex-basis: 100%;
   padding: 0;
   margin-top: -8px;
-  padding-left: 0;
+  padding-left: 190px;
   width: 100%;
+  box-sizing: border-box;
 }
 .profile-avatar {
   width: 150px; height: 150px;
@@ -1267,6 +1268,7 @@ input, select, textarea { font-family: var(--font); }
     margin-left: 0;
     margin-right: 0;
     padding: 0 16px 14px;
+    padding-left: 16px;
     display: block;
   }
   .profile-bio .prof-name { font-size: 13px; font-weight: 700; }
