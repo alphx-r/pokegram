@@ -960,7 +960,6 @@ function enterApp(user) {
 function doLogout() { clearSession(); currentUser = null; location.reload(); }
 
 function initPokegram() {
-  loadFilters();
   const saved = loadSession();
   if (saved) {
     currentUser = saved;
@@ -2505,8 +2504,6 @@ const DEFAULT_FILTERS = [
 ];
 
 let _activeFilters = [...DEFAULT_FILTERS];
-window._selectedFilter = 'normal';
-Object.defineProperty(window, '_selectedFilter', { get(){ return this.__sf||'normal'; }, set(v){ this.__sf=v; } });
 let _selectedFilter = 'normal';  // id do filtro ativo no crop
 
 async function loadFilters() {
@@ -2720,6 +2717,9 @@ function confirmCrop()  { confirmarCrop(); }
 
 function closeCropper() { fecharCrop(); }
 function confirmCrop()  { confirmarCrop(); }
+
+// Carrega filtros do banco assim que o script estiver pronto
+if (typeof db !== 'undefined') loadFilters();
 
 </script>
 </body>
