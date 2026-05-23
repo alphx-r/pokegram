@@ -1970,30 +1970,32 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
     <div class="profile-page">
 
       <div class="profile-header">
-        <div class="profile-avatar-wrap">
-          <div class="profile-avatar-circle" style="background:${avatarBg}">
-            ${avatarInner}
+        <div class="profile-header-top-row">
+          <div class="profile-avatar-wrap">
+            <div class="profile-avatar-circle" style="background:${avatarBg}">
+              ${avatarInner}
+            </div>
+          </div>
+          <div class="profile-meta">
+            <div class="profile-top-row">
+              <span class="profile-username-text">${u.username}</span>
+              ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
+              ${isMe
+                ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
+                : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
+              }
+            </div>
+            <div class="profile-stats">
+              <div class="stat-item"><strong>${fmtNum(postCount)}</strong><span> posts</span></div>
+              <div class="stat-item"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
+              <div class="stat-item"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
+            </div>
           </div>
         </div>
-        <div class="profile-meta">
-          <div class="profile-top-row">
-            <span class="profile-username-text">${u.username}</span>
-            ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
-            ${isMe
-              ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
-              : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
-            }
-          </div>
-          <div class="profile-stats">
-            <div class="stat-item"><strong>${fmtNum(postCount)}</strong><span> posts</span></div>
-            <div class="stat-item"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
-            <div class="stat-item"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
-          </div>
-          <div class="profile-bio">
-            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
-            ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
-            ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
-          </div>
+        <div class="profile-bio">
+          <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+          ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
+          ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
         </div>
       </div>
 
