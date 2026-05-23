@@ -255,71 +255,40 @@
 
   <!-- MAIN APP -->
   <div id="app" class="hidden">
-    <nav id="sidebar" class="sidebar">
-      <div class="sidebar-logo">
-        <span class="brand-logo-placeholder brand-name-sm">PokéGram</span>
-        <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:36px;max-width:140px;object-fit:contain;vertical-align:middle;">
+
+    <!-- TOP NAV -->
+    <nav class="topnav">
+      <div class="topnav-logo" onclick="showView('feed')">
+        <span class="brand-logo-placeholder">PokéGram</span>
+        <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:32px;max-width:130px;object-fit:contain;vertical-align:middle;">
       </div>
-      <ul class="sidebar-nav">
-        <li>
-          <button class="sn-item active" id="btn-feed" onclick="showView('feed')">
-            <svg class="sn-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-            <span>Início</span>
-          </button>
-        </li>
-        <li>
-          <button class="sn-item" id="btn-explore" onclick="showView('explore')">
-            <svg class="sn-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span>Explorar</span>
-          </button>
-        </li>
-        <li>
-          <button class="sn-item" onclick="showNewPost()">
-            <svg class="sn-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            <span>Criar</span>
-          </button>
-        </li>
-        <li>
-          <button class="sn-item" id="btn-profile" onclick="showView('profile')">
-            <div class="sn-avatar" id="sn-avatar"></div>
-            <span>Perfil</span>
-          </button>
-        </li>
-      </ul>
-      <div class="sidebar-bottom">
-        <button class="sn-item sn-logout" onclick="doLogout()">
-          <svg class="sn-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          <span>Sair</span>
+      <div class="topnav-search">
+        <div class="topnav-search-inner">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="topnav-search-input" placeholder="Buscar..." oninput="doSearch(this.value)" onclick="showView('explore')">
+        </div>
+      </div>
+      <div class="topnav-actions">
+        <button class="tn-btn active" id="btn-feed" onclick="showView('feed')" title="Início">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        </button>
+        <button class="tn-btn" onclick="showNewPost()" title="Criar">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        </button>
+        <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button class="tn-btn" id="btn-profile" onclick="showView('profile')" title="Perfil">
+          <div class="tn-avatar" id="sn-avatar"></div>
+        </button>
+        <button class="tn-btn" onclick="doLogout()" title="Sair">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
     </nav>
 
-    <nav class="bottom-nav">
-      <button class="bn-item active" id="bn-feed" onclick="showView('feed')">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-      </button>
-      <button class="bn-item" id="bn-explore" onclick="showView('explore')">
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
-      <button class="bn-item bn-create" onclick="showNewPost()">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      </button>
-      <button class="bn-item" id="bn-profile" onclick="showView('profile')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </button>
-    </nav>
-
     <main class="main-content">
       <div id="view-feed" class="view">
-        <div class="mobile-topbar">
-          <span class="brand-logo-placeholder brand-name-sm">PokéGram</span>
-          <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:30px;max-width:120px;object-fit:contain;vertical-align:middle;">
-          <div class="topbar-actions">
-            <button onclick="showNewPost()">
-              <svg viewBox="0 0 24 24" width="24" height="24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            </button>
-          </div>
-        </div>
         <div class="feed-layout">
           <div class="feed-center">
             <div class="stories-row" id="stories-row">
@@ -362,9 +331,6 @@
       </div>
 
       <div id="view-user" class="view hidden">
-        <button class="back-btn" onclick="goBack()">
-          <svg viewBox="0 0 24 24" width="20" height="20"><polyline points="15,18 9,12 15,6"/></svg> Voltar
-        </button>
         <div id="user-profile-content"></div>
       </div>
     </main>
@@ -486,12 +452,6 @@
           <span style="font-size:11px;color:#8e8e8e;text-align:right" id="ep-bio-count">0/150</span>
         </div>
 
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:12px;font-weight:700;color:#8e8e8e">Pokémon favorito</label>
-          <select id="ep-pokemon" style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;background:#fff">
-            <option value="">Nenhum</option>
-          </select>
-        </div>
 
         <div style="display:flex;flex-direction:column;gap:4px">
           <label style="font-size:12px;font-weight:700;color:#8e8e8e">RPG</label>
@@ -1367,7 +1327,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-timestamp">${fmtTimeAgo(p.created_at)}</div>
 
   <div class="post-comment-bar">
-    <div class="mini-avatar" style="background:${currentUser.color||'#e53935'}">${initials(currentUser.username)}</div>
+    <div class="mini-avatar" style="background:${currentUser.avatar_url ? 'transparent' : (currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(currentUser.username)}</div>
     <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
       oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
     <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
@@ -1410,7 +1370,10 @@ async function openComments(postId) {
     await renderCommentsList(postId);
   }
   const myAv = document.getElementById('my-comment-avatar');
-  if (myAv) { myAv.style.background = currentUser.color||'#e53935'; myAv.textContent = initials(currentUser.username); }
+  if (myAv) {
+    if (currentUser.avatar_url) { myAv.style.background = 'transparent'; myAv.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; }
+    else { myAv.style.background = currentUser.color||'#e53935'; myAv.textContent = initials(currentUser.username); }
+  }
   document.getElementById('new-comment').value = '';
   openModal('modal-comments');
 }
@@ -1420,7 +1383,7 @@ async function renderCommentsList(postId) {
   if (!list) return;
   const { data: comments } = await db
     .from('comments')
-    .select('*, users(username, color)')
+    .select('*, users(username, color, avatar_url)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
 
@@ -1432,7 +1395,7 @@ async function renderCommentsList(postId) {
     const u = c.users || { username: '?', color: '#999' };
     return `
       <div class="comment-item">
-        <div class="comment-avatar" style="background:${u.color||'#999'}">${initials(u.username)}</div>
+        <div class="comment-avatar" style="background:${u.avatar_url ? 'transparent' : (u.color||'#999')};overflow:hidden">${u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
         <div class="comment-body">
           <strong>${u.username}</strong><span> ${c.text}</span>
           <div class="comment-time">${fmtTimeAgo(c.created_at)}</div>
@@ -1467,7 +1430,7 @@ function renderAsideMini() {
   if (!el) return;
   el.innerHTML = `
     <div class="profile-mini-card">
-      <div class="pm-avatar" style="background:${currentUser.color||'#e53935'}" onclick="showView('profile')">${initials(currentUser.username)}</div>
+      <div class="pm-avatar" style="background:${currentUser.avatar_url ? 'transparent' : (currentUser.color||'#e53935')};overflow:hidden" onclick="showView('profile')">${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(currentUser.username)}</div>
       <div class="pm-info">
         <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
         <div class="pm-name">${currentUser.name || currentUser.username}</div>
@@ -1479,10 +1442,10 @@ function renderAsideMini() {
 async function renderSuggestions() {
   const el = document.getElementById('suggestions-list');
   if (!el) return;
-  const { data: users } = await db.from('users').select('id,username,color,rpg').neq('id', currentUser.id).limit(5);
+  const { data: users } = await db.from('users').select('id,username,color,avatar_url,rpg').neq('id', currentUser.id).limit(5);
   el.innerHTML = (users || []).map(u => `
     <div class="suggestion-item">
-      <div class="sug-avatar" style="background:${u.color||'#e53935'}" onclick="showUserProfile('${u.username}')">${initials(u.username)}</div>
+      <div class="sug-avatar" style="background:${u.avatar_url ? 'transparent' : (u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
       <div class="sug-info">
         <div class="sug-name" onclick="showUserProfile('${u.username}')">${u.username}</div>
         <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
@@ -1555,7 +1518,6 @@ function avatarHTML(u, size, extraStyle) {
 
 // ── Build profile HTML (shared by own + other users) ──────
 function buildProfileHTML(u, userPosts, followers, following, isMe) {
-  const rpgLabel = u.rpg === 'kingdom_platinum' ? '👑 Kingdom Platinum' : u.rpg === 'pchapters' ? '📖 PChapters' : '';
   return `
     <div class="profile-page">
       <div class="profile-header">
@@ -1578,8 +1540,6 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
           </div>
           <div class="profile-bio">
             <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:13px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
-            ${rpgLabel ? `<div class="prof-starter">${rpgLabel}</div>` : ''}
-            ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
             ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
           </div>
         </div>
@@ -1661,9 +1621,6 @@ function openEditProfile() {
   document.getElementById('ep-username-err').style.display = 'none';
   document.getElementById('ep-save-err').style.display     = 'none';
 
-  // pokemon select
-  const sel = document.getElementById('ep-pokemon');
-  sel.innerHTML = '<option value="">Nenhum</option>' + POKEMON_LIST.map(pk => `<option value="${pk}"${u.pokemon===pk?' selected':''}>${pk}</option>`).join('');
 
   // avatar preview — foto ou iniciais
   _epPendingAvatarFile = null;
@@ -1737,7 +1694,6 @@ async function submitEditProfile() {
   const name     = document.getElementById('ep-name').value.trim();
   const bio      = document.getElementById('ep-bio').value.trim();
   const rpg      = document.getElementById('ep-rpg').value;
-  const pokemon  = document.getElementById('ep-pokemon').value;
   const pronoun  = document.getElementById('ep-pronoun').value;
   const color    = _epSelectedColor || currentUser.color || '#e53935';
   const errEl    = document.getElementById('ep-save-err');
@@ -1777,7 +1733,7 @@ async function submitEditProfile() {
   }
 
   // 2 — salva todos os campos juntos (incluindo avatar_url se mudou)
-  const updatePayload = { username, name, bio, rpg, pokemon, pronoun, color, avatar_url };
+  const updatePayload = { username, name, bio, rpg, pronoun, color, avatar_url };
   const { error: textErr } = await db.from('users')
     .update(updatePayload)
     .eq('id', currentUser.id);
@@ -1786,7 +1742,7 @@ async function submitEditProfile() {
   if (textErr) { errEl.textContent = 'Erro ao salvar: ' + textErr.message; errEl.style.display = 'block'; return; }
 
   // 3 — atualiza estado local
-  Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color, avatar_url });
+  Object.assign(currentUser, { username, name, bio, rpg, pronoun, color, avatar_url });
   saveSession(currentUser);
   renderSidebarAvatar();
   closeModal('modal-edit-profile');
@@ -1802,16 +1758,13 @@ function showNewPost() {
 
   const row = document.getElementById('post-author-row');
   if (row) row.innerHTML = `
-    <div class="pa-avatar" style="background:${currentUser.color||'#e53935'}">${initials(currentUser.username)}</div>
+    <div class="pa-avatar" style="background:${currentUser.avatar_url ? 'transparent' : (currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(currentUser.username)}</div>
     <span class="pa-name">${currentUser.username}</span>`;
 
   const picker = document.getElementById('emoji-bg-picker');
   if (picker) picker.innerHTML = EMOJI_BG_OPTIONS.map((o, i) => `
     <div class="emoji-pick-btn" onclick="selectPostEmoji(${i})" data-idx="${i}">${o.emoji}</div>`).join('');
 
-  const sel = document.getElementById('post-pokemon');
-  if (sel) sel.innerHTML = '<option value="">Pokémon em destaque</option>' +
-    POKEMON_LIST.map(pk => `<option value="${pk}">${pk}</option>`).join('');
 
   // reset preview area
   const area = document.getElementById('post-image-area');
@@ -1839,13 +1792,12 @@ function selectPostEmoji(idx) {
 async function submitPost() {
   const caption  = document.getElementById('post-caption').value.trim();
   const location = document.getElementById('post-location').value.trim();
-  const pokemon  = document.getElementById('post-pokemon').value;
   if (!caption)          return toast('Escreva uma legenda!');
   if (!selectedPostEmoji) return toast('Escolha uma imagem!');
 
   const { error } = await db.from('posts').insert({
     user_id:  currentUser.id,
-    caption, location, pokemon,
+    caption, location,
     emoji: selectedPostEmoji.emoji,
     bg:    selectedPostEmoji.bg
   });
