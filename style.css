@@ -681,6 +681,7 @@ input, select, textarea { font-family: var(--font); }
 }
 .profile-avatar {
   width: 150px; height: 150px;
+   margin-top: -10px;
   border-radius: 50%;
   background: var(--red);
   color: white;
