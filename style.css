@@ -661,6 +661,13 @@ input, select, textarea { font-family: var(--font); }
 .profile-avatar-wrap {
   flex-shrink: 0;
 }
+/* bio must span full width below avatar+meta */
+.profile-bio {
+  flex-basis: 100%;
+  padding: 0;
+  margin-top: 4px;
+  padding-left: calc(150px + 80px); /* avatar width + gap */
+}
 .profile-avatar {
   width: 150px; height: 150px;
   border-radius: 50%;
@@ -722,10 +729,6 @@ input, select, textarea { font-family: var(--font); }
 .stat-item strong { font-weight: 700; }
 .stat-item span { color: var(--text); }
 
-.profile-bio {
-  padding: 0;
-  margin-top: 8px;
-}
 .profile-bio .prof-name {
   font-weight: 700;
   font-size: 14px;
