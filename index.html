@@ -2368,13 +2368,9 @@ async function toggleLike(postId, btn) {
 
   if (!liked) {
     await db.from('likes').insert({ post_id: postId, user_id: currentUser.id });
-    // notificação: descobre dono do post e notifica (não notifica a si mesmo)
     const { data: post } = await db.from('posts').select('user_id').eq('id', postId).maybeSingle();
     if (post && post.user_id !== currentUser.id) {
-      await db.from('notifications').insert({
-        user_id: post.user_id, actor_id: currentUser.id,
-        type: 'like', post_id: postId
-      });
+      await db.from('notifications').insert({ user_id: post.user_id, actor_id: currentUser.id, type: 'like', post_id: postId });
     }
   } else {
     await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
@@ -2465,10 +2461,7 @@ async function submitComment() {
   toast('Comentário publicado!');
   const { data: post } = await db.from('posts').select('user_id').eq('id', currentCommentPostId).maybeSingle();
   if (post && post.user_id !== currentUser.id) {
-    await db.from('notifications').insert({
-      user_id: post.user_id, actor_id: currentUser.id,
-      type: 'comment', post_id: currentCommentPostId, comment_text: text
-    });
+    await db.from('notifications').insert({ user_id: post.user_id, actor_id: currentUser.id, type: 'comment', post_id: currentCommentPostId, comment_text: text });
   }
 }
 
@@ -2482,10 +2475,7 @@ async function submitInlineComment(postId) {
   toast('Comentário publicado!');
   const { data: post } = await db.from('posts').select('user_id').eq('id', postId).maybeSingle();
   if (post && post.user_id !== currentUser.id) {
-    await db.from('notifications').insert({
-      user_id: post.user_id, actor_id: currentUser.id,
-      type: 'comment', post_id: postId, comment_text: text
-    });
+    await db.from('notifications').insert({ user_id: post.user_id, actor_id: currentUser.id, type: 'comment', post_id: postId, comment_text: text });
   }
   await renderPosts();
 }
@@ -2706,11 +2696,11 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
             </div>
           </div>
         </div>
-        <div class="profile-bio">
-          <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
-          ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
-          ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
-        </div>
+      </div>
+      <div class="profile-bio">
+        <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+        ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
+        ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
       </div>
 
       <div class="profile-tabs">
@@ -3273,6 +3263,81 @@ function toast(msg) {
 }
 
 // ── Keyboard ──────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+// NOTIFICAÇÕES
+// ════════════════════════════════════════════════════════
+let _notifOpen = false;
+
+async function loadNotifBadge() {
+  if (!currentUser) return;
+  const { count } = await db.from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', currentUser.id).eq('read', false);
+  const badge = document.getElementById('notif-badge');
+  if (badge) badge.style.display = (count && count > 0) ? 'block' : 'none';
+}
+
+async function toggleNotifPanel() {
+  if (_notifOpen) { closeNotifPanel(); return; }
+  _notifOpen = true;
+  document.getElementById('notif-panel').style.display    = 'flex';
+  document.getElementById('notif-backdrop').style.display = 'block';
+  await renderNotifList();
+}
+
+function closeNotifPanel() {
+  _notifOpen = false;
+  document.getElementById('notif-panel').style.display    = 'none';
+  document.getElementById('notif-backdrop').style.display = 'none';
+}
+
+async function renderNotifList() {
+  const list = document.getElementById('notif-list');
+  if (!list) return;
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#8e8e8e;font-size:13px">Carregando...</div>';
+  const { data: notifs } = await db
+    .from('notifications')
+    .select('*, actor:actor_id(username, color, avatar_url), posts(image_url, emoji, bg)')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (!notifs || !notifs.length) {
+    list.innerHTML = '<div style="padding:40px 16px;text-align:center;color:#8e8e8e;font-size:13px">Nenhuma notificação ainda.</div>';
+    return;
+  }
+  await db.from('notifications').update({ read: true }).eq('user_id', currentUser.id).eq('read', false);
+  const badge = document.getElementById('notif-badge');
+  if (badge) badge.style.display = 'none';
+  list.innerHTML = notifs.map(n => {
+    const actor = n.actor || { username: '?', color: '#999' };
+    const av = actor.avatar_url
+      ? `<img src="${actor.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+      : initials(actor.username);
+    const avBg = actor.avatar_url ? 'transparent' : (actor.color || '#e53935');
+    const post = n.posts;
+    const thumb = post ? (post.image_url
+      ? `<img src="${post.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+      : `<div style="width:44px;height:44px;border-radius:6px;background:${post.bg||'#eee'};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${post.emoji||'📸'}</div>`)
+      : '';
+    const msg = n.type === 'like'
+      ? `<span style="font-weight:700">${esc(actor.username)}</span> curtiu sua publicação.`
+      : `<span style="font-weight:700">${esc(actor.username)}</span> comentou: <span style="color:#555">${esc(n.comment_text || '')}</span>`;
+    const unread = !n.read ? 'background:#f0f7ff;' : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;${unread}" onclick="closeNotifPanel();openComments('${n.post_id}')">
+      <div style="width:38px;height:38px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0">${av}</div>
+      <div style="font-size:13px;color:#1a1a1a;flex:1;line-height:1.4;min-width:0">${msg}<div style="font-size:11px;color:#8e8e8e;margin-top:2px">${fmtTimeAgo(n.created_at)}</div></div>
+      ${thumb}
+    </div>`;
+  }).join('');
+}
+
+async function markAllRead() {
+  await db.from('notifications').update({ read: true }).eq('user_id', currentUser.id);
+  const badge = document.getElementById('notif-badge');
+  if (badge) badge.style.display = 'none';
+  renderNotifList();
+}
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-story-new'); closeModal('modal-comments'); closeCropper(); closeNotifPanel(); }
 });
@@ -3610,12 +3675,12 @@ if (typeof db !== 'undefined') loadFilters();
 
 </script>
 <!-- ── Painel de Notificações ── -->
-<div id="notif-panel" style="display:none;position:fixed;top:58px;right:16px;z-index:500;width:340px;max-height:480px;background:#fff;border:1px solid #e0e0e0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.14);overflow:hidden;display:none;flex-direction:column">
+<div id="notif-panel" style="display:none;position:fixed;top:58px;right:16px;z-index:500;width:340px;max-height:480px;background:#fff;border:1px solid #e0e0e0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.14);overflow:hidden;flex-direction:column;font-family:'Nunito',sans-serif">
   <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0">
     <span style="font-weight:700;font-size:15px">Notificações</span>
     <button onclick="markAllRead()" style="font-size:12px;color:#0095f6;font-weight:600;background:none;border:none;cursor:pointer;font-family:inherit">Marcar tudo como lido</button>
   </div>
-  <div id="notif-list" style="overflow-y:auto;max-height:420px;flex:1"></div>
+  <div id="notif-list" style="overflow-y:auto;max-height:420px"></div>
 </div>
 <div id="notif-backdrop" onclick="closeNotifPanel()" style="display:none;position:fixed;inset:0;z-index:499"></div>
 
