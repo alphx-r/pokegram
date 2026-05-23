@@ -292,7 +292,7 @@
         <div class="feed-layout">
           <div class="feed-center">
             <div class="stories-row" id="stories-row">
-              <div class="story-item story-mine" onclick="showNewPost()">
+              <div class="story-item story-mine" onclick="showNewStory()">
                 <div class="story-ring story-ring-add">
                   <div class="story-pic" id="my-story-pic"></div>
                   <div class="story-plus">+</div>
@@ -339,64 +339,77 @@
   <!-- MODAIS POKÉGRAM -->
   <div id="modal-post" class="modal hidden">
     <div class="modal-backdrop" onclick="closeModal('modal-post')"></div>
-    <div class="modal-box">
-      <div class="modal-header">
-        <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
-        <h3>Nova publicação</h3>
-        <button class="btn-share-modal" onclick="submitPost()">Compartilhar</button>
+    <div class="modal-box" style="max-width:700px;width:95vw">
+      <!-- Step 1: selecionar foto -->
+      <div id="post-step-select">
+        <div class="modal-header">
+          <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
+          <h3>Nova publicação</h3>
+          <span></span>
+        </div>
+        <div id="post-drop-area" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:340px;gap:14px;cursor:pointer;padding:40px 20px" onclick="document.getElementById('post-img-file').click()">
+          <svg viewBox="0 0 24 24" width="52" height="52" stroke="#8e8e8e" fill="none" stroke-width="1.3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span style="color:#262626;font-size:18px;font-weight:600">Arraste e solte uma foto aqui</span>
+          <span style="color:#8e8e8e;font-size:14px">ou clique para selecionar</span>
+          <span style="background:#0095f6;color:#fff;font-weight:700;font-size:14px;padding:8px 20px;border-radius:8px;pointer-events:none">Selecionar do computador</span>
+        </div>
+        <input type="file" id="post-img-file" accept="image/*" style="display:none" onchange="previewPostImage(this)">
       </div>
-      <div class="post-modal-body">
-        <div class="post-img-area" id="post-image-area">
-          <!-- Tabs: foto, emoji ou story -->
-          <div class="post-type-tabs">
-            <button class="post-type-tab active" id="tab-photo" onclick="switchPostTab('photo')">
-              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              Foto
-            </button>
-            <button class="post-type-tab" id="tab-emoji" onclick="switchPostTab('emoji')">
-              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-              Emoji
-            </button>
-            <button class="post-type-tab" id="tab-story" onclick="switchPostTab('story')">
-              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
-              Story
-            </button>
-          </div>
-          <!-- Área foto -->
-          <div id="post-photo-area" class="post-photo-upload-area" onclick="document.getElementById('post-img-file').click()">
-            <svg viewBox="0 0 24 24" width="40" height="40" stroke="#8e8e8e" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            <span style="color:#8e8e8e;font-size:14px;margin-top:8px">Clique para selecionar uma foto</span>
-            <span style="color:#b0b0b0;font-size:12px">JPG, PNG ou GIF</span>
-          </div>
-          <input type="file" id="post-img-file" accept="image/*" style="display:none" onchange="previewPostImage(this)">
-          <!-- Área emoji (oculta por padrão) -->
-          <div id="post-emoji-area" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100%">
-            <div id="emoji-bg-picker" class="emoji-picker-grid"></div>
-          </div>
-          <!-- Área story -->
-          <div id="post-story-area" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:20px">
-            <div id="story-preview-wrap" style="width:100%;max-width:180px;aspect-ratio:9/16;background:#111;border-radius:10px;overflow:hidden;position:relative;cursor:pointer" onclick="document.getElementById('story-img-file').click()">
-              <img id="story-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
-              <div id="story-upload-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#666">
-                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                <span style="font-size:12px;text-align:center">Selecionar foto<br><small style="color:#888">1080 × 1920 (9:16)</small></span>
-              </div>
+
+      <!-- Step 2: caption + preview -->
+      <div id="post-step-caption" style="display:none">
+        <div class="modal-header">
+          <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
+          <h3>Nova publicação</h3>
+          <button class="btn-share-modal" onclick="submitPost()">Compartilhar</button>
+        </div>
+        <div class="post-modal-body">
+          <div class="post-img-area" id="post-image-area">
+            <div id="post-photo-area" style="width:100%;height:100%;background:#000;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden" onclick="document.getElementById('post-img-file-change').click()">
+              <img id="post-preview-img" style="width:100%;height:100%;object-fit:cover;display:none">
+              <div id="post-change-hint" style="display:none;position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px">Alterar foto</div>
             </div>
-            <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
-            <div style="font-size:11px;color:#8e8e8e;text-align:center;line-height:1.5">
-              Stories ficam disponíveis por <strong>24 horas</strong><br>e não aparecem no feed principal.
+            <input type="file" id="post-img-file-change" accept="image/*" style="display:none" onchange="previewPostImage(this)">
+          </div>
+          <div class="post-caption-side">
+            <div id="post-author-row" class="post-author-row"></div>
+            <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
+            <div class="post-fields">
+              <div class="pf-row">
+                <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
+              </div>
             </div>
           </div>
         </div>
-        <div class="post-caption-side">
-          <div id="post-author-row" class="post-author-row"></div>
-          <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
-          <div class="post-fields">
-            <div class="pf-row">
-              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
-            </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NOVO STORY (exclusivo 9:16) -->
+  <div id="modal-story-new" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-story-new')"></div>
+    <div class="modal-box" style="max-width:420px">
+      <div class="modal-header">
+        <button class="modal-x" onclick="closeModal('modal-story-new')">✕</button>
+        <h3>Novo story</h3>
+        <button class="btn-share-modal" onclick="submitStory()">Publicar story</button>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;align-items:center;gap:16px">
+        <!-- preview 9:16 -->
+        <div id="story-new-preview-wrap" style="width:180px;aspect-ratio:9/16;background:#111;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3)" onclick="document.getElementById('story-img-file').click()">
+          <img id="story-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
+          <div id="story-upload-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#888">
+            <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            <span style="font-size:13px;font-weight:600;text-align:center;line-height:1.4">Selecionar foto<br><small style="color:#666;font-weight:400">1080 × 1920 (9:16)</small></span>
           </div>
+        </div>
+        <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
+        <div style="font-size:12px;color:#8e8e8e;text-align:center;line-height:1.6;background:#f8f8f8;border-radius:8px;padding:10px 14px;width:100%">
+          📸 Stories ficam disponíveis por <strong>24 horas</strong><br>e não aparecem no feed principal.
         </div>
       </div>
     </div>
@@ -610,6 +623,7 @@
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
           <button class="adm-snav-btn" onclick="admTab(this,'logo')">🖼 Logo da Rede</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'sprites')">🎨 Sprites do Nav</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn adm-snav-danger" onclick="admLogout()">⬅ Sair</button>
         </aside>
@@ -742,6 +756,19 @@
               <div class="adm-fb adm-fb-ok" id="logo-fb-ok">✓ Logo salva com sucesso!</div>
               <div class="adm-fb adm-fb-err" id="logo-fb-err">—</div>
             </div>
+          </div>
+
+          <!-- SPRITES DO TOPNAV -->
+          <div class="adm-section" id="sec-sprites">
+            <div class="adm-sec-title">Sprites do Topnav</div>
+            <div class="adm-sec-sub">Substitua os ícones SVG padrão da barra de navegação superior por imagens personalizadas (PNG/WebP/GIF, máx 100KB cada).</div>
+            <div id="sprites-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px"></div>
+            <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+              <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarSprites()">💾 Salvar todos</button>
+              <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="resetarSprites()">↩ Resetar para SVG padrão</button>
+            </div>
+            <div class="adm-fb adm-fb-ok" id="sprites-fb-ok">✓ Sprites salvos!</div>
+            <div class="adm-fb adm-fb-err" id="sprites-fb-err">—</div>
           </div>
 
         </div><!-- /adm-content -->
@@ -967,6 +994,7 @@ function admTab(btn, id) {
   if (id === 'posts') carregarPosts();
   if (id === 'stats') carregarStats();
   if (id === 'logo')  carregarLogoAdm();
+  if (id === 'sprites') carregarSpritesAdm();
 }
 
 // ── Usuários ──────────────────────────────────────────────
@@ -1192,8 +1220,148 @@ async function removerLogo() {
 </script>
 
 <script>
-// ════════════════════════════════════════════════════════════
-// POKÉGRAM APP — Supabase
+// ── Sprites do Topnav ─────────────────────────────────────
+// Definição dos sprites gerenciáveis (id, label, seletor do elemento, tamanho padrão)
+const SPRITE_DEFS = [
+  { key: 'nav_home',    label: 'Início (casa)',     sel: '#btn-feed svg',    dbKey: 'sprite_nav_home' },
+  { key: 'nav_create',  label: 'Criar publicação',  sel: '.tn-btn[onclick="showNewPost()"] svg', dbKey: 'sprite_nav_create' },
+  { key: 'nav_explore', label: 'Explorar (lupa)',   sel: '#btn-explore svg', dbKey: 'sprite_nav_explore' },
+  { key: 'nav_logout',  label: 'Sair (logout)',     sel: '.tn-btn[onclick="doLogout()"] svg', dbKey: 'sprite_nav_logout' },
+];
+let _pendingSprites = {}; // key → base64
+
+async function carregarSpritesAdm() {
+  const grid = document.getElementById('sprites-grid');
+  if (!grid) return;
+
+  // Busca valores salvos do Supabase
+  const keys = SPRITE_DEFS.map(d => d.dbKey);
+  const { data: rows } = await db.from('settings').select('key,value').in('key', keys);
+  const saved = {};
+  (rows || []).forEach(r => { saved[r.key] = r.value; });
+
+  grid.innerHTML = SPRITE_DEFS.map(def => {
+    const current = saved[def.dbKey] || '';
+    return `
+    <div class="adm-box" style="display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center">
+      <div class="adm-box-title" style="margin-bottom:0">${def.label}</div>
+      <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:#fafafa" id="sprite-preview-${def.key}">
+        ${current
+          ? `<img src="${current}" style="width:100%;height:100%;object-fit:contain">`
+          : `<span style="font-size:11px;color:var(--muted)">SVG<br>padrão</span>`}
+      </div>
+      <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="file" accept="image/png,image/webp,image/gif,image/jpeg" style="display:none"
+          onchange="previewSprite('${def.key}','${def.dbKey}',this)" id="sprite-file-${def.key}">
+        <span class="adm-btn adm-btn-warn adm-btn-sm" onclick="document.getElementById('sprite-file-${def.key}').click()">📁 Selecionar</span>
+      </label>
+      <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="limparSprite('${def.key}','${def.dbKey}')" style="${current?'':'display:none'}" id="sprite-clear-${def.key}">✕ Remover</button>
+    </div>`;
+  }).join('');
+}
+
+function previewSprite(key, dbKey, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const errEl = document.getElementById('sprites-fb-err');
+  if (file.size > 100 * 1024) {
+    errEl.textContent = `"${file.name}" é muito grande. Máximo: 100 KB por sprite.`;
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => {
+    _pendingSprites[dbKey] = e.target.result;
+    const prev = document.getElementById('sprite-preview-' + key);
+    if (prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:contain">`;
+    const clearBtn = document.getElementById('sprite-clear-' + key);
+    if (clearBtn) clearBtn.style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function limparSprite(key, dbKey) {
+  _pendingSprites[dbKey] = null; // marca para remoção
+  const prev = document.getElementById('sprite-preview-' + key);
+  if (prev) prev.innerHTML = `<span style="font-size:11px;color:var(--muted)">SVG<br>padrão</span>`;
+  const clearBtn = document.getElementById('sprite-clear-' + key);
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
+async function salvarSprites() {
+  const okEl  = document.getElementById('sprites-fb-ok');
+  const errEl = document.getElementById('sprites-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  const pending = Object.entries(_pendingSprites);
+  if (!pending.length) { errEl.textContent = 'Nenhuma alteração para salvar.'; errEl.style.display = 'block'; return; }
+
+  for (const [dbKey, val] of pending) {
+    if (val === null) {
+      // remover
+      await db.from('settings').delete().eq('key', dbKey);
+    } else {
+      await db.from('settings').upsert({ key: dbKey, value: val }, { onConflict: 'key' });
+    }
+  }
+  _pendingSprites = {};
+  await applyTopnavSprites();
+  okEl.style.display = 'block';
+  setTimeout(() => okEl.style.display = 'none', 3000);
+}
+
+async function resetarSprites() {
+  if (!confirm('Resetar todos os sprites para os ícones SVG padrão?')) return;
+  const keys = SPRITE_DEFS.map(d => d.dbKey);
+  await db.from('settings').delete().in('key', keys);
+  _pendingSprites = {};
+  await applyTopnavSprites();
+  await carregarSpritesAdm();
+  const okEl = document.getElementById('sprites-fb-ok');
+  okEl.textContent = '✓ Sprites resetados para padrão.';
+  okEl.style.display = 'block';
+  setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ Sprites salvos!'; }, 3000);
+}
+
+// Aplica sprites salvos no topnav (chamada no initApp)
+async function applyTopnavSprites() {
+  const keys = SPRITE_DEFS.map(d => d.dbKey);
+  const { data: rows } = await db.from('settings').select('key,value').in('key', keys);
+  if (!rows || !rows.length) return;
+  const saved = {};
+  rows.forEach(r => { saved[r.key] = r.value; });
+
+  SPRITE_DEFS.forEach(def => {
+    const val = saved[def.dbKey];
+    const tnBtn = (() => {
+      if (def.key === 'nav_home')    return document.getElementById('btn-feed');
+      if (def.key === 'nav_explore') return document.getElementById('btn-explore');
+      if (def.key === 'nav_create')  return document.querySelector('.tn-btn[onclick="showNewPost()"]');
+      if (def.key === 'nav_logout')  return document.querySelector('.tn-btn[onclick="doLogout()"]');
+    })();
+    if (!tnBtn) return;
+    if (val) {
+      // substituir o SVG por uma tag <img> de sprite
+      const existing = tnBtn.querySelector('svg');
+      if (existing) existing.remove();
+      let spriteImg = tnBtn.querySelector('.tn-sprite-img');
+      if (!spriteImg) {
+        spriteImg = document.createElement('img');
+        spriteImg.className = 'tn-sprite-img';
+        spriteImg.style.cssText = 'width:22px;height:22px;object-fit:contain;display:block';
+        tnBtn.insertBefore(spriteImg, tnBtn.firstChild);
+      }
+      spriteImg.src = val;
+    } else {
+      // remove sprite e mantém svg original (não podemos restaurar o SVG removido sem recarga, ignora)
+      const spriteImg = tnBtn.querySelector('.tn-sprite-img');
+      if (spriteImg) spriteImg.remove();
+    }
+  });
+}
+window.applyTopnavSprites = applyTopnavSprites;
+
 // ════════════════════════════════════════════════════════════
 
 const POKEMON_LIST = [
@@ -1227,6 +1395,7 @@ async function initApp(user) {
   currentUser = user;
   renderSidebarAvatar();
   await showView('feed');
+  applyTopnavSprites();
 }
 
 function renderSidebarAvatar() {
@@ -1319,7 +1488,7 @@ async function renderStories() {
     if (myStories && myStories.length > 0) {
       mineItem.onclick = () => openStoryViewer(currentUser.id);
     } else {
-      mineItem.onclick = () => { showNewPost(); switchPostTab('story'); };
+      mineItem.onclick = () => showNewStory();
     }
   }
 
@@ -1646,11 +1815,20 @@ function avatarHTML(u, size, extraStyle) {
 
 // ── Build profile HTML (shared by own + other users) ──────
 function buildProfileHTML(u, userPosts, followers, following, isMe) {
+  const postCount = (userPosts||[]).length;
+  const avatarInner = u.avatar_url
+    ? `<img src="${u.avatar_url}" alt="${u.username}">`
+    : `<span>${initials(u.username)}</span>`;
+  const avatarBg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+
   return `
     <div class="profile-page">
+
       <div class="profile-header">
         <div class="profile-avatar-wrap">
-          ${avatarHTML(u, 150, 'cursor:pointer')}
+          <div class="profile-avatar-circle" style="background:${avatarBg}">
+            ${avatarInner}
+          </div>
         </div>
         <div class="profile-meta">
           <div class="profile-top-row">
@@ -1662,28 +1840,32 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
             }
           </div>
           <div class="profile-stats">
-            <div class="stat-item"><strong>${(userPosts||[]).length}</strong> publicações</div>
-            <div class="stat-item"><strong>${fmtNum(followers||0)}</strong> seguidores</div>
-            <div class="stat-item"><strong>${fmtNum(following||0)}</strong> seguindo</div>
+            <div class="stat-item"><strong>${fmtNum(postCount)}</strong><span> posts</span></div>
+            <div class="stat-item"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
+            <div class="stat-item"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
           </div>
           <div class="profile-bio">
-            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:13px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
-${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
+            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+            ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
             ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
           </div>
         </div>
       </div>
+
       <div class="profile-tabs">
         <button class="tab-btn active">
           <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           Publicações
         </button>
       </div>
+
       <div class="profile-grid">
-        ${(userPosts||[]).length
+        ${postCount
           ? userPosts.map(p => `
               <div class="profile-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
-                <span>${p.emoji||'📸'}</span>
+                ${p.image_url
+                  ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;display:block">`
+                  : `<span>${p.emoji||'📸'}</span>`}
               </div>`).join('')
           : `<div class="profile-empty">Nenhuma publicação ainda.</div>`
         }
@@ -1697,7 +1879,7 @@ async function loadUserData(username) {
   if (error) console.error('Erro ao carregar usuário:', error);
   if (!u) return null;
   const [postsRes, followersRes, followingRes] = await Promise.all([
-    db.from('posts').select('id,emoji,bg').eq('user_id', u.id).order('created_at', { ascending: false }),
+    db.from('posts').select('id,emoji,bg,image_url').eq('user_id', u.id).order('created_at', { ascending: false }),
     db.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', u.id),
     db.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', u.id),
   ]);
@@ -1877,93 +2059,84 @@ async function submitEditProfile() {
   toast('Perfil atualizado! ✨');
 }
 
-// ── New Post ──────────────────────────────────────────────
-let _postActiveTab      = 'photo';
+// ── New Story ─────────────────────────────────────────────
+function showNewStory() {
+  _storyPendingFile = null;
+  const img = document.getElementById('story-preview-img');
+  const ph  = document.getElementById('story-upload-placeholder');
+  const fileInput = document.getElementById('story-img-file');
+  if (img) { img.src = ''; img.style.display = 'none'; }
+  if (ph)  ph.style.display = 'flex';
+  if (fileInput) fileInput.value = '';
+  openModal('modal-story-new');
+}
+
+// ── New Post ─────────────────────────────────────────────
 let _postPendingImageFile = null;
 
 function showNewPost() {
-  selectedPostEmoji     = null;
   _postPendingImageFile = null;
-  _postActiveTab        = 'photo';
   document.getElementById('post-caption').value  = '';
   document.getElementById('post-location').value = '';
   document.getElementById('post-img-file').value = '';
+
+  // volta para step 1 (seleção)
+  document.getElementById('post-step-select').style.display  = '';
+  document.getElementById('post-step-caption').style.display = 'none';
+
+  // reset preview
+  const prevImg = document.getElementById('post-preview-img');
+  if (prevImg) { prevImg.src = ''; prevImg.style.display = 'none'; }
+  const hint = document.getElementById('post-change-hint');
+  if (hint) hint.style.display = 'none';
+
+  // drag-and-drop
+  const dropArea = document.getElementById('post-drop-area');
+  if (dropArea) {
+    dropArea.ondragover  = e => { e.preventDefault(); dropArea.style.background = '#f0f8ff'; };
+    dropArea.ondragleave = () => { dropArea.style.background = ''; };
+    dropArea.ondrop      = e => {
+      e.preventDefault();
+      dropArea.style.background = '';
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) handlePostImageFile(file);
+    };
+  }
 
   const row = document.getElementById('post-author-row');
   if (row) row.innerHTML = `
     <div class="pa-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <span class="pa-name">${currentUser.username}</span>`;
 
-  // reset photo area
-  const photoArea = document.getElementById('post-photo-area');
-  if (photoArea) {
-    photoArea.style.backgroundImage = '';
-    photoArea.innerHTML = `
-      <svg viewBox="0 0 24 24" width="40" height="40" stroke="#8e8e8e" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      <span style="color:#8e8e8e;font-size:14px;margin-top:8px">Clique para selecionar uma foto</span>
-      <span style="color:#b0b0b0;font-size:12px">JPG, PNG ou GIF</span>`;
-    photoArea.onclick = () => document.getElementById('post-img-file').click();
-  }
-
-  // reset emoji area
-  const emojiArea = document.getElementById('post-emoji-area');
-  if (emojiArea) {
-    emojiArea.style.display = 'none';
-    const picker = document.getElementById('emoji-bg-picker');
-    if (picker) picker.innerHTML = EMOJI_BG_OPTIONS.map((o, i) =>
-      `<div class="emoji-pick-btn" onclick="selectPostEmoji(${i})" data-idx="${i}">${o.emoji}</div>`).join('');
-  }
-
-  // activate photo tab
-  document.getElementById('tab-photo')?.classList.add('active');
-  document.getElementById('tab-emoji')?.classList.remove('active');
-  document.getElementById('post-photo-area').style.display = '';
-  if (emojiArea) emojiArea.style.display = 'none';
-
   openModal('modal-post');
-}
-
-function switchPostTab(tab) {
-  _postActiveTab = tab;
-  ['photo','emoji','story'].forEach(t => {
-    document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
-  });
-  document.getElementById('post-photo-area').style.display  = tab === 'photo' ? ''     : 'none';
-  document.getElementById('post-emoji-area').style.display  = tab === 'emoji' ? 'flex' : 'none';
-  document.getElementById('post-story-area').style.display  = tab === 'story' ? 'flex' : 'none';
-
-  // título e botão do modal
-  const title = document.querySelector('#modal-post .modal-header h3');
-  const btn   = document.querySelector('#modal-post .btn-share-modal');
-  if (title) title.textContent = tab === 'story' ? 'Novo story' : 'Nova publicação';
-  if (btn)   btn.textContent   = tab === 'story' ? 'Publicar story' : 'Compartilhar';
-
-  // caption side — stories não têm legenda
-  const side = document.querySelector('.post-caption-side');
-  if (side) side.style.display = tab === 'story' ? 'none' : '';
 }
 
 function previewPostImage(input) {
   const file = input.files[0];
   if (!file) return;
+  handlePostImageFile(file);
+  input.value = '';
+}
+
+function handlePostImageFile(file) {
   if (file.size > 15 * 1024 * 1024) { toast('Imagem muito grande. Máximo 15MB.'); return; }
   openCropper(file, 'square', croppedFile => {
     _postPendingImageFile = croppedFile;
     const reader = new FileReader();
     reader.onload = e => {
-      const photoArea = document.getElementById('post-photo-area');
-      if (photoArea) {
-        photoArea.style.backgroundImage = `url('${e.target.result}')`;
-        photoArea.style.backgroundSize = 'cover';
-        photoArea.style.backgroundPosition = 'center';
-        photoArea.onclick = () => document.getElementById('post-img-file').click();
-        photoArea.innerHTML = `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;pointer-events:none">Alterar</div>`;
-      }
+      const img  = document.getElementById('post-preview-img');
+      const hint = document.getElementById('post-change-hint');
+      if (img)  { img.src = e.target.result; img.style.display = 'block'; }
+      if (hint) hint.style.display = 'block';
+      // avança para step 2
+      document.getElementById('post-step-select').style.display  = 'none';
+      document.getElementById('post-step-caption').style.display = '';
     };
     reader.readAsDataURL(croppedFile);
   });
-  input.value = '';
 }
+
+function switchPostTab() {} // mantido para compatibilidade, sem uso
 
 // ── Stories ───────────────────────────────────────────────
 let _storyPendingFile = null;
@@ -1991,7 +2164,7 @@ function previewStoryImage(input) {
 
 async function submitStory() {
   if (!_storyPendingFile) { toast('Selecione uma foto para o story!'); return; }
-  const btn = document.querySelector('#modal-post .btn-share-modal');
+  const btn = document.querySelector('#modal-story-new .btn-share-modal');
   if (btn) { btn.textContent = 'Publicando...'; btn.disabled = true; }
 
   const path = `${currentUser.id}_${Date.now()}.jpg`;
@@ -2009,7 +2182,7 @@ async function submitStory() {
   if (error) { toast('Erro ao publicar story: ' + error.message); return; }
 
   _storyPendingFile = null;
-  closeModal('modal-post');
+  closeModal('modal-story-new');
   await renderStories();
   toast('Story publicado! Disponível por 24h 🕐');
 }
@@ -2048,7 +2221,7 @@ function showStory(idx) {
     : `<div style="width:100%;height:100%;background:${u.color||'#e53935'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif">${initials(u.username||'?')}</div>`;
 
   document.getElementById('sv-username').textContent = u.username || '?';
-  document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás · expira em ' + expiresIn(story.expires_at);
+  document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás';
 
   // botão apagar (só dono)
   const delBtn = document.getElementById('sv-delete-btn');
@@ -2165,42 +2338,25 @@ async function deletePost(postId) {
 }
 
 async function submitPost() {
-  if (_postActiveTab === 'story') { await submitStory(); return; }
-
   const caption  = document.getElementById('post-caption').value.trim();
   const location = document.getElementById('post-location').value.trim();
-  if (!caption) return toast('Escreva uma legenda!');
-
-  const isPhoto = _postActiveTab === 'photo';
-  const isEmoji = _postActiveTab === 'emoji';
-
-  if (isPhoto && !_postPendingImageFile) return toast('Selecione uma foto!');
-  if (isEmoji && !selectedPostEmoji)     return toast('Escolha um emoji!');
+  if (!caption)              return toast('Escreva uma legenda!');
+  if (!_postPendingImageFile) return toast('Selecione uma foto!');
 
   const shareBtn = document.querySelector('#modal-post .btn-share-modal');
   if (shareBtn) { shareBtn.textContent = 'Publicando...'; shareBtn.disabled = true; }
 
-  let image_url = null;
-  if (isPhoto && _postPendingImageFile) {
-    const path = `${currentUser.id}_${Date.now()}.jpg`;
-    const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/jpeg' });
-    if (upErr) {
-      toast('Erro ao enviar foto: ' + upErr.message);
-      if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
-      return;
-    }
-    const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
-    image_url = urlData.publicUrl;
+  const path = `${currentUser.id}_${Date.now()}.jpg`;
+  const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/jpeg' });
+  if (upErr) {
+    toast('Erro ao enviar foto: ' + upErr.message);
+    if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
+    return;
   }
+  const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
+  const image_url = urlData.publicUrl;
 
-  const payload = {
-    user_id: currentUser.id,
-    caption, location,
-    image_url,
-    emoji: isEmoji ? selectedPostEmoji.emoji : null,
-    bg:    isEmoji ? selectedPostEmoji.bg    : null,
-  };
-
+  const payload = { user_id: currentUser.id, caption, location, image_url, emoji: null, bg: null };
   const { error } = await db.from('posts').insert(payload);
   if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
   if (error) { toast('Erro ao publicar. Tente novamente.'); return; }
@@ -2249,7 +2405,7 @@ function toast(msg) {
 
 // ── Keyboard ──────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-comments'); closeCropper(); }
+  if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-story-new'); closeModal('modal-comments'); closeCropper(); }
 });
 
 // ── Roteamento — executado após todas as funções estarem definidas ──
@@ -2352,12 +2508,25 @@ function openCropper(file, mode, callback) {
 }
 
 function fitCropImage() {
-  const wrap = document.getElementById('cropper-wrap');
-  const img  = document.getElementById('cropper-img');
+  const wrap  = document.getElementById('cropper-wrap');
+  const img   = document.getElementById('cropper-img');
   const wSize = wrap.offsetWidth;
+  const hSize = wrap.offsetHeight;
   const ratio = img.naturalWidth / img.naturalHeight;
-  // fit so shortest side fills the circle diameter (84% of wrap)
-  const fit = ratio >= 1 ? wSize / img.naturalHeight : wSize / img.naturalWidth;
+
+  let fit;
+  if (_cropMode === 'square') {
+    // contain: a foto inteira cabe no quadrado, sem zoom forçado
+    fit = ratio >= 1
+      ? wSize / img.naturalWidth    // paisagem: largura encaixa no wrap
+      : hSize / img.naturalHeight;  // retrato: altura encaixa no wrap
+  } else if (_cropMode === 'story') {
+    fit = ratio >= 1 ? hSize / img.naturalHeight : wSize / img.naturalWidth;
+  } else {
+    // circle (avatar): menor lado preenche o círculo
+    fit = ratio >= 1 ? wSize / img.naturalHeight : wSize / img.naturalWidth;
+  }
+
   _cropState.baseScale = fit;
   _cropState.scale = 1;
   _cropState.x = 0;
@@ -2376,17 +2545,15 @@ function applyTransform() {
   const base  = _cropState.baseScale || 1;
   const scale = base * _cropState.scale;
   const wSize = wrap.offsetWidth;
-  // clamp translation so image never leaves the circle
+  const hSize = wrap.offsetHeight;
   const imgW  = img.naturalWidth  * scale;
   const imgH  = img.naturalHeight * scale;
-  const maxX  = Math.max(0, (imgW - wSize) / 2);
-  const maxY  = Math.max(0, (imgH - wSize) / 2);
-  _cropState.x = Math.max(-maxX, Math.min(maxX, _cropState.x));
-  _cropState.y = Math.max(-maxY, Math.min(maxY, _cropState.y));
+
+  // movimento livre — sem clamp, o usuário posiciona onde quiser
   img.style.width  = imgW + 'px';
   img.style.height = imgH + 'px';
   img.style.left   = (wSize/2 - imgW/2 + _cropState.x) + 'px';
-  img.style.top    = (wSize/2 - imgH/2 + _cropState.y) + 'px';
+  img.style.top    = (hSize/2 - imgH/2 + _cropState.y) + 'px';
 }
 
 function startDrag(x, y) {
@@ -2430,8 +2597,22 @@ function confirmCrop() {
     cropW = wSize * 0.45;  cropH = hSize * 0.90;
   } else if (_cropMode === 'square') {
     outW = outH = 1080;
-    cropX = wSize * 0.08; cropY = hSize * 0.08;
-    cropW = wSize * 0.84; cropH = hSize * 0.84;
+    // recorta a área visível da imagem dentro do wrap (sem as barras pretas)
+    const imgLeft = parseFloat(img.style.left) || 0;
+    const imgTop  = parseFloat(img.style.top)  || 0;
+    // interseção entre o wrap [0,wSize] x [0,hSize] e a imagem [imgLeft, imgLeft+imgW]
+    cropX = Math.max(0, -imgLeft);
+    cropY = Math.max(0, -imgTop);
+    cropW = Math.min(wSize,  imgLeft + imgW) - Math.max(0, imgLeft);
+    cropH = Math.min(hSize,  imgTop  + imgH) - Math.max(0, imgTop);
+    // garante valores positivos
+    cropW = Math.max(1, cropW);
+    cropH = Math.max(1, cropH);
+    // mantém quadrado: usa o menor lado
+    const side = Math.min(cropW, cropH);
+    cropX += (cropW - side) / 2;
+    cropY += (cropH - side) / 2;
+    cropW = cropH = side;
   } else {
     outW = outH = 400;
     cropX = 0; cropY = 0; cropW = wSize; cropH = hSize;
