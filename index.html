@@ -1266,7 +1266,11 @@ async function renderPosts() {
     .order('created_at', { ascending: false })
     .limit(30);
 
-  if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
+  if (error || !posts) {
+    console.error('Erro posts:', error);
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.<br><small style="font-size:11px">' + (error?.message||'') + '</small></div>';
+    return;
+  }
   if (!posts.length)   { container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>Seja o primeiro a postar! 🎉</div>'; return; }
 
   appPosts = posts;
@@ -1721,28 +1725,37 @@ async function submitEditProfile() {
 
   if (saveBtn) { saveBtn.textContent = 'Salvando...'; saveBtn.disabled = true; }
 
-  // upload de foto se houver
+  // 1 — salva campos de texto (sempre funciona, não depende de avatar_url)
+  const { error: textErr } = await db.from('users')
+    .update({ username, name, bio, rpg, pokemon, pronoun, color })
+    .eq('id', currentUser.id);
+  if (textErr) {
+    if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
+    errEl.textContent = 'Erro ao salvar: ' + textErr.message;
+    errEl.style.display = 'block'; return;
+  }
+  Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color });
+
+  // 2 — upload de foto (separado, só se tiver arquivo pendente)
   let avatar_url = currentUser.avatar_url || null;
   if (_epPendingAvatarFile) {
-    const ext  = _epPendingAvatarFile.name.split('.').pop();
+    const ext  = 'jpg';
     const path = `${currentUser.id}.${ext}`;
     const { error: upErr } = await db.storage.from('avatars').upload(path, _epPendingAvatarFile, { upsert: true });
     if (upErr) {
-      errEl.textContent = 'Erro ao enviar foto: ' + upErr.message;
-      errEl.style.display = 'block';
-      if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
-      return;
+      // foto falhou mas texto já salvou — avisa mas não bloqueia
+      toast('Perfil salvo! Mas a foto falhou: ' + upErr.message);
+    } else {
+      const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
+      avatar_url = urlData.publicUrl + '?t=' + Date.now();
+      // tenta salvar avatar_url (pode falhar se coluna não existe ainda)
+      await db.from('users').update({ avatar_url }).eq('id', currentUser.id);
+      currentUser.avatar_url = avatar_url;
     }
-    const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
-    avatar_url = urlData.publicUrl + '?t=' + Date.now();
     _epPendingAvatarFile = null;
   }
 
-  const { error } = await db.from('users').update({ username, name, bio, rpg, pokemon, pronoun, color, avatar_url }).eq('id', currentUser.id);
   if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
-  if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
-
-  Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color, avatar_url });
   saveSession(currentUser);
   renderSidebarAvatar();
   closeModal('modal-edit-profile');
