@@ -1717,7 +1717,9 @@ async function openComments(postId) {
     if (post) {
       if (post.image_url) {
         imgEl.style.background = '#000';
-        imgEl.innerHTML = `<img src="${post.image_url}" alt="post" style="width:100%;height:100%;object-fit:contain;display:block">`;
+        imgEl.style.display = 'block';
+        imgEl.style.padding = '0';
+        imgEl.innerHTML = `<img src="${post.image_url}" alt="post" style="width:100%;height:100%;object-fit:cover;display:block">`;
       } else {
         imgEl.style.background = post.bg || '#f0f0f0';
         imgEl.innerHTML = `<span style="font-size:64px">${post.emoji || '📸'}</span>`;
