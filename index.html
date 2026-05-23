@@ -629,6 +629,8 @@
           <button class="adm-snav-btn" onclick="admTab(this,'sprites')">🎨 Sprites do Nav</button>
           <button class="adm-snav-btn" onclick="admTab(this,'filtros')">✨ Filtros de Foto</button>
           <div class="adm-snav-sep"></div>
+          <button class="adm-snav-btn" onclick="admTab(this,'npcs')">🤖 NPCs</button>
+          <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn adm-snav-danger" onclick="admLogout()">⬅ Sair</button>
         </aside>
 
@@ -800,6 +802,139 @@
             <div id="filtro-list" style="display:flex;flex-direction:column;gap:10px"></div>
             <div class="adm-fb adm-fb-ok"  id="filtros-fb-ok">✓ Filtros salvos!</div>
             <div class="adm-fb adm-fb-err" id="filtros-fb-err">—</div>
+          </div>
+
+
+          <!-- NPCs -->
+          <div class="adm-section" id="sec-npcs">
+            <div class="adm-sec-title">NPCs</div>
+            <div class="adm-sec-sub">Crie e gerencie perfis de personagens não-jogadores com publicações próprias</div>
+
+            <!-- Criação de NPC -->
+            <div class="adm-box" id="npc-form-box">
+              <div class="adm-box-title" id="npc-form-title">➕ Novo NPC</div>
+              <input type="hidden" id="npc-edit-id" value="">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="adm-field" style="margin-bottom:0">
+                  <label>Usuário (único)</label>
+                  <input type="text" id="npc-username" placeholder="npc_personagem" autocomplete="off"/>
+                </div>
+                <div class="adm-field" style="margin-bottom:0">
+                  <label>Nome de exibição</label>
+                  <input type="text" id="npc-name" placeholder="Nome do Personagem"/>
+                </div>
+              </div>
+              <div class="adm-field" style="margin-top:12px">
+                <label>Bio</label>
+                <textarea id="npc-bio" rows="2" placeholder="Descrição do personagem..."
+                  style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);resize:vertical;width:100%;background:var(--surface)"></textarea>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:0">
+                <div class="adm-field" style="margin-bottom:0">
+                  <label>Pronomes</label>
+                  <select id="npc-pronoun" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
+                    <option value="">Nenhum</option>
+                    <option value="ele/dele">ele/dele</option>
+                    <option value="ela/dela">ela/dela</option>
+                    <option value="elu/delu">elu/delu</option>
+                    <option value="ele/ela">ele/ela</option>
+                    <option value="qualquer">qualquer pronome</option>
+                  </select>
+                </div>
+                <div class="adm-field" style="margin-bottom:0">
+                  <label>RPG</label>
+                  <select id="npc-rpg" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
+                    <option value="">Nenhum</option>
+                    <option value="kingdom_platinum">Kingdom Platinum</option>
+                    <option value="pchapters">PChapters</option>
+                  </select>
+                </div>
+                <div class="adm-field" style="margin-bottom:0">
+                  <label>Cor do avatar</label>
+                  <input type="color" id="npc-color" value="#e53935" style="width:100%;height:42px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;padding:2px"/>
+                </div>
+              </div>
+              <!-- Avatar upload -->
+              <div style="margin-top:12px">
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Avatar (opcional)</div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div id="npc-avatar-preview" style="width:56px;height:56px;border-radius:50%;background:#e53935;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0;border:2px solid var(--border)">NPC</div>
+                  <div>
+                    <button class="adm-btn adm-btn-sm" style="background:var(--surface2);border:1px solid var(--border)" onclick="document.getElementById('npc-avatar-file').click()">📷 Carregar foto</button>
+                    <input type="file" id="npc-avatar-file" accept="image/*" style="display:none" onchange="admNpcPreviewAvatar(this)">
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px">PNG/JPG, máx 500KB</div>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+                <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="admNpcSalvar()">💾 Salvar NPC</button>
+                <button class="adm-btn adm-btn-sm" id="npc-cancel-btn" style="display:none;background:var(--surface2);border:1.5px solid var(--border);color:var(--text)" onclick="admNpcCancelarEdicao()">✕ Cancelar</button>
+              </div>
+              <div class="adm-fb adm-fb-ok"  id="npc-fb-ok">✓ NPC salvo!</div>
+              <div class="adm-fb adm-fb-err" id="npc-fb-err">—</div>
+            </div>
+
+            <!-- Lista de NPCs -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="font-size:12px;color:var(--muted)" id="npc-count"></div>
+              <input type="text" placeholder="Buscar NPC..." id="npc-search" oninput="admNpcFiltrar(this.value)"
+                style="padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;width:200px;outline:none;color:var(--text)"/>
+            </div>
+            <div id="npc-list-wrap">
+              <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px" id="npc-list-loading">Carregando...</div>
+            </div>
+
+            <!-- Painel de publicações do NPC selecionado -->
+            <div id="npc-posts-panel" style="display:none;margin-top:24px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+                <button class="adm-btn adm-btn-sm" style="background:var(--surface2);border:1.5px solid var(--border);color:var(--text)" onclick="admNpcFecharPostsPanel()">← Voltar</button>
+                <div style="font-size:15px;font-weight:700;color:var(--brand)" id="npc-posts-title">Publicações do NPC</div>
+              </div>
+
+              <!-- Formulário de nova publicação NPC -->
+              <div class="adm-box">
+                <div class="adm-box-title">📸 Nova publicação</div>
+                <input type="hidden" id="npc-post-uid" value="">
+                <input type="hidden" id="npc-post-edit-id" value="">
+                <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+                  <!-- Preview da imagem -->
+                  <div style="flex-shrink:0">
+                    <div id="npc-post-img-preview" onclick="document.getElementById('npc-post-img-file').click()"
+                      style="width:120px;height:120px;border-radius:10px;background:#eee;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;font-size:13px;color:var(--muted);text-align:center">
+                      📷<br>Clique para foto
+                    </div>
+                    <input type="file" id="npc-post-img-file" accept="image/*" style="display:none" onchange="admNpcPreviewPostImg(this)">
+                  </div>
+                  <!-- Campos -->
+                  <div style="flex:1;min-width:200px">
+                    <div class="adm-field">
+                      <label>Legenda</label>
+                      <textarea id="npc-post-caption" rows="3" placeholder="Escreva a legenda... Use #tags!"
+                        style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);resize:vertical;width:100%;background:var(--surface)"></textarea>
+                    </div>
+                    <div class="adm-field" style="margin-bottom:0">
+                      <label>Local (opcional)</label>
+                      <input type="text" id="npc-post-location" placeholder="Ex: Pallet Town"/>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+                  <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="admNpcSubmitPost()">📤 Publicar</button>
+                  <button class="adm-btn adm-btn-sm" id="npc-post-cancel-btn" style="display:none;background:var(--surface2);border:1.5px solid var(--border);color:var(--text)" onclick="admNpcCancelarPostEdit()">✕ Cancelar</button>
+                </div>
+                <div class="adm-fb adm-fb-ok"  id="npc-post-fb-ok">✓ Publicado!</div>
+                <div class="adm-fb adm-fb-err" id="npc-post-fb-err">—</div>
+              </div>
+
+              <!-- Tabela de posts do NPC -->
+              <div class="adm-table-wrap">
+                <table class="adm-table">
+                  <thead><tr><th style="width:80px">Foto</th><th>Legenda</th><th>Local</th><th>Data</th><th>Ações</th></tr></thead>
+                  <tbody id="npc-posts-tbody"></tbody>
+                </table>
+              </div>
+              <div id="npc-posts-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px;display:none">Carregando...</div>
+            </div>
           </div>
 
         </div><!-- /adm-content -->
@@ -1004,6 +1139,320 @@ async function fazerLoginAdm() {
   } catch(e) { console.error(e); errEl.textContent = 'Erro de conexão.'; errEl.style.display = 'block'; }
 }
 
+
+// ════════════════════════════════════════════════════════════
+// ADM — NPCs
+// ════════════════════════════════════════════════════════════
+let _allNpcs = [];
+let _npcPendingAvatarFile  = null;
+let _npcPendingPostImgFile = null;
+let _currentNpcUserId = null;  // NPC cujos posts estão sendo gerenciados
+
+// ── Carregar lista de NPCs ────────────────────────────────
+async function admNpcLoad() {
+  document.getElementById('npc-list-loading').style.display = 'block';
+  document.getElementById('npc-posts-panel').style.display = 'none';
+  const { data, error } = await db.from('users').select('*').eq('is_npc', true).order('created_at', { ascending: false });
+  document.getElementById('npc-list-loading').style.display = 'none';
+  if (error) { document.getElementById('npc-list-loading').textContent = 'Erro ao carregar NPCs.'; document.getElementById('npc-list-loading').style.display = 'block'; return; }
+  _allNpcs = data || [];
+  document.getElementById('npc-count').textContent = `${_allNpcs.length} NPC(s) cadastrado(s)`;
+  admNpcRenderList(_allNpcs);
+}
+
+function admNpcFiltrar(q) {
+  const lq = q.toLowerCase();
+  admNpcRenderList(_allNpcs.filter(u => u.username.toLowerCase().includes(lq) || (u.name||'').toLowerCase().includes(lq)));
+}
+
+function admNpcRenderList(list) {
+  const wrap = document.getElementById('npc-list-wrap');
+  if (!list.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">Nenhum NPC encontrado. Crie o primeiro acima!</div>';
+    return;
+  }
+  wrap.innerHTML = `<div class="adm-table-wrap"><table class="adm-table">
+    <thead><tr><th>Avatar</th><th>Usuário</th><th>Nome</th><th>RPG</th><th>Cadastro</th><th>Ações</th></tr></thead>
+    <tbody>${list.map(u => {
+      const bg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+      const avContent = u.avatar_url
+        ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : `<span style="font-size:11px;font-weight:800;color:#fff">${esc(u.username.slice(0,2).toUpperCase())}</span>`;
+      return `<tr>
+        <td><div style="width:36px;height:36px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${avContent}</div></td>
+        <td><strong>@${esc(u.username)}</strong></td>
+        <td>${esc(u.name || '—')}</td>
+        <td>${rpgBadge(u.rpg)}</td>
+        <td style="color:var(--muted);white-space:nowrap">${fmtDate(u.created_at)}</td>
+        <td>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="adm-btn adm-btn-warn adm-btn-sm" onclick="admNpcEditar('${u.id}')">✏️ Editar</button>
+            <button class="adm-btn adm-btn-sm" style="background:#e8f0fb;color:#1a3a5c;border:1px solid #c0d0e8" onclick="admNpcAbrirPosts('${u.id}','${esc(u.username)}')">📸 Posts</button>
+            <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="confirmarDeletar('usuario','${u.id}','NPC @${esc(u.username)}')">🗑</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// ── Preview de avatar ─────────────────────────────────────
+function admNpcPreviewAvatar(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 512*1024) { alert('Imagem muito grande. Máximo 500KB.'); return; }
+  _npcPendingAvatarFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('npc-avatar-preview');
+    prev.style.background = 'transparent';
+    prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Salvar NPC (criar ou editar) ──────────────────────────
+async function admNpcSalvar() {
+  const editId   = document.getElementById('npc-edit-id').value.trim();
+  const username = document.getElementById('npc-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const name     = document.getElementById('npc-name').value.trim();
+  const bio      = document.getElementById('npc-bio').value.trim();
+  const pronoun  = document.getElementById('npc-pronoun').value;
+  const rpg      = document.getElementById('npc-rpg').value;
+  const color    = document.getElementById('npc-color').value;
+  const okEl  = document.getElementById('npc-fb-ok');
+  const errEl = document.getElementById('npc-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  if (!username) { errEl.textContent = 'Informe um usuário válido.'; errEl.style.display = 'block'; return; }
+
+  // Upload de avatar se houver
+  let avatar_url = editId ? (_allNpcs.find(u=>u.id===editId)?.avatar_url || null) : null;
+  if (_npcPendingAvatarFile) {
+    const path = `npc_${username}_${Date.now()}.jpg`;
+    const { error: upErr } = await db.storage.from('avatars').upload(path, _npcPendingAvatarFile, { upsert: true, contentType: 'image/jpeg' });
+    if (upErr) { errEl.textContent = 'Erro no upload: ' + upErr.message; errEl.style.display = 'block'; return; }
+    const { data: ud } = db.storage.from('avatars').getPublicUrl(path);
+    avatar_url = ud.publicUrl;
+    _npcPendingAvatarFile = null;
+  }
+
+  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true, password: 'npc_locked_' + Date.now() };
+
+  let error;
+  if (editId) {
+    const { error: e } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url }).eq('id', editId);
+    error = e;
+  } else {
+    // Verifica se username já existe
+    const { data: exists } = await db.from('users').select('id').eq('username', username).maybeSingle();
+    if (exists) { errEl.textContent = 'Usuário já existe.'; errEl.style.display = 'block'; return; }
+    const { error: e } = await db.from('users').insert(payload);
+    error = e;
+  }
+
+  if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
+
+  okEl.style.display = 'block';
+  setTimeout(() => okEl.style.display = 'none', 2500);
+  admNpcCancelarEdicao();
+  admNpcLoad();
+}
+
+// ── Editar NPC (preenche o form) ──────────────────────────
+function admNpcEditar(id) {
+  const u = _allNpcs.find(x => x.id === id);
+  if (!u) return;
+  document.getElementById('npc-edit-id').value    = u.id;
+  document.getElementById('npc-username').value   = u.username;
+  document.getElementById('npc-name').value       = u.name || '';
+  document.getElementById('npc-bio').value        = u.bio || '';
+  document.getElementById('npc-pronoun').value    = u.pronoun || '';
+  document.getElementById('npc-rpg').value        = u.rpg || '';
+  document.getElementById('npc-color').value      = u.color || '#e53935';
+  document.getElementById('npc-form-title').textContent = `✏️ Editando @${u.username}`;
+  document.getElementById('npc-cancel-btn').style.display = 'inline-flex';
+  _npcPendingAvatarFile = null;
+  // preview avatar atual
+  const prev = document.getElementById('npc-avatar-preview');
+  if (u.avatar_url) {
+    prev.style.background = 'transparent';
+    prev.innerHTML = `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  } else {
+    prev.style.background = u.color || '#e53935';
+    prev.innerHTML = `<span style="font-size:18px;font-weight:800;color:#fff">${u.username.slice(0,2).toUpperCase()}</span>`;
+  }
+  document.getElementById('npc-form-box').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function admNpcCancelarEdicao() {
+  document.getElementById('npc-edit-id').value    = '';
+  document.getElementById('npc-username').value   = '';
+  document.getElementById('npc-name').value       = '';
+  document.getElementById('npc-bio').value        = '';
+  document.getElementById('npc-pronoun').value    = '';
+  document.getElementById('npc-rpg').value        = '';
+  document.getElementById('npc-color').value      = '#e53935';
+  document.getElementById('npc-avatar-file').value = '';
+  document.getElementById('npc-form-title').textContent = '➕ Novo NPC';
+  document.getElementById('npc-cancel-btn').style.display = 'none';
+  const prev = document.getElementById('npc-avatar-preview');
+  prev.style.background = '#e53935';
+  prev.innerHTML = 'NPC';
+  _npcPendingAvatarFile = null;
+}
+
+// ── Painel de posts do NPC ────────────────────────────────
+async function admNpcAbrirPosts(userId, username) {
+  _currentNpcUserId = userId;
+  document.getElementById('npc-posts-title').textContent = `Publicações de @${username}`;
+  document.getElementById('npc-post-uid').value = userId;
+  document.getElementById('npc-posts-panel').style.display = 'block';
+  document.getElementById('npc-posts-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+  admNpcCancelarPostEdit();
+  await admNpcCarregarPosts(userId);
+}
+
+function admNpcFecharPostsPanel() {
+  document.getElementById('npc-posts-panel').style.display = 'none';
+  _currentNpcUserId = null;
+}
+
+async function admNpcCarregarPosts(userId) {
+  const tbody  = document.getElementById('npc-posts-tbody');
+  const loadEl = document.getElementById('npc-posts-loading');
+  tbody.innerHTML = ''; loadEl.style.display = 'block';
+  const { data: posts } = await db.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  loadEl.style.display = 'none';
+  if (!posts || !posts.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhuma publicação ainda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = posts.map(p => `
+    <tr>
+      <td>${p.image_url ? `<img src="${esc(p.image_url)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;display:block">` : `<div style="width:56px;height:56px;border-radius:6px;background:${p.bg||'#eee'};display:flex;align-items:center;justify-content:center;font-size:24px">${p.emoji||'📸'}</div>`}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.caption||'—')}</td>
+      <td style="color:var(--muted)">${esc(p.location||'—')}</td>
+      <td style="color:var(--muted);white-space:nowrap">${fmtDate(p.created_at)}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="adm-btn adm-btn-warn adm-btn-sm" onclick="admNpcEditarPost('${p.id}')">✏️</button>
+          <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="admNpcDeletarPost('${p.id}')">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+// ── Preview imagem do post ────────────────────────────────
+function admNpcPreviewPostImg(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _npcPendingPostImgFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('npc-post-img-preview');
+    prev.style.background = 'transparent';
+    prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Publicar / editar post de NPC ─────────────────────────
+async function admNpcSubmitPost() {
+  const uid      = document.getElementById('npc-post-uid').value;
+  const editId   = document.getElementById('npc-post-edit-id').value.trim();
+  const caption  = document.getElementById('npc-post-caption').value.trim();
+  const location = document.getElementById('npc-post-location').value.trim();
+  const okEl  = document.getElementById('npc-post-fb-ok');
+  const errEl = document.getElementById('npc-post-fb-err');
+  const btn   = document.querySelector('#npc-posts-panel .adm-btn-primary');
+  okEl.style.display = errEl.style.display = 'none';
+
+  if (!caption) { errEl.textContent = 'Escreva uma legenda.'; errEl.style.display = 'block'; return; }
+  if (!editId && !_npcPendingPostImgFile) { errEl.textContent = 'Selecione uma foto.'; errEl.style.display = 'block'; return; }
+
+  if (btn) { btn.textContent = 'Publicando...'; btn.disabled = true; }
+
+  let image_url = null;
+  if (editId && !_npcPendingPostImgFile) {
+    // mantém imagem atual
+    const { data: existing } = await db.from('posts').select('image_url').eq('id', editId).maybeSingle();
+    image_url = existing?.image_url || null;
+  }
+  if (_npcPendingPostImgFile) {
+    const path = `npc_${uid}_${Date.now()}.jpg`;
+    const { error: upErr } = await db.storage.from('posts').upload(path, _npcPendingPostImgFile, { upsert: false, contentType: 'image/jpeg' });
+    if (upErr) {
+      errEl.textContent = 'Erro no upload: ' + upErr.message;
+      errEl.style.display = 'block';
+      if (btn) { btn.textContent = 'Publicar'; btn.disabled = false; }
+      return;
+    }
+    const { data: ud } = db.storage.from('posts').getPublicUrl(path);
+    image_url = ud.publicUrl;
+    _npcPendingPostImgFile = null;
+  }
+
+  let error;
+  if (editId) {
+    const { error: e } = await db.from('posts').update({ caption, location, image_url }).eq('id', editId);
+    error = e;
+  } else {
+    const { error: e } = await db.from('posts').insert({ user_id: uid, caption, location, image_url, emoji: null, bg: null });
+    error = e;
+  }
+
+  if (btn) { btn.textContent = 'Publicar'; btn.disabled = false; }
+  if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
+
+  okEl.style.display = 'block';
+  setTimeout(() => okEl.style.display = 'none', 2500);
+  admNpcCancelarPostEdit();
+  await admNpcCarregarPosts(uid);
+}
+
+// ── Editar post existente ─────────────────────────────────
+async function admNpcEditarPost(postId) {
+  const { data: p } = await db.from('posts').select('*').eq('id', postId).maybeSingle();
+  if (!p) return;
+  document.getElementById('npc-post-edit-id').value    = postId;
+  document.getElementById('npc-post-caption').value   = p.caption || '';
+  document.getElementById('npc-post-location').value  = p.location || '';
+  document.getElementById('npc-post-cancel-btn').style.display = 'inline-flex';
+  _npcPendingPostImgFile = null;
+  const prev = document.getElementById('npc-post-img-preview');
+  if (p.image_url) {
+    prev.innerHTML = `<img src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`;
+    prev.style.background = 'transparent';
+  } else {
+    prev.innerHTML = `<div style="font-size:32px">${p.emoji||'📸'}</div><div style="font-size:11px;margin-top:4px">Clique para trocar</div>`;
+    prev.style.background = p.bg || '#eee';
+  }
+  document.querySelector('#npc-posts-panel .adm-btn-primary').textContent = '💾 Salvar edição';
+  document.getElementById('npc-posts-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+async function admNpcDeletarPost(postId) {
+  if (!confirm('Remover esta publicação do NPC?')) return;
+  const { error } = await db.from('posts').delete().eq('id', postId);
+  if (error) { alert('Erro: ' + error.message); return; }
+  await admNpcCarregarPosts(_currentNpcUserId);
+}
+
+function admNpcCancelarPostEdit() {
+  document.getElementById('npc-post-edit-id').value   = '';
+  document.getElementById('npc-post-caption').value  = '';
+  document.getElementById('npc-post-location').value = '';
+  document.getElementById('npc-post-img-file').value = '';
+  document.getElementById('npc-post-cancel-btn').style.display = 'none';
+  const prev = document.getElementById('npc-post-img-preview');
+  prev.innerHTML = '📷<br>Clique para foto';
+  prev.style.background = '#eee';
+  const btn = document.querySelector('#npc-posts-panel .adm-btn-primary');
+  if (btn) btn.textContent = '📤 Publicar';
+  _npcPendingPostImgFile = null;
+}
+
 function admLogout() { admClearSession(); admLogado = null; location.reload(); }
 
 function mostrarPainelAdm() {
@@ -1026,6 +1475,7 @@ function admTab(btn, id) {
   if (id === 'logo')    carregarLogoAdm();
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
   if (id === 'sprites') carregarSpritesAdm();
+  if (id === 'npcs')    admNpcLoad();
 }
 
 // ── Usuários ──────────────────────────────────────────────
@@ -1033,7 +1483,7 @@ async function carregarUsuarios() {
   const tbody = document.getElementById('tbody-usuarios');
   const load  = document.getElementById('users-loading');
   tbody.innerHTML = ''; load.style.display = 'block';
-  const { data, error } = await db.from('users').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from('users').select('*').or('is_npc.is.null,is_npc.eq.false').order('created_at', { ascending: false });
   load.style.display = 'none';
   if (error) { load.textContent = 'Erro ao carregar usuários.'; load.style.display = 'block'; return; }
   allUsers = data || [];
@@ -1431,6 +1881,8 @@ async function initApp(user) {
   const urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
   if (!urlPath || urlPath === 'feed') {
     await showView('feed');
+  } else if (urlPath === 'explore') {
+    await showView('explore');
   } else if (urlPath === user.username) {
     await showView('profile');
   } else if (urlPath !== 'adm') {
@@ -1472,8 +1924,10 @@ async function showView(name) {
   const bn = document.getElementById('bn-' + name);
   if (bn) bn.classList.add('active');
 
-  if (name === 'feed')    { history.replaceState(null,'','/'); await renderFeed(); }
-  if (name === 'explore') { history.replaceState(null,'','/'); await renderExplore(); }
+  if (name === 'feed')    { history.replaceState(null,'','/');
+    await renderFeed(); }
+  if (name === 'explore') { history.replaceState(null,'','/explore');
+    await renderExplore(); }
   if (name === 'profile') await renderProfile(currentUser.username);
 
   currentViewHistory.push(name);
@@ -1513,7 +1967,7 @@ async function renderStories() {
   // buscar stories ativos (não expirados) de outros usuários
   const { data: stories } = await db
     .from('stories')
-    .select('user_id, users(id, username, color, avatar_url)')
+    .select('user_id, users(id, username, color, avatar_url, is_npc)')
     .gt('expires_at', new Date().toISOString())
     .neq('user_id', currentUser.id);
 
@@ -1559,7 +2013,7 @@ async function renderPosts() {
 
   const { data: posts, error } = await db
     .from('posts')
-    .select('*, users(id, username, color, avatar_url)')
+    .select('*, users(id, username, color, avatar_url, is_npc)')
     .order('created_at', { ascending: false })
     .limit(30);
 
@@ -1614,7 +2068,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-header">
     <div onclick="showUserProfile('${author.username}')" style="cursor:pointer">${avatarHTML(author, 32, 'border:1px solid #dbdbdb')}</div>
     <div class="post-header-info">
-      <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}</div>
+      <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}${author.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px;letter-spacing:.3px;vertical-align:middle">NPC</span>' : ''}</div>
       ${p.location ? `<div class="post-location-tag">${p.location}</div>` : ''}
     </div>
     <div class="post-header-more-wrap">
@@ -1811,7 +2265,7 @@ function renderAsideMini() {
 async function renderSuggestions() {
   const el = document.getElementById('suggestions-list');
   if (!el) return;
-  const { data: users } = await db.from('users').select('id,username,color,avatar_url,rpg').neq('id', currentUser.id).limit(5);
+  const { data: users } = await db.from('users').select('id,username,color,avatar_url,rpg').neq('id', currentUser.id).or('is_npc.is.null,is_npc.eq.false').limit(5);
   el.innerHTML = (users || []).map(u => `
     <div class="suggestion-item">
       <div class="sug-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
@@ -1876,9 +2330,16 @@ async function _exploreLoadMore(reset) {
 
   const { data: posts } = await db.from('posts')
     .select('id,emoji,bg,caption,location,image_url,users(username)')
-    .order('created_at', { ascending: false })
     .range(from, to);
-  const results = (posts || []);
+  // embaralha com Fisher-Yates usando seed baseada na sessão para consistência por página
+  const results = (posts || []).slice();
+  if (isFirst) {
+    // embaralha apenas no primeiro carregamento para manter coerência no infinite scroll
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [results[i], results[j]] = [results[j], results[i]];
+    }
+  }
 
   // filtra no cliente quando há query
   let filtered = results;
@@ -1940,7 +2401,17 @@ function _attachExploreSentinel(grid) {
   obs.observe(sentinel);
 }
 
-function doSearch(q) { renderExplore(q); }
+function doSearch(q) {
+  if (document.getElementById('view-explore')?.classList.contains('hidden')) {
+    showView('explore').then(() => {
+      renderExplore(q);
+      const si = document.getElementById('search-input');
+      if (si) { si.value = q; si.focus(); }
+    });
+  } else {
+    renderExplore(q);
+  }
+}
 
 // ── Avatar color palette ──────────────────────────────────
 const AVATAR_COLORS = [
@@ -2347,7 +2818,7 @@ async function openStoryViewer(userId) {
   // busca stories do usuário (não expirados)
   const { data: stories } = await db
     .from('stories')
-    .select('*, users(id, username, color, avatar_url)')
+    .select('*, users(id, username, color, avatar_url, is_npc)')
     .eq('user_id', userId)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: true });
