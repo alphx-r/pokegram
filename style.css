@@ -675,7 +675,7 @@ input, select, textarea { font-family: var(--font); }
 .profile-bio {
   flex-basis: auto;
   padding: 0;
-  margin-top: 40px;
+  margin-top: -20px;
   padding-left: 0;
   width: 100%;
 }
