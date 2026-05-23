@@ -185,8 +185,18 @@
 ════════════════════════════════════════════════════════ -->
 <div id="pokegram-root">
 
+  <!-- LOADING SPLASH (mostrado enquanto verifica sessão) -->
+  <div id="pg-splash" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+    <div class="pokeball-logo" style="width:56px;height:56px;animation:spin .8s linear infinite">
+      <div class="pb-top"></div>
+      <div class="pb-band"><div class="pb-btn"></div></div>
+      <div class="pb-bottom"></div>
+    </div>
+    <span style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
+  </div>
+
   <!-- AUTH SCREEN -->
-  <div id="auth-screen" class="auth-screen">
+  <div id="auth-screen" class="auth-screen" style="display:none">
     <div class="auth-wrap">
       <div class="auth-card">
         <div class="auth-logo">
@@ -407,7 +417,17 @@
 
         <!-- Avatar -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
-          <div id="ep-avatar-preview" style="width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif;flex-shrink:0"></div>
+          <div style="position:relative;cursor:pointer" onclick="document.getElementById('ep-avatar-file').click()">
+            <div id="ep-avatar-preview" style="width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif;flex-shrink:0;overflow:hidden;background:#e53935">
+              <img id="ep-avatar-img" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%">
+              <span id="ep-avatar-initials"></span>
+            </div>
+            <div style="position:absolute;bottom:0;right:0;width:26px;height:26px;background:#262626;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+          </div>
+          <input type="file" id="ep-avatar-file" accept="image/*" style="display:none" onchange="previewAvatarUpload(this)">
+          <div id="ep-avatar-upload-hint" style="font-size:11px;color:#0095f6;font-weight:600;cursor:pointer" onclick="document.getElementById('ep-avatar-file').click()">Alterar foto</div>
           <div style="font-size:12px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px">Cor do avatar</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center" id="ep-color-picker">
             <!-- preenchido por JS -->
@@ -824,7 +844,13 @@ async function doAuth() {
   finally { btn.disabled = false; btn.textContent = isRegisterMode ? 'Cadastrar' : 'Entrar'; }
 }
 
+function hideSplash() {
+  const s = document.getElementById('pg-splash');
+  if (s) s.style.display = 'none';
+}
+
 function enterApp(user) {
+  hideSplash();
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
   if (typeof initApp === 'function') initApp(user);
@@ -841,7 +867,13 @@ function doLogout() { clearSession(); currentUser = null; location.reload(); }
 
 function initPokegram() {
   const saved = loadSession();
-  if (saved) { currentUser = saved; enterApp(saved); }
+  if (saved) {
+    currentUser = saved;
+    enterApp(saved);
+  } else {
+    hideSplash();
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doAuth();
   });
@@ -1164,8 +1196,14 @@ async function initApp(user) {
 function renderSidebarAvatar() {
   const el = document.getElementById('sn-avatar');
   if (!el || !currentUser) return;
-  el.style.background = currentUser.color || '#e53935';
-  el.textContent = initials(currentUser.username);
+  if (currentUser.avatar_url) {
+    el.style.background = 'transparent';
+    el.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    el.style.overflow = 'hidden';
+  } else {
+    el.style.background = currentUser.color || '#e53935';
+    el.textContent = initials(currentUser.username);
+  }
 }
 
 // ── View Routing ──────────────────────────────────────────
@@ -1208,15 +1246,23 @@ async function renderStories() {
   if (!list) return;
   const myPic = document.getElementById('my-story-pic');
   if (myPic) {
-    myPic.style.background = currentUser.color || '#e53935';
-    myPic.textContent = initials(currentUser.username);
+    if (currentUser.avatar_url) {
+      myPic.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+      myPic.style.background = 'transparent';
+    } else {
+      myPic.style.background = currentUser.color || '#e53935';
+      myPic.textContent = initials(currentUser.username);
+    }
   }
 
-  const { data: users } = await db.from('users').select('id,username,color').neq('id', currentUser.id).limit(12);
+  const { data: users } = await db.from('users').select('id,username,color,avatar_url').neq('id', currentUser.id).limit(12);
   list.innerHTML = (users || []).map(u => `
     <div class="story-item" onclick="showUserProfile('${u.username}')">
       <div class="story-ring">
-        <div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username)}</div>
+        ${u.avatar_url
+          ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
+          : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username)}</div>`
+        }
       </div>
       <span>${u.username}</span>
     </div>`).join('');
@@ -1229,7 +1275,7 @@ async function renderPosts() {
 
   const { data: posts, error } = await db
     .from('posts')
-    .select('*, users(id, username, color)')
+    .select('*, users(id, username, color, avatar_url)')
     .order('created_at', { ascending: false })
     .limit(30);
 
@@ -1263,7 +1309,7 @@ function buildPostHTML(p, liked, likeCount, commentCount) {
   return `
 <div class="post-card" id="post-${p.id}">
   <div class="post-header">
-    <div class="post-avatar" style="background:${author.color||'#e53935'}" onclick="showUserProfile('${author.username}')">${initials(author.username)}</div>
+    <div onclick="showUserProfile('${author.username}')" style="cursor:pointer">${avatarHTML(author, 32, 'border:1px solid #dbdbdb')}</div>
     <div class="post-header-info">
       <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}</div>
       ${p.location ? `<div class="post-location-tag">${p.location}</div>` : ''}
@@ -1475,6 +1521,15 @@ const AVATAR_COLORS = [
   '#6d4c41','#546e7a','#000000','#c0392b','#2980b9'
 ];
 
+function avatarHTML(u, size, extraStyle) {
+  const sz = size || 40;
+  const bg = u.color || '#e53935';
+  if (u.avatar_url) {
+    return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;overflow:hidden;flex-shrink:0;${extraStyle||''}"><img src="${u.avatar_url}" alt="${u.username}" style="width:100%;height:100%;object-fit:cover"></div>`;
+  }
+  return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*0.35)}px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif;flex-shrink:0;${extraStyle||''}">${initials(u.username)}</div>`;
+}
+
 // ── Build profile HTML (shared by own + other users) ──────
 function buildProfileHTML(u, userPosts, followers, following, isMe) {
   const rpgLabel = u.rpg === 'kingdom_platinum' ? '👑 Kingdom Platinum' : u.rpg === 'pchapters' ? '📖 PChapters' : '';
@@ -1482,7 +1537,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
     <div class="profile-page">
       <div class="profile-header">
         <div class="profile-avatar-wrap">
-          <div class="profile-avatar" style="background:${u.color||'#e53935'}">${initials(u.username)}</div>
+          ${avatarHTML(u, 77, 'cursor:pointer')}
         </div>
         <div class="profile-meta">
           <div class="profile-top-row">
@@ -1586,10 +1641,22 @@ function openEditProfile() {
   const sel = document.getElementById('ep-pokemon');
   sel.innerHTML = '<option value="">Nenhum</option>' + POKEMON_LIST.map(pk => `<option value="${pk}"${u.pokemon===pk?' selected':''}>${pk}</option>`).join('');
 
-  // avatar preview
-  const prev = document.getElementById('ep-avatar-preview');
+  // avatar preview — foto ou iniciais
+  _epPendingAvatarFile = null;
+  const imgEl  = document.getElementById('ep-avatar-img');
+  const initEl = document.getElementById('ep-avatar-initials');
+  const prev   = document.getElementById('ep-avatar-preview');
   prev.style.background = _epSelectedColor;
-  prev.textContent = initials(u.username);
+  if (u.avatar_url) {
+    imgEl.src = u.avatar_url;
+    imgEl.style.display = 'block';
+    initEl.style.display = 'none';
+  } else {
+    imgEl.style.display = 'none';
+    initEl.style.display = '';
+    initEl.textContent = initials(u.username);
+  }
+  document.getElementById('ep-avatar-file').value = '';
 
   // color picker
   const picker = document.getElementById('ep-color-picker');
@@ -1604,6 +1671,24 @@ function openEditProfile() {
   };
 
   openModal('modal-edit-profile');
+}
+
+let _epPendingAvatarFile = null;
+
+function previewAvatarUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { toast('Imagem muito grande. Máximo 2MB.'); return; }
+  _epPendingAvatarFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const imgEl  = document.getElementById('ep-avatar-img');
+    const initEl = document.getElementById('ep-avatar-initials');
+    imgEl.src = e.target.result;
+    imgEl.style.display = 'block';
+    initEl.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
 }
 
 function selectEpColor(color) {
@@ -1629,6 +1714,7 @@ async function submitEditProfile() {
   const color    = _epSelectedColor || currentUser.color || '#e53935';
   const errEl    = document.getElementById('ep-save-err');
   const usernErr = document.getElementById('ep-username-err');
+  const saveBtn  = document.querySelector('#modal-edit-profile .btn-share-modal');
   errEl.style.display = usernErr.style.display = 'none';
 
   if (!username) { usernErr.textContent = 'Username obrigatório.'; usernErr.style.display = 'block'; return; }
@@ -1637,17 +1723,35 @@ async function submitEditProfile() {
     usernErr.style.display = 'block'; return;
   }
 
-  // verifica se username mudou e já existe
   if (username !== currentUser.username) {
     const { data: exists } = await db.from('users').select('id').eq('username', username).maybeSingle();
     if (exists) { usernErr.textContent = 'Este username já está em uso.'; usernErr.style.display = 'block'; return; }
   }
 
-  const { error } = await db.from('users').update({ username, name, bio, rpg, pokemon, pronoun, color }).eq('id', currentUser.id);
+  if (saveBtn) { saveBtn.textContent = 'Salvando...'; saveBtn.disabled = true; }
+
+  // upload de foto se houver
+  let avatar_url = currentUser.avatar_url || null;
+  if (_epPendingAvatarFile) {
+    const ext  = _epPendingAvatarFile.name.split('.').pop();
+    const path = `${currentUser.id}.${ext}`;
+    const { error: upErr } = await db.storage.from('avatars').upload(path, _epPendingAvatarFile, { upsert: true });
+    if (upErr) {
+      errEl.textContent = 'Erro ao enviar foto: ' + upErr.message;
+      errEl.style.display = 'block';
+      if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
+      return;
+    }
+    const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
+    avatar_url = urlData.publicUrl + '?t=' + Date.now();
+    _epPendingAvatarFile = null;
+  }
+
+  const { error } = await db.from('users').update({ username, name, bio, rpg, pokemon, pronoun, color, avatar_url }).eq('id', currentUser.id);
+  if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
   if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
 
-  // atualiza sessão local
-  Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color });
+  Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color, avatar_url });
   saveSession(currentUser);
   renderSidebarAvatar();
   closeModal('modal-edit-profile');
