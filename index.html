@@ -139,6 +139,22 @@
   border-color: #262626 !important;
   outline: none;
 }
+
+/* Comentário preview no feed */
+.post-comment-preview {
+  padding: 1px 12px 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #262626;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.post-comment-preview .cap-user {
+  font-weight: 700;
+  margin-right: 4px;
+}
 </style>
 </head>
 <body>
@@ -1266,11 +1282,7 @@ async function renderPosts() {
     .order('created_at', { ascending: false })
     .limit(30);
 
-  if (error || !posts) {
-    console.error('Erro posts:', error);
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.<br><small style="font-size:11px">' + (error?.message||'') + '</small></div>';
-    return;
-  }
+  if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
   if (!posts.length)   { container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>Seja o primeiro a postar! 🎉</div>'; return; }
 
   appPosts = posts;
@@ -1281,21 +1293,40 @@ async function renderPosts() {
   const likedSet = new Set((myLikes || []).map(l => l.post_id));
 
   // buscar contagem de likes e comentários
-  const { data: likeCounts }   = await db.from('likes').select('post_id').in('post_id', postIds);
+  const { data: likeCounts }    = await db.from('likes').select('post_id').in('post_id', postIds);
   const { data: commentCounts } = await db.from('comments').select('post_id').in('post_id', postIds);
+
+  // buscar último comentário de cada post
+  const { data: lastComments } = await db
+    .from('comments')
+    .select('post_id, text, users(username)')
+    .in('post_id', postIds)
+    .order('created_at', { ascending: false });
 
   const likeMap    = {};
   const commentMap = {};
+  const lastCommentMap = {};
   (likeCounts || []).forEach(l => { likeMap[l.post_id] = (likeMap[l.post_id] || 0) + 1; });
   (commentCounts || []).forEach(c => { commentMap[c.post_id] = (commentMap[c.post_id] || 0) + 1; });
+  // pega só o primeiro (mais recente) por post
+  (lastComments || []).forEach(c => {
+    if (!lastCommentMap[c.post_id]) lastCommentMap[c.post_id] = c;
+  });
 
-  container.innerHTML = posts.map(p => buildPostHTML(p, likedSet.has(p.id), likeMap[p.id] || 0, commentMap[p.id] || 0)).join('');
+  container.innerHTML = posts.map(p => buildPostHTML(p, likedSet.has(p.id), likeMap[p.id] || 0, commentMap[p.id] || 0, lastCommentMap[p.id] || null)).join('');
 }
 
-function buildPostHTML(p, liked, likeCount, commentCount) {
+function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   const author    = p.users || { username: '?', color: '#999' };
   const likeColor = liked ? 'color:#e53935' : '';
   const likeFill  = liked ? 'fill:#e53935;stroke:#e53935' : 'fill:none';
+
+  const commentPreview = lastComment
+    ? `<div class="post-comment-preview">
+        <span class="cap-user">${lastComment.users?.username || '?'}</span>
+        <span>${formatCaption(lastComment.text || '')}</span>
+       </div>`
+    : '';
 
   return `
 <div class="post-card" id="post-${p.id}">
@@ -1331,7 +1362,8 @@ function buildPostHTML(p, liked, likeCount, commentCount) {
   <div class="post-caption-text">
     <span class="cap-user">${author.username}</span>${formatCaption(p.caption||'')}
   </div>
-  ${commentCount > 0 ? `<div class="post-view-comments" onclick="openComments('${p.id}')">Ver todos os ${commentCount} comentários</div>` : ''}
+  ${commentCount > 1 ? `<div class="post-view-comments" onclick="openComments('${p.id}')">Ver todos os ${commentCount} comentários</div>` : ''}
+  ${commentPreview}
   <div class="post-timestamp">${fmtTimeAgo(p.created_at)}</div>
 
   <div class="post-comment-bar">
@@ -1723,39 +1755,28 @@ async function submitEditProfile() {
     if (exists) { usernErr.textContent = 'Este username já está em uso.'; usernErr.style.display = 'block'; return; }
   }
 
-  if (saveBtn) { saveBtn.textContent = 'Salvando...'; saveBtn.disabled = true; }
-
-  // 1 — salva campos de texto (sempre funciona, não depende de avatar_url)
+  // 1 — salva campos de texto (sem avatar_url para não depender da coluna)
   const { error: textErr } = await db.from('users')
     .update({ username, name, bio, rpg, pokemon, pronoun, color })
     .eq('id', currentUser.id);
-  if (textErr) {
-    if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
-    errEl.textContent = 'Erro ao salvar: ' + textErr.message;
-    errEl.style.display = 'block'; return;
-  }
+  if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
+  if (textErr) { errEl.textContent = 'Erro ao salvar: ' + textErr.message; errEl.style.display = 'block'; return; }
   Object.assign(currentUser, { username, name, bio, rpg, pokemon, pronoun, color });
 
-  // 2 — upload de foto (separado, só se tiver arquivo pendente)
-  let avatar_url = currentUser.avatar_url || null;
+  // 2 — upload de foto (separado)
   if (_epPendingAvatarFile) {
-    const ext  = 'jpg';
-    const path = `${currentUser.id}.${ext}`;
-    const { error: upErr } = await db.storage.from('avatars').upload(path, _epPendingAvatarFile, { upsert: true });
+    const path = `${currentUser.id}.jpg`;
+    const { error: upErr } = await db.storage.from('avatars').upload(path, _epPendingAvatarFile, { upsert: true, contentType: 'image/jpeg' });
     if (upErr) {
-      // foto falhou mas texto já salvou — avisa mas não bloqueia
       toast('Perfil salvo! Mas a foto falhou: ' + upErr.message);
     } else {
       const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
-      avatar_url = urlData.publicUrl + '?t=' + Date.now();
-      // tenta salvar avatar_url (pode falhar se coluna não existe ainda)
+      const avatar_url = urlData.publicUrl + '?t=' + Date.now();
       await db.from('users').update({ avatar_url }).eq('id', currentUser.id);
       currentUser.avatar_url = avatar_url;
     }
     _epPendingAvatarFile = null;
   }
-
-  if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
   saveSession(currentUser);
   renderSidebarAvatar();
   closeModal('modal-edit-profile');
