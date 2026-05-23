@@ -1198,9 +1198,10 @@ input, select, textarea { font-family: var(--font); }
   .profile-page { padding: 0 0 60px; }
 
   .profile-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
     padding: 16px 16px 0;
     margin-bottom: 0;
   }
@@ -1219,9 +1220,12 @@ input, select, textarea { font-family: var(--font); }
   .profile-avatar-circle {
     width: 77px !important; height: 77px !important; font-size: 26px !important;
   }
-  .profile-meta { flex: 1; min-width: 0; overflow: hidden; }
+  .profile-meta {
+    flex: 1; min-width: 0; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center;
+  }
   .profile-top-row {
-    flex-wrap: nowrap; gap: 8px; margin-bottom: 8px; align-items: center;
+    flex-wrap: nowrap; gap: 8px; margin-bottom: 4px; align-items: center;
   }
   .profile-username-text { font-size: 14px; font-weight: 600; }
   .rpg-profile-badge { font-size: 10px; padding: 2px 6px; }
@@ -1229,17 +1233,21 @@ input, select, textarea { font-family: var(--font); }
     padding: 5px 12px; font-size: 13px; margin: 0;
   }
   .profile-stats {
-    display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: nowrap;
+    display: flex; gap: 12px; margin-bottom: 0; flex-wrap: nowrap;
   }
   .stat-item { font-size: 13px; }
   .stat-item strong { font-size: 14px; }
 
-  /* Bio abaixo da linha avatar+meta, largura total */
+  /* Bio — sai do profile-meta e vai ponta a ponta abaixo */
   .profile-bio {
-    margin-top: 10px;
-    padding-bottom: 12px;
-    width: 100%;
+    order: 99;
+    width: calc(100% + 32px);
+    margin-left: -16px;
+    margin-right: -16px;
+    margin-top: 5px;
+    padding: 5px 16px 14px;
     display: block;
+    border-top: none;
   }
   .profile-bio .prof-name { font-size: 13px; font-weight: 700; }
   .profile-bio .prof-desc { font-size: 13px; }
