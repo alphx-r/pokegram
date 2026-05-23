@@ -649,9 +649,10 @@ input, select, textarea { font-family: var(--font); }
 .profile-header {
   display: flex;
   align-items: flex-start;
-  gap: 80px;
+  gap: 40px;
   margin-bottom: 16px;
   flex-wrap: wrap;
+  padding: 30px 0 0;
 }
 
 /* Desktop: top-row is transparent passthrough */
@@ -661,12 +662,12 @@ input, select, textarea { font-family: var(--font); }
 .profile-avatar-wrap {
   flex-shrink: 0;
 }
-/* bio must span full width below avatar+meta */
+/* bio spans full width, aligned under profile-meta */
 .profile-bio {
   flex-basis: 100%;
   padding: 0;
-  margin-top: 4px;
-  padding-left: calc(150px + 80px); /* avatar width + gap */
+  margin-top: 0;
+  padding-left: calc(168px + 40px); /* avatar + gap */
 }
 .profile-avatar {
   width: 150px; height: 150px;
@@ -679,7 +680,7 @@ input, select, textarea { font-family: var(--font); }
 }
 .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-.profile-meta { flex: 1; min-width: 0; }
+.profile-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; min-height: 168px; }
 .profile-top-row {
   display: flex;
   align-items: center;
@@ -1309,12 +1310,12 @@ input, select, textarea { font-family: var(--font); }
 
 /* ── Profile avatar circle ── */
 .profile-avatar-circle {
-  width: 150px; height: 150px;
+  width: 168px; height: 168px;
   border-radius: 50%;
   background: var(--red);
   color: white;
   display: flex; align-items: center; justify-content: center;
-  font-size: 52px; font-weight: 800;
+  font-size: 58px; font-weight: 800;
   overflow: hidden; flex-shrink: 0;
 }
 .profile-avatar-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
