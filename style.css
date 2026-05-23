@@ -1240,7 +1240,7 @@ input, select, textarea { font-family: var(--font); }
     justify-content: flex-start;
     gap: 16px;
     margin-bottom: 0;
-    margin-top: 0;
+    margin-top: 3px;
     flex-wrap: nowrap;
     width: 100%;
     padding: 0;
@@ -1258,19 +1258,19 @@ input, select, textarea { font-family: var(--font); }
   .stat-item strong { font-size: 13px; display: block; text-align: center; font-weight: 700; }
   .stat-item span { color: var(--text); text-align: center; font-size: 11px; }
 
-  /* Bio — sai do profile-meta e vai ponta a ponta abaixo */
+  /* Bio + nome — ponta a ponta abaixo do bloco avatar+meta */
   .profile-bio {
     order: 99;
     width: calc(100% + 32px);
     margin-left: -16px;
     margin-right: -16px;
-    margin-top: 5px;
-    padding: 5px 16px 14px;
+    margin-top: 10px;
+    padding: 8px 16px 14px;
     display: block;
     border-top: none;
   }
   .profile-bio .prof-name { font-size: 13px; font-weight: 700; }
-  .profile-bio .prof-desc { font-size: 13px; }
+  .profile-bio .prof-desc { font-size: 13px; white-space: pre-wrap; }
 
   /* Tabs e grid */
   .profile-tabs { margin-top: 0; }
