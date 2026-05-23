@@ -2668,6 +2668,13 @@ function _abrirCrop(src, callback, aspectRatio) {
       zoomOnWheel:      true,
       initialAspectRatio: 1,
     });
+    // mostra faixa de filtros após cropper inicializar
+    setTimeout(() => {
+      _selectedFilter = 'normal';
+      const ci = document.getElementById('crop-img');
+      if (ci) ci.style.filter = '';
+      renderFilterStrip();
+    }, 350);
   };
   img.onerror = () => alert('Erro ao carregar a imagem.');
   img.crossOrigin = src.startsWith('data:') ? null : 'anonymous';
