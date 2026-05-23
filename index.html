@@ -6,6 +6,8 @@
 <title>Pokégram</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
@@ -2429,224 +2431,97 @@ if (IS_ADM) {
 </script>
 
 <!-- CROPPER MODAL -->
-<div id="modal-cropper" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:none;flex-direction:column;align-items:center;justify-content:center;gap:0">
-  <div style="background:#1a1a1a;border-radius:16px;overflow:hidden;width:min(92vw,420px);display:flex;flex-direction:column">
-    <div style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #333">
-      <button onclick="closeCropper()" style="background:none;border:none;color:#aaa;font-size:22px;cursor:pointer;line-height:1">✕</button>
-      <span style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#fff">Ajustar foto</span>
-      <button onclick="confirmCrop()" style="background:#0095f6;border:none;color:#fff;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;padding:7px 16px;border-radius:8px;cursor:pointer">Usar</button>
+<div id="modal-crop-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#1a1a1a;border-radius:14px;padding:18px;width:min(500px,96vw);box-shadow:0 12px 48px rgba(0,0,0,.6)">
+    <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#fff;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+      <span>✂️ Ajustar imagem</span>
+      <button onclick="fecharCrop()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa;line-height:1">✕</button>
     </div>
-    <div style="position:relative;width:100%;aspect-ratio:1;background:#000;overflow:hidden" id="cropper-wrap">
-      <img id="cropper-img" style="position:absolute;transform-origin:center center;cursor:grab;user-select:none;-webkit-user-select:none" draggable="false">
-      <!-- overlay -->
-      <div id="cropper-overlay" style="position:absolute;inset:0;pointer-events:none"></div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <button onclick="_cropSetRatio(1)"     style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Nunito',sans-serif;cursor:pointer">1:1</button>
+      <button onclick="_cropSetRatio(4/5)"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Nunito',sans-serif;cursor:pointer">4:5</button>
+      <button onclick="_cropSetRatio(16/9)"  style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Nunito',sans-serif;cursor:pointer">16:9</button>
+      <button onclick="_cropSetRatio(NaN)"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Nunito',sans-serif;cursor:pointer">Livre</button>
+      <span style="margin-left:auto;display:flex;gap:4px">
+        <button onclick="_cropRotate(-90)" title="Girar -90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer">↺</button>
+        <button onclick="_cropRotate(90)"  title="Girar +90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer">↻</button>
+        <button onclick="_cropFlipX()"     title="Espelhar"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer">⇄</button>
+      </span>
     </div>
-    <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:12px;color:#aaa;font-family:'Nunito',sans-serif;width:48px">Zoom</span>
-        <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1" style="flex:1;accent-color:#0095f6" oninput="updateCrop()">
-      </div>
+    <div style="max-height:360px;overflow:hidden;border-radius:8px;background:#000">
+      <img id="crop-img" style="max-width:100%;display:block"/>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+      <button onclick="fecharCrop()" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer">Cancelar</button>
+      <button onclick="confirmarCrop()" style="background:#0095f6;border:none;color:#fff;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer">✔ Usar</button>
     </div>
   </div>
 </div>
 
 <script>
-// ── Image Cropper ─────────────────────────────────────────
-let _cropOriginalFile = null;
-let _cropState = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0 };
-let _cropCallback = null;
-let _cropMode = 'circle'; // 'circle' | 'square'
+// ── Image Cropper (Cropper.js) ─────────────────────────────
+let _cropperInstance = null, _cropCallback = null, _cropFlipXState = false;
 
-function openCropper(file, mode, callback) {
-  _cropOriginalFile = file;
-  _cropCallback     = callback;
-  _cropMode         = mode || 'circle';
-  _cropState        = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0 };
-
-  // update overlay based on mode
-  const overlay = document.getElementById('cropper-overlay');
-  if (overlay) {
-    if (_cropMode === 'story') {
-      // overlay 9:16 centralizado
-      overlay.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs><mask id="hole3"><rect width="100" height="100" fill="white"/><rect x="27.5" y="5" width="45" height="90" rx="3" fill="black"/></mask></defs>
-        <rect width="100" height="100" fill="rgba(0,0,0,0.6)" mask="url(#hole3)"/>
-        <rect x="27.5" y="5" width="45" height="90" rx="3" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="0.5"/>
-      </svg>`;
-    } else if (_cropMode === 'square') {
-      overlay.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs><mask id="hole2"><rect width="100" height="100" fill="white"/><rect x="8" y="8" width="84" height="84" fill="black"/></mask></defs>
-        <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#hole2)"/>
-        <rect x="8" y="8" width="84" height="84" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="0.5"/>
-        <!-- rule-of-thirds grid -->
-        <line x1="36.3" y1="8" x2="36.3" y2="92" stroke="rgba(255,255,255,0.25)" stroke-width="0.3"/>
-        <line x1="63.7" y1="8" x2="63.7" y2="92" stroke="rgba(255,255,255,0.25)" stroke-width="0.3"/>
-        <line x1="8" y1="36.3" x2="92" y2="36.3" stroke="rgba(255,255,255,0.25)" stroke-width="0.3"/>
-        <line x1="8" y1="63.7" x2="92" y2="63.7" stroke="rgba(255,255,255,0.25)" stroke-width="0.3"/>
-      </svg>`;
-    } else {
-      overlay.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs><mask id="hole"><rect width="100" height="100" fill="white"/><circle cx="50" cy="50" r="42" fill="black"/></mask></defs>
-        <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#hole)"/>
-        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="0.5"/>
-      </svg>`;
-    }
-  }
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById('cropper-img');
-    img.onload = () => { fitCropImage(); updateCrop(); };
-    img.src = e.target.result;
+function _abrirCrop(src, callback, aspectRatio) {
+  _cropCallback   = callback;
+  _cropFlipXState = false;
+  const overlay = document.getElementById('modal-crop-overlay');
+  overlay.style.display = 'flex';
+  const img = document.getElementById('crop-img');
+  if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
+  img.onload = () => {
+    _cropperInstance = new Cropper(img, {
+      aspectRatio:   (aspectRatio === undefined || isNaN(aspectRatio)) ? NaN : aspectRatio,
+      viewMode:      1,
+      autoCropArea:  1,       // crop inicia cobrindo a imagem inteira
+      background:    false,   // sem xadrez / sem borda preta
+      responsive:    true,
+      checkOrientation: false,
+      guides:        true,
+    });
   };
-  reader.readAsDataURL(file);
-
-  document.getElementById('crop-zoom').value = 1;
-  document.getElementById('modal-cropper').style.display = 'flex';
-
-  const wrap = document.getElementById('cropper-wrap');
-  wrap.onmousedown  = e => startDrag(e.clientX, e.clientY);
-  wrap.ontouchstart = e => { e.preventDefault(); startDrag(e.touches[0].clientX, e.touches[0].clientY); };
-  window.onmousemove  = e => moveDrag(e.clientX, e.clientY);
-  window.ontouchmove  = e => { e.preventDefault(); moveDrag(e.touches[0].clientX, e.touches[0].clientY); };
-  window.onmouseup  = () => { _cropState.dragging = false; document.getElementById('cropper-img').style.cursor = 'grab'; };
-  window.ontouchend = () => { _cropState.dragging = false; };
+  img.onerror = () => alert('Erro ao carregar a imagem.');
+  img.crossOrigin = src.startsWith('data:') ? null : 'anonymous';
+  img.src = '';
+  img.src = src;
 }
 
-function fitCropImage() {
-  const wrap  = document.getElementById('cropper-wrap');
-  const img   = document.getElementById('cropper-img');
-  const wSize = wrap.offsetWidth;
-  const hSize = wrap.offsetHeight;
-  const ratio = img.naturalWidth / img.naturalHeight;
-
-  // cover: preenche o wrap inteiro sem barras pretas
-  const fitW = wSize / img.naturalWidth;
-  const fitH = hSize / img.naturalHeight;
-  const fit = Math.max(fitW, fitH);
-
-  _cropState.baseScale = fit;
-  _cropState.scale = 1;
-  _cropState.x = 0;
-  _cropState.y = 0;
+function fecharCrop() {
+  document.getElementById('modal-crop-overlay').style.display = 'none';
+  if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
+  _cropCallback = null;
 }
 
-function updateCrop() {
-  const zoom = parseFloat(document.getElementById('crop-zoom').value);
-  _cropState.scale = zoom;
-  applyTransform();
-}
-
-function applyTransform() {
-  const img   = document.getElementById('cropper-img');
-  const wrap  = document.getElementById('cropper-wrap');
-  const base  = _cropState.baseScale || 1;
-  const scale = base * _cropState.scale;
-  const wSize = wrap.offsetWidth;
-  const hSize = wrap.offsetHeight;
-  const imgW  = img.naturalWidth  * scale;
-  const imgH  = img.naturalHeight * scale;
-
-  // movimento livre — sem clamp, o usuário posiciona onde quiser
-  img.style.width  = imgW + 'px';
-  img.style.height = imgH + 'px';
-  img.style.left   = (wSize/2 - imgW/2 + _cropState.x) + 'px';
-  img.style.top    = (hSize/2 - imgH/2 + _cropState.y) + 'px';
-}
-
-function startDrag(x, y) {
-  _cropState.dragging = true;
-  _cropState.startX = x - _cropState.x;
-  _cropState.startY = y - _cropState.y;
-  document.getElementById('cropper-img').style.cursor = 'grabbing';
-}
-
-function moveDrag(x, y) {
-  if (!_cropState.dragging) return;
-  _cropState.x = x - _cropState.startX;
-  _cropState.y = y - _cropState.startY;
-  applyTransform();
-}
-
-function closeCropper() {
-  document.getElementById('modal-cropper').style.display = 'none';
-  window.onmousemove = null;
-  window.ontouchmove = null;
-  window.onmouseup  = null;
-  window.ontouchend = null;
-}
-
-function confirmCrop() {
-  const img   = document.getElementById('cropper-img');
-  const wrap  = document.getElementById('cropper-wrap');
-  const wSize = wrap.offsetWidth;
-  const hSize = wrap.offsetHeight;
-
-  // escala total aplicada à imagem (base × zoom do slider)
-  const scale = (_cropState.baseScale || 1) * _cropState.scale;
-
-  // posição da borda superior-esquerda da imagem renderizada, em pixels do wrap
-  const imgLeft = wSize / 2 - (img.naturalWidth  * scale) / 2 + _cropState.x;
-  const imgTop  = hSize / 2 - (img.naturalHeight * scale) / 2 + _cropState.y;
-
-  // área de recorte em pixels do wrap (o "visor" que queremos capturar)
-  let outW, outH, viewX, viewY, viewW, viewH;
-  if (_cropMode === 'story') {
-    outW = 1080; outH = 1920;
-    viewX = wSize * 0.275; viewY = hSize * 0.05;
-    viewW = wSize * 0.45;  viewH = hSize * 0.90;
-  } else if (_cropMode === 'square') {
-    outW = outH = 1080;
-    const side = Math.min(wSize, hSize);
-    viewX = (wSize - side) / 2;
-    viewY = (hSize - side) / 2;
-    viewW = viewH = side;
-  } else {
-    // circle / avatar
-    outW = outH = 400;
-    const side = Math.min(wSize, hSize);
-    viewX = (wSize - side) / 2;
-    viewY = (hSize - side) / 2;
-    viewW = viewH = side;
-  }
-
-  // converte coordenadas do visor → coordenadas na imagem natural
-  // (visor está em pixels do wrap; subtrai posição da imagem e divide pela escala)
-  const srcX = (viewX - imgLeft) / scale;
-  const srcY = (viewY - imgTop)  / scale;
-  const srcW = viewW / scale;
-  const srcH = viewH / scale;
-
-  // garante que não ultrapasse os limites da imagem natural (evita barras pretas)
-  const clampedSrcX = Math.max(0, srcX);
-  const clampedSrcY = Math.max(0, srcY);
-  const clampedSrcW = Math.min(srcW - (clampedSrcX - srcX), img.naturalWidth  - clampedSrcX);
-  const clampedSrcH = Math.min(srcH - (clampedSrcY - srcY), img.naturalHeight - clampedSrcY);
-
-  // destino no canvas (proporcional ao que foi clampado)
-  const dstX = (clampedSrcX - srcX) / srcW * outW;
-  const dstY = (clampedSrcY - srcY) / srcH * outH;
-  const dstW = clampedSrcW / srcW * outW;
-  const dstH = clampedSrcH / srcH * outH;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = outW; canvas.height = outH;
-  const ctx = canvas.getContext('2d');
-
-  if (_cropMode === 'circle') {
-    ctx.beginPath();
-    ctx.arc(outW / 2, outH / 2, outW / 2, 0, Math.PI * 2);
-    ctx.clip();
-  }
-
-  ctx.drawImage(img, clampedSrcX, clampedSrcY, clampedSrcW, clampedSrcH, dstX, dstY, dstW, dstH);
-
+function confirmarCrop() {
+  if (!_cropperInstance || !_cropCallback) return;
+  const canvas = _cropperInstance.getCroppedCanvas({ maxWidth: 1080, maxHeight: 1080, imageSmoothingQuality: 'high' });
   canvas.toBlob(blob => {
-    const croppedFile = new File([blob], 'image.jpg', { type: 'image/jpeg' });
-    closeCropper();
-    if (_cropCallback) _cropCallback(croppedFile);
+    const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
+    fecharCrop();
+    _cropCallback(file);
   }, 'image/jpeg', 0.92);
 }
+
+function _cropSetRatio(r) { if (_cropperInstance) _cropperInstance.setAspectRatio(isNaN(r) ? NaN : r); }
+function _cropRotate(deg) { if (_cropperInstance) _cropperInstance.rotate(deg); }
+function _cropFlipX() {
+  if (!_cropperInstance) return;
+  _cropFlipXState = !_cropFlipXState;
+  _cropperInstance.scaleX(_cropFlipXState ? -1 : 1);
+}
+
+// adapters — mantém compatibilidade com openCropper(file, mode, callback)
+function openCropper(file, mode, callback) {
+  const ratioMap = { circle: 1, square: 1, story: 9/16 };
+  const ratio = ratioMap[mode] !== undefined ? ratioMap[mode] : 1;
+  const reader = new FileReader();
+  reader.onload = e => _abrirCrop(e.target.result, callback, ratio);
+  reader.readAsDataURL(file);
+}
+
+function closeCropper() { fecharCrop(); }
+function confirmCrop()  { confirmarCrop(); }
+
 </script>
 </body>
 </html>
