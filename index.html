@@ -278,6 +278,10 @@
         <button class="tn-btn" onclick="showNewPost()" title="Criar">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         </button>
+        <button class="tn-btn" id="btn-notif" onclick="toggleNotifPanel()" title="Notificações" style="position:relative">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span id="notif-badge" style="display:none;position:absolute;top:6px;right:6px;width:8px;height:8px;background:#e53935;border-radius:50%;border:1.5px solid #fff"></span>
+        </button>
         <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
@@ -2106,6 +2110,8 @@ async function initApp(user) {
   } else {
     await showView('feed');
   }
+  loadNotifBadge();
+  setInterval(loadNotifBadge, 30000);
 }
 
 function renderSidebarAvatar() {
@@ -2362,6 +2368,14 @@ async function toggleLike(postId, btn) {
 
   if (!liked) {
     await db.from('likes').insert({ post_id: postId, user_id: currentUser.id });
+    // notificação: descobre dono do post e notifica (não notifica a si mesmo)
+    const { data: post } = await db.from('posts').select('user_id').eq('id', postId).maybeSingle();
+    if (post && post.user_id !== currentUser.id) {
+      await db.from('notifications').insert({
+        user_id: post.user_id, actor_id: currentUser.id,
+        type: 'like', post_id: postId
+      });
+    }
   } else {
     await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
   }
@@ -2449,15 +2463,30 @@ async function submitComment() {
   input.value = '';
   await renderCommentsList(currentCommentPostId);
   toast('Comentário publicado!');
+  const { data: post } = await db.from('posts').select('user_id').eq('id', currentCommentPostId).maybeSingle();
+  if (post && post.user_id !== currentUser.id) {
+    await db.from('notifications').insert({
+      user_id: post.user_id, actor_id: currentUser.id,
+      type: 'comment', post_id: currentCommentPostId, comment_text: text
+    });
+  }
 }
 
 async function submitInlineComment(postId) {
   const input = document.getElementById('inline-comment-' + postId);
-  if (!input || !input.value.trim()) return;
-  await db.from('comments').insert({ post_id: postId, user_id: currentUser.id, text: input.value.trim() });
+  const text = input?.value.trim();
+  if (!text) return;
+  await db.from('comments').insert({ post_id: postId, user_id: currentUser.id, text });
   input.value = '';
   document.getElementById('inline-send-' + postId)?.classList.remove('ready');
   toast('Comentário publicado!');
+  const { data: post } = await db.from('posts').select('user_id').eq('id', postId).maybeSingle();
+  if (post && post.user_id !== currentUser.id) {
+    await db.from('notifications').insert({
+      user_id: post.user_id, actor_id: currentUser.id,
+      type: 'comment', post_id: postId, comment_text: text
+    });
+  }
   await renderPosts();
 }
 
@@ -3245,7 +3274,7 @@ function toast(msg) {
 
 // ── Keyboard ──────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-story-new'); closeModal('modal-comments'); closeCropper(); }
+  if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-story-new'); closeModal('modal-comments'); closeCropper(); closeNotifPanel(); }
 });
 
 // ── Browser back/forward ──────────────────────────────────
@@ -3580,5 +3609,15 @@ function confirmCrop()  { confirmarCrop(); }
 if (typeof db !== 'undefined') loadFilters();
 
 </script>
+<!-- ── Painel de Notificações ── -->
+<div id="notif-panel" style="display:none;position:fixed;top:58px;right:16px;z-index:500;width:340px;max-height:480px;background:#fff;border:1px solid #e0e0e0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.14);overflow:hidden;display:none;flex-direction:column">
+  <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0">
+    <span style="font-weight:700;font-size:15px">Notificações</span>
+    <button onclick="markAllRead()" style="font-size:12px;color:#0095f6;font-weight:600;background:none;border:none;cursor:pointer;font-family:inherit">Marcar tudo como lido</button>
+  </div>
+  <div id="notif-list" style="overflow-y:auto;max-height:420px;flex:1"></div>
+</div>
+<div id="notif-backdrop" onclick="closeNotifPanel()" style="display:none;position:fixed;inset:0;z-index:499"></div>
+
 </body>
 </html>
