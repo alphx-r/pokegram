@@ -1234,7 +1234,7 @@ input, select, textarea { font-family: var(--font); }
     padding: 5px 12px; font-size: 13px; margin: 0;
   }
   .profile-stats {
-    display: flex; gap: 12px; margin-bottom: 0; flex-wrap: nowrap;
+    display: flex; gap: 12px; margin-bottom: 0; margin-top: 0; flex-wrap: nowrap;
   }
   .stat-item { font-size: 13px; }
   .stat-item strong { font-size: 14px; }
@@ -1329,12 +1329,12 @@ input, select, textarea { font-family: var(--font); }
 
 /* ── Profile avatar circle ── */
 .profile-avatar-circle {
-  width: 200px; height: 200px;
+  width: 180px; height: 180px;
   border-radius: 50%;
   background: var(--red);
   color: white;
   display: flex; align-items: center; justify-content: center;
-  font-size: 68px; font-weight: 800;
+  font-size: 62px; font-weight: 800;
   overflow: hidden; flex-shrink: 0;
 }
 .profile-avatar-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
