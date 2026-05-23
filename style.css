@@ -17,7 +17,6 @@
   --text-light: #8e8e8e;
   --link:       #00376b;
   --sidebar-w:  244px;
-  --topnav-h:   54px;
   --radius:     8px;
   --font:       'Nunito', sans-serif;
 }
@@ -205,12 +204,22 @@ input, select, textarea { font-family: var(--font); }
 /* ============================
    APP LAYOUT
    ============================ */
-#app { display: flex; flex-direction: column; min-height: 100vh; }
+#app { display: flex; min-height: 100vh; }
 
 /* ============================
    SIDEBAR (desktop)
    ============================ */
-.sidebar { display: none !important; }
+.sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px 20px;
+  z-index: 100;
+}
 .sidebar-logo {
   padding: 28px 12px 20px;
 }
@@ -274,7 +283,17 @@ input, select, textarea { font-family: var(--font); }
 /* ============================
    BOTTOM NAV (mobile)
    ============================ */
-.bottom-nav { display: none !important; }
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 49px;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+  justify-content: space-around;
+  align-items: center;
+}
 .bn-item {
   flex: 1;
   display: flex;
@@ -300,7 +319,17 @@ input, select, textarea { font-family: var(--font); }
 /* ============================
    MOBILE TOPBAR
    ============================ */
-.mobile-topbar { display: none !important; }
+.mobile-topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 50;
+}
 .topbar-actions button {
   padding: 4px;
   color: var(--text);
@@ -318,99 +347,11 @@ input, select, textarea { font-family: var(--font); }
    MAIN CONTENT
    ============================ */
 .main-content {
-  margin-left: 0;
+  margin-left: var(--sidebar-w);
   flex: 1;
-  min-height: calc(100vh - var(--topnav-h));
+  min-height: 100vh;
 }
 .view { width: 100%; }
-
-/* ============================
-   TOP NAV
-   ============================ */
-.topnav {
-  position: sticky;
-  top: 0;
-  height: var(--topnav-h);
-  background: var(--white);
-  border-bottom: 1px solid var(--border);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-}
-.topnav-logo {
-  font-family: 'Pacifico', cursive;
-  font-size: 22px;
-  font-weight: 400;
-  color: var(--text);
-  cursor: pointer;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.topnav-search {
-  flex: 1;
-  max-width: 240px;
-  margin: 0 20px;
-}
-.topnav-search-inner {
-  display: flex;
-  align-items: center;
-  background: #fafafa;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 6px 12px;
-  gap: 6px;
-}
-.topnav-search-inner svg {
-  width: 14px; height: 14px;
-  stroke: var(--text-light);
-  fill: none; stroke-width: 2;
-  flex-shrink: 0;
-}
-.topnav-search-inner input {
-  border: none; outline: none;
-  background: transparent;
-  font-size: 13px;
-  color: var(--text);
-  width: 100%;
-}
-.topnav-search-inner input::placeholder { color: var(--text-light); }
-.topnav-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.tn-btn {
-  width: 40px; height: 40px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 50%;
-  color: var(--text);
-  transition: background .1s;
-}
-.tn-btn:hover { background: #f0f0f0; }
-.tn-btn.active svg { stroke-width: 2.5; }
-.tn-btn svg {
-  width: 22px; height: 22px;
-  stroke: currentColor; fill: none;
-  stroke-width: 1.8;
-  stroke-linecap: round; stroke-linejoin: round;
-}
-.tn-avatar {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  background: var(--red);
-  color: white;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 800;
-  overflow: hidden;
-  pointer-events: none;
-}
-.tn-avatar img { width: 100%; height: 100%; object-fit: cover; }
-
-
 
 /* ============================
    FEED LAYOUT
@@ -550,7 +491,7 @@ input, select, textarea { font-family: var(--font); }
   align-items: center;
   justify-content: center;
   font-size: 80px;
-  background: #e0e0e0;
+  background: #f0f0f0;
   position: relative;
   overflow: hidden;
   user-select: none;
@@ -667,10 +608,10 @@ input, select, textarea { font-family: var(--font); }
    FEED ASIDE (desktop)
    ============================ */
 .feed-aside {
-  width: 280px;
+  width: 293px;
   flex-shrink: 0;
   position: sticky;
-  top: calc(var(--topnav-h) + 16px);
+  top: 30px;
 }
 
 .profile-mini-card {
@@ -764,8 +705,7 @@ input, select, textarea { font-family: var(--font); }
 .search-wrap {
   display: flex;
   align-items: center;
-  background: #fafafa;
-  border: 1px solid var(--border);
+  background: #efefef;
   border-radius: 10px;
   padding: 8px 12px;
   gap: 8px;
@@ -818,8 +758,7 @@ input, select, textarea { font-family: var(--font); }
 .profile-page {
   max-width: 935px;
   margin: 0 auto;
-  padding: 36px 20px 80px;
-  background: var(--bg);
+  padding: 30px 20px 80px;
 }
 
 .profile-header {
@@ -839,7 +778,6 @@ input, select, textarea { font-family: var(--font); }
   display: flex; align-items: center; justify-content: center;
   font-size: 52px; font-weight: 800;
   overflow: hidden;
-  border: 1px solid var(--border);
 }
 .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -853,18 +791,16 @@ input, select, textarea { font-family: var(--font); }
 }
 .profile-username-text {
   font-size: 20px;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--text);
-  letter-spacing: .3px;
 }
 .btn-edit-profile {
   padding: 7px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 700;
   color: var(--text);
-  background: var(--white);
   transition: background .1s;
 }
 .btn-edit-profile:hover { background: #f5f5f5; }
@@ -872,12 +808,12 @@ input, select, textarea { font-family: var(--font); }
   padding: 7px 16px;
   background: #0095f6;
   color: white;
-  border-radius: var(--radius);
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 700;
   transition: background .1s;
 }
-.btn-follow-profile:hover { background: #00376b; }
+.btn-follow-profile:hover { background: #1877d2; }
 .btn-follow-profile.following {
   background: transparent;
   border: 1px solid var(--border);
@@ -1221,10 +1157,12 @@ input, select, textarea { font-family: var(--font); }
    RESPONSIVE — MOBILE
    ============================ */
 @media (max-width: 768px) {
-  .topnav-search { display: none; }
-  .main-content { padding-bottom: 0; }
+  .sidebar    { display: none; }
+  .bottom-nav { display: flex; }
+  .mobile-topbar { display: flex; }
+  .main-content { margin-left: 0; padding-bottom: 49px; }
 
-  .feed-layout { padding: 8px 0 20px; flex-direction: column; gap: 0; }
+  .feed-layout { padding: 0 0 20px; flex-direction: column; gap: 0; }
   .feed-aside  { display: none; }
   .feed-center { max-width: 100%; }
 
@@ -1232,19 +1170,30 @@ input, select, textarea { font-family: var(--font); }
 
   .post-card { border-radius: 0; border-left: none; border-right: none; margin-bottom: 0; border-bottom: 1px solid var(--border-lt); }
 
-  .explore-grid { padding: 2px 0 40px; gap: 2px; }
+  .explore-grid { padding: 2px 0 80px; gap: 2px; }
 
-  .profile-page { padding: 16px 0 40px; }
-  .profile-header { gap: 20px; padding: 0 14px; }
+  .profile-page { padding: 16px 0 80px; }
+  .profile-header { gap: 28px; padding: 0 16px; }
   .profile-avatar { width: 86px; height: 86px; font-size: 30px; }
-  .profile-stats { gap: 16px; }
-  .stat-item { font-size: 13px; }
-  .profile-bio { padding: 0 14px; }
+  .profile-stats { gap: 20px; }
+  .stat-item { font-size: 14px; }
+  .profile-bio { padding: 0 16px; }
 
   .post-modal-body { flex-direction: column; min-height: auto; }
   .post-img-area { width: 100%; aspect-ratio: 1/1; }
 
-  .toast { bottom: 16px; }
+  .toast { bottom: 70px; }
 
   .explore-top { padding: 10px 12px; }
+}
+
+/* Narrow sidebar (medium breakpoint) */
+@media (max-width: 1100px) and (min-width: 769px) {
+  :root { --sidebar-w: 72px; }
+  .sidebar-logo .brand-name-sm { display: none; }
+  .sn-item span { display: none; }
+  .sn-item { justify-content: center; padding: 12px; }
+  .sn-item gap { gap: 0; }
+  .sidebar-logo { justify-content: center; padding: 24px 0 20px; }
+  .feed-aside { width: 230px; }
 }
