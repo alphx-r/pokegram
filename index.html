@@ -166,6 +166,10 @@
   }
   window.applyLogos = applyLogos;
   window.getNetworkLogo = getNetworkLogo;
+
+  // Estado de autenticação — declarado aqui para evitar "before initialization"
+  var isRegisterMode = false;
+  var currentUser    = null;
 </script>
 
 <!-- ════════════════════════════════════════════════════════
@@ -619,8 +623,6 @@ if (IS_ADM) {
 // ════════════════════════════════════════════════════════════
 // POKÉGRAM AUTH
 // ════════════════════════════════════════════════════════════
-let isRegisterMode = false;
-let currentUser    = null;
 
 function saveSession(u) { sessionStorage.setItem('pg_user', JSON.stringify(u)); }
 function loadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_user')); } catch { return null; } }
