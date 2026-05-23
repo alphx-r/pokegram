@@ -4,224 +4,847 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pokégram</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* ══════════════════════════════════════
+   ADM — estilos (só ativos em /adm)
+══════════════════════════════════════ */
+#adm-root{
+  --brand:#b71c1c;--brand-mid:#e53935;--brand-light:#ffebee;
+  --accent:#fdd835;
+  --bg:#f4f4f4;--surface:#fff;--surface2:#f8f8f8;
+  --border:#e0e0e0;
+  --text:#1a1a1a;--muted:#6b7280;
+  --red:#c03030;--green:#1a7a1a;
+  --r:10px;
+}
+.adm-body{background:#f4f4f4!important}
+
+/* NAV ADM */
+.adm-nav{display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:58px;background:var(--brand);position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.adm-nav-logo{display:flex;align-items:center;gap:10px}
+.adm-nlb{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.6);overflow:hidden;position:relative;flex-shrink:0}
+.adm-nlb-top{height:50%;background:#fff}
+.adm-nlb-band{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:4px;background:rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center}
+.adm-nlb-btn{width:8px;height:8px;border-radius:50%;background:#fff;border:1.5px solid rgba(0,0,0,.2)}
+.adm-nlb-bottom{height:50%;background:rgba(255,255,255,.25)}
+.adm-nav-text{font-family:'Cinzel',serif;font-size:15px;color:#fff;letter-spacing:.5px}
+.adm-nav-text span{color:var(--accent)}
+.adm-nav-badge{font-size:10px;font-weight:700;background:rgba(255,255,255,.2);color:#fff;padding:2px 8px;border-radius:20px;letter-spacing:.5px;border:1px solid rgba(255,255,255,.3)}
+.adm-nav-right{display:flex;align-items:center;gap:10px}
+.adm-nav-user{font-size:12px;color:rgba(255,255,255,.8);font-weight:600}
+.adm-nav-logout{font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.4);background:transparent;color:#fff;cursor:pointer;transition:all .2s;font-family:'Nunito',sans-serif}
+.adm-nav-logout:hover{background:rgba(255,255,255,.15)}
+
+/* LOGIN ADM */
+.adm-login-page{min-height:calc(100vh - 58px);display:flex;align-items:center;justify-content:center;padding:28px;background:var(--bg)}
+.adm-login-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:40px 36px;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.adm-login-icon{width:64px;height:64px;background:var(--brand-light);border-radius:50%;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.adm-login-title{font-family:'Cinzel',serif;font-size:20px;color:var(--brand);text-align:center;margin-bottom:4px}
+.adm-login-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:28px}
+
+/* FIELDS ADM */
+.adm-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.adm-field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.adm-field input{padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-family:'Nunito',sans-serif;font-size:14px;color:var(--text);transition:border .2s;width:100%}
+.adm-field input:focus{outline:none;border-color:var(--brand-mid)}
+.adm-pw-wrap{position:relative}
+.adm-pw-wrap input{padding-right:38px}
+.adm-pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;padding:0;line-height:1}
+
+/* BUTTONS ADM */
+.adm-btn{padding:9px 18px;border-radius:8px;border:none;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.adm-btn-primary{background:var(--brand-mid);color:#fff}
+.adm-btn-primary:hover{background:var(--brand)}
+.adm-btn-warn{background:#fff8e0;color:#7a5010;border:1px solid #e8d080}
+.adm-btn-warn:hover{background:#fdf0b0}
+.adm-btn-danger{background:#fde8e8;color:var(--red);border:1px solid #f0c0c0}
+.adm-btn-danger:hover{background:#f8c8c8}
+.adm-btn-sm{padding:5px 11px;font-size:12px}
+.adm-btn-full{width:100%}
+.adm-fb{font-size:12px;font-weight:700;text-align:center;padding:8px 12px;border-radius:6px;margin-top:8px;display:none}
+.adm-fb-ok{background:#e0f0e0;color:var(--green)}
+.adm-fb-err{background:#fde8e8;color:var(--red)}
+
+/* LAYOUT ADM */
+.adm-wrap{max-width:1100px;margin:0 auto;padding:24px 20px;background:var(--bg);min-height:calc(100vh - 58px)}
+.adm-layout{display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start}
+.adm-sidebar{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:16px;position:sticky;top:78px}
+.adm-sidebar-user{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);word-break:break-all}
+.adm-snav-btn{display:block;width:100%;text-align:left;padding:9px 12px;border-radius:8px;border:none;background:transparent;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;transition:all .15s;margin-bottom:3px}
+.adm-snav-btn:hover{background:var(--brand-light);color:var(--brand-mid)}
+.adm-snav-btn.active{background:var(--brand-light);color:var(--brand-mid)}
+.adm-snav-sep{height:1px;background:var(--border);margin:8px 0}
+.adm-snav-danger{color:var(--red)!important}
+.adm-snav-danger:hover{background:#fde8e8!important}
+.adm-content{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:24px;min-height:500px}
+.adm-section{display:none}
+.adm-section.active{display:block}
+.adm-sec-title{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);margin-bottom:4px}
+.adm-sec-sub{font-size:13px;color:var(--muted);margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.adm-box{background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:18px;margin-bottom:20px}
+.adm-box-title{font-size:12px;font-weight:700;color:var(--brand-mid);margin-bottom:14px;text-transform:uppercase;letter-spacing:.4px}
+
+/* TABLE ADM */
+.adm-table-wrap{overflow-x:auto}
+.adm-table{width:100%;border-collapse:collapse;font-size:13px}
+.adm-table th{text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1.5px solid var(--border)}
+.adm-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.adm-table tr:last-child td{border-bottom:none}
+.adm-table tr:hover td{background:var(--surface2)}
+
+/* STAT CARDS */
+.adm-stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.adm-stat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:18px 16px}
+.adm-stat-value{font-family:'Cinzel',serif;font-size:28px;font-weight:700;color:var(--brand);line-height:1}
+.adm-stat-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+
+/* RPG BADGES */
+.rpg-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px}
+.rpg-kp{background:#e8f0fb;color:#1a3a5c}
+.rpg-pc{background:#fff3e0;color:#7a3a00}
+
+/* MODAL CONFIRM */
+.adm-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;display:none;align-items:center;justify-content:center}
+.adm-modal-overlay.open{display:flex}
+.adm-modal-box{background:var(--surface);border-radius:var(--r);padding:28px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,.2);position:relative}
+.adm-modal-title{font-family:'Cinzel',serif;font-size:15px;color:var(--brand);margin-bottom:18px}
+.adm-modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)}
+
+/* LOADING ADM */
+.adm-loading{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.adm-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--brand-mid);border-radius:50%;animation:spin .7s linear infinite}
+.adm-loading-text{font-size:14px;color:var(--muted);font-weight:600}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){
+  .adm-nav{padding:0 14px;height:52px}
+  .adm-wrap{padding:16px 12px}
+  .adm-layout{grid-template-columns:1fr;gap:12px}
+  .adm-sidebar{position:static}
+  .adm-sidebar-user{display:none}
+  .adm-snav-btn{display:inline-block;width:auto;margin-right:4px;margin-bottom:4px;padding:7px 10px;font-size:12px}
+  .adm-content{padding:16px;min-height:auto}
+  .adm-stats-grid{grid-template-columns:1fr 1fr}
+}
+</style>
 </head>
 <body>
 
-<!-- ========================
-     AUTH SCREEN
-========================= -->
-<div id="auth-screen" class="auth-screen">
-  <div class="auth-wrap">
+<!-- ════════════════════════════════════════════════════════
+     ROTEAMENTO: decide se é /adm ou app normal
+════════════════════════════════════════════════════════ -->
+<script>
+  const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  const IS_ADM = window.location.pathname.startsWith('/adm');
+</script>
 
-    <!-- Card Login -->
-    <div class="auth-card">
-      <div class="auth-logo">
-        <div class="pokeball-logo">
-          <div class="pb-top"></div>
-          <div class="pb-band"><div class="pb-btn"></div></div>
-          <div class="pb-bottom"></div>
+<!-- ════════════════════════════════════════════════════════
+     APP POKÉGRAM (visível quando não é /adm)
+════════════════════════════════════════════════════════ -->
+<div id="pokegram-root">
+
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <div class="auth-logo">
+          <div class="pokeball-logo">
+            <div class="pb-top"></div>
+            <div class="pb-band"><div class="pb-btn"></div></div>
+            <div class="pb-bottom"></div>
+          </div>
+          <h1 class="brand-name">PokéGram</h1>
         </div>
-        <h1 class="brand-name">PokéGram</h1>
-      </div>
-
-      <div class="auth-form">
-        <input type="text" id="login-username" placeholder="Treinador" autocomplete="off">
-        <input type="password" id="login-password" placeholder="Senha">
-        <button class="btn-primary" onclick="doLogin()">Entrar</button>
+        <div class="auth-form" id="auth-form">
+          <input type="text" id="login-username" placeholder="Usuário" autocomplete="off" oninput="onAuthInput()">
+          <input type="password" id="login-password" placeholder="Senha">
+          <div id="register-fields" style="display:none;flex-direction:column;gap:6px;">
+            <input type="password" id="login-confirm" placeholder="Confirmar senha">
+            <select id="login-rpg">
+              <option value="">Selecione seu RPG...</option>
+              <option value="kingdom_platinum">Kingdom Platinum</option>
+              <option value="pchapters">PChapters</option>
+            </select>
+          </div>
+          <div id="auth-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
+          <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
+          <div id="auth-hint" class="auth-hint" style="margin-top:4px;"></div>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-
-<!-- ========================
-     MAIN APP
-========================= -->
-<div id="app" class="hidden">
-
-  <!-- SIDEBAR (desktop) -->
-  <nav id="sidebar" class="sidebar">
-    <div class="sidebar-logo">
-      <span class="brand-name-sm">PokéGram</span>
-    </div>
-
-    <ul class="sidebar-nav">
-      <li>
-        <button class="sn-item active" id="btn-feed" onclick="showView('feed')">
-          <svg class="sn-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-          <span>Início</span>
-        </button>
-      </li>
-      <li>
-        <button class="sn-item" id="btn-explore" onclick="showView('explore')">
-          <svg class="sn-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span>Explorar</span>
-        </button>
-      </li>
-      <li>
-        <button class="sn-item" onclick="showNewPost()">
-          <svg class="sn-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          <span>Criar</span>
-        </button>
-      </li>
-      <li>
-        <button class="sn-item" id="btn-profile" onclick="showView('profile')">
-          <div class="sn-avatar" id="sn-avatar"></div>
-          <span>Perfil</span>
-        </button>
-      </li>
-    </ul>
-
-    <div class="sidebar-bottom">
-      <button class="sn-item sn-logout" onclick="doLogout()">
-        <svg class="sn-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        <span>Sair</span>
-      </button>
-    </div>
-  </nav>
-
-  <!-- BOTTOM NAV (mobile) -->
-  <nav class="bottom-nav">
-    <button class="bn-item active" id="bn-feed" onclick="showView('feed')">
-      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-    </button>
-    <button class="bn-item" id="bn-explore" onclick="showView('explore')">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    </button>
-    <button class="bn-item bn-create" onclick="showNewPost()">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-    </button>
-    <button class="bn-item" id="bn-profile" onclick="showView('profile')">
-      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    </button>
-  </nav>
-
-  <!-- MAIN -->
-  <main class="main-content">
-
-    <!-- FEED -->
-    <div id="view-feed" class="view">
-      <!-- Mobile topbar -->
-      <div class="mobile-topbar">
-        <span class="brand-name-sm">PokéGram</span>
-        <div class="topbar-actions">
-          <button onclick="showNewPost()">
-            <svg viewBox="0 0 24 24" width="24" height="24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+  <!-- MAIN APP -->
+  <div id="app" class="hidden">
+    <nav id="sidebar" class="sidebar">
+      <div class="sidebar-logo"><span class="brand-name-sm">PokéGram</span></div>
+      <ul class="sidebar-nav">
+        <li>
+          <button class="sn-item active" id="btn-feed" onclick="showView('feed')">
+            <svg class="sn-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+            <span>Início</span>
           </button>
-        </div>
+        </li>
+        <li>
+          <button class="sn-item" id="btn-explore" onclick="showView('explore')">
+            <svg class="sn-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>Explorar</span>
+          </button>
+        </li>
+        <li>
+          <button class="sn-item" onclick="showNewPost()">
+            <svg class="sn-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <span>Criar</span>
+          </button>
+        </li>
+        <li>
+          <button class="sn-item" id="btn-profile" onclick="showView('profile')">
+            <div class="sn-avatar" id="sn-avatar"></div>
+            <span>Perfil</span>
+          </button>
+        </li>
+      </ul>
+      <div class="sidebar-bottom">
+        <button class="sn-item sn-logout" onclick="doLogout()">
+          <svg class="sn-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Sair</span>
+        </button>
       </div>
+    </nav>
 
-      <div class="feed-layout">
-        <!-- Feed center -->
-        <div class="feed-center">
-          <div class="stories-row" id="stories-row">
-            <div class="story-item story-mine" onclick="showNewPost()">
-              <div class="story-ring story-ring-add">
-                <div class="story-pic" id="my-story-pic"></div>
-                <div class="story-plus">+</div>
-              </div>
-              <span>Seu story</span>
-            </div>
-            <div id="stories-list"></div>
-          </div>
-          <div id="feed-posts"></div>
-        </div>
-
-        <!-- Suggestions (desktop) -->
-        <aside class="feed-aside">
-          <div id="aside-profile-mini"></div>
-          <div class="suggestions-box">
-            <div class="suggestions-title">
-              <span>Sugestões para você</span>
-              <a href="#" onclick="showView('explore'); return false;">Ver tudo</a>
-            </div>
-            <div id="suggestions-list"></div>
-          </div>
-        </aside>
-      </div>
-    </div>
-
-    <!-- EXPLORE -->
-    <div id="view-explore" class="view hidden">
-      <div class="explore-top">
-        <div class="search-wrap">
-          <svg viewBox="0 0 24 24" class="search-ic"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="search-input" placeholder="Buscar treinadores, #tags..." oninput="doSearch(this.value)">
-        </div>
-      </div>
-      <div id="explore-grid" class="explore-grid"></div>
-    </div>
-
-    <!-- PROFILE -->
-    <div id="view-profile" class="view hidden">
-      <div id="profile-content"></div>
-    </div>
-
-    <!-- USER PROFILE -->
-    <div id="view-user" class="view hidden">
-      <button class="back-btn" onclick="history.back ? goBack() : showView('feed')">
-        <svg viewBox="0 0 24 24" width="20" height="20"><polyline points="15,18 9,12 15,6"/></svg> Voltar
+    <nav class="bottom-nav">
+      <button class="bn-item active" id="bn-feed" onclick="showView('feed')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
       </button>
-      <div id="user-profile-content"></div>
-    </div>
+      <button class="bn-item" id="bn-explore" onclick="showView('explore')">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="bn-item bn-create" onclick="showNewPost()">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </button>
+      <button class="bn-item" id="bn-profile" onclick="showView('profile')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </button>
+    </nav>
 
-  </main>
-</div>
-
-
-<!-- NEW POST MODAL -->
-<div id="modal-post" class="modal hidden">
-  <div class="modal-backdrop" onclick="closeModal('modal-post')"></div>
-  <div class="modal-box">
-    <div class="modal-header">
-      <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
-      <h3>Nova publicação</h3>
-      <button class="btn-share-modal" onclick="submitPost()">Compartilhar</button>
-    </div>
-    <div class="post-modal-body">
-      <div class="post-img-area" id="post-image-area">
-        <div id="emoji-bg-picker" class="emoji-picker-grid"></div>
-      </div>
-      <div class="post-caption-side">
-        <div id="post-author-row" class="post-author-row"></div>
-        <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
-        <div class="post-fields">
-          <div class="pf-row">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
+    <main class="main-content">
+      <div id="view-feed" class="view">
+        <div class="mobile-topbar">
+          <span class="brand-name-sm">PokéGram</span>
+          <div class="topbar-actions">
+            <button onclick="showNewPost()">
+              <svg viewBox="0 0 24 24" width="24" height="24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            </button>
           </div>
-          <div class="pf-row">
-            <span style="font-size:15px">🎮</span>
-            <select id="post-pokemon"><option value="">Pokémon em destaque</option></select>
+        </div>
+        <div class="feed-layout">
+          <div class="feed-center">
+            <div class="stories-row" id="stories-row">
+              <div class="story-item story-mine" onclick="showNewPost()">
+                <div class="story-ring story-ring-add">
+                  <div class="story-pic" id="my-story-pic"></div>
+                  <div class="story-plus">+</div>
+                </div>
+                <span>Seu story</span>
+              </div>
+              <div id="stories-list"></div>
+            </div>
+            <div id="feed-posts"></div>
+          </div>
+          <aside class="feed-aside">
+            <div id="aside-profile-mini"></div>
+            <div class="suggestions-box">
+              <div class="suggestions-title">
+                <span>Sugestões para você</span>
+                <a href="#" onclick="showView('explore'); return false;">Ver tudo</a>
+              </div>
+              <div id="suggestions-list"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <div id="view-explore" class="view hidden">
+        <div class="explore-top">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" class="search-ic"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" placeholder="Buscar treinadores, #tags..." oninput="doSearch(this.value)">
+          </div>
+        </div>
+        <div id="explore-grid" class="explore-grid"></div>
+      </div>
+
+      <div id="view-profile" class="view hidden">
+        <div id="profile-content"></div>
+      </div>
+
+      <div id="view-user" class="view hidden">
+        <button class="back-btn" onclick="goBack()">
+          <svg viewBox="0 0 24 24" width="20" height="20"><polyline points="15,18 9,12 15,6"/></svg> Voltar
+        </button>
+        <div id="user-profile-content"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAIS POKÉGRAM -->
+  <div id="modal-post" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-post')"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
+        <h3>Nova publicação</h3>
+        <button class="btn-share-modal" onclick="submitPost()">Compartilhar</button>
+      </div>
+      <div class="post-modal-body">
+        <div class="post-img-area" id="post-image-area">
+          <div id="emoji-bg-picker" class="emoji-picker-grid"></div>
+        </div>
+        <div class="post-caption-side">
+          <div id="post-author-row" class="post-author-row"></div>
+          <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
+          <div class="post-fields">
+            <div class="pf-row">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
+            </div>
+            <div class="pf-row">
+              <span style="font-size:15px">🎮</span>
+              <select id="post-pokemon"><option value="">Pokémon em destaque</option></select>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- COMMENTS MODAL -->
-<div id="modal-comments" class="modal hidden">
-  <div class="modal-backdrop" onclick="closeModal('modal-comments')"></div>
-  <div class="modal-box comments-modal-box">
-    <div class="modal-header">
-      <button class="modal-x" onclick="closeModal('modal-comments')">✕</button>
-      <h3>Comentários</h3>
-      <span></span>
-    </div>
-    <div id="comments-list" class="comments-list"></div>
-    <div class="comment-input-bar">
-      <div class="comment-avatar-sm" id="my-comment-avatar"></div>
-      <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
-      <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
+  <div id="modal-comments" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-comments')"></div>
+    <div class="modal-box comments-modal-box">
+      <div class="modal-header">
+        <button class="modal-x" onclick="closeModal('modal-comments')">✕</button>
+        <h3>Comentários</h3>
+        <span></span>
+      </div>
+      <div id="comments-list" class="comments-list"></div>
+      <div class="comment-input-bar">
+        <div class="comment-avatar-sm" id="my-comment-avatar"></div>
+        <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
+        <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- TOAST -->
-<div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden"></div>
+
+</div><!-- /pokegram-root -->
+
+
+<!-- ════════════════════════════════════════════════════════
+     ADM PANEL (visível quando é /adm)
+════════════════════════════════════════════════════════ -->
+<div id="adm-root" style="display:none">
+
+  <!-- Loading -->
+  <div class="adm-loading" id="adm-loading">
+    <div class="adm-spinner"></div>
+    <div class="adm-loading-text">Verificando acesso...</div>
+  </div>
+
+  <!-- Nav ADM -->
+  <nav class="adm-nav">
+    <div class="adm-nav-logo">
+      <div class="adm-nlb">
+        <div class="adm-nlb-top"></div>
+        <div class="adm-nlb-band"><div class="adm-nlb-btn"></div></div>
+        <div class="adm-nlb-bottom"></div>
+      </div>
+      <div class="adm-nav-text">Poké<span>Gram</span></div>
+      <div class="adm-nav-badge">ADM</div>
+    </div>
+    <div class="adm-nav-right">
+      <span class="adm-nav-user" id="adm-nav-user" style="display:none"></span>
+      <button class="adm-nav-logout" id="adm-btn-logout" style="display:none" onclick="admLogout()">Sair</button>
+    </div>
+  </nav>
+
+  <!-- Login ADM -->
+  <div id="adm-login-page" class="adm-login-page" style="display:none">
+    <div class="adm-login-card">
+      <div class="adm-login-icon">🔐</div>
+      <div class="adm-login-title">Área Restrita</div>
+      <div class="adm-login-sub">Acesso exclusivo para administradores do PokéGram</div>
+      <div class="adm-field">
+        <label>Usuário</label>
+        <input type="text" id="adm-username" placeholder="seu_usuario" autocomplete="off" onkeydown="if(event.key==='Enter')fazerLoginAdm()"/>
+      </div>
+      <div class="adm-field">
+        <label>Senha</label>
+        <div class="adm-pw-wrap">
+          <input type="password" id="adm-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLoginAdm()"/>
+          <button class="adm-pw-eye" type="button" onclick="admToggleEye('adm-password',this)">👁</button>
+        </div>
+      </div>
+      <div class="adm-fb adm-fb-err" id="adm-login-err">Usuário ou senha incorretos.</div>
+      <button class="adm-btn adm-btn-primary adm-btn-full" style="margin-top:4px" onclick="fazerLoginAdm()">Entrar como ADM</button>
+    </div>
+  </div>
+
+  <!-- Painel ADM -->
+  <div id="adm-panel" style="display:none">
+    <div class="adm-wrap">
+      <div class="adm-layout">
+
+        <!-- Sidebar -->
+        <aside class="adm-sidebar">
+          <div class="adm-sidebar-user" id="adm-sidebar-user"></div>
+          <button class="adm-snav-btn active" onclick="admTab(this,'usuarios')">👥 Usuários</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'posts')">📸 Publicações</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'stats')">📊 Estatísticas</button>
+          <div class="adm-snav-sep"></div>
+          <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
+          <div class="adm-snav-sep"></div>
+          <button class="adm-snav-btn adm-snav-danger" onclick="admLogout()">⬅ Sair</button>
+        </aside>
+
+        <!-- Content -->
+        <div class="adm-content">
+
+          <!-- USUÁRIOS -->
+          <div class="adm-section active" id="sec-usuarios">
+            <div class="adm-sec-title">Usuários</div>
+            <div class="adm-sec-sub">Gerencie os jogadores cadastrados no PokéGram</div>
+            <div class="adm-box">
+              <div class="adm-box-title">🔑 Resetar Senha de Usuário</div>
+              <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Insira o usuário e defina uma nova senha. O usuário deverá trocar na próxima vez que entrar.</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                <div class="adm-field" style="margin-bottom:0">
+                  <label>Usuário</label>
+                  <input type="text" id="reset-username" placeholder="nome_do_usuario"/>
+                </div>
+                <div class="adm-field" style="margin-bottom:0">
+                  <label>Nova Senha</label>
+                  <div class="adm-pw-wrap">
+                    <input type="password" id="reset-password" placeholder="Mín. 6 caracteres"/>
+                    <button class="adm-pw-eye" type="button" onclick="admToggleEye('reset-password',this)">👁</button>
+                  </div>
+                </div>
+              </div>
+              <button class="adm-btn adm-btn-warn adm-btn-sm" onclick="resetarSenha()">🔄 Resetar Senha</button>
+              <div class="adm-fb adm-fb-ok" id="reset-fb-ok">✓ Senha redefinida com sucesso!</div>
+              <div class="adm-fb adm-fb-err" id="reset-fb-err">—</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="font-size:12px;color:var(--muted)" id="users-count"></div>
+              <input type="text" placeholder="Buscar usuário..." id="users-search" oninput="filtrarUsuarios(this.value)"
+                style="padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;width:200px;outline:none;color:var(--text)"/>
+            </div>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Usuário</th><th>RPG</th><th>Cadastro</th><th>Ações</th></tr></thead>
+                <tbody id="tbody-usuarios"></tbody>
+              </table>
+            </div>
+            <div id="users-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
+          </div>
+
+          <!-- POSTS -->
+          <div class="adm-section" id="sec-posts">
+            <div class="adm-sec-title">Publicações</div>
+            <div class="adm-sec-sub">Visualize e remova publicações do feed</div>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Autor</th><th>Legenda</th><th>Local</th><th>Data</th><th>Ações</th></tr></thead>
+                <tbody id="tbody-posts"></tbody>
+              </table>
+            </div>
+            <div id="posts-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
+          </div>
+
+          <!-- STATS -->
+          <div class="adm-section" id="sec-stats">
+            <div class="adm-sec-title">Estatísticas</div>
+            <div class="adm-sec-sub">Visão geral do PokéGram</div>
+            <div class="adm-stats-grid">
+              <div class="adm-stat-card"><div class="adm-stat-value" id="stat-users">—</div><div class="adm-stat-label">Usuários</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="stat-posts">—</div><div class="adm-stat-label">Publicações</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="stat-kp">—</div><div class="adm-stat-label">Kingdom Platinum</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="stat-pc">—</div><div class="adm-stat-label">PChapters</div></div>
+            </div>
+            <div class="adm-box">
+              <div class="adm-box-title">Usuários recentes</div>
+              <div id="recent-users-list"></div>
+            </div>
+          </div>
+
+          <!-- MINHA SENHA -->
+          <div class="adm-section" id="sec-senha-adm">
+            <div class="adm-sec-title">Minha Senha</div>
+            <div class="adm-sec-sub">Altere sua senha de administrador</div>
+            <div class="adm-box" style="max-width:380px">
+              <div class="adm-box-title">Nova senha</div>
+              <div class="adm-field">
+                <label>Senha atual</label>
+                <div class="adm-pw-wrap">
+                  <input type="password" id="adm-senha-atual" placeholder="••••••••"/>
+                  <button class="adm-pw-eye" type="button" onclick="admToggleEye('adm-senha-atual',this)">👁</button>
+                </div>
+              </div>
+              <div class="adm-field">
+                <label>Nova senha</label>
+                <div class="adm-pw-wrap">
+                  <input type="password" id="adm-senha-nova" placeholder="Mín. 6 caracteres"/>
+                  <button class="adm-pw-eye" type="button" onclick="admToggleEye('adm-senha-nova',this)">👁</button>
+                </div>
+              </div>
+              <div class="adm-field">
+                <label>Confirmar nova senha</label>
+                <div class="adm-pw-wrap">
+                  <input type="password" id="adm-senha-conf" placeholder="••••••••"/>
+                  <button class="adm-pw-eye" type="button" onclick="admToggleEye('adm-senha-conf',this)">👁</button>
+                </div>
+              </div>
+              <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="alterarSenhaAdm()">💾 Salvar nova senha</button>
+              <div class="adm-fb adm-fb-ok" id="adm-pw-ok">✓ Senha alterada!</div>
+              <div class="adm-fb adm-fb-err" id="adm-pw-err">—</div>
+            </div>
+          </div>
+
+        </div><!-- /adm-content -->
+      </div><!-- /adm-layout -->
+    </div><!-- /adm-wrap -->
+  </div><!-- /adm-panel -->
+
+  <!-- Modal confirmação -->
+  <div class="adm-modal-overlay" id="adm-confirm-modal">
+    <div class="adm-modal-box">
+      <button class="adm-modal-close" onclick="fecharModalAdm()">✕</button>
+      <div class="adm-modal-title" id="adm-confirm-title">Confirmar ação</div>
+      <p id="adm-confirm-msg" style="font-size:13px;color:var(--muted);margin-bottom:20px"></p>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="adm-btn adm-btn-sm" style="background:var(--surface2);border:1.5px solid var(--border);color:var(--text)" onclick="fecharModalAdm()">Cancelar</button>
+        <button class="adm-btn adm-btn-danger adm-btn-sm" id="adm-confirm-ok">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /adm-root -->
+
+
+<!-- ════════════════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════════════════ -->
+<script>
+// ── Roteamento inicial ────────────────────────────────────
+if (IS_ADM) {
+  document.getElementById('pokegram-root').style.display = 'none';
+  document.getElementById('adm-root').style.display = 'block';
+  document.body.classList.add('adm-body');
+  document.title = 'PokéGram — ADM';
+  initAdm();
+} else {
+  initPokegram();
+}
+
+// ════════════════════════════════════════════════════════════
+// POKÉGRAM AUTH
+// ════════════════════════════════════════════════════════════
+let isRegisterMode = false;
+let currentUser    = null;
+
+function saveSession(u) { sessionStorage.setItem('pg_user', JSON.stringify(u)); }
+function loadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_user')); } catch { return null; } }
+function clearSession() { sessionStorage.removeItem('pg_user'); }
+
+async function dbLogin(username, password) {
+  const { data, error } = await db.rpc('login_user', { p_username: username, p_password: password });
+  if (error) throw error;
+  return data;
+}
+async function dbRegister(username, password, rpg, emoji) {
+  const { data, error } = await db.rpc('register_user', { p_username: username, p_password: password, p_rpg: rpg, p_emoji: emoji || '🎮' });
+  if (error) throw error;
+  return data;
+}
+async function dbCheckUserExists(username) {
+  const { data } = await db.from('users').select('id').eq('username', username).maybeSingle();
+  return !!data;
+}
+
+let authCheckTimeout = null;
+async function onAuthInput() {
+  const username = document.getElementById('login-username').value.trim();
+  clearTimeout(authCheckTimeout);
+  if (username.length < 2) { setAuthMode('login'); document.getElementById('auth-hint').textContent = ''; return; }
+  authCheckTimeout = setTimeout(async () => {
+    const exists = await dbCheckUserExists(username);
+    setAuthMode(exists ? 'login' : 'register');
+    document.getElementById('auth-hint').textContent = exists ? 'Bem-vindo de volta!' : 'Usuário não encontrado — complete o cadastro abaixo.';
+  }, 500);
+}
+
+function setAuthMode(mode) {
+  isRegisterMode = mode === 'register';
+  const rf  = document.getElementById('register-fields');
+  const btn = document.getElementById('auth-btn');
+  rf.style.display  = isRegisterMode ? 'flex' : 'none';
+  btn.textContent   = isRegisterMode ? 'Cadastrar' : 'Entrar';
+  hideAuthError();
+}
+
+function showAuthError(msg) { const e = document.getElementById('auth-error'); e.textContent = msg; e.style.display = 'block'; }
+function hideAuthError()    { document.getElementById('auth-error').style.display = 'none'; }
+
+async function doAuth() {
+  hideAuthError();
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('auth-btn');
+  if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
+  btn.disabled = true; btn.textContent = 'Aguarde...';
+  try {
+    if (isRegisterMode) {
+      const confirm = document.getElementById('login-confirm').value;
+      const rpg     = document.getElementById('login-rpg').value;
+      if (password !== confirm) { showAuthError('As senhas não coincidem.'); return; }
+      if (!rpg)                 { showAuthError('Selecione seu RPG.'); return; }
+      if (password.length < 6)  { showAuthError('Senha deve ter ao menos 6 caracteres.'); return; }
+      const user = await dbRegister(username, password, rpg);
+      if (!user) { showAuthError('Erro ao cadastrar. Tente novamente.'); return; }
+      currentUser = user; saveSession(user); enterApp(user);
+    } else {
+      const user = await dbLogin(username, password);
+      if (!user) { showAuthError('Usuário ou senha incorretos.'); return; }
+      currentUser = user; saveSession(user); enterApp(user);
+    }
+  } catch(err) { console.error(err); showAuthError('Erro de conexão. Tente novamente.'); }
+  finally { btn.disabled = false; btn.textContent = isRegisterMode ? 'Cadastrar' : 'Entrar'; }
+}
+
+function enterApp(user) {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').classList.remove('hidden');
+  if (typeof initApp === 'function') initApp(user);
+}
+
+function doLogout() { clearSession(); currentUser = null; location.reload(); }
+
+function initPokegram() {
+  const saved = loadSession();
+  if (saved) { currentUser = saved; enterApp(saved); }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doAuth();
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// ADM
+// ════════════════════════════════════════════════════════════
+let admLogado  = null;
+let allUsers   = [];
+let allPosts   = [];
+
+function admSaveSession(a) { sessionStorage.setItem('pg_adm', JSON.stringify(a)); }
+function admLoadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_adm')); } catch { return null; } }
+function admClearSession() { sessionStorage.removeItem('pg_adm'); }
+
+async function initAdm() {
+  const saved = admLoadSession();
+  if (saved) { admLogado = saved; mostrarPainelAdm(); }
+  else { document.getElementById('adm-login-page').style.display = 'flex'; }
+  document.getElementById('adm-loading').style.display = 'none';
+}
+
+async function fazerLoginAdm() {
+  const username = document.getElementById('adm-username').value.trim();
+  const password = document.getElementById('adm-password').value;
+  const errEl    = document.getElementById('adm-login-err');
+  errEl.style.display = 'none';
+  if (!username || !password) { errEl.textContent = 'Preencha todos os campos.'; errEl.style.display = 'block'; return; }
+  try {
+    const { data, error } = await db.rpc('login_admin', { p_username: username, p_password: password });
+    if (error) throw error;
+    if (!data) { errEl.textContent = 'Usuário ou senha incorretos.'; errEl.style.display = 'block'; return; }
+    admLogado = data; admSaveSession(data); mostrarPainelAdm();
+  } catch(e) { console.error(e); errEl.textContent = 'Erro de conexão.'; errEl.style.display = 'block'; }
+}
+
+function admLogout() { admClearSession(); admLogado = null; location.reload(); }
+
+function mostrarPainelAdm() {
+  document.getElementById('adm-login-page').style.display = 'none';
+  document.getElementById('adm-panel').style.display      = 'block';
+  document.getElementById('adm-nav-user').textContent     = '👤 ' + admLogado.username;
+  document.getElementById('adm-nav-user').style.display   = 'inline';
+  document.getElementById('adm-btn-logout').style.display = 'inline-block';
+  document.getElementById('adm-sidebar-user').textContent = admLogado.username;
+  carregarUsuarios();
+}
+
+function admTab(btn, id) {
+  document.querySelectorAll('.adm-snav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.adm-section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sec-' + id).classList.add('active');
+  if (id === 'posts') carregarPosts();
+  if (id === 'stats') carregarStats();
+}
+
+// ── Usuários ──────────────────────────────────────────────
+async function carregarUsuarios() {
+  const tbody = document.getElementById('tbody-usuarios');
+  const load  = document.getElementById('users-loading');
+  tbody.innerHTML = ''; load.style.display = 'block';
+  const { data, error } = await db.from('users').select('*').order('created_at', { ascending: false });
+  load.style.display = 'none';
+  if (error) { load.textContent = 'Erro ao carregar usuários.'; load.style.display = 'block'; return; }
+  allUsers = data || [];
+  document.getElementById('users-count').textContent = `${allUsers.length} usuário(s) cadastrado(s)`;
+  renderUsuarios(allUsers);
+}
+
+function renderUsuarios(list) {
+  const tbody = document.getElementById('tbody-usuarios');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Nenhum usuário encontrado.</td></tr>'; return; }
+  tbody.innerHTML = list.map(u => `
+    <tr>
+      <td><strong>${esc(u.username)}</strong></td>
+      <td>${rpgBadge(u.rpg)}</td>
+      <td style="color:var(--muted)">${fmtDate(u.created_at)}</td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="adm-btn adm-btn-warn adm-btn-sm" onclick="abrirResetSenha('${esc(u.username)}')">🔑 Resetar Senha</button>
+          <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="confirmarDeletar('usuario','${u.id}','${esc(u.username)}')">🗑 Remover</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function filtrarUsuarios(q) { renderUsuarios(allUsers.filter(u => u.username.toLowerCase().includes(q.toLowerCase()))); }
+
+function abrirResetSenha(username) {
+  document.getElementById('reset-username').value = username;
+  document.getElementById('reset-password').value = '';
+  document.getElementById('reset-username').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('reset-password').focus();
+}
+
+async function resetarSenha() {
+  const username = document.getElementById('reset-username').value.trim();
+  const password = document.getElementById('reset-password').value;
+  const okEl  = document.getElementById('reset-fb-ok');
+  const errEl = document.getElementById('reset-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+  if (!username)                   { errEl.textContent = 'Informe o nome do usuário.'; errEl.style.display = 'block'; return; }
+  if (!password || password.length < 6) { errEl.textContent = 'A nova senha deve ter ao menos 6 caracteres.'; errEl.style.display = 'block'; return; }
+  const { data, error } = await db.rpc('admin_reset_password', { p_username: username, p_new_password: password });
+  if (error || data === false) { errEl.textContent = error ? 'Erro: ' + error.message : 'Usuário não encontrado.'; errEl.style.display = 'block'; return; }
+  okEl.style.display = 'block';
+  document.getElementById('reset-username').value = '';
+  document.getElementById('reset-password').value = '';
+  setTimeout(() => okEl.style.display = 'none', 3000);
+}
+
+// ── Posts ─────────────────────────────────────────────────
+async function carregarPosts() {
+  const tbody = document.getElementById('tbody-posts');
+  const load  = document.getElementById('posts-loading');
+  tbody.innerHTML = ''; load.style.display = 'block';
+  const { data, error } = await db.from('posts').select('*, users(username)').order('created_at', { ascending: false });
+  load.style.display = 'none';
+  if (error) { load.textContent = 'Erro ao carregar posts.'; load.style.display = 'block'; return; }
+  allPosts = data || [];
+  tbody.innerHTML = allPosts.length ? allPosts.map(p => `
+    <tr>
+      <td><strong>${esc(p.users?.username||'—')}</strong></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.caption||'—')}</td>
+      <td style="color:var(--muted)">${esc(p.location||'—')}</td>
+      <td style="color:var(--muted);white-space:nowrap">${fmtDate(p.created_at)}</td>
+      <td><button class="adm-btn adm-btn-danger adm-btn-sm" onclick="confirmarDeletar('post','${p.id}','post de ${esc(p.users?.username||'?')}')">🗑 Remover</button></td>
+    </tr>`).join('')
+  : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhuma publicação.</td></tr>';
+}
+
+// ── Stats ─────────────────────────────────────────────────
+async function carregarStats() {
+  const { data: users } = await db.from('users').select('id,username,rpg,created_at').order('created_at', { ascending: false });
+  const { data: posts } = await db.from('posts').select('id', { count: 'exact' });
+  const u = users || [];
+  document.getElementById('stat-users').textContent = u.length;
+  document.getElementById('stat-posts').textContent = (posts||[]).length;
+  document.getElementById('stat-kp').textContent    = u.filter(x => x.rpg === 'kingdom_platinum').length;
+  document.getElementById('stat-pc').textContent    = u.filter(x => x.rpg === 'pchapters').length;
+  document.getElementById('recent-users-list').innerHTML = u.slice(0,8).map(u => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:700;font-size:13px">${esc(u.username)}</div>
+        <div style="font-size:11px;color:var(--muted)">${fmtDate(u.created_at)}</div>
+      </div>
+      ${rpgBadge(u.rpg)}
+    </div>`).join('') || '<div style="color:var(--muted);font-size:13px">Nenhum usuário ainda.</div>';
+}
+
+// ── Minha senha ───────────────────────────────────────────
+async function alterarSenhaAdm() {
+  const atual = document.getElementById('adm-senha-atual').value;
+  const nova  = document.getElementById('adm-senha-nova').value;
+  const conf  = document.getElementById('adm-senha-conf').value;
+  const okEl  = document.getElementById('adm-pw-ok');
+  const errEl = document.getElementById('adm-pw-err');
+  okEl.style.display = errEl.style.display = 'none';
+  if (!atual||!nova||!conf)   { errEl.textContent = 'Preencha todos os campos.'; errEl.style.display = 'block'; return; }
+  if (nova !== conf)           { errEl.textContent = 'As novas senhas não coincidem.'; errEl.style.display = 'block'; return; }
+  if (nova.length < 6)         { errEl.textContent = 'A nova senha deve ter ao menos 6 caracteres.'; errEl.style.display = 'block'; return; }
+  const { data: check } = await db.rpc('login_admin', { p_username: admLogado.username, p_password: atual });
+  if (!check) { errEl.textContent = 'Senha atual incorreta.'; errEl.style.display = 'block'; return; }
+  const { error: rpcErr } = await db.rpc('admin_reset_password', { p_username: admLogado.username, p_new_password: nova });
+  if (rpcErr) { errEl.textContent = 'Erro ao salvar: ' + rpcErr.message; errEl.style.display = 'block'; return; }
+  okEl.style.display = 'block';
+  ['adm-senha-atual','adm-senha-nova','adm-senha-conf'].forEach(id => document.getElementById(id).value = '');
+  setTimeout(() => okEl.style.display = 'none', 3000);
+}
+
+// ── Deletar ───────────────────────────────────────────────
+let pendingDelete = null;
+function confirmarDeletar(tipo, id, label) {
+  pendingDelete = { tipo, id };
+  document.getElementById('adm-confirm-title').textContent = 'Confirmar remoção';
+  document.getElementById('adm-confirm-msg').textContent   = `Deseja remover "${label}"? Esta ação não pode ser desfeita.`;
+  document.getElementById('adm-confirm-modal').classList.add('open');
+  document.getElementById('adm-confirm-ok').onclick = executarDelete;
+}
+async function executarDelete() {
+  if (!pendingDelete) return;
+  const { tipo, id } = pendingDelete;
+  fecharModalAdm();
+  const table = tipo === 'usuario' ? 'users' : 'posts';
+  const { error } = await db.from(table).delete().eq('id', id);
+  if (error) { alert('Erro ao remover: ' + error.message); return; }
+  if (tipo === 'usuario') carregarUsuarios(); else carregarPosts();
+}
+function fecharModalAdm() { document.getElementById('adm-confirm-modal').classList.remove('open'); pendingDelete = null; }
+
+// ── Helpers ───────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(iso) { if(!iso) return '—'; const d=new Date(iso); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function rpgBadge(rpg) {
+  if (rpg==='kingdom_platinum') return '<span class="rpg-badge rpg-kp">Kingdom Platinum</span>';
+  if (rpg==='pchapters')        return '<span class="rpg-badge rpg-pc">PChapters</span>';
+  return '<span style="color:var(--muted)">—</span>';
+}
+function admToggleEye(inputId, btn) {
+  const input = document.getElementById(inputId);
+  input.type = input.type === 'password' ? 'text' : 'password';
+  btn.textContent = input.type === 'password' ? '👁' : '🙈';
+}
+</script>
 
 <script src="app.js"></script>
 </body>
