@@ -675,7 +675,7 @@ input, select, textarea { font-family: var(--font); }
 .profile-bio {
   flex-basis: auto;
   padding: 0;
-  margin-top: 4px;
+  margin-top: -5px;
   padding-left: 0;
   width: 100%;
 }
@@ -735,6 +735,7 @@ input, select, textarea { font-family: var(--font); }
   display: flex;
   gap: 40px;
   margin-bottom: 16px;
+  margin-top: -15px;
 }
 .stat-item { font-size: 16px; }
 .stat-item strong { font-weight: 700; }
