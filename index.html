@@ -180,6 +180,18 @@
     } catch(e) { console.warn('Logo não carregada:', e); }
     return null;
   }
+  async function applySplashGif() {
+    try {
+      const { data } = await db.from('settings').select('value').eq('key', 'splash_gif').maybeSingle();
+      const gifEl   = document.getElementById('splash-custom-gif');
+      const pokeEl  = document.getElementById('splash-pokeball');
+      if (data && data.value && gifEl) {
+        gifEl.src           = data.value;
+        gifEl.style.display = 'block';
+        if (pokeEl) pokeEl.style.display = 'none';
+      }
+    } catch(e) { console.warn('GIF splash não carregado:', e); }
+  }
   async function applyLogos() {
     const url = await getNetworkLogo();
     if (url) {
@@ -192,6 +204,7 @@
   }
   window.applyLogos = applyLogos;
   window.getNetworkLogo = getNetworkLogo;
+  applySplashGif(); // carrega GIF antes do splash ser ocultado
   applyLogos(); // carrega logo antes do splash
 
   // Estado de autenticação — declarado aqui para evitar "before initialization"
@@ -206,7 +219,10 @@
 
   <!-- LOADING SPLASH (mostrado enquanto verifica sessão) -->
   <div id="pg-splash" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
-    <div class="pokeball-logo" style="width:56px;height:56px;animation:spin .8s linear infinite">
+    <!-- GIF customizado (se configurado) -->
+    <img id="splash-custom-gif" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain">
+    <!-- Pokeball padrão (exibida se não houver GIF customizado) -->
+    <div id="splash-pokeball" class="pokeball-logo" style="width:56px;height:56px;animation:spin .8s linear infinite">
       <div class="pb-top"></div>
       <div class="pb-band"><div class="pb-btn"></div></div>
       <div class="pb-bottom"></div>
@@ -630,6 +646,7 @@
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
           <button class="adm-snav-btn" onclick="admTab(this,'logo')">🖼 Logo da Rede</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'loading-gif')">🌀 GIF do Loading</button>
           <button class="adm-snav-btn" onclick="admTab(this,'sprites')">🎨 Sprites do Nav</button>
           <button class="adm-snav-btn" onclick="admTab(this,'filtros')">✨ Filtros de Foto</button>
           <div class="adm-snav-sep"></div>
@@ -765,6 +782,35 @@
               <button class="adm-btn adm-btn-danger adm-btn-sm" style="margin-left:8px" onclick="removerLogo()">🗑 Remover Logo</button>
               <div class="adm-fb adm-fb-ok" id="logo-fb-ok">✓ Logo salva com sucesso!</div>
               <div class="adm-fb adm-fb-err" id="logo-fb-err">—</div>
+            </div>
+          </div>
+
+          <!-- GIF DO LOADING -->
+          <div class="adm-section" id="sec-loading-gif">
+            <div class="adm-sec-title">GIF do Loading</div>
+            <div class="adm-sec-sub">Substitua a pokeball animada da tela de carregamento por um GIF personalizado. Ele será exibido enquanto o site verifica a sessão do usuário.</div>
+            <div class="adm-box" style="max-width:480px">
+              <div class="adm-box-title">GIF atual</div>
+              <div id="loading-gif-preview-wrap" style="margin-bottom:16px;min-height:80px;display:flex;align-items:center;gap:12px">
+                <img id="loading-gif-preview-adm" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                <span id="loading-gif-preview-empty" style="font-size:13px;color:var(--muted)">Nenhum GIF cadastrado — pokeball padrão será usada.</span>
+              </div>
+              <div class="adm-field">
+                <label>Selecionar GIF (GIF animado — máx 2 MB)</label>
+                <input type="file" id="loading-gif-file-input" accept="image/gif"
+                  style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
+                  onchange="previewLoadingGifUpload(this)"/>
+              </div>
+              <div id="loading-gif-new-preview-wrap" style="display:none;margin-bottom:14px">
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
+                <img id="loading-gif-new-preview" src="" alt="" style="width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarLoadingGif()">💾 Salvar GIF</button>
+                <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="removerLoadingGif()">🗑 Remover GIF</button>
+              </div>
+              <div class="adm-fb adm-fb-ok" id="loading-gif-fb-ok">✓ GIF salvo com sucesso!</div>
+              <div class="adm-fb adm-fb-err" id="loading-gif-fb-err">—</div>
             </div>
           </div>
 
@@ -1151,7 +1197,10 @@ async function doAuth() {
     } else {
       const user = await dbLogin(username, password);
       if (!user) { showAuthError('Usuário ou senha incorretos.'); return; }
-      currentUser = user; saveSession(user); enterApp(user);
+      // re-fetch para garantir avatar_url e todos os campos atualizados
+      const { data: fresh } = await db.from('users').select('*').eq('id', user.id).maybeSingle();
+      const finalUser = fresh || user;
+      currentUser = finalUser; saveSession(finalUser); enterApp(finalUser);
     }
   } catch(err) {
     console.error(err);
@@ -1194,10 +1243,55 @@ async function initPokegram() {
     hideSplash();
     document.getElementById('auth-screen').style.display = 'flex';
   }
-  document.addEventListener('keydown', e => {
+}
+
+function openEditPost(postId, caption, location) {
+  document.getElementById('edit-post-id').value       = postId;
+  document.getElementById('edit-post-caption').value  = caption.replace(/\n/g, '
+');
+  document.getElementById('edit-post-location').value = location;
+  closePostMenu(postId);
+  openModal('modal-edit-post');
+}
+
+async function saveEditPost() {
+  const postId   = document.getElementById('edit-post-id').value;
+  const caption  = document.getElementById('edit-post-caption').value.trim();
+  const location = document.getElementById('edit-post-location').value.trim();
+  if (!caption) { toast('A legenda não pode estar vazia.'); return; }
+  const { error } = await db.from('posts').update({ caption, location }).eq('id', postId);
+  if (error) { toast('Erro ao salvar. Tente novamente.'); return; }
+  closeModal('modal-edit-post');
+  toast('Publicação atualizada!');
+  // atualiza no DOM sem recarregar tudo
+  const capEl = document.querySelector(`#post-${postId} .post-caption-text`);
+  if (capEl) {
+    const userSpan = capEl.querySelector('.cap-user');
+    capEl.innerHTML = '';
+    if (userSpan) capEl.appendChild(userSpan);
+    capEl.innerHTML += formatCaption(caption);
+  }
+  const locEl = document.querySelector(`#post-${postId} .post-location-tag`);
+  if (locEl) locEl.textContent = location;
+  // atualiza cache local
+  const cached = (appPosts || []).find(p => p.id === postId);
+  if (cached) { cached.caption = caption; cached.location = location; }
+}
+
+async function deleteComment(commentId, postId) {
+  await db.from('comments').delete().eq('id', commentId);
+  // remove notificação associada
+  await db.from('notifications').delete()
+    .eq('type', 'comment')
+    .eq('post_id', postId)
+    .eq('actor_id', currentUser.id);
+  document.getElementById('comment-item-' + commentId)?.remove();
+  toast('Comentário apagado.');
+}
+
+document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doAuth();
   });
-}
 
 // ════════════════════════════════════════════════════════════
 // ADM
@@ -1690,7 +1784,8 @@ function admTab(btn, id) {
   document.getElementById('sec-' + id).classList.add('active');
   if (id === 'posts') carregarPosts();
   if (id === 'stats') carregarStats();
-  if (id === 'logo')    carregarLogoAdm();
+  if (id === 'logo')         carregarLogoAdm();
+  if (id === 'loading-gif')  carregarLoadingGifAdm();
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
   if (id === 'sprites') carregarSpritesAdm();
   if (id === 'npcs')    admNpcLoad();
@@ -1915,6 +2010,70 @@ async function removerLogo() {
   okEl.textContent = '✓ Logo removida.';
   okEl.style.display = 'block';
   setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ Logo salva com sucesso!'; }, 3000);
+}
+
+// ── GIF do Loading ────────────────────────────────────────
+let _pendingLoadingGifBase64 = null;
+
+async function carregarLoadingGifAdm() {
+  const { data } = await db.from('settings').select('value').eq('key', 'splash_gif').maybeSingle();
+  const previewImg   = document.getElementById('loading-gif-preview-adm');
+  const previewEmpty = document.getElementById('loading-gif-preview-empty');
+  if (data && data.value) {
+    previewImg.src          = data.value;
+    previewImg.style.display = 'block';
+    previewEmpty.style.display = 'none';
+  } else {
+    previewImg.style.display   = 'none';
+    previewEmpty.style.display = 'inline';
+  }
+}
+
+function previewLoadingGifUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const errEl = document.getElementById('loading-gif-fb-err');
+  if (file.type !== 'image/gif') { errEl.textContent = 'Apenas arquivos GIF são aceitos.'; errEl.style.display = 'block'; return; }
+  if (file.size > 2 * 1024 * 1024) { errEl.textContent = 'GIF muito grande. Máximo: 2 MB.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => {
+    _pendingLoadingGifBase64 = e.target.result;
+    const wrap = document.getElementById('loading-gif-new-preview-wrap');
+    const img  = document.getElementById('loading-gif-new-preview');
+    img.src = _pendingLoadingGifBase64;
+    wrap.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function salvarLoadingGif() {
+  const okEl  = document.getElementById('loading-gif-fb-ok');
+  const errEl = document.getElementById('loading-gif-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+  if (!_pendingLoadingGifBase64) { errEl.textContent = 'Selecione um GIF primeiro.'; errEl.style.display = 'block'; return; }
+  const { error } = await db.from('settings').upsert({ key: 'splash_gif', value: _pendingLoadingGifBase64 }, { onConflict: 'key' });
+  if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
+  _pendingLoadingGifBase64 = null;
+  document.getElementById('loading-gif-file-input').value = '';
+  document.getElementById('loading-gif-new-preview-wrap').style.display = 'none';
+  carregarLoadingGifAdm();
+  okEl.style.display = 'block';
+  setTimeout(() => okEl.style.display = 'none', 3000);
+}
+
+async function removerLoadingGif() {
+  if (!confirm('Remover o GIF? A pokeball padrão voltará a ser usada.')) return;
+  const okEl  = document.getElementById('loading-gif-fb-ok');
+  const errEl = document.getElementById('loading-gif-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+  const { error } = await db.from('settings').delete().eq('key', 'splash_gif');
+  if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
+  _pendingLoadingGifBase64 = null;
+  carregarLoadingGifAdm();
+  okEl.textContent = '✓ GIF removido. Pokeball padrão restaurada.';
+  okEl.style.display = 'block';
+  setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ GIF salvo com sucesso!'; }, 3500);
 }
 </script>
 
@@ -2295,7 +2454,12 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
       <button class="post-header-more" onclick="togglePostMenu('${p.id}', this)">···</button>
       <div class="post-menu" id="post-menu-${p.id}">
         ${author.id === currentUser.id
-          ? `<button class="post-menu-item post-menu-danger" onclick="deletePost('${p.id}')">
+          ? `<button class="post-menu-item" onclick="openEditPost('${p.id}','${(p.caption||'').replace(/'/g,"\'").replace(/
+/g,'\n')}','${(p.location||'').replace(/'/g,"\'")}')">
+               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+               Editar publicação
+             </button>
+             <button class="post-menu-item post-menu-danger" onclick="deletePost('${p.id}')">
                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                Apagar publicação
              </button>`
@@ -2382,6 +2546,10 @@ async function toggleLike(postId, btn) {
     }
   } else {
     await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+    await db.from('notifications').delete()
+      .eq('type', 'like')
+      .eq('post_id', postId)
+      .eq('actor_id', currentUser.id);
   }
 }
 
@@ -2448,12 +2616,13 @@ async function renderCommentsList(postId) {
   }
   list.innerHTML = comments.map(c => {
     const u = c.users || { username: '?', color: '#999' };
+    const canDelete = c.user_id === currentUser.id;
     return `
-      <div class="comment-item">
+      <div class="comment-item" id="comment-item-${c.id}">
         <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
         <div class="comment-body">
           <strong onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</strong><span> ${c.text}</span>
-          <div class="comment-time">${fmtTimeAgo(c.created_at)}</div>
+          <div class="comment-time">${fmtTimeAgo(c.created_at)}${canDelete ? ` · <button onclick="deleteComment('${c.id}','${c.post_id}')" style="background:none;border:none;color:#e53935;font-size:11px;cursor:pointer;padding:0;font-family:inherit;font-weight:600">apagar</button>` : ''}</div>
         </div>
       </div>`;
   }).join('');
@@ -3699,6 +3868,36 @@ function confirmCrop()  { confirmarCrop(); }
 if (typeof db !== 'undefined') loadFilters();
 
 </script>
+<!-- ── Modal Editar Post ── -->
+<div id="modal-edit-post" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeModal('modal-edit-post')"></div>
+  <div class="modal-box" style="max-width:420px;padding:24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <span style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--text)">Editar publicação</span>
+      <button class="modal-x" onclick="closeModal('modal-edit-post')">✕</button>
+    </div>
+    <input type="hidden" id="edit-post-id">
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Legenda</label>
+      <textarea id="edit-post-caption" rows="4" maxlength="2200"
+        style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Nunito',sans-serif;font-size:14px;resize:vertical;outline:none;color:var(--text);box-sizing:border-box"
+        onfocus="this.style.borderColor='#0095f6'" onblur="this.style.borderColor='var(--border)'"></textarea>
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Local</label>
+      <input type="text" id="edit-post-location" maxlength="100" placeholder="Adicionar localização..."
+        style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Nunito',sans-serif;font-size:14px;outline:none;color:var(--text);box-sizing:border-box"
+        onfocus="this.style.borderColor='#0095f6'" onblur="this.style.borderColor='var(--border)'">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeModal('modal-edit-post')"
+        style="padding:8px 18px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--text)">Cancelar</button>
+      <button onclick="saveEditPost()"
+        style="padding:8px 18px;border-radius:8px;border:none;background:#0095f6;color:#fff;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Painel de Notificações ── -->
 <div id="notif-panel" style="display:none;position:fixed;top:58px;right:16px;z-index:500;width:340px;max-height:480px;background:#fff;border:1px solid #e0e0e0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.14);overflow:hidden;flex-direction:column;font-family:'Nunito',sans-serif">
   <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0">
