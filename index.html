@@ -225,8 +225,8 @@
             <div class="pb-bottom"></div>
           </div>
           <h1 class="brand-name">
-            <span class="brand-logo-placeholder" style="display:none">PokéGram</span>
-            <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:54px;max-width:200px;object-fit:contain;vertical-align:middle;">
+            <span class="brand-logo-placeholder" style="display:none">Pokégram</span>
+            <img class="brand-logo-img" src="" alt="Pokégram" style="display:none;max-height:54px;max-width:200px;object-fit:contain;vertical-align:middle;">
           </h1>
         </div>
         <div class="auth-form" id="auth-form">
@@ -262,8 +262,8 @@
     <!-- TOP NAV -->
     <nav class="topnav">
       <div class="topnav-logo" onclick="showView('feed')">
-        <span class="brand-logo-placeholder" style="display:none">PokéGram</span>
-        <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:32px;max-width:130px;object-fit:contain;vertical-align:middle;">
+        <span class="brand-logo-placeholder" style="display:none">Pokégram</span>
+        <img class="brand-logo-img" src="" alt="Pokégram" style="display:none;max-height:32px;max-width:130px;object-fit:contain;vertical-align:middle;">
       </div>
       <div class="topnav-search">
         <div class="topnav-search-inner">
@@ -580,7 +580,7 @@
       </div>
       <div class="adm-nav-text">
         <span class="brand-logo-placeholder" style="display:none">Poké<span>Gram</span></span>
-        <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:28px;max-width:110px;object-fit:contain;vertical-align:middle;filter:brightness(0) invert(1);">
+        <img class="brand-logo-img" src="" alt="Pokégram" style="display:none;max-height:28px;max-width:110px;object-fit:contain;vertical-align:middle;filter:brightness(0) invert(1);">
       </div>
       <div class="adm-nav-badge">ADM</div>
     </div>
@@ -595,7 +595,7 @@
     <div class="adm-login-card">
       <div class="adm-login-icon">🔐</div>
       <div class="adm-login-title">Área Restrita</div>
-      <div class="adm-login-sub">Acesso exclusivo para administradores do PokéGram</div>
+      <div class="adm-login-sub">Acesso exclusivo para administradores do Pokégram</div>
       <div class="adm-field">
         <label>Usuário</label>
         <input type="text" id="adm-username" placeholder="seu_usuario" autocomplete="off" onkeydown="if(event.key==='Enter')fazerLoginAdm()"/>
@@ -640,7 +640,7 @@
           <!-- USUÁRIOS -->
           <div class="adm-section active" id="sec-usuarios">
             <div class="adm-sec-title">Usuários</div>
-            <div class="adm-sec-sub">Gerencie os jogadores cadastrados no PokéGram</div>
+            <div class="adm-sec-sub">Gerencie os jogadores cadastrados no Pokégram</div>
             <div class="adm-box">
               <div class="adm-box-title">🔑 Resetar Senha de Usuário</div>
               <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Insira o usuário e defina uma nova senha. O usuário deverá trocar na próxima vez que entrar.</p>
@@ -691,7 +691,7 @@
           <!-- STATS -->
           <div class="adm-section" id="sec-stats">
             <div class="adm-sec-title">Estatísticas</div>
-            <div class="adm-sec-sub">Visão geral do PokéGram</div>
+            <div class="adm-sec-sub">Visão geral do Pokégram</div>
             <div class="adm-stats-grid">
               <div class="adm-stat-card"><div class="adm-stat-value" id="stat-users">—</div><div class="adm-stat-label">Usuários</div></div>
               <div class="adm-stat-card"><div class="adm-stat-value" id="stat-posts">—</div><div class="adm-stat-label">Publicações</div></div>
@@ -740,7 +740,7 @@
           <!-- LOGO DA REDE -->
           <div class="adm-section" id="sec-logo">
             <div class="adm-sec-title">Logo da Rede Social</div>
-            <div class="adm-sec-sub">Faça upload da logo que aparece no lugar do nome "PokéGram" em todo o site. Ela fica armazenada no banco de dados.</div>
+            <div class="adm-sec-sub">Faça upload da logo que aparece no lugar do nome "Pokégram" em todo o site. Ela fica armazenada no banco de dados.</div>
             <div class="adm-box" style="max-width:480px">
               <div class="adm-box-title">Logo atual</div>
               <div id="logo-preview-wrap" style="margin-bottom:16px;min-height:60px;display:flex;align-items:center;gap:12px">
@@ -3250,7 +3250,7 @@ if (IS_ADM) {
   document.getElementById('pokegram-root').style.display = 'none';
   document.getElementById('adm-root').style.display = 'block';
   document.body.classList.add('adm-body');
-  document.title = 'PokéGram — ADM';
+  document.title = 'Pokégram — ADM';
   applyLogos();
   initAdm();
 } else {
