@@ -1234,10 +1234,19 @@ input, select, textarea { font-family: var(--font); }
     padding: 5px 12px; font-size: 13px; margin: 0;
   }
   .profile-stats {
-    display: flex; gap: 12px; margin-bottom: 0; margin-top: 0; flex-wrap: nowrap;
+    order: 98;
+    display: flex; justify-content: space-around; gap: 0;
+    margin-bottom: 0; margin-top: 0; flex-wrap: nowrap;
+    width: calc(100% + 32px);
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
   }
-  .stat-item { font-size: 13px; }
-  .stat-item strong { font-size: 14px; }
+  .stat-item { font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .stat-item strong { font-size: 14px; display: block; text-align: center; }
+  .stat-item span { color: var(--text); text-align: center; }
 
   /* Bio — sai do profile-meta e vai ponta a ponta abaixo */
   .profile-bio {
