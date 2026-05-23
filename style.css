@@ -1224,7 +1224,7 @@ input, select, textarea { font-family: var(--font); }
   .profile-meta {
     flex: 1; min-width: 0; overflow: hidden;
     display: flex; flex-direction: column; justify-content: center;
-    margin-top: -5px;
+    margin-top: -10px;
   }
   .profile-top-row {
     flex-wrap: nowrap; gap: 8px; margin-bottom: 4px; align-items: center;
@@ -1264,7 +1264,7 @@ input, select, textarea { font-family: var(--font); }
     width: calc(100% + 32px);
     margin-left: -16px;
     margin-right: -16px;
-    margin-top: 10px;
+    margin-top: 5px;
     padding: 8px 16px 14px;
     display: block;
     border-top: none;
