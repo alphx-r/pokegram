@@ -823,6 +823,10 @@
                   <label>Nome de exibição</label>
                   <input type="text" id="npc-name" placeholder="Nome do Personagem"/>
                 </div>
+                <div>
+                  <label class="adm-field-label">Senha <span style="font-size:11px;font-weight:400;color:var(--muted)">(opcional — permite login como perfil normal)</span></label>
+                  <input type="text" id="npc-password" placeholder="Deixe vazio para NPC sem login" autocomplete="off"/>
+                </div>
               </div>
               <div class="adm-field" style="margin-top:12px">
                 <label>Bio</label>
@@ -1300,6 +1304,7 @@ async function admNpcSalvar() {
   const pronoun  = document.getElementById('npc-pronoun').value;
   const rpg      = document.getElementById('npc-rpg').value;
   const color    = document.getElementById('npc-color').value;
+  const password = document.getElementById('npc-password').value.trim() || null;
   const okEl  = document.getElementById('npc-fb-ok');
   const errEl = document.getElementById('npc-fb-err');
   okEl.style.display = errEl.style.display = 'none';
@@ -1317,11 +1322,11 @@ async function admNpcSalvar() {
     _npcPendingAvatarFile = null;
   }
 
-  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true };
+  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true, ...(password ? { password } : {}) };
 
   let error;
   if (editId) {
-    const { error: e } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url }).eq('id', editId);
+    const { error: e } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url, ...(password !== null ? { password } : {}) }).eq('id', editId);
     error = e;
   } else {
     // Verifica se username já existe
@@ -1350,6 +1355,7 @@ function admNpcEditar(id) {
   document.getElementById('npc-pronoun').value    = u.pronoun || '';
   document.getElementById('npc-rpg').value        = u.rpg || '';
   document.getElementById('npc-color').value      = u.color || '#e53935';
+  document.getElementById('npc-password').value   = '';
   document.getElementById('npc-form-title').textContent = `✏️ Editando @${u.username}`;
   document.getElementById('npc-cancel-btn').style.display = 'inline-flex';
   _npcPendingAvatarFile = null;
