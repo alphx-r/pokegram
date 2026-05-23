@@ -339,44 +339,46 @@
   <!-- MODAIS POKÉGRAM -->
   <div id="modal-post" class="modal hidden">
     <div class="modal-backdrop" onclick="closeModal('modal-post')"></div>
-    <div class="modal-box">
-      <div class="modal-header">
-        <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
-        <h3>Nova publicação</h3>
-        <button class="btn-share-modal" onclick="submitPost()">Compartilhar</button>
-      </div>
-      <div class="post-modal-body">
-        <div class="post-img-area" id="post-image-area">
-          <!-- Tabs: foto ou emoji -->
-          <div class="post-type-tabs">
-            <button class="post-type-tab active" id="tab-photo" onclick="switchPostTab('photo')">
-              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              Foto
-            </button>
-            <button class="post-type-tab" id="tab-emoji" onclick="switchPostTab('emoji')">
-              <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-              Emoji
-            </button>
-          </div>
-          <!-- Área foto -->
-          <div id="post-photo-area" class="post-photo-upload-area" onclick="document.getElementById('post-img-file').click()">
-            <svg viewBox="0 0 24 24" width="40" height="40" stroke="#8e8e8e" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            <span style="color:#8e8e8e;font-size:14px;margin-top:8px">Clique para selecionar uma foto</span>
-            <span style="color:#b0b0b0;font-size:12px">JPG, PNG ou GIF</span>
-          </div>
-          <input type="file" id="post-img-file" accept="image/*" style="display:none" onchange="previewPostImage(this)">
-          <!-- Área emoji (oculta por padrão) -->
-          <div id="post-emoji-area" style="display:none;flex-direction:column;align-items:center;justify-content:center;height:100%">
-            <div id="emoji-bg-picker" class="emoji-picker-grid"></div>
-          </div>
+    <div class="modal-box" style="max-width:700px;width:95vw">
+      <!-- Step 1: selecionar foto -->
+      <div id="post-step-select">
+        <div class="modal-header">
+          <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
+          <h3>Nova publicação</h3>
+          <span></span>
         </div>
-        <div class="post-caption-side">
-          <div id="post-author-row" class="post-author-row"></div>
-          <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
-          <div class="post-fields">
-            <div class="pf-row">
-              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
+        <div id="post-drop-area" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:340px;gap:14px;cursor:pointer;padding:40px 20px" onclick="document.getElementById('post-img-file').click()">
+          <svg viewBox="0 0 24 24" width="52" height="52" stroke="#8e8e8e" fill="none" stroke-width="1.3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span style="color:#262626;font-size:18px;font-weight:600">Arraste e solte uma foto aqui</span>
+          <span style="color:#8e8e8e;font-size:14px">ou clique para selecionar</span>
+          <span style="background:#0095f6;color:#fff;font-weight:700;font-size:14px;padding:8px 20px;border-radius:8px;pointer-events:none">Selecionar do computador</span>
+        </div>
+        <input type="file" id="post-img-file" accept="image/*" style="display:none" onchange="previewPostImage(this)">
+      </div>
+
+      <!-- Step 2: caption + preview -->
+      <div id="post-step-caption" style="display:none">
+        <div class="modal-header">
+          <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
+          <h3>Nova publicação</h3>
+          <button class="btn-share-modal" onclick="submitPost()">Compartilhar</button>
+        </div>
+        <div class="post-modal-body">
+          <div class="post-img-area" id="post-image-area">
+            <div id="post-photo-area" style="width:100%;height:100%;background:#000;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden" onclick="document.getElementById('post-img-file-change').click()">
+              <img id="post-preview-img" style="width:100%;height:100%;object-fit:cover;display:none">
+              <div id="post-change-hint" style="display:none;position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px">Alterar foto</div>
+            </div>
+            <input type="file" id="post-img-file-change" accept="image/*" style="display:none" onchange="previewPostImage(this)">
+          </div>
+          <div class="post-caption-side">
+            <div id="post-author-row" class="post-author-row"></div>
+            <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
+            <div class="post-fields">
+              <div class="pf-row">
+                <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
+              </div>
             </div>
           </div>
         </div>
@@ -1813,44 +1815,55 @@ function avatarHTML(u, size, extraStyle) {
 
 // ── Build profile HTML (shared by own + other users) ──────
 function buildProfileHTML(u, userPosts, followers, following, isMe) {
+  const postCount = (userPosts||[]).length;
   return `
     <div class="profile-page">
+
+      <!-- Linha avatar + meta (username + stats) -->
       <div class="profile-header">
         <div class="profile-avatar-wrap">
-          ${avatarHTML(u, 150, 'cursor:pointer')}
+          ${avatarHTML(u, 86, 'cursor:pointer')}
         </div>
         <div class="profile-meta">
           <div class="profile-top-row">
             <span class="profile-username-text">${u.username}</span>
             ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
-            ${isMe
-              ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
-              : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
-            }
           </div>
           <div class="profile-stats">
-            <div class="stat-item"><strong>${(userPosts||[]).length}</strong> publicações</div>
-            <div class="stat-item"><strong>${fmtNum(followers||0)}</strong> seguidores</div>
-            <div class="stat-item"><strong>${fmtNum(following||0)}</strong> seguindo</div>
-          </div>
-          <div class="profile-bio">
-            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:13px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
-${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
-            ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
+            <div class="stat-item"><strong>${fmtNum(postCount)}</strong><span>posts</span></div>
+            <div class="stat-item"><strong>${fmtNum(followers||0)}</strong><span>seguidores</span></div>
+            <div class="stat-item"><strong>${fmtNum(following||0)}</strong><span>seguindo</span></div>
           </div>
         </div>
       </div>
+
+      <!-- Bio: full-width abaixo do header -->
+      <div class="profile-bio">
+        <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+        ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
+        ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
+      </div>
+
+      <!-- Botão editar/seguir: full-width abaixo da bio -->
+      ${isMe
+        ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
+        : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
+      }
+
       <div class="profile-tabs">
         <button class="tab-btn active">
           <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           Publicações
         </button>
       </div>
+
       <div class="profile-grid">
-        ${(userPosts||[]).length
+        ${postCount
           ? userPosts.map(p => `
               <div class="profile-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
-                <span>${p.emoji||'📸'}</span>
+                ${p.image_url
+                  ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;display:block">`
+                  : `<span>${p.emoji||'📸'}</span>`}
               </div>`).join('')
           : `<div class="profile-empty">Nenhuma publicação ainda.</div>`
         }
@@ -1864,7 +1877,7 @@ async function loadUserData(username) {
   if (error) console.error('Erro ao carregar usuário:', error);
   if (!u) return null;
   const [postsRes, followersRes, followingRes] = await Promise.all([
-    db.from('posts').select('id,emoji,bg').eq('user_id', u.id).order('created_at', { ascending: false }),
+    db.from('posts').select('id,emoji,bg,image_url').eq('user_id', u.id).order('created_at', { ascending: false }),
     db.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', u.id),
     db.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', u.id),
   ]);
@@ -2056,82 +2069,72 @@ function showNewStory() {
   openModal('modal-story-new');
 }
 
-// ── New Post ──────────────────────────────────────────────
-let _postActiveTab      = 'photo';
+// ── New Post ─────────────────────────────────────────────
 let _postPendingImageFile = null;
 
 function showNewPost() {
-  selectedPostEmoji     = null;
   _postPendingImageFile = null;
-  _postActiveTab        = 'photo';
   document.getElementById('post-caption').value  = '';
   document.getElementById('post-location').value = '';
   document.getElementById('post-img-file').value = '';
+
+  // volta para step 1 (seleção)
+  document.getElementById('post-step-select').style.display  = '';
+  document.getElementById('post-step-caption').style.display = 'none';
+
+  // reset preview
+  const prevImg = document.getElementById('post-preview-img');
+  if (prevImg) { prevImg.src = ''; prevImg.style.display = 'none'; }
+  const hint = document.getElementById('post-change-hint');
+  if (hint) hint.style.display = 'none';
+
+  // drag-and-drop
+  const dropArea = document.getElementById('post-drop-area');
+  if (dropArea) {
+    dropArea.ondragover  = e => { e.preventDefault(); dropArea.style.background = '#f0f8ff'; };
+    dropArea.ondragleave = () => { dropArea.style.background = ''; };
+    dropArea.ondrop      = e => {
+      e.preventDefault();
+      dropArea.style.background = '';
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) handlePostImageFile(file);
+    };
+  }
 
   const row = document.getElementById('post-author-row');
   if (row) row.innerHTML = `
     <div class="pa-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <span class="pa-name">${currentUser.username}</span>`;
 
-  // reset photo area
-  const photoArea = document.getElementById('post-photo-area');
-  if (photoArea) {
-    photoArea.style.backgroundImage = '';
-    photoArea.innerHTML = `
-      <svg viewBox="0 0 24 24" width="40" height="40" stroke="#8e8e8e" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      <span style="color:#8e8e8e;font-size:14px;margin-top:8px">Clique para selecionar uma foto</span>
-      <span style="color:#b0b0b0;font-size:12px">JPG, PNG ou GIF</span>`;
-    photoArea.onclick = () => document.getElementById('post-img-file').click();
-  }
-
-  // reset emoji area
-  const emojiArea = document.getElementById('post-emoji-area');
-  if (emojiArea) {
-    emojiArea.style.display = 'none';
-    const picker = document.getElementById('emoji-bg-picker');
-    if (picker) picker.innerHTML = EMOJI_BG_OPTIONS.map((o, i) =>
-      `<div class="emoji-pick-btn" onclick="selectPostEmoji(${i})" data-idx="${i}">${o.emoji}</div>`).join('');
-  }
-
-  // activate photo tab
-  document.getElementById('tab-photo')?.classList.add('active');
-  document.getElementById('tab-emoji')?.classList.remove('active');
-  document.getElementById('post-photo-area').style.display = '';
-  if (emojiArea) emojiArea.style.display = 'none';
-
   openModal('modal-post');
-}
-
-function switchPostTab(tab) {
-  _postActiveTab = tab;
-  ['photo','emoji'].forEach(t => {
-    document.getElementById('tab-' + t)?.classList.toggle('active', t === tab);
-  });
-  document.getElementById('post-photo-area').style.display  = tab === 'photo' ? ''     : 'none';
-  document.getElementById('post-emoji-area').style.display  = tab === 'emoji' ? 'flex' : 'none';
 }
 
 function previewPostImage(input) {
   const file = input.files[0];
   if (!file) return;
+  handlePostImageFile(file);
+  input.value = '';
+}
+
+function handlePostImageFile(file) {
   if (file.size > 15 * 1024 * 1024) { toast('Imagem muito grande. Máximo 15MB.'); return; }
   openCropper(file, 'square', croppedFile => {
     _postPendingImageFile = croppedFile;
     const reader = new FileReader();
     reader.onload = e => {
-      const photoArea = document.getElementById('post-photo-area');
-      if (photoArea) {
-        photoArea.style.backgroundImage = `url('${e.target.result}')`;
-        photoArea.style.backgroundSize = 'cover';
-        photoArea.style.backgroundPosition = 'center';
-        photoArea.onclick = () => document.getElementById('post-img-file').click();
-        photoArea.innerHTML = `<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;pointer-events:none">Alterar</div>`;
-      }
+      const img  = document.getElementById('post-preview-img');
+      const hint = document.getElementById('post-change-hint');
+      if (img)  { img.src = e.target.result; img.style.display = 'block'; }
+      if (hint) hint.style.display = 'block';
+      // avança para step 2
+      document.getElementById('post-step-select').style.display  = 'none';
+      document.getElementById('post-step-caption').style.display = '';
     };
     reader.readAsDataURL(croppedFile);
   });
-  input.value = '';
 }
+
+function switchPostTab() {} // mantido para compatibilidade, sem uso
 
 // ── Stories ───────────────────────────────────────────────
 let _storyPendingFile = null;
@@ -2335,38 +2338,23 @@ async function deletePost(postId) {
 async function submitPost() {
   const caption  = document.getElementById('post-caption').value.trim();
   const location = document.getElementById('post-location').value.trim();
-  if (!caption) return toast('Escreva uma legenda!');
-
-  const isPhoto = _postActiveTab === 'photo';
-  const isEmoji = _postActiveTab === 'emoji';
-
-  if (isPhoto && !_postPendingImageFile) return toast('Selecione uma foto!');
-  if (isEmoji && !selectedPostEmoji)     return toast('Escolha um emoji!');
+  if (!caption)              return toast('Escreva uma legenda!');
+  if (!_postPendingImageFile) return toast('Selecione uma foto!');
 
   const shareBtn = document.querySelector('#modal-post .btn-share-modal');
   if (shareBtn) { shareBtn.textContent = 'Publicando...'; shareBtn.disabled = true; }
 
-  let image_url = null;
-  if (isPhoto && _postPendingImageFile) {
-    const path = `${currentUser.id}_${Date.now()}.jpg`;
-    const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/jpeg' });
-    if (upErr) {
-      toast('Erro ao enviar foto: ' + upErr.message);
-      if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
-      return;
-    }
-    const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
-    image_url = urlData.publicUrl;
+  const path = `${currentUser.id}_${Date.now()}.jpg`;
+  const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/jpeg' });
+  if (upErr) {
+    toast('Erro ao enviar foto: ' + upErr.message);
+    if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
+    return;
   }
+  const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
+  const image_url = urlData.publicUrl;
 
-  const payload = {
-    user_id: currentUser.id,
-    caption, location,
-    image_url,
-    emoji: isEmoji ? selectedPostEmoji.emoji : null,
-    bg:    isEmoji ? selectedPostEmoji.bg    : null,
-  };
-
+  const payload = { user_id: currentUser.id, caption, location, image_url, emoji: null, bg: null };
   const { error } = await db.from('posts').insert(payload);
   if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
   if (error) { toast('Erro ao publicar. Tente novamente.'); return; }
@@ -2518,12 +2506,25 @@ function openCropper(file, mode, callback) {
 }
 
 function fitCropImage() {
-  const wrap = document.getElementById('cropper-wrap');
-  const img  = document.getElementById('cropper-img');
+  const wrap  = document.getElementById('cropper-wrap');
+  const img   = document.getElementById('cropper-img');
   const wSize = wrap.offsetWidth;
+  const hSize = wrap.offsetHeight;
   const ratio = img.naturalWidth / img.naturalHeight;
-  // fit so shortest side fills the circle diameter (84% of wrap)
-  const fit = ratio >= 1 ? wSize / img.naturalHeight : wSize / img.naturalWidth;
+
+  let fit;
+  if (_cropMode === 'square') {
+    // preenche o lado menor para cobrir todo o quadrado
+    fit = ratio >= 1
+      ? hSize / img.naturalHeight   // paisagem: altura cobre o wrap
+      : wSize / img.naturalWidth;   // retrato: largura cobre o wrap
+  } else if (_cropMode === 'story') {
+    fit = ratio >= 1 ? hSize / img.naturalHeight : wSize / img.naturalWidth;
+  } else {
+    // circle (avatar): menor lado preenche o círculo
+    fit = ratio >= 1 ? wSize / img.naturalHeight : wSize / img.naturalWidth;
+  }
+
   _cropState.baseScale = fit;
   _cropState.scale = 1;
   _cropState.x = 0;
@@ -2542,17 +2543,15 @@ function applyTransform() {
   const base  = _cropState.baseScale || 1;
   const scale = base * _cropState.scale;
   const wSize = wrap.offsetWidth;
-  // clamp translation so image never leaves the circle
+  const hSize = wrap.offsetHeight;
   const imgW  = img.naturalWidth  * scale;
   const imgH  = img.naturalHeight * scale;
-  const maxX  = Math.max(0, (imgW - wSize) / 2);
-  const maxY  = Math.max(0, (imgH - wSize) / 2);
-  _cropState.x = Math.max(-maxX, Math.min(maxX, _cropState.x));
-  _cropState.y = Math.max(-maxY, Math.min(maxY, _cropState.y));
+
+  // movimento livre — sem clamp, o usuário posiciona onde quiser
   img.style.width  = imgW + 'px';
   img.style.height = imgH + 'px';
   img.style.left   = (wSize/2 - imgW/2 + _cropState.x) + 'px';
-  img.style.top    = (wSize/2 - imgH/2 + _cropState.y) + 'px';
+  img.style.top    = (hSize/2 - imgH/2 + _cropState.y) + 'px';
 }
 
 function startDrag(x, y) {
@@ -2596,8 +2595,8 @@ function confirmCrop() {
     cropW = wSize * 0.45;  cropH = hSize * 0.90;
   } else if (_cropMode === 'square') {
     outW = outH = 1080;
-    cropX = wSize * 0.08; cropY = hSize * 0.08;
-    cropW = wSize * 0.84; cropH = hSize * 0.84;
+    // recorta exatamente o que está visível no wrap (quadrado inteiro)
+    cropX = 0; cropY = 0; cropW = wSize; cropH = hSize;
   } else {
     outW = outH = 400;
     cropX = 0; cropY = 0; cropW = wSize; cropH = hSize;
