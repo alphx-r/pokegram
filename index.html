@@ -1326,7 +1326,7 @@ async function admNpcSalvar() {
     _npcPendingAvatarFile = null;
   }
 
-  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true, ...(password ? { password } : {}) };
+  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true };
 
   let error;
   if (editId) {
@@ -1341,6 +1341,16 @@ async function admNpcSalvar() {
   }
 
   if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
+
+  // Se senha foi informada, salva o hash via RPC
+  if (password) {
+    // Precisamos do ID do NPC recém-criado ou editado
+    const npcId = editId || (await db.from('users').select('id').eq('username', username).maybeSingle()).data?.id;
+    if (npcId) {
+      const { error: pwErr } = await db.rpc('set_npc_password', { p_id: npcId, p_password: password });
+      if (pwErr) { errEl.textContent = 'NPC salvo, mas erro na senha: ' + pwErr.message; errEl.style.display = 'block'; return; }
+    }
+  }
 
   okEl.style.display = 'block';
   setTimeout(() => okEl.style.display = 'none', 2500);
@@ -1467,8 +1477,14 @@ async function admNpcModalSalvar() {
     _npcModalPendingAvatarFile = null;
   }
 
-  const { error } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url, ...(password ? { password } : {}) }).eq('id', id);
+  const { error } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url }).eq('id', id);
   if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
+
+  // Se senha foi informada, salva hash via RPC
+  if (password) {
+    const { error: pwErr } = await db.rpc('set_npc_password', { p_id: id, p_password: password });
+    if (pwErr) { errEl.textContent = 'Salvo, mas erro na senha: ' + pwErr.message; errEl.style.display = 'block'; return; }
+  }
 
   okEl.style.display = 'block';
   setTimeout(() => okEl.style.display = 'none', 2000);
