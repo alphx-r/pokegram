@@ -255,71 +255,41 @@
 
   <!-- MAIN APP -->
   <div id="app" class="hidden">
-    <nav id="sidebar" class="sidebar">
-      <div class="sidebar-logo">
-        <span class="brand-logo-placeholder brand-name-sm">PokéGram</span>
-        <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:36px;max-width:140px;object-fit:contain;vertical-align:middle;">
+
+    <!-- TOP NAV -->
+    <nav class="topnav">
+      <div class="topnav-logo" onclick="showView('feed')">
+        <span class="brand-logo-placeholder">PokéGram</span>
+        <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:32px;max-width:130px;object-fit:contain;vertical-align:middle;">
       </div>
-      <ul class="sidebar-nav">
-        <li>
-          <button class="sn-item active" id="btn-feed" onclick="showView('feed')">
-            <svg class="sn-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-            <span>Início</span>
-          </button>
-        </li>
-        <li>
-          <button class="sn-item" id="btn-explore" onclick="showView('explore')">
-            <svg class="sn-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span>Explorar</span>
-          </button>
-        </li>
-        <li>
-          <button class="sn-item" onclick="showNewPost()">
-            <svg class="sn-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            <span>Criar</span>
-          </button>
-        </li>
-        <li>
-          <button class="sn-item" id="btn-profile" onclick="showView('profile')">
-            <div class="sn-avatar" id="sn-avatar"></div>
-            <span>Perfil</span>
-          </button>
-        </li>
-      </ul>
-      <div class="sidebar-bottom">
-        <button class="sn-item sn-logout" onclick="doLogout()">
-          <svg class="sn-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          <span>Sair</span>
+      <div class="topnav-search">
+        <div class="topnav-search-inner">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="topnav-search-input" placeholder="Search" oninput="doTopSearch(this.value)" onclick="showView('explore')">
+        </div>
+      </div>
+      <div class="topnav-actions">
+        <button class="tn-btn active" id="btn-feed" onclick="showView('feed')" title="Início">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        </button>
+        <button class="tn-btn" onclick="showNewPost()" title="Criar">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        </button>
+        <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button class="tn-btn" id="btn-profile" onclick="showView('profile')" title="Perfil">
+          <div class="tn-avatar" id="sn-avatar"></div>
+        </button>
+        <button class="tn-btn" onclick="doLogout()" title="Sair">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
     </nav>
 
-    <nav class="bottom-nav">
-      <button class="bn-item active" id="bn-feed" onclick="showView('feed')">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-      </button>
-      <button class="bn-item" id="bn-explore" onclick="showView('explore')">
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      </button>
-      <button class="bn-item bn-create" onclick="showNewPost()">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      </button>
-      <button class="bn-item" id="bn-profile" onclick="showView('profile')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </button>
-    </nav>
-
     <main class="main-content">
       <div id="view-feed" class="view">
-        <div class="mobile-topbar">
-          <span class="brand-logo-placeholder brand-name-sm">PokéGram</span>
-          <img class="brand-logo-img" src="" alt="PokéGram" style="display:none;max-height:30px;max-width:120px;object-fit:contain;vertical-align:middle;">
-          <div class="topbar-actions">
-            <button onclick="showNewPost()">
-              <svg viewBox="0 0 24 24" width="24" height="24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            </button>
-          </div>
-        </div>
+        
         <div class="feed-layout">
           <div class="feed-center">
             <div class="stories-row" id="stories-row">
@@ -1207,6 +1177,7 @@ function renderSidebarAvatar() {
     el.style.background = currentUser.color || '#e53935';
     el.textContent = initials(currentUser.username);
   }
+  // also apply to tn-avatar (topnav uses same id)
 }
 
 // ── View Routing ──────────────────────────────────────────
@@ -1215,12 +1186,9 @@ async function showView(name) {
   const v = document.getElementById('view-' + name);
   if (v) v.classList.remove('hidden');
 
-  document.querySelectorAll('.sn-item').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tn-btn').forEach(b => b.classList.remove('active'));
   const sb = document.getElementById('btn-' + name);
   if (sb) sb.classList.add('active');
-  const bn = document.getElementById('bn-' + name);
-  if (bn) bn.classList.add('active');
 
   if (name === 'feed')    { history.replaceState(null,'','/'); await renderFeed(); }
   if (name === 'explore') { history.replaceState(null,'','/'); await renderExplore(); }
@@ -1536,6 +1504,13 @@ async function renderExplore(query) {
 }
 
 function doSearch(q) { renderExplore(q); }
+function doTopSearch(q) {
+  if (q.trim()) {
+    showView('explore');
+    document.getElementById('search-input').value = q;
+    renderExplore(q);
+  }
+}
 
 // ── Avatar color palette ──────────────────────────────────
 const AVATAR_COLORS = [
