@@ -2437,16 +2437,11 @@ if (IS_ADM) {
       <span>✂️ Ajustar imagem</span>
       <button onclick="fecharCrop()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#aaa;line-height:1">✕</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-      <button onclick="_cropSetRatio(1)"     style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Nunito',sans-serif;cursor:pointer">1:1</button>
-      <button onclick="_cropSetRatio(4/5)"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Nunito',sans-serif;cursor:pointer">4:5</button>
-      <button onclick="_cropSetRatio(16/9)"  style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Nunito',sans-serif;cursor:pointer">16:9</button>
-      <button onclick="_cropSetRatio(NaN)"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:12px;font-family:'Nunito',sans-serif;cursor:pointer">Livre</button>
-      <span style="margin-left:auto;display:flex;gap:4px">
-        <button onclick="_cropRotate(-90)" title="Girar -90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer">↺</button>
-        <button onclick="_cropRotate(90)"  title="Girar +90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer">↻</button>
-        <button onclick="_cropFlipX()"     title="Espelhar"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer">⇄</button>
-      </span>
+    <!-- apenas girar e espelhar -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;justify-content:flex-end">
+      <button onclick="_cropRotate(-90)" title="Girar -90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">↺</button>
+      <button onclick="_cropRotate(90)"  title="Girar +90°" style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">↻</button>
+      <button onclick="_cropFlipX()"     title="Espelhar"   style="background:#2a2a2a;border:1px solid #444;color:#fff;border-radius:6px;padding:6px 12px;font-size:16px;cursor:pointer">⇄</button>
     </div>
     <div style="max-height:360px;overflow:hidden;border-radius:8px;background:#000">
       <img id="crop-img" style="max-width:100%;display:block"/>
@@ -2471,13 +2466,13 @@ function _abrirCrop(src, callback, aspectRatio) {
   if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
   img.onload = () => {
     _cropperInstance = new Cropper(img, {
-      aspectRatio:   (aspectRatio === undefined || isNaN(aspectRatio)) ? NaN : aspectRatio,
-      viewMode:      1,
-      autoCropArea:  1,       // crop inicia cobrindo a imagem inteira
-      background:    false,   // sem xadrez / sem borda preta
-      responsive:    true,
+      aspectRatio:      (aspectRatio === undefined || isNaN(aspectRatio)) ? NaN : aspectRatio,
+      viewMode:         1,
+      autoCropArea:     1,
+      background:       false,
+      responsive:       true,
       checkOrientation: false,
-      guides:        true,
+      guides:           true,
     });
   };
   img.onerror = () => alert('Erro ao carregar a imagem.');
@@ -2489,20 +2484,21 @@ function _abrirCrop(src, callback, aspectRatio) {
 function fecharCrop() {
   document.getElementById('modal-crop-overlay').style.display = 'none';
   if (_cropperInstance) { _cropperInstance.destroy(); _cropperInstance = null; }
-  _cropCallback = null;
+  // NÃO zera _cropCallback aqui — confirmarCrop precisa dele ainda
 }
 
 function confirmarCrop() {
   if (!_cropperInstance || !_cropCallback) return;
+  const cb = _cropCallback; // salva referência antes de fechar
   const canvas = _cropperInstance.getCroppedCanvas({ maxWidth: 1080, maxHeight: 1080, imageSmoothingQuality: 'high' });
   canvas.toBlob(blob => {
     const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
     fecharCrop();
-    _cropCallback(file);
+    _cropCallback = null; // limpa só depois de usar
+    cb(file);             // dispara o callback com o arquivo recortado
   }, 'image/jpeg', 0.92);
 }
 
-function _cropSetRatio(r) { if (_cropperInstance) _cropperInstance.setAspectRatio(isNaN(r) ? NaN : r); }
 function _cropRotate(deg) { if (_cropperInstance) _cropperInstance.rotate(deg); }
 function _cropFlipX() {
   if (!_cropperInstance) return;
@@ -2512,8 +2508,8 @@ function _cropFlipX() {
 
 // adapters — mantém compatibilidade com openCropper(file, mode, callback)
 function openCropper(file, mode, callback) {
-  const ratioMap = { circle: 1, square: 1, story: 9/16 };
-  const ratio = ratioMap[mode] !== undefined ? ratioMap[mode] : 1;
+  // sempre 1:1 para postagens e avatar; 9:16 para stories
+  const ratio = (mode === 'story') ? 9/16 : 1;
   const reader = new FileReader();
   reader.onload = e => _abrirCrop(e.target.result, callback, ratio);
   reader.readAsDataURL(file);
