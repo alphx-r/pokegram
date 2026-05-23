@@ -1217,3 +1217,14 @@ input, select, textarea { font-family: var(--font); }
 .post-menu-item:last-child { border-bottom: none; }
 .post-menu-item:hover { background: #fafafa; }
 .post-menu-item.post-menu-danger { color: #e53935; font-weight: 700; }
+
+/* ── Stories ring ativo ───────────────────────────────── */
+.story-ring-active {
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888) !important;
+}
+.story-ring-active .story-pic {
+  border: 2.5px solid #fff;
+}
+
+/* ── Story viewer ─────────────────────────────────────── */
+#modal-story { display: none; }
