@@ -1395,7 +1395,7 @@ async function admNpcLoad() {
 
 function admNpcFiltrar(q) {
   const lq = q.toLowerCase();
-  admNpcRenderList(_allNpcs.filter(u => u.username.toLowerCase().includes(lq) || (u.name||'').toLowerCase().includes(lq)));
+  admNpcRenderList(_allNpcs.filter(u => u.username.toLowerCase().includes(lq) || (u.display_name||'').toLowerCase().includes(lq)));
 }
 
 function admNpcRenderList(list) {
@@ -1407,14 +1407,14 @@ function admNpcRenderList(list) {
   wrap.innerHTML = `<div class="adm-table-wrap"><table class="adm-table">
     <thead><tr><th>Avatar</th><th>Usuário</th><th>Nome</th><th>RPG</th><th>Cadastro</th><th>Ações</th></tr></thead>
     <tbody>${list.map(u => {
-      const bg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+      const bg = u.avatar_url ? 'transparent' : (u.avatar_color || '#e53935');
       const avContent = u.avatar_url
         ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
         : `<span style="font-size:11px;font-weight:800;color:#fff">${esc(u.username.slice(0,2).toUpperCase())}</span>`;
       return `<tr>
         <td><div style="width:36px;height:36px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${avContent}</div></td>
         <td><strong>@${esc(u.username)}</strong></td>
-        <td>${esc(u.name || '—')}</td>
+        <td>${esc(u.display_name || '—')}</td>
         <td>${rpgBadge(u.rpg)}</td>
         <td style="color:var(--muted);white-space:nowrap">${fmtDate(u.created_at)}</td>
         <td>
@@ -1512,7 +1512,7 @@ function admNpcEditar(id) {
   document.getElementById('npc-bio').value        = u.bio || '';
   document.getElementById('npc-pronoun').value    = u.pronoun || '';
   document.getElementById('npc-rpg').value        = u.rpg || '';
-  document.getElementById('npc-color').value      = u.color || '#e53935';
+  document.getElementById('npc-color').value      = u.avatar_color || '#e53935';
   document.getElementById('npc-password').value   = '';
   document.getElementById('npc-form-title').textContent = `✏️ Editando @${u.username}`;
   document.getElementById('npc-cancel-btn').style.display = 'inline-flex';
@@ -1523,7 +1523,7 @@ function admNpcEditar(id) {
     prev.style.background = 'transparent';
     prev.innerHTML = `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
   } else {
-    prev.style.background = u.color || '#e53935';
+    prev.style.background = u.avatar_color || '#e53935';
     prev.innerHTML = `<span style="font-size:18px;font-weight:800;color:#fff">${u.username.slice(0,2).toUpperCase()}</span>`;
   }
   document.getElementById('npc-form-box').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -1562,14 +1562,14 @@ function abrirModalEditarNpc(id) {
   document.getElementById('npc-modal-bio').value      = u.bio || '';
   document.getElementById('npc-modal-pronoun').value  = u.pronoun || '';
   document.getElementById('npc-modal-rpg').value      = u.rpg || '';
-  document.getElementById('npc-modal-color').value    = u.color || '#e53935';
+  document.getElementById('npc-modal-color').value    = u.avatar_color || '#e53935';
   document.getElementById('adm-npc-edit-title').textContent = `Editar @${u.username}`;
   document.getElementById('npc-modal-avatar-file').value = '';
   document.getElementById('npc-modal-fb-ok').style.display = 'none';
   document.getElementById('npc-modal-fb-err').style.display = 'none';
 
   const prev = document.getElementById('npc-modal-avatar-preview');
-  prev.style.background = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+  prev.style.background = u.avatar_url ? 'transparent' : (u.avatar_color || '#e53935');
   prev.innerHTML = u.avatar_url
     ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
     : `<span style="font-size:18px;font-weight:800;color:#fff">${u.username.slice(0,2).toUpperCase()}</span>`;
@@ -2368,7 +2368,7 @@ function renderSidebarAvatar() {
   el.style.alignItems      = 'center';
   el.style.justifyContent  = 'center';
   el.style.borderRadius    = '50%';
-  el.style.background      = currentUser.avatar_url ? 'transparent' : (currentUser.color || '#e53935');
+  el.style.background      = currentUser.avatar_url ? 'transparent' : (currentUser.avatar_color || '#e53935');
   if (currentUser.avatar_url) {
     el.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
   } else {
@@ -2425,7 +2425,7 @@ async function renderStories() {
       myPic.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
       myPic.style.background = 'transparent';
     } else {
-      myPic.style.background = currentUser.color || '#e53935';
+      myPic.style.background = currentUser.avatar_color || '#e53935';
       myPic.textContent = initials(currentUser.username);
     }
   }
@@ -2433,7 +2433,7 @@ async function renderStories() {
   // buscar stories ativos (não expirados) de outros usuários
   const { data: stories } = await db
     .from('stories')
-    .select('user_id, users(id, username, color, avatar_url, is_npc)')
+    .select('user_id, users(id, username, avatar_color, avatar_url, is_npc)')
     .gt('expires_at', new Date().toISOString())
     .neq('user_id', currentUser.id);
 
@@ -2464,7 +2464,7 @@ async function renderStories() {
     const u = s.users || {};
     const pic = u.avatar_url
       ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
-      : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username||'?')}</div>`;
+      : `<div class="story-pic" style="background:${u.avatar_color||'#e53935'}">${initials(u.username||'?')}</div>`;
     return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
       <div class="story-ring story-ring-active">${pic}</div>
       <span>${u.username}</span>
@@ -2479,7 +2479,7 @@ async function renderPosts() {
 
   const { data: posts, error } = await db
     .from('posts')
-    .select('*, users(id, username, color, avatar_url, is_npc)')
+    .select('*, users(id, username, avatar_color, avatar_url, is_npc)')
     .order('created_at', { ascending: false })
     .limit(30);
 
@@ -2589,7 +2589,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-timestamp">${fmtTimeAgo(p.created_at)}</div>
 
   <div class="post-comment-bar">
-    <div class="mini-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
+    <div class="mini-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.avatar_color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
       oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
     <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
@@ -2651,7 +2651,7 @@ async function openComments(postId) {
   if (!post || !post.users) {
     const { data } = await db
       .from('posts')
-      .select('*, users(id, username, color, avatar_url, is_npc)')
+      .select('*, users(id, username, avatar_color, avatar_url, is_npc)')
       .eq('id', postId)
       .maybeSingle();
     post = data;
@@ -2704,7 +2704,7 @@ async function openComments(postId) {
     const avatarHTML_u = u.avatar_url
       ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
       : initials(u.username || '?');
-    const avatarBg = u.avatar_url ? 'transparent' : (u.color || '#999');
+    const avatarBg = u.avatar_url ? 'transparent' : (u.avatar_color || '#999');
 
     capEl.innerHTML = `
       <div class="cpc-header">
@@ -2774,7 +2774,7 @@ async function openComments(postId) {
       myAv.style.background = 'transparent';
       myAv.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
     } else {
-      myAv.style.background = currentUser.color || '#e53935';
+      myAv.style.background = currentUser.avatar_color || '#e53935';
       myAv.textContent = initials(currentUser.username);
     }
   }
@@ -2868,7 +2868,7 @@ async function renderCommentsList(postId) {
   if (!list) return;
   const { data: comments } = await db
     .from('comments')
-    .select('*, users(username, color, avatar_url)')
+    .select('*, users(username, avatar_color, avatar_url)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
 
@@ -2881,7 +2881,7 @@ async function renderCommentsList(postId) {
     const canDelete = c.user_id === currentUser.id;
     return `
       <div class="comment-item" id="comment-item-${c.id}">
-        <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
+        <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.avatar_color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
         <div class="comment-body">
           <strong onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</strong><span> ${c.text}</span>
           <div class="comment-time">${fmtTimeAgo(c.created_at)}${canDelete ? ` · <button onclick="deleteComment('${c.id}','${c.post_id}')" style="background:none;border:none;color:#e53935;font-size:11px;cursor:pointer;padding:0;font-family:inherit;font-weight:600">apagar</button>` : ''}</div>
@@ -2925,10 +2925,10 @@ function renderAsideMini() {
   if (!el) return;
   el.innerHTML = `
     <div class="profile-mini-card">
-      <div class="pm-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden" onclick="showView('profile')">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
+      <div class="pm-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.avatar_color||'#e53935')};overflow:hidden" onclick="showView('profile')">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
       <div class="pm-info">
         <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
-        <div class="pm-name">${currentUser.name || currentUser.username}</div>
+        <div class="pm-name">${currentUser.display_name || currentUser.username}</div>
       </div>
       <div class="pm-switch"><a href="#" onclick="doLogout();return false">Sair</a></div>
     </div>`;
@@ -2937,10 +2937,10 @@ function renderAsideMini() {
 async function renderSuggestions() {
   const el = document.getElementById('suggestions-list');
   if (!el) return;
-  const { data: users } = await db.from('users').select('id,username,color,avatar_url,rpg').neq('id', currentUser.id).or('is_npc.is.null,is_npc.eq.false').limit(5);
+  const { data: users } = await db.from('users').select('id,username,avatar_color,avatar_url,rpg').neq('id', currentUser.id).or('is_npc.is.null,is_npc.eq.false').limit(5);
   el.innerHTML = (users || []).map(u => `
     <div class="suggestion-item">
-      <div class="sug-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
+      <div class="sug-avatar" style="background:${u.avatar_url?'transparent':(u.avatar_color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
       <div class="sug-info">
         <div class="sug-name" onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</div>
         <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
@@ -3102,7 +3102,7 @@ const AVATAR_COLORS = [
 
 function avatarHTML(u, size, extraStyle) {
   const sz = size || 40;
-  const bg = u.color || '#e53935';
+  const bg = u.avatar_color || '#e53935';
   if (u.avatar_url) {
     return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;overflow:hidden;flex-shrink:0;${extraStyle||''}"><img src="${u.avatar_url}" alt="${u.username}" style="width:100%;height:100%;object-fit:cover"></div>`;
   }
@@ -3115,7 +3115,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
   const avatarInner = u.avatar_url
     ? `<img src="${u.avatar_url}" alt="${u.username}">`
     : `<span>${initials(u.username)}</span>`;
-  const avatarBg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+  const avatarBg = u.avatar_url ? 'transparent' : (u.avatar_color || '#e53935');
 
   return `
     <div class="profile-page">
@@ -3145,7 +3145,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
           </div>
         </div>
         <div class="profile-bio">
-          <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+          <div class="prof-name">${u.display_name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
           ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
           ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
         </div>
@@ -3219,11 +3219,11 @@ let _epSelectedColor = null;
 
 function openEditProfile() {
   const u = currentUser;
-  _epSelectedColor = u.color || '#e53935';
+  _epSelectedColor = u.avatar_color || '#e53935';
 
   // preenche campos
   document.getElementById('ep-username').value = u.username || '';
-  document.getElementById('ep-name').value     = u.name    || '';
+  document.getElementById('ep-name').value     = u.display_name    || '';
   document.getElementById('ep-bio').value      = u.bio     || '';
   document.getElementById('ep-bio-count').textContent = (u.bio||'').length + '/150';
   document.getElementById('ep-rpg').value      = u.rpg     || '';
@@ -3303,7 +3303,7 @@ async function submitEditProfile() {
   const bio      = document.getElementById('ep-bio').value.trim();
   const rpg      = document.getElementById('ep-rpg').value;
   const pronoun  = document.getElementById('ep-pronoun').value;
-  const color    = _epSelectedColor || currentUser.color || '#e53935';
+  const color    = _epSelectedColor || currentUser.avatar_color || '#e53935';
   const errEl    = document.getElementById('ep-save-err');
   const usernErr = document.getElementById('ep-username-err');
   const saveBtn  = document.querySelector('#modal-edit-profile .btn-share-modal');
@@ -3412,7 +3412,7 @@ function showNewPost() {
 
   const row = document.getElementById('post-author-row');
   if (row) row.innerHTML = `
-    <div class="pa-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
+    <div class="pa-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.avatar_color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <span class="pa-name">${currentUser.username}</span>`;
 
   openModal('modal-post');
@@ -3499,7 +3499,7 @@ async function openStoryViewer(userId) {
   // busca stories do usuário (não expirados)
   const { data: stories } = await db
     .from('stories')
-    .select('*, users(id, username, color, avatar_url, is_npc)')
+    .select('*, users(id, username, avatar_color, avatar_url, is_npc)')
     .eq('user_id', userId)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: true });
@@ -3525,7 +3525,7 @@ function showStory(idx) {
   const avEl = document.getElementById('sv-avatar');
   avEl.innerHTML = u.avatar_url
     ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover">`
-    : `<div style="width:100%;height:100%;background:${u.color||'#e53935'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif">${initials(u.username||'?')}</div>`;
+    : `<div style="width:100%;height:100%;background:${u.avatar_color||'#e53935'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif">${initials(u.username||'?')}</div>`;
 
   document.getElementById('sv-username').textContent = u.username || '?';
   document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás';
@@ -3785,7 +3785,7 @@ async function renderNotifList() {
   const actorIds = [...new Set(notifs.map(n => n.actor_id).filter(Boolean))];
   const postIds  = [...new Set(notifs.map(n => n.post_id).filter(Boolean))];
   const [{ data: actors }, { data: posts }] = await Promise.all([
-    db.from('users').select('id, username, color, avatar_url').in('id', actorIds),
+    db.from('users').select('id, username, avatar_color, avatar_url').in('id', actorIds),
     db.from('posts').select('id, image_url, emoji, bg').in('id', postIds)
   ]);
   const actorMap = Object.fromEntries((actors||[]).map(a => [a.id, a]));
@@ -3802,7 +3802,7 @@ async function renderNotifList() {
     const av = actor.avatar_url
       ? `<img src="${actor.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
       : initials(actor.username);
-    const avBg = actor.avatar_url ? 'transparent' : (actor.color || '#e53935');
+    const avBg = actor.avatar_url ? 'transparent' : (actor.avatar_color || '#e53935');
     const thumb = post ? (post.image_url
       ? `<img src="${post.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0">`
       : `<div style="width:44px;height:44px;border-radius:6px;background:${post.bg||'#eee'};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${post.emoji||'📸'}</div>`)
@@ -4556,11 +4556,11 @@ function chatSubscribeRealtime() {
 // ── Iniciar conversa a partir de um perfil ───────────────
 async function chatStartConversation(peerUsername) {
   if (!currentUser || peerUsername === currentUser.username) return;
-  const { data: peerUser } = await db.from('users').select('id,username,name,color,avatar_url').eq('username', peerUsername).maybeSingle();
+  const { data: peerUser } = await db.from('users').select('id,username,display_name,avatar_color,avatar_url').eq('username', peerUsername).maybeSingle();
   if (!peerUser) { toast('Usuário não encontrado.'); return; }
   // normaliza campos para o formato esperado pelo chat
-  if (!peerUser.avatar_color) peerUser.avatar_color = peerUser.color;
-  if (!peerUser.display_name)  peerUser.display_name  = peerUser.name || peerUser.username;
+  if (!peerUser.avatar_color) peerUser.avatar_color = peerUser.avatar_color;
+  if (!peerUser.display_name)  peerUser.display_name  = peerUser.display_name || peerUser.username;
   await openChatPanel();
   await chatOpenWindow(peerUser);
 }
