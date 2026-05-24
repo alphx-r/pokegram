@@ -190,7 +190,7 @@
         gifEl.style.display = 'block';
         if (pokeEl) pokeEl.style.display = 'none';
       }
-    } catch(e) { console.warn('GIF splash não carregado:', e); }
+    } catch(e) { /* silencioso — pokeball padrão permanece */ }
   }
   async function applyLogos() {
     const url = await getNetworkLogo();
@@ -204,8 +204,13 @@
   }
   window.applyLogos = applyLogos;
   window.getNetworkLogo = getNetworkLogo;
-  applySplashGif(); // carrega GIF antes do splash ser ocultado
-  applyLogos(); // carrega logo antes do splash
+  // Aguarda DOM pronto antes de tentar acessar elementos do splash
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { applySplashGif(); applyLogos(); });
+  } else {
+    applySplashGif();
+    applyLogos();
+  }
 
   // Estado de autenticação — declarado aqui para evitar "before initialization"
   var isRegisterMode = false;
@@ -1236,16 +1241,30 @@ function enterApp(user) {
 function doLogout() { clearSession(); currentUser = null; location.reload(); }
 
 async function initPokegram() {
-  const saved = loadSession();
-  if (saved) {
-    currentUser = saved;
-    // Re-fetch dados frescos do banco para garantir avatar_url e demais campos atualizados
-    try {
-      const { data: fresh } = await db.from('users').select('*').eq('id', saved.id).maybeSingle();
-      if (fresh) { currentUser = fresh; saveSession(fresh); }
-    } catch(_) {}
-    enterApp(currentUser);
-  } else {
+  // Segurança: força o splash a sumir após 8s no máximo
+  const splashTimeout = setTimeout(() => {
+    hideSplash();
+    document.getElementById('auth-screen').style.display = 'flex';
+  }, 8000);
+
+  try {
+    const saved = loadSession();
+    if (saved) {
+      currentUser = saved;
+      // Re-fetch dados frescos do banco para garantir avatar_url e demais campos atualizados
+      try {
+        const { data: fresh } = await db.from('users').select('*').eq('id', saved.id).maybeSingle();
+        if (fresh) { currentUser = fresh; saveSession(fresh); }
+      } catch(_) {}
+      clearTimeout(splashTimeout);
+      enterApp(currentUser);
+    } else {
+      clearTimeout(splashTimeout);
+      hideSplash();
+      document.getElementById('auth-screen').style.display = 'flex';
+    }
+  } catch(err) {
+    clearTimeout(splashTimeout);
     hideSplash();
     document.getElementById('auth-screen').style.display = 'flex';
   }
