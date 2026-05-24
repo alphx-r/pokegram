@@ -707,7 +707,7 @@ input, select, textarea { font-family: var(--font); }
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 .profile-username-text {
@@ -746,14 +746,14 @@ input, select, textarea { font-family: var(--font); }
 .profile-stats {
   display: flex;
   gap: 40px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 .stat-item { font-size: 16px; }
 .stat-item strong { font-weight: 700; }
 .stat-item span { color: var(--text); }
 
 .profile-bio {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .profile-bio .prof-name {
   font-weight: 700;
@@ -1139,6 +1139,7 @@ input, select, textarea { font-family: var(--font); }
   flex-direction: column;
   min-width: 0;
   background: var(--white);
+  overflow: hidden;
 }
 .comments-right-side .modal-header {
   border-bottom: 1px solid var(--border);
@@ -1148,12 +1149,15 @@ input, select, textarea { font-family: var(--font); }
   flex: 1;
   overflow-y: auto;
 }
-.comment-actions-bar {
-  padding: 8px 12px 4px;
-  border-top: 1px solid var(--border-lt);
+/* Footer fixo grudado no bottom */
+.comments-footer {
   flex-shrink: 0;
+  border-top: 1px solid var(--border-lt);
 }
-.cab-actions { display: flex; gap: 4px; }
+.comment-actions-bar {
+  padding: 8px 12px 2px;
+}
+.cab-actions { display: flex; gap: 4px; align-items: center; }
 .cab-likes { font-size: 13px; font-weight: 700; color: var(--text); padding: 2px 4px; }
 
 /* ============================
