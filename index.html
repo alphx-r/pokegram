@@ -667,7 +667,6 @@
           <button class="adm-snav-btn active" onclick="admTab(this,'usuarios')">👥 Usuários</button>
           <button class="adm-snav-btn" onclick="admTab(this,'posts')">📸 Publicações</button>
           <button class="adm-snav-btn" onclick="admTab(this,'stats')">📊 Estatísticas</button>
-          <button class="adm-snav-btn" onclick="admTab(this,'chats')">💬 Chats</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
           <button class="adm-snav-btn" onclick="admTab(this,'imagens')">🖼 Imagens Pokégram</button>
@@ -745,20 +744,6 @@
             <div class="adm-box">
               <div class="adm-box-title">Usuários recentes</div>
               <div id="recent-users-list"></div>
-            </div>
-          </div>
-
-          <!-- CHATS -->
-          <div class="adm-section" id="sec-chats">
-            <div class="adm-sec-title">Chats</div>
-            <div class="adm-sec-sub">Visualize todas as conversas ativas entre usuários.</div>
-            <div class="adm-box" style="margin-bottom:14px">
-              <input type="text" id="adm-chat-search" placeholder="Buscar por usuário..." autocomplete="off"
-                style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px"
-                oninput="admChatSearch(this.value)">
-            </div>
-            <div id="adm-chats-list" style="display:flex;flex-direction:column;gap:8px">
-              <div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Carregando...</div>
             </div>
           </div>
 
@@ -1163,10 +1148,9 @@ function loadSession()  {
 function clearSession() { localStorage.removeItem('pg_user'); }
 
 async function dbLogin(username, password) {
-  const normalized = username.replace(/\s/g, '').toLowerCase();
   let result;
   try {
-    result = await db.rpc('login_user', { p_username: normalized, p_password: password });
+    result = await db.rpc('login_user', { p_username: username, p_password: password });
   } catch (netErr) {
     throw new Error('network');
   }
@@ -1183,8 +1167,7 @@ async function dbLogin(username, password) {
   return data;
 }
 async function dbRegister(username, password, rpg, emoji, pronoun) {
-  const normalized = username.replace(/\s/g, '').toLowerCase();
-  const { data, error } = await db.rpc('register_user', { p_username: normalized, p_password: password, p_rpg: rpg, p_emoji: emoji || '🎮' });
+  const { data, error } = await db.rpc('register_user', { p_username: username, p_password: password, p_rpg: rpg, p_emoji: emoji || '🎮' });
   if (error) throw error;
   const user = Array.isArray(data) ? data[0] : data;
   // salva pronome separadamente pois a RPC pode não suportá-lo ainda
@@ -1195,8 +1178,7 @@ async function dbRegister(username, password, rpg, emoji, pronoun) {
   return user || null;
 }
 async function dbCheckUserExists(username) {
-  const normalized = username.replace(/\s/g, '').toLowerCase();
-  const { data } = await db.from('users').select('id').ilike('username', normalized).maybeSingle();
+  const { data } = await db.from('users').select('id').eq('username', username).maybeSingle();
   return !!data;
 }
 
@@ -1229,8 +1211,7 @@ function hideAuthError()    { document.getElementById('auth-error').style.displa
 
 async function doAuth() {
   hideAuthError();
-  const raw      = document.getElementById('login-username').value;
-  const username = raw.replace(/\s/g, '').toLowerCase();
+  const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   const btn      = document.getElementById('auth-btn');
   if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
@@ -1869,92 +1850,9 @@ function admTab(btn, id) {
   document.getElementById('sec-' + id).classList.add('active');
   if (id === 'posts')   carregarPosts();
   if (id === 'stats')   carregarStats();
-  if (id === 'chats')   admCarregarChats();
   if (id === 'imagens') { carregarLogoAdm(); }
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
   if (id === 'npcs')    admNpcLoad();
-}
-
-// ── ADM Chats ─────────────────────────────────────────────
-let _admAllChats = [];
-
-async function admCarregarChats() {
-  const list = document.getElementById('adm-chats-list');
-  list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Carregando...</div>';
-  const { data: msgs, error } = await db.from('messages').select('id,sender_id,receiver_id,content,created_at,read').order('created_at', { ascending: false });
-  if (error) { list.innerHTML = `<div style="color:#e53935;font-size:13px">Erro: ${error.message}</div>`; return; }
-  if (!msgs || !msgs.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Nenhuma conversa ainda.</div>'; return; }
-  const convMap = {};
-  for (const m of msgs) {
-    const key = [m.sender_id, m.receiver_id].sort().join('_');
-    if (!convMap[key]) convMap[key] = { key, messages: [], ids: [m.sender_id, m.receiver_id].sort() };
-    convMap[key].messages.push(m);
-  }
-  const allIds = [...new Set(msgs.flatMap(m => [m.sender_id, m.receiver_id]))];
-  const { data: users } = await db.from('users').select('id,username,name,color,avatar_url').in('username', allIds);
-  const uMap = {};
-  (users||[]).forEach(u => uMap[u.username] = u);
-  _admAllChats = Object.values(convMap).map(conv => {
-    const [idA, idB] = conv.ids;
-    const uA = uMap[idA] || { username: idA };
-    const uB = uMap[idB] || { username: idB };
-    const last = conv.messages[0];
-    const unread = conv.messages.filter(m => !m.read).length;
-    return { key: conv.key, uA, uB, last, total: conv.messages.length, unread, messages: conv.messages };
-  }).sort((a, b) => new Date(b.last.created_at) - new Date(a.last.created_at));
-  admChatRender(_admAllChats);
-}
-
-function admChatSearch(q) {
-  const lq = q.toLowerCase();
-  admChatRender(_admAllChats.filter(c => c.uA.username.toLowerCase().includes(lq) || c.uB.username.toLowerCase().includes(lq)));
-}
-
-function admChatRender(chats) {
-  const list = document.getElementById('adm-chats-list');
-  if (!chats.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center">Nenhuma conversa encontrada.</div>'; return; }
-  list.innerHTML = chats.map(c => `
-    <div class="adm-box" style="padding:12px 16px;cursor:pointer" onclick="admChatAbrir('${c.key}')">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
-          <span style="font-size:15px">💬</span>
-          <div style="min-width:0">
-            <div style="font-weight:700;font-size:13px">@${esc(c.uA.username)} ↔ @${esc(c.uB.username)}</div>
-            <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px">${esc(c.last.content||'')}</div>
-          </div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-          <span style="font-size:11px;color:var(--muted)">${fmtTimeAgo(c.last.created_at)}</span>
-          <span style="font-size:11px;color:var(--muted)">${c.total} msg${c.total>1?'s':''}</span>
-          ${c.unread ? `<span style="background:#e53935;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:20px">${c.unread} não lidas</span>` : ''}
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-function admChatAbrir(key) {
-  const conv = _admAllChats.find(c => c.key === key);
-  if (!conv) return;
-  const msgs = [...conv.messages].reverse();
-  const html = `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="this.remove()">
-      <div style="background:#fff;border-radius:14px;width:min(520px,95vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden" onclick="event.stopPropagation()">
-        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-          <span style="font-weight:800;font-size:15px">@${esc(conv.uA.username)} ↔ @${esc(conv.uB.username)}</span>
-          <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
-        </div>
-        <div style="overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px">
-          ${msgs.map(m => {
-            const senderName = m.sender_id === conv.uA.username ? conv.uA.username : conv.uB.username;
-            return `<div style="display:flex;flex-direction:column;gap:2px">
-              <span style="font-size:11px;color:var(--muted);font-weight:700">@${esc(senderName)} · ${fmtTimeAgo(m.created_at)}</span>
-              <div style="background:#f5f5f5;border-radius:8px;padding:7px 10px;font-size:13px;max-width:90%">${esc(m.content||'')}</div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
 }
 
 // ── Usuários ──────────────────────────────────────────────
@@ -2583,7 +2481,7 @@ async function renderStories() {
       : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username||'?')}</div>`;
     return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
       <div class="story-ring story-ring-active">${pic}</div>
-      <span>${u.username}</span>
+      <span style="color:${u.color||'inherit'};font-weight:${u.color?'700':'400'}">${esc(u.username)}</span>
     </div>`;
   }).join('');
 }
@@ -2616,7 +2514,7 @@ async function renderPosts() {
   // buscar último comentário de cada post
   const { data: lastComments } = await db
     .from('comments')
-    .select('post_id, text, users(username)')
+    .select('post_id, text, users(username, color)')
     .in('post_id', postIds)
     .order('created_at', { ascending: false });
 
@@ -2640,7 +2538,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 
   const commentPreview = lastComment
     ? `<div class="post-comment-preview">
-        <span class="cap-user" onclick="showUserProfile('${lastComment.users?.username || ''}'); event.stopPropagation()" style="cursor:pointer">${lastComment.users?.username || '?'}</span>
+        <span class="cap-user" onclick="showUserProfile('${lastComment.users?.username || ''}'); event.stopPropagation()" style="cursor:pointer;color:${lastComment.users?.color||'inherit'};font-weight:700">${esc(lastComment.users?.username || '?')}</span>
         <span>${formatCaption(lastComment.text || '')}</span>
        </div>`
     : '';
@@ -2650,7 +2548,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-header">
     <div onclick="showUserProfile('${author.username}')" style="cursor:pointer">${avatarHTML(author, 32, 'border:1px solid #dbdbdb')}</div>
     <div class="post-header-info">
-      <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}${author.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px;letter-spacing:.3px;vertical-align:middle">NPC</span>' : ''}</div>
+      <div class="post-username" onclick="showUserProfile('${author.username}')">${usernameSpan(author)}${author.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px;letter-spacing:.3px;vertical-align:middle">NPC</span>' : ''}</div>
       ${p.location ? `<div class="post-location-tag">${p.location}</div>` : ''}
     </div>
     <div class="post-header-more-wrap">
@@ -2698,7 +2596,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 
   <div class="post-likes" id="likes-${p.id}">${fmtNum(likeCount)} curtida${likeCount !== 1 ? 's' : ''}</div>
   <div class="post-caption-text">
-    <span class="cap-user" onclick="showUserProfile('${author.username}')" style="cursor:pointer">${author.username}</span>${formatCaption(p.caption||'')}
+    <span class="cap-user" onclick="showUserProfile('${author.username}')" style="cursor:pointer;color:${author.color||'inherit'};font-weight:700">${esc(author.username)}</span>${formatCaption(p.caption||'')}
   </div>
   ${commentCount > 1 ? `<div class="post-view-comments" onclick="openComments('${p.id}')">Ver todos os ${commentCount} comentários</div>` : ''}
   ${commentPreview}
@@ -2827,12 +2725,12 @@ async function openComments(postId) {
         <div style="width:34px;height:34px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden;cursor:pointer;border:1px solid var(--border)"
           onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${avatarHTML_u}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;cursor:pointer" onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${u.username || ''}${u.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>' : ''}</div>
+          <div style="font-weight:700;font-size:13px;cursor:pointer;color:${u.color||'inherit'}" onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${esc(u.username || '')}${u.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>' : ''}</div>
           ${post.location ? `<div style="font-size:11px;color:var(--muted)">${post.location}</div>` : ''}
         </div>
         ${menuHTML}
       </div>
-      ${post.caption ? `<div class="cpc-text"><span style="font-weight:700">${u.username || ''}</span> ${formatCaption(post.caption)}</div>` : ''}
+      ${post.caption ? `<div class="cpc-text"><span style="font-weight:700;color:${u.color||'inherit'}">${esc(u.username || '')}</span> ${formatCaption(post.caption)}</div>` : ''}
     `;
   }
 
@@ -2999,7 +2897,7 @@ async function renderCommentsList(postId) {
       <div class="comment-item" id="comment-item-${c.id}">
         <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
         <div class="comment-body">
-          <strong onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</strong><span> ${c.text}</span>
+          <strong onclick="showUserProfile('${u.username}')" style="cursor:pointer;color:${u.color||'inherit'}">${esc(u.username)}</strong><span> ${c.text}</span>
           <div class="comment-time">${fmtTimeAgo(c.created_at)}${canDelete ? ` · <button onclick="deleteComment('${c.id}','${c.post_id}')" style="background:none;border:none;color:#e53935;font-size:11px;cursor:pointer;padding:0;font-family:inherit;font-weight:600">apagar</button>` : ''}</div>
         </div>
       </div>`;
@@ -3043,7 +2941,7 @@ function renderAsideMini() {
     <div class="profile-mini-card">
       <div class="pm-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden" onclick="showView('profile')">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
       <div class="pm-info">
-        <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
+        <div class="pm-username" onclick="showView('profile')" style="color:${currentUser.color||'inherit'}">${currentUser.username}</div>
         <div class="pm-name">${currentUser.name || currentUser.username}</div>
       </div>
       <div class="pm-switch"><a href="#" onclick="doLogout();return false">Sair</a></div>
@@ -3058,7 +2956,7 @@ async function renderSuggestions() {
     <div class="suggestion-item">
       <div class="sug-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
       <div class="sug-info">
-        <div class="sug-name" onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</div>
+        <div class="sug-name" onclick="showUserProfile('${u.username}')" style="cursor:pointer;color:${u.color||'inherit'};font-weight:${u.color?'700':'600'}">${esc(u.username)}</div>
         <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
       </div>
       <button class="btn-follow-sm" id="follow-btn-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id] ? 'Seguindo' : 'Seguir'}</button>
@@ -3208,7 +3106,13 @@ const AVATAR_COLORS = [
   '#6d4c41','#546e7a','#000000','#c0392b','#2980b9'
 ];
 
-function avatarHTML(u, size, extraStyle) {
+// Retorna a cor do usuário para colorir o @username
+function userColor(u) { return (u && u.color) ? u.color : null; }
+function usernameSpan(u, extraStyle) {
+  const c = userColor(u);
+  const style = c ? `color:${c};font-weight:700;${extraStyle||''}` : (extraStyle||'');
+  return `<span style="${style}">${esc(u.username||'?')}</span>`;
+}
   const sz = size || 40;
   const bg = u.color || '#e53935';
   if (u.avatar_url) {
@@ -3237,7 +3141,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
           </div>
           <div class="profile-meta">
             <div class="profile-top-row">
-              <span class="profile-username-text">${u.username}</span>
+              <span class="profile-username-text" style="color:${u.color||'inherit'}">${esc(u.username)}</span>
               ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
               ${isMe
                 ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
@@ -3521,7 +3425,7 @@ function showNewPost() {
   const row = document.getElementById('post-author-row');
   if (row) row.innerHTML = `
     <div class="pa-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
-    <span class="pa-name">${currentUser.username}</span>`;
+    <span class="pa-name" style="color:${currentUser.color||'inherit'}">${currentUser.username}</span>`;
 
   openModal('modal-post');
 }
@@ -3636,6 +3540,7 @@ function showStory(idx) {
     : `<div style="width:100%;height:100%;background:${u.color||'#e53935'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif">${initials(u.username||'?')}</div>`;
 
   document.getElementById('sv-username').textContent = u.username || '?';
+  document.getElementById('sv-username').style.color = u.color || '#fff';
   document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás';
 
   // botão apagar (só dono)
@@ -3916,8 +3821,8 @@ async function renderNotifList() {
       : `<div style="width:44px;height:44px;border-radius:6px;background:${post.bg||'#eee'};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${post.emoji||'📸'}</div>`)
       : '';
     const msg = n.type === 'like'
-      ? `<span style="font-weight:700">${esc(actor.username)}</span> curtiu sua publicação.`
-      : `<span style="font-weight:700">${esc(actor.username)}</span> comentou: <span style="color:#555">${esc(n.comment_text || '')}</span>`;
+      ? `<span style="font-weight:700;color:${actor.color||'inherit'}">${esc(actor.username)}</span> curtiu sua publicação.`
+      : `<span style="font-weight:700;color:${actor.color||'inherit'}">${esc(actor.username)}</span> comentou: <span style="color:#555">${esc(n.comment_text || '')}</span>`;
     const unread = !n.read ? 'background:#f0f7ff;' : '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;${unread}" onclick="closeNotifPanel();openComments('${n.post_id}')">
       <div style="width:38px;height:38px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0">${av}</div>
@@ -4386,8 +4291,8 @@ const _chat = {
 
 function _chatAvatarHTML(user, size) {
   size = size || 42;
-  const s = 'width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+(user.color||'#e53935')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:'+Math.round(size*0.38)+'px;font-weight:800;overflow:hidden;flex-shrink:0;';
-  const initial = (user.name || user.username || '?').charAt(0).toUpperCase();
+  const s = 'width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+(user.avatar_color||'#e53935')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:'+Math.round(size*0.38)+'px;font-weight:800;overflow:hidden;flex-shrink:0;';
+  const initial = (user.display_name || user.username || '?').charAt(0).toUpperCase();
   if (user.avatar_url) {
     return '<div style="'+s+'"><img src="'+user.avatar_url+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></div>';
   }
@@ -4472,7 +4377,7 @@ async function chatLoadConversations() {
     const peers = Object.keys(convMap);
     let usersMap = {};
     if (peers.length > 0) {
-      const { data: users } = await db.from('users').select('id,username,name,color,avatar_url').in('username', peers);
+      const { data: users } = await db.from('users').select('username,display_name,avatar_color,avatar_url').in('username', peers);
       (users || []).forEach(u => { usersMap[u.username] = u; });
     }
 
@@ -4488,8 +4393,8 @@ async function chatLoadConversations() {
 
     listEl.innerHTML = '';
     for (const conv of _chat.conversations) {
-      const u    = usersMap[conv.peer] || { username: conv.peer, name: conv.peer, color: '#e53935' };
-      const name = u.name || u.username;
+      const u    = usersMap[conv.peer] || { username: conv.peer, display_name: conv.peer, avatar_color: '#e53935' };
+      const name = u.display_name || u.username;
       const isMe = conv.lastMsg.sender_id === currentUser.username;
       const preview = (isMe ? 'Você: ' : '') + conv.lastMsg.content;
       const item = document.createElement('div');
@@ -4522,13 +4427,13 @@ async function chatOpenWindow(peerUser) {
   _chat.windowOpen  = true;
 
   const winAv = document.getElementById('chat-win-avatar');
-  winAv.style.background = peerUser.color || '#e53935';
+  winAv.style.background = peerUser.avatar_color || '#e53935';
   if (peerUser.avatar_url) {
     winAv.innerHTML = '<img src="'+peerUser.avatar_url+'" style="width:100%;height:100%;object-fit:cover">';
   } else {
-    winAv.textContent = (peerUser.name || peerUser.username || '?').charAt(0).toUpperCase();
+    winAv.textContent = (peerUser.display_name || peerUser.username || '?').charAt(0).toUpperCase();
   }
-  document.getElementById('chat-win-username').textContent = peerUser.name || peerUser.username;
+  document.getElementById('chat-win-username').textContent = peerUser.display_name || peerUser.username;
   document.getElementById('chat-window').classList.add('open');
   document.getElementById('chat-messages').innerHTML = '<div class="chat-msgs-loading">Carregando...</div>';
 
@@ -4581,11 +4486,11 @@ function chatRenderMessages() {
     if (!isSent && _chat.currentPeer) {
       const miniAv = document.createElement('div');
       miniAv.className = 'chat-msg-mini-avatar';
-      miniAv.style.background = _chat.currentPeer.color || '#e53935';
+      miniAv.style.background = _chat.currentPeer.avatar_color || '#e53935';
       if (_chat.currentPeer.avatar_url) {
         miniAv.innerHTML = '<img src="'+_chat.currentPeer.avatar_url+'" style="width:100%;height:100%;object-fit:cover">';
       } else {
-        miniAv.textContent = (_chat.currentPeer.name || _chat.currentPeer.username || '?').charAt(0).toUpperCase();
+        miniAv.textContent = (_chat.currentPeer.display_name || _chat.currentPeer.username || '?').charAt(0).toUpperCase();
       }
       row.appendChild(miniAv);
     }
@@ -4659,7 +4564,7 @@ function chatSubscribeRealtime() {
 // ── Iniciar conversa a partir de um perfil ───────────────
 async function chatStartConversation(peerUsername) {
   if (!currentUser || peerUsername === currentUser.username) return;
-  const { data: peerUser } = await db.from('users').select('id,username,name,color,avatar_url').eq('username', peerUsername).maybeSingle();
+  const { data: peerUser } = await db.from('users').select('username,display_name,avatar_color,avatar_url').eq('username', peerUsername).maybeSingle();
   if (!peerUser) { if (typeof showToast === 'function') showToast('Usuário não encontrado.'); return; }
   await openChatPanel();
   await chatOpenWindow(peerUser);
