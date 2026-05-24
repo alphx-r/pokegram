@@ -1412,14 +1412,15 @@ input, select, textarea { font-family: var(--font); }
 #chat-panel {
   display: none;
   position: fixed;
-  top: calc(var(--topnav-h) + 8px);
+  top: var(--topnav-h);
+  bottom: 0;
   right: 16px;
   z-index: 500;
   width: 340px;
-  max-height: 520px;
+  max-height: none;
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 12px 12px 0 0;
   box-shadow: 0 8px 32px rgba(0,0,0,.14);
   flex-direction: column;
   font-family: var(--font);
@@ -1572,8 +1573,10 @@ input, select, textarea { font-family: var(--font); }
 @media (max-width: 600px) {
   #chat-panel {
     right: 0 !important; left: 0 !important;
-    width: 100% !important; top: 52px !important;
-    border-radius: 0 0 12px 12px !important;
-    max-height: 70vh !important;
+    width: 100% !important;
+    top: var(--topnav-h) !important;
+    bottom: 0 !important;
+    border-radius: 0 !important;
+    max-height: none !important;
   }
 }
