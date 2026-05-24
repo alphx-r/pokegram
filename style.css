@@ -1352,6 +1352,16 @@ input, select, textarea { font-family: var(--font); }
   border: 2.5px solid #fff;
 }
 
+/* Story já visualizado: anel cinza fino e avatar levemente apagado */
+.story-ring-viewed {
+  background: #c7c7c7;
+  padding: 2px;
+}
+.story-ring-viewed .story-pic {
+  border: 2px solid #fff;
+  opacity: 0.75;
+}
+
 /* ── Story viewer ─────────────────────────────────────── */
 #modal-story { display: none; }
 
