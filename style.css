@@ -1383,3 +1383,26 @@ input, select, textarea { font-family: var(--font); }
   overflow: hidden; flex-shrink: 0;
 }
 .profile-avatar-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+/* ============================
+   CHAT INPUT — cor do perfil
+   ============================ */
+.chat-input-bar input {
+  border-color: var(--user-color, var(--border, #dbdbdb));
+}
+.chat-input-bar input:focus {
+  border-color: var(--user-color, #e53935) !important;
+}
+.chat-send-btn {
+  background: var(--user-color, #e53935) !important;
+}
+
+/* ============================
+   STORY COMMENT — cor do perfil
+   ============================ */
+#sv-comment-input {
+  border-color: var(--user-color, rgba(255,255,255,.35)) !important;
+}
+#sv-comment-bar button[onclick="storySendComment()"] {
+  color: var(--user-color, #fff) !important;
+}
