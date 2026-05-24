@@ -2827,9 +2827,8 @@ function goBack() {
 // ── Feed ──────────────────────────────────────────────────
 async function renderFeed() {
   renderAsideMini();
-  await renderPosts();
-  await renderStories();
-  await renderSuggestions();
+  await Promise.all([renderPosts(), renderStories()]);
+  renderSuggestions().catch(e => console.warn('suggestions:', e));
 }
 
 // Gera um degradê vistoso a partir de uma cor hex:
@@ -3015,7 +3014,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-header">
     <div onclick="showUserProfile('${author.username}')" style="cursor:pointer">${avatarHTML(author, 32, 'border:1px solid #dbdbdb')}</div>
     <div class="post-header-info">
-      <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}${author.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px;letter-spacing:.3px;vertical-align:middle">NPC</span>' : ''}</div>
+      <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}${author.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#9e9e9e;color:#fff;margin-left:5px;letter-spacing:.3px;vertical-align:middle">NPC</span>' : ''}</div>
       ${p.location ? `<div class="post-location-tag">${p.location}</div>` : ''}
     </div>
     <div class="post-header-more-wrap">
@@ -3597,7 +3596,8 @@ async function renderSuggestions() {
     .from('users')
     .select('id,username,color,avatar_url,rpg,is_npc')
     .neq('id', currentUser.id)
-    .limit(60);
+    .limit(30);
+  if (!allUsers || !allUsers.length) { el.innerHTML = ''; return; }
 
   // Embaralha Fisher-Yates e pega até 5
   const pool = (allUsers || []).slice();
@@ -3611,7 +3611,7 @@ async function renderSuggestions() {
     const isFollowing = !!followState[u.id];
     const color = u.color || '#e53935';
     const npcBadge = u.is_npc
-      ? '<span style="font-size:10px;font-weight:800;padding:1px 5px;border-radius:8px;background:#263238;color:#80cbc4;margin-right:4px;vertical-align:middle">NPC</span>'
+      ? '<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;background:#9e9e9e;color:#fff;margin-right:4px;vertical-align:middle">NPC</span>'
       : '';
     const rpgLabel = u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum'
                    : u.rpg === 'pchapters'        ? 'PChapters'
