@@ -332,35 +332,84 @@
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
-.chat-msg-bubble {
-  max-width: 78%;
+
+/* Linha de mensagem */
+.chat-msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 100%;
+}
+.chat-msg-row.sent  { flex-direction: row-reverse; }
+.chat-msg-row.received { flex-direction: row; }
+
+/* Mini avatar (só em mensagens recebidas) */
+.chat-msg-mini-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  font-family: 'Nunito', sans-serif;
+  align-self: flex-end;
+  margin-bottom: 2px;
+}
+.chat-msg-mini-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+/* Wrapper da bolha + horário */
+.chat-msg-wrap {
+  display: flex;
+  flex-direction: column;
+  max-width: 72%;
+  gap: 2px;
+}
+.chat-msg-row.sent  .chat-msg-wrap { align-items: flex-end; }
+.chat-msg-row.received .chat-msg-wrap { align-items: flex-start; }
+
+/* Bolha */
+.chat-bubble {
   padding: 8px 12px;
-  border-radius: 16px;
+  border-radius: 18px;
   font-size: 13px;
   font-family: 'Nunito', sans-serif;
   line-height: 1.45;
   word-break: break-word;
+  max-width: 100%;
 }
-.chat-msg-bubble.mine {
-  align-self: flex-end;
+.chat-msg-row.sent .chat-bubble {
   background: var(--brand-mid, #e53935);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
-.chat-msg-bubble.theirs {
-  align-self: flex-start;
+.chat-msg-row.received .chat-bubble {
   background: var(--hover, #f0f0f0);
   color: var(--text, #262626);
   border-bottom-left-radius: 4px;
 }
+
+/* Horário embaixo da bolha */
 .chat-msg-time {
   font-size: 10px;
   color: var(--muted, #8e8e8e);
   font-family: 'Nunito', sans-serif;
+  padding: 0 4px;
+}
+
+/* Separador de data */
+.chat-date-sep {
   text-align: center;
-  margin: 4px 0;
+  font-size: 11px;
+  color: var(--muted, #8e8e8e);
+  font-family: 'Nunito', sans-serif;
+  margin: 10px 0 6px;
+  font-weight: 600;
 }
 
 .chat-input-bar {
@@ -3491,7 +3540,6 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
     <div class="profile-page">
 
       <div class="profile-header">
-        <div class="profile-header-top-row">
           <div class="profile-avatar-wrap">
             <div class="profile-avatar" style="background:${avatarBg}">
               ${avatarInner}
@@ -3512,13 +3560,12 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
               <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','followers','${u.username}')"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
               <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','following','${u.username}')"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
             </div>
-            <div class="profile-bio">
-              <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
-              ${u.pokemon ? `<div class="prof-starter">⭐ ${u.pokemon}</div>` : ''}
-              ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
-            </div>
           </div>
-        </div>
+          <div class="profile-bio">
+            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+            ${u.pokemon ? `<div class="prof-starter">⭐ ${u.pokemon}</div>` : ''}
+            ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
+          </div>
       </div>
 
       <div class="profile-tabs">
@@ -4987,25 +5034,50 @@ function chatRenderMessages() {
   }
 
   container.innerHTML = '';
+  let lastDate = '';
   for (const msg of _chat.messages) {
     const isSent = msg.sender_id === currentUser.username;
-    const row    = document.createElement('div');
+
+    // Separador de data
+    const msgDate = new Date(msg.created_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+    if (msgDate !== lastDate) {
+      lastDate = msgDate;
+      const sep = document.createElement('div');
+      sep.className = 'chat-date-sep';
+      sep.textContent = msgDate;
+      container.appendChild(sep);
+    }
+
+    const row = document.createElement('div');
     row.className = 'chat-msg-row ' + (isSent ? 'sent' : 'received');
 
+    // Mini avatar (só mensagens recebidas)
     if (!isSent && _chat.currentPeer) {
       const miniAv = document.createElement('div');
       miniAv.className = 'chat-msg-mini-avatar';
-      miniAv.style.background = _chat.currentPeer.avatar_color || '#e53935';
+      miniAv.style.background = _chat.currentPeer.color || _chat.currentPeer.avatar_color || '#e53935';
       if (_chat.currentPeer.avatar_url) {
-        miniAv.innerHTML = '<img src="'+_chat.currentPeer.avatar_url+'" style="width:100%;height:100%;object-fit:cover">';
+        miniAv.innerHTML = '<img src="'+_chat.currentPeer.avatar_url+'">';
       } else {
-        miniAv.textContent = (_chat.currentPeer.display_name || _chat.currentPeer.username || '?').charAt(0).toUpperCase();
+        miniAv.textContent = (_chat.currentPeer.username || '?').charAt(0).toUpperCase();
       }
       row.appendChild(miniAv);
     }
 
+    // Wrapper bolha + horário
     const wrap = document.createElement('div');
-    wrap.innerHTML = '<div class="chat-bubble">'+_escHtml(msg.content)+'</div><div class="chat-msg-time">'+_chatMsgTime(msg.created_at)+'</div>';
+    wrap.className = 'chat-msg-wrap';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = msg.content;
+
+    const time = document.createElement('div');
+    time.className = 'chat-msg-time';
+    time.textContent = _chatMsgTime(msg.created_at);
+
+    wrap.appendChild(bubble);
+    wrap.appendChild(time);
     row.appendChild(wrap);
     container.appendChild(row);
   }
