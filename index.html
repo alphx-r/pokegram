@@ -512,11 +512,12 @@
       <button id="sv-delete-btn" style="display:none;position:absolute;bottom:80px;right:16px;z-index:10;background:rgba(229,57,53,0.88);color:#fff;border:none;border-radius:24px;padding:11px 22px;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)" onclick="deleteCurrentStory()">🗑 Apagar story</button>
 
       <!-- Barra de comentário (só para stories de outros) -->
-      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 12px 24px">
-        <div style="display:flex;align-items:center;gap:10px;border:1.5px solid rgba(255,255,255,0.75);border-radius:999px;padding:10px 16px">
+      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 0 24px;transition:backdrop-filter .2s">
+        <div style="display:flex;align-items:center;gap:10px;border:1.5px solid rgba(255,255,255,0.75);border-radius:0;padding:10px 16px">
           <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder stories..." autocomplete="off"
             style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;min-width:0"
-            onfocus="storyClearTimer()" onblur="storyRestartTimer()"
+            onfocus="storyClearTimer();(function(){const bar=document.getElementById('sv-comment-bar');bar.style.backdropFilter='blur(18px)';bar.style.webkitBackdropFilter='blur(18px)';bar.style.background='rgba(0,0,0,0.35)';})()"
+            onblur="storyRestartTimer();(function(){const bar=document.getElementById('sv-comment-bar');bar.style.backdropFilter='';bar.style.webkitBackdropFilter='';bar.style.background='';})()"
             onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
           <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:0;color:#fff;font-size:20px;line-height:1;flex-shrink:0" title="Enviar">➤</button>
         </div>
@@ -2510,7 +2511,14 @@ async function renderStories() {
   // anel no "Seu story" se eu tiver story ativo
   const myRing = document.querySelector('.story-mine .story-ring');
   if (myRing) {
-    myRing.classList.toggle('story-ring-active', !!(myStories && myStories.length > 0));
+    const hasActive = !!(myStories && myStories.length > 0);
+    myRing.classList.toggle('story-ring-active', hasActive);
+    if (hasActive) {
+      const c = currentUser.color || '#e53935';
+      myRing.style.background = `linear-gradient(135deg, ${c}, ${c}aa, ${c}cc)`;
+    } else {
+      myRing.style.background = '';
+    }
   }
   // guarda estado para openStoryOrViewer()
   window._myHasActiveStory = !!(myStories && myStories.length > 0);
@@ -2529,15 +2537,20 @@ async function renderStories() {
   list.innerHTML = unique.map(s => {
     const u     = s.users || {};
     const count = countMap[u.id] || 1;
+    const color = u.color || '#e53935';
+    // Degradê: cor sólida → versão mais clara (mistura com branco)
+    const colorLight = color + 'aa'; // versão semitransparente como ponto claro
+    const ringStyle  = `background: linear-gradient(135deg, ${color}, ${colorLight}, ${color}cc)`;
+    const badgeStyle = `background:${color}`;
+
     const pic = u.avatar_url
       ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
-      : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username||'?')}</div>`;
-    // badge de contagem (só quando > 1)
+      : `<div class="story-pic" style="background:${color}">${initials(u.username||'?')}</div>`;
     const badge = count > 1
-      ? `<div class="story-count-badge">${count}</div>`
+      ? `<div class="story-count-badge" style="${badgeStyle}">${count}</div>`
       : '';
     return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
-      <div class="story-ring story-ring-active" style="position:relative">${pic}${badge}</div>
+      <div class="story-ring story-ring-active" style="position:relative;${ringStyle}">${pic}${badge}</div>
       <span>${u.username}</span>
     </div>`;
   }).join('');
