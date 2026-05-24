@@ -507,7 +507,6 @@
       if (data && data.value && gifEl) {
         gifEl.src           = data.value;
         gifEl.style.display = 'block';
-        if (pokeEl) pokeEl.style.display = 'none';
       }
     } catch(e) { /* silencioso — pokeball padrão permanece */ }
   }
@@ -554,14 +553,8 @@
 
   <!-- LOADING SPLASH (mostrado enquanto verifica sessão) -->
   <div id="pg-splash" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
-    <!-- GIF customizado (se configurado) -->
+    <!-- GIF customizado (se configurado no ADM) -->
     <img id="splash-custom-gif" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain">
-    <!-- Pokeball padrão (exibida se não houver GIF customizado) -->
-    <div id="splash-pokeball" class="pokeball-logo" style="width:56px;height:56px;animation:spin .8s linear infinite">
-      <div class="pb-top"></div>
-      <div class="pb-band"><div class="pb-btn"></div></div>
-      <div class="pb-bottom"></div>
-    </div>
     <span style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
   </div>
 
@@ -2366,13 +2359,14 @@ function admImgTab(btn, id) {
   btn.style.background = 'var(--brand-mid)';
   btn.style.color      = '#fff';
   btn.classList.add('active');
-  ['img-logo','img-gif','img-sprites'].forEach(s => {
+  ['img-logo','img-gif','img-sprites','img-favicon'].forEach(s => {
     const el = document.getElementById(s);
     if (el) el.style.display = (s === id) ? 'block' : 'none';
   });
   if (id === 'img-logo')    carregarLogoAdm();
   if (id === 'img-gif')     carregarLoadingGifAdm();
   if (id === 'img-sprites') carregarSpritesAdm();
+  if (id === 'img-favicon') carregarFaviconAdm();
 }
 
 function admTab(btn, id) {
@@ -2884,7 +2878,8 @@ const SPRITE_DEFS = [
   { key: 'nav_chat',    label: 'Chat (mensagens)',     sel: '#btn-chat svg',                              dbKey: 'sprite_nav_chat' },
   { key: 'nav_profile', label: 'Perfil (avatar nav)',  sel: '#btn-profile',                               dbKey: 'sprite_nav_profile' },
   { key: 'nav_logout',  label: 'Sair (logout)',        sel: '.tn-btn[onclick="doLogout()"] svg',           dbKey: 'sprite_nav_logout' },
-  { key: 'story_add',  label: 'Círculo + (stories)',  sel: '#story-ring-add',                             dbKey: 'sprite_story_add' },
+  { key: 'story_add',      label: 'Círculo + (stories)',        sel: '#story-ring-add',        dbKey: 'sprite_story_add' },
+  { key: 'profile_msg_btn', label: 'Botão mensagem (perfil)',    sel: '.btn-icon-profile',      dbKey: 'sprite_profile_msg_btn' },
 ];
 let _pendingSprites = {}; // key → base64
 
@@ -3006,6 +3001,32 @@ async function applyTopnavSprites() {
       }
       // revela o círculo (com ou sem sprite)
       ring.style.opacity = '1';
+      return;
+    }
+
+    // profile_msg_btn: botão de mensagem nos perfis de outros usuários
+    if (def.key === 'profile_msg_btn') {
+      // salva a URL no dataset para aplicar nos botões renderizados dinamicamente
+      document.documentElement.dataset.profileMsgSprite = val || '';
+      // aplica nos botões já existentes no DOM (se perfil já estiver aberto)
+      document.querySelectorAll('.btn-icon-profile').forEach(btn => {
+        let img = btn.querySelector('.btn-sprite-img');
+        if (val) {
+          btn.style.border = 'none';
+          if (!img) {
+            img = document.createElement('img');
+            img.className = 'btn-sprite-img';
+            img.style.cssText = 'width:28px;height:28px;object-fit:contain;display:block;pointer-events:none';
+            btn.innerHTML = '';
+            btn.appendChild(img);
+          }
+          img.src = val;
+        } else if (img) {
+          img.remove();
+          btn.style.border = '';
+          btn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
+        }
+      });
       return;
     }
 
@@ -4285,8 +4306,10 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
               ${isMe
                 ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
                 : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>
-                   <button class="btn-icon-profile" onclick="chatStartConversation('${u.username}')" title="Mensagem">
-                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                   <button class="btn-icon-profile" onclick="chatStartConversation('${u.username}')" title="Mensagem" style="${document.documentElement.dataset.profileMsgSprite ? 'border:none' : ''}">
+                     ${document.documentElement.dataset.profileMsgSprite
+                       ? `<img src="${document.documentElement.dataset.profileMsgSprite}" style="width:28px;height:28px;object-fit:contain;display:block;pointer-events:none">`
+                       : `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`}
                    </button>`
               }
             </div>
