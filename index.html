@@ -2209,6 +2209,8 @@ async function carregarSpritesAdm() {
   const grid = document.getElementById('sprites-grid');
   if (!grid) return;
 
+  console.log('SPRITE_DEFS keys:', SPRITE_DEFS.map(d => d.key));
+
   // Busca valores salvos do Supabase
   const keys = SPRITE_DEFS.map(d => d.dbKey);
   const { data: rows } = await db.from('settings').select('key,value').in('key', keys);
