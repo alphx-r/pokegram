@@ -293,15 +293,16 @@
         </div>
       </div>
       <div class="topnav-actions">
-        <button class="tn-btn active" id="btn-feed" onclick="showView('feed')" title="Início">
-          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-        </button>
         <button class="tn-btn" onclick="showNewPost()" title="Criar">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         </button>
         <button class="tn-btn" id="btn-notif" onclick="toggleNotifPanel()" title="Notificações" style="position:relative">
           <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
           <span id="notif-badge" style="display:none;position:absolute;top:6px;right:6px;width:8px;height:8px;background:#e53935;border-radius:50%;border:1.5px solid #fff"></span>
+        </button>
+        <button class="tn-btn" id="btn-chat" onclick="toggleChatPanel()" title="Mensagens" style="position:relative">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <span id="chat-nav-badge" style="display:none;position:absolute;top:6px;right:6px;width:8px;height:8px;background:#e53935;border-radius:50%;border:1.5px solid #fff"></span>
         </button>
         <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -4209,6 +4210,349 @@ if (typeof db !== 'undefined') loadFilters();
   <div id="notif-list" style="overflow-y:auto;max-height:420px"></div>
 </div>
 <div id="notif-backdrop" onclick="closeNotifPanel()" style="display:none;position:fixed;inset:0;z-index:499"></div>
+
+<!-- ── Painel de Chat ── -->
+<div id="chat-panel">
+
+  <!-- Header da lista -->
+  <div class="chat-panel-header">
+    <span class="chat-panel-title">Mensagens</span>
+    <div class="chat-panel-header-actions">
+      <button onclick="closeChatPanel()" title="Fechar">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Lista de conversas -->
+  <div id="chat-conversations">
+    <div class="chat-msgs-loading" id="chat-convos-loading">Carregando...</div>
+  </div>
+
+  <!-- Tela de chat individual (sobrepõe a lista) -->
+  <div id="chat-window">
+    <div class="chat-window-header">
+      <button class="chat-back-btn" onclick="closeChatWindow()" title="Voltar">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
+      </button>
+      <div class="chat-window-avatar" id="chat-win-avatar"></div>
+      <div class="chat-window-userinfo">
+        <div class="chat-window-username" id="chat-win-username"></div>
+        <div class="chat-window-status" id="chat-win-status" style="display:none">● online</div>
+      </div>
+    </div>
+    <div id="chat-messages"></div>
+    <div class="chat-input-bar">
+      <input type="text" id="chat-msg-input" placeholder="Mensagem..." maxlength="500"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSendMessage();}">
+      <button class="chat-send-btn" onclick="chatSendMessage()" title="Enviar">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+<div id="chat-backdrop" onclick="closeChatPanel()"></div>
+
+<!-- ── Script do Chat ── -->
+<script>
+/* ══════════════════════════════════════════════════════════
+   POKÉGRAM — Sistema de Chat
+   Requer: Supabase já inicializado como `db` e `currentUser`
+══════════════════════════════════════════════════════════ */
+
+const _chat = {
+  open:          false,
+  windowOpen:    false,
+  currentPeer:   null,
+  conversations: [],
+  messages:      [],
+  unreadCount:   0,
+  realtimeSub:   null,
+  loadingConvos: false,
+};
+
+function _chatAvatarHTML(user, size) {
+  size = size || 42;
+  const s = 'width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+(user.avatar_color||'#e53935')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:'+Math.round(size*0.38)+'px;font-weight:800;overflow:hidden;flex-shrink:0;';
+  const initial = (user.display_name || user.username || '?').charAt(0).toUpperCase();
+  if (user.avatar_url) {
+    return '<div style="'+s+'"><img src="'+user.avatar_url+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></div>';
+  }
+  return '<div style="'+s+'">'+initial+'</div>';
+}
+
+function _chatFormatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), now = new Date();
+  const diffMin = Math.floor((now - d) / 60000);
+  const diffH   = Math.floor((now - d) / 3600000);
+  const diffD   = Math.floor((now - d) / 86400000);
+  if (diffMin < 1)  return 'agora';
+  if (diffMin < 60) return diffMin + 'min';
+  if (diffH   < 24) return diffH + 'h';
+  if (diffD   < 7)  return diffD + 'd';
+  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+}
+
+function _chatMsgTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
+
+function _escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _chatSetNavBadge(n) {
+  _chat.unreadCount = n;
+  const badge = document.getElementById('chat-nav-badge');
+  if (badge) badge.style.display = n > 0 ? 'block' : 'none';
+}
+
+// ── Abrir / fechar painel ────────────────────────────────
+function toggleChatPanel() {
+  _chat.open ? closeChatPanel() : openChatPanel();
+}
+
+async function openChatPanel() {
+  if (!currentUser) return;
+  _chat.open = true;
+  document.getElementById('chat-panel').classList.add('open');
+  document.getElementById('chat-backdrop').style.display = 'block';
+  if (typeof closeNotifPanel === 'function') closeNotifPanel();
+  await chatLoadConversations();
+  chatSubscribeRealtime();
+}
+
+function closeChatPanel() {
+  _chat.open = false;
+  closeChatWindow();
+  document.getElementById('chat-panel').classList.remove('open');
+  document.getElementById('chat-backdrop').style.display = 'none';
+}
+
+// ── Carregar lista de conversas ──────────────────────────
+async function chatLoadConversations() {
+  if (_chat.loadingConvos) return;
+  _chat.loadingConvos = true;
+  const loadEl = document.getElementById('chat-convos-loading');
+  const listEl = document.getElementById('chat-conversations');
+  if (loadEl) loadEl.style.display = 'block';
+
+  try {
+    const { data: msgs, error } = await db
+      .from('messages')
+      .select('*')
+      .or('sender_id.eq.'+currentUser.username+',receiver_id.eq.'+currentUser.username)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const convMap = {};
+    for (const m of (msgs || [])) {
+      const peer = m.sender_id === currentUser.username ? m.receiver_id : m.sender_id;
+      if (!convMap[peer]) convMap[peer] = { peer, lastMsg: m, unread: 0 };
+      if (!m.read && m.receiver_id === currentUser.username) convMap[peer].unread++;
+    }
+
+    const peers = Object.keys(convMap);
+    let usersMap = {};
+    if (peers.length > 0) {
+      const { data: users } = await db.from('users').select('username,display_name,avatar_color,avatar_url').in('username', peers);
+      (users || []).forEach(u => { usersMap[u.username] = u; });
+    }
+
+    _chat.conversations = Object.values(convMap).sort((a,b) => new Date(b.lastMsg.created_at) - new Date(a.lastMsg.created_at));
+    _chatSetNavBadge(_chat.conversations.reduce((s,c) => s + c.unread, 0));
+
+    if (loadEl) loadEl.style.display = 'none';
+
+    if (_chat.conversations.length === 0) {
+      listEl.innerHTML = '<div class="chat-empty"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><div>Nenhuma conversa ainda</div><div style="font-size:11px;color:#bbb">Visite um perfil e clique em "Mensagem"</div></div>';
+      return;
+    }
+
+    listEl.innerHTML = '';
+    for (const conv of _chat.conversations) {
+      const u    = usersMap[conv.peer] || { username: conv.peer, display_name: conv.peer, avatar_color: '#e53935' };
+      const name = u.display_name || u.username;
+      const isMe = conv.lastMsg.sender_id === currentUser.username;
+      const preview = (isMe ? 'Você: ' : '') + conv.lastMsg.content;
+      const item = document.createElement('div');
+      item.className = 'chat-convo-item';
+      item.dataset.peer = conv.peer;
+      item.innerHTML =
+        _chatAvatarHTML(u, 42) +
+        '<div class="chat-convo-info">' +
+          '<div class="chat-convo-name">'+_escHtml(name)+'</div>' +
+          '<div class="chat-convo-preview'+(conv.unread>0?' unread':'')+'">'+_escHtml(preview.substring(0,40))+(preview.length>40?'…':'')+'</div>' +
+        '</div>' +
+        '<div class="chat-convo-meta">' +
+          '<span class="chat-convo-time">'+_chatFormatTime(conv.lastMsg.created_at)+'</span>' +
+          (conv.unread > 0 ? '<span class="chat-unread-badge">'+conv.unread+'</span>' : '') +
+        '</div>';
+      item.onclick = () => chatOpenWindow(u);
+      listEl.appendChild(item);
+    }
+  } catch(e) {
+    console.error('Chat: erro ao carregar conversas', e);
+    if (loadEl) loadEl.textContent = 'Erro ao carregar. Tente novamente.';
+  } finally {
+    _chat.loadingConvos = false;
+  }
+}
+
+// ── Abrir conversa individual ────────────────────────────
+async function chatOpenWindow(peerUser) {
+  _chat.currentPeer = peerUser;
+  _chat.windowOpen  = true;
+
+  const winAv = document.getElementById('chat-win-avatar');
+  winAv.style.background = peerUser.avatar_color || '#e53935';
+  if (peerUser.avatar_url) {
+    winAv.innerHTML = '<img src="'+peerUser.avatar_url+'" style="width:100%;height:100%;object-fit:cover">';
+  } else {
+    winAv.textContent = (peerUser.display_name || peerUser.username || '?').charAt(0).toUpperCase();
+  }
+  document.getElementById('chat-win-username').textContent = peerUser.display_name || peerUser.username;
+  document.getElementById('chat-window').classList.add('open');
+  document.getElementById('chat-messages').innerHTML = '<div class="chat-msgs-loading">Carregando...</div>';
+
+  await chatLoadMessages();
+  await chatMarkRead();
+  document.getElementById('chat-msg-input').focus();
+}
+
+function closeChatWindow() {
+  _chat.windowOpen  = false;
+  _chat.currentPeer = null;
+  document.getElementById('chat-window').classList.remove('open');
+  document.getElementById('chat-messages').innerHTML = '';
+}
+
+// ── Carregar mensagens ───────────────────────────────────
+async function chatLoadMessages() {
+  if (!_chat.currentPeer) return;
+  const peer = _chat.currentPeer.username, me = currentUser.username;
+
+  const { data, error } = await db
+    .from('messages')
+    .select('*')
+    .or('and(sender_id.eq.'+me+',receiver_id.eq.'+peer+'),and(sender_id.eq.'+peer+',receiver_id.eq.'+me+')')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    document.getElementById('chat-messages').innerHTML = '<div class="chat-msgs-loading">Erro ao carregar mensagens.</div>';
+    return;
+  }
+  _chat.messages = data || [];
+  chatRenderMessages();
+}
+
+function chatRenderMessages() {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+
+  if (_chat.messages.length === 0) {
+    container.innerHTML = '<div class="chat-empty"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><div>Comece a conversa!</div></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  for (const msg of _chat.messages) {
+    const isSent = msg.sender_id === currentUser.username;
+    const row    = document.createElement('div');
+    row.className = 'chat-msg-row ' + (isSent ? 'sent' : 'received');
+
+    if (!isSent && _chat.currentPeer) {
+      const miniAv = document.createElement('div');
+      miniAv.className = 'chat-msg-mini-avatar';
+      miniAv.style.background = _chat.currentPeer.avatar_color || '#e53935';
+      if (_chat.currentPeer.avatar_url) {
+        miniAv.innerHTML = '<img src="'+_chat.currentPeer.avatar_url+'" style="width:100%;height:100%;object-fit:cover">';
+      } else {
+        miniAv.textContent = (_chat.currentPeer.display_name || _chat.currentPeer.username || '?').charAt(0).toUpperCase();
+      }
+      row.appendChild(miniAv);
+    }
+
+    const wrap = document.createElement('div');
+    wrap.innerHTML = '<div class="chat-bubble">'+_escHtml(msg.content)+'</div><div class="chat-msg-time">'+_chatMsgTime(msg.created_at)+'</div>';
+    row.appendChild(wrap);
+    container.appendChild(row);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+// ── Enviar mensagem ──────────────────────────────────────
+async function chatSendMessage() {
+  if (!currentUser || !_chat.currentPeer) return;
+  const input   = document.getElementById('chat-msg-input');
+  const content = input.value.trim();
+  if (!content) return;
+  input.value = '';
+
+  const me = currentUser.username, peer = _chat.currentPeer.username;
+  const tempMsg = { id:'temp_'+Date.now(), sender_id:me, receiver_id:peer, content, read:false, created_at:new Date().toISOString() };
+  _chat.messages.push(tempMsg);
+  chatRenderMessages();
+
+  const { data, error } = await db.from('messages').insert({ sender_id:me, receiver_id:peer, content, read:false }).select().single();
+  if (error) {
+    console.error('Chat: erro ao enviar', error);
+    _chat.messages = _chat.messages.filter(m => m.id !== tempMsg.id);
+    chatRenderMessages();
+    if (typeof showToast === 'function') showToast('Erro ao enviar mensagem.');
+    return;
+  }
+  const idx = _chat.messages.findIndex(m => m.id === tempMsg.id);
+  if (idx !== -1) _chat.messages[idx] = data;
+  chatRenderMessages();
+}
+
+// ── Marcar como lidas ────────────────────────────────────
+async function chatMarkRead() {
+  if (!currentUser || !_chat.currentPeer) return;
+  await db.from('messages').update({ read:true }).eq('receiver_id', currentUser.username).eq('sender_id', _chat.currentPeer.username).eq('read', false);
+  await chatRefreshUnreadBadge();
+}
+
+async function chatRefreshUnreadBadge() {
+  if (!currentUser) return;
+  const { count } = await db.from('messages').select('*', { count:'exact', head:true }).eq('receiver_id', currentUser.username).eq('read', false);
+  _chatSetNavBadge(count || 0);
+}
+
+// ── Realtime ─────────────────────────────────────────────
+function chatSubscribeRealtime() {
+  if (_chat.realtimeSub || !currentUser) return;
+  _chat.realtimeSub = db
+    .channel('chat_messages')
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages', filter:'receiver_id=eq.'+currentUser.username }, payload => {
+      const msg = payload.new;
+      if (_chat.windowOpen && _chat.currentPeer?.username === msg.sender_id) {
+        _chat.messages.push(msg);
+        chatRenderMessages();
+        chatMarkRead();
+      } else {
+        _chatSetNavBadge(_chat.unreadCount + 1);
+        if (_chat.open) chatLoadConversations();
+      }
+    })
+    .subscribe();
+}
+
+// ── Iniciar conversa a partir de um perfil ───────────────
+async function chatStartConversation(peerUsername) {
+  if (!currentUser || peerUsername === currentUser.username) return;
+  const { data: peerUser } = await db.from('users').select('username,display_name,avatar_color,avatar_url').eq('username', peerUsername).maybeSingle();
+  if (!peerUser) { if (typeof showToast === 'function') showToast('Usuário não encontrado.'); return; }
+  await openChatPanel();
+  await chatOpenWindow(peerUser);
+}
+</script>
 
 </body>
 </html>
