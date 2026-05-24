@@ -1709,7 +1709,7 @@ function enterApp(user) {
   // initApp é async — splash some só depois que sprites e tudo estiver pronto
   if (typeof initApp === 'function') {
     const isFirstVisit = !sessionStorage.getItem('pg_loaded');
-    const minWait = isFirstVisit ? 2000 : 0;
+    const minWait = isFirstVisit ? 3000 : 0;
     sessionStorage.setItem('pg_loaded', '1');
     const started = Date.now();
     Promise.all([
