@@ -1255,9 +1255,13 @@ function hideSplash() {
 
 function enterApp(user) {
   hideSplash();
+  if (!user.avatar_color) user.avatar_color = user.color;
+  if (!user.display_name) user.display_name = user.name || user.username;
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
   if (typeof initApp === 'function') initApp(user);
+  // registrar service worker e push
+  initPushNotifications(user);
 }
 
 function doLogout() { clearSession(); currentUser = null; location.reload(); }
@@ -1333,6 +1337,52 @@ async function deleteComment(commentId, postId) {
     .eq('actor_id', currentUser.id);
   document.getElementById('comment-item-' + commentId)?.remove();
   toast('Comentário apagado.');
+}
+
+// ════════════════════════════════════════════════════════
+// PUSH NOTIFICATIONS
+// ════════════════════════════════════════════════════════
+const VAPID_PUBLIC_KEY = "BBumLFMgPViV5wyqTwKpgzAyj3_hYnJ4WmKOc11n-4GU5xfOLNhP-wiDbaaOhdb8-Jn_4m5Z3QRrwNzOa_c2tGY";
+const PUSH_ENDPOINT    = "https://cofqapsaxrqlmxzpzbkr.supabase.co/functions/v1/send-push";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw     = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function initPushNotifications(user) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    // pede permissão com um pequeno delay para não assustar
+    setTimeout(async () => {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') return;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+      // salva subscription no banco
+      await db.from('push_subscriptions').upsert({
+        user_id: user.id,
+        subscription: JSON.stringify(sub)
+      }, { onConflict: 'user_id' });
+    }, 3000);
+  } catch(e) { console.warn('Push init error:', e); }
+}
+
+async function sendPushToUser(userId, title, body, url) {
+  try {
+    await fetch(PUSH_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, title, body, url: url || '/' })
+    });
+  } catch(e) { console.warn('Push send error:', e); }
 }
 
 document.addEventListener('keydown', e => {
@@ -2149,6 +2199,7 @@ const SPRITE_DEFS = [
   { key: 'nav_create',  label: 'Criar publicação',     sel: '.tn-btn[onclick="showNewPost()"] svg',        dbKey: 'sprite_nav_create' },
   { key: 'nav_explore', label: 'Explorar (lupa)',      sel: '#btn-explore svg',                           dbKey: 'sprite_nav_explore' },
   { key: 'nav_notif',   label: 'Notificações (sino)',  sel: '#btn-notif svg',                             dbKey: 'sprite_nav_notif' },
+  { key: 'nav_chat',    label: 'Chat (mensagens)',     sel: '#btn-chat svg',                              dbKey: 'sprite_nav_chat' },
   { key: 'nav_profile', label: 'Perfil (avatar nav)',  sel: '#btn-profile',                               dbKey: 'sprite_nav_profile' },
   { key: 'nav_logout',  label: 'Sair (logout)',        sel: '.tn-btn[onclick="doLogout()"] svg',           dbKey: 'sprite_nav_logout' },
 ];
@@ -2629,6 +2680,7 @@ async function toggleLike(postId, btn) {
         user_id: ownerId, actor_id: currentUser.id, type: 'like', post_id: postId
       });
       if (ne) console.error('notif like error:', ne);
+      sendPushToUser(ownerId, 'PokéGram', `${currentUser.username} curtiu sua publicação.`, '/');
     }
   } else {
     await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
@@ -2901,6 +2953,7 @@ async function submitComment() {
   const { data: post } = await db.from('posts').select('user_id').eq('id', currentCommentPostId).maybeSingle();
   if (post && post.user_id !== currentUser.id) {
     await db.from('notifications').insert({ user_id: post.user_id, actor_id: currentUser.id, type: 'comment', post_id: currentCommentPostId, comment_text: text });
+    sendPushToUser(post.user_id, 'PokéGram', `${currentUser.username} comentou: ${text}`, '/');
   }
 }
 
@@ -2915,6 +2968,7 @@ async function submitInlineComment(postId) {
   const { data: post } = await db.from('posts').select('user_id').eq('id', postId).maybeSingle();
   if (post && post.user_id !== currentUser.id) {
     await db.from('notifications').insert({ user_id: post.user_id, actor_id: currentUser.id, type: 'comment', post_id: postId, comment_text: text });
+    sendPushToUser(post.user_id, 'PokéGram', `${currentUser.username} comentou: ${text}`, '/');
   }
   await renderPosts();
 }
@@ -2960,6 +3014,7 @@ async function toggleFollow(btn, userId, username) {
       user_id: userId, actor_id: currentUser.id, type: 'follow', post_id: null
     });
     if (ne) console.error('notif follow error:', ne);
+    sendPushToUser(userId, 'PokéGram', `${currentUser.username} começou a seguir você.`, '/');
   } else {
     await db.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', userId);
     followState[userId] = false;
@@ -4384,8 +4439,8 @@ async function chatLoadConversations() {
     listEl.innerHTML = '';
     for (const conv of _chat.conversations) {
       const u    = usersMap[conv.peer] || { username: conv.peer, name: conv.peer, color: '#e53935' };
-      if (!u.avatar_color) u.avatar_color = u.color;
-      if (!u.display_name) u.display_name = u.name || u.username;
+      u.avatar_color = u.avatar_color || u.color || '#e53935';
+      u.display_name = u.display_name || u.name || u.username;
       const name = u.display_name || u.username;
       const isMe = conv.lastMsg.sender_id === currentUser.username;
       const preview = (isMe ? 'Você: ' : '') + conv.lastMsg.content;
