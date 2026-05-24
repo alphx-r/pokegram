@@ -3512,12 +3512,12 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
               <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','followers','${u.username}')"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
               <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','following','${u.username}')"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
             </div>
+            <div class="profile-bio">
+              <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+              ${u.pokemon ? `<div class="prof-starter">⭐ ${u.pokemon}</div>` : ''}
+              ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
+            </div>
           </div>
-        </div>
-        <div class="profile-bio">
-          <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
-          ${u.pokemon ? `<div class="prof-starter" style="opacity:.8">⭐ ${u.pokemon}</div>` : ''}
-          ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
         </div>
       </div>
 
