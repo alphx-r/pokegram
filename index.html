@@ -2954,13 +2954,21 @@ async function toggleFollow(btn, userId, username) {
   if (!following) {
     await db.from('follows').insert({ follower_id: currentUser.id, following_id: userId });
     followState[userId] = true;
-    btn.textContent = 'Seguindo';
+    if (btn) { btn.textContent = 'Seguindo'; btn.classList.add('following'); }
     toast(`Seguindo ${username}!`);
+    // notificação de follow
+    const { error: ne } = await db.from('notifications').insert({
+      user_id: userId, actor_id: currentUser.id, type: 'follow', post_id: null
+    });
+    if (ne) console.error('notif follow error:', ne);
   } else {
     await db.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', userId);
     followState[userId] = false;
-    btn.textContent = 'Seguir';
+    if (btn) { btn.textContent = 'Seguir'; btn.classList.remove('following'); }
     toast(`Deixou de seguir ${username}`);
+    // remove notificação de follow
+    await db.from('notifications').delete()
+      .eq('type', 'follow').eq('actor_id', currentUser.id).eq('user_id', userId);
   }
 }
 
@@ -3801,9 +3809,14 @@ async function renderNotifList() {
       : '';
     const msg = n.type === 'like'
       ? `<span style="font-weight:700">${esc(actor.username)}</span> curtiu sua publicação.`
+      : n.type === 'follow'
+      ? `<span style="font-weight:700">${esc(actor.username)}</span> começou a seguir você.`
       : `<span style="font-weight:700">${esc(actor.username)}</span> comentou: <span style="color:#555">${esc(n.comment_text || '')}</span>`;
     const unread = !n.read ? 'background:#f0f7ff;' : '';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;${unread}" onclick="closeNotifPanel();openComments('${n.post_id}')">
+    const notifAction = n.type === 'follow'
+      ? `closeNotifPanel();showUserProfile('${esc(actor.username)}')`
+      : `closeNotifPanel();openComments('${n.post_id}')`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;${unread}" onclick="${notifAction}">
       <div style="width:38px;height:38px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0">${av}</div>
       <div style="font-size:13px;color:#1a1a1a;flex:1;line-height:1.4;min-width:0">${msg}<div style="font-size:11px;color:#8e8e8e;margin-top:2px">${fmtTimeAgo(n.created_at)}</div></div>
       ${thumb}
@@ -4543,8 +4556,11 @@ function chatSubscribeRealtime() {
 // ── Iniciar conversa a partir de um perfil ───────────────
 async function chatStartConversation(peerUsername) {
   if (!currentUser || peerUsername === currentUser.username) return;
-  const { data: peerUser } = await db.from('users').select('username,display_name,avatar_color,avatar_url').eq('username', peerUsername).maybeSingle();
-  if (!peerUser) { if (typeof showToast === 'function') showToast('Usuário não encontrado.'); return; }
+  const { data: peerUser } = await db.from('users').select('id,username,name,color,avatar_url').eq('username', peerUsername).maybeSingle();
+  if (!peerUser) { toast('Usuário não encontrado.'); return; }
+  // normaliza campos para o formato esperado pelo chat
+  if (!peerUser.avatar_color) peerUser.avatar_color = peerUser.color;
+  if (!peerUser.display_name)  peerUser.display_name  = peerUser.name || peerUser.username;
   await openChatPanel();
   await chatOpenWindow(peerUser);
 }
