@@ -511,7 +511,19 @@
       </div>
 
       <!-- Botão apagar (só dono) -->
-      <button id="sv-delete-btn" style="display:none;position:absolute;bottom:32px;right:16px;z-index:10;background:rgba(229,57,53,0.88);color:#fff;border:none;border-radius:24px;padding:11px 22px;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)" onclick="deleteCurrentStory()">🗑 Apagar story</button>
+      <button id="sv-delete-btn" style="display:none;position:absolute;bottom:80px;right:16px;z-index:10;background:rgba(229,57,53,0.88);color:#fff;border:none;border-radius:24px;padding:11px 22px;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)" onclick="deleteCurrentStory()">🗑 Apagar story</button>
+
+      <!-- Barra de comentário (só para stories de outros) -->
+      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 12px 20px;background:linear-gradient(to top,rgba(0,0,0,0.65) 0%,transparent 100%)">
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.35);border-radius:999px;padding:8px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
+          <div id="sv-comment-avatar" style="width:30px;height:30px;border-radius:50%;flex-shrink:0;overflow:hidden;background:#e53935;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif"></div>
+          <input id="sv-comment-input" type="text" maxlength="300" placeholder="Enviar mensagem..." autocomplete="off"
+            style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;min-width:0"
+            onfocus="storyClearTimer()" onblur="storyRestartTimer()"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
+          <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:0;color:#fff;font-size:20px;line-height:1;flex-shrink:0" title="Enviar">➤</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3587,9 +3599,29 @@ function showStory(idx) {
 
   // botão apagar (só dono)
   const delBtn = document.getElementById('sv-delete-btn');
-  delBtn.style.display = u.id === currentUser.id ? 'block' : 'none';
+  const isOwn = u.id === currentUser.id;
+  delBtn.style.display = isOwn ? 'block' : 'none';
   delBtn.dataset.storyId = story.id;
   delBtn.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
+
+  // barra de comentário (só para stories de outros)
+  const commentBar = document.getElementById('sv-comment-bar');
+  const commentAv  = document.getElementById('sv-comment-avatar');
+  commentBar.style.display = isOwn ? 'none' : 'flex';
+  if (!isOwn && commentAv) {
+    if (currentUser.avatar_url) {
+      commentAv.style.background = 'transparent';
+      commentAv.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover">`;
+    } else {
+      commentAv.style.background = currentUser.color || '#e53935';
+      commentAv.textContent = initials(currentUser.username || '?');
+    }
+  }
+  // salva username do dono do story para o envio
+  commentBar.dataset.storyOwner = u.username || '';
+  // limpa o input
+  const inp = document.getElementById('sv-comment-input');
+  if (inp) inp.value = '';
 
   // barra de progresso — 5s por story
   const fill = document.getElementById('story-progress-fill');
@@ -3628,6 +3660,63 @@ async function deleteCurrentStory() {
   showStory(_storyViewIdx);
   await renderStories();
   toast('Story apagado.');
+}
+
+// ── Story: pausar timer ao digitar ───────────────────────
+function storyClearTimer() {
+  clearTimeout(_storyTimer);
+  const fill = document.getElementById('story-progress-fill');
+  if (fill) {
+    const w = fill.getBoundingClientRect().width;
+    const parent = fill.parentElement.getBoundingClientRect().width;
+    fill.style.transition = 'none';
+    fill.style.width = (w / parent * 100) + '%';
+  }
+}
+
+function storyRestartTimer() {
+  const fill = document.getElementById('story-progress-fill');
+  if (!fill) return;
+  const pct = parseFloat(fill.style.width) || 0;
+  const remaining = (1 - pct / 100) * 5000;
+  fill.style.transition = `width ${remaining / 1000}s linear`;
+  fill.style.width = '100%';
+  _storyTimer = setTimeout(() => storyNav(1), remaining);
+}
+
+// ── Story: enviar comentário como DM ─────────────────────
+async function storySendComment() {
+  const inp  = document.getElementById('sv-comment-input');
+  const bar  = document.getElementById('sv-comment-bar');
+  if (!inp || !bar) return;
+  const text = inp.value.trim();
+  if (!text) return;
+
+  const ownerUsername = bar.dataset.storyOwner;
+  if (!ownerUsername || ownerUsername === currentUser.username) return;
+
+  inp.value = '';
+  inp.disabled = true;
+
+  // Envia via tabela messages (mesmo sistema do chat)
+  const { error } = await db.from('messages').insert({
+    sender_id:   currentUser.username,
+    receiver_id: ownerUsername,
+    content:     `💬 Story: ${text}`,
+    read:        false
+  });
+
+  inp.disabled = false;
+
+  if (error) {
+    toast('Erro ao enviar. Tente novamente.');
+    console.error('storySendComment:', error);
+    return;
+  }
+
+  toast('Mensagem enviada! 💬');
+  // reinicia o timer que foi pausado durante a digitação
+  storyRestartTimer();
 }
 
 function expiresIn(isoStr) {
