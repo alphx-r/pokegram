@@ -570,6 +570,7 @@
           </h1>
         </div>
         <div class="auth-form" id="auth-form">
+          <div id="auth-hint" class="auth-hint" style="margin-bottom:4px;"></div>
           <input type="text" id="login-username" placeholder="Usuário" autocomplete="off" oninput="onAuthInput()">
           <input type="password" id="login-password" placeholder="Senha">
           <div id="register-fields" style="display:none;flex-direction:column;gap:6px;">
@@ -580,17 +581,16 @@
               <option value="pchapters">PChapters</option>
             </select>
             <select id="login-pronoun">
-              <option value="">Pronomes (opcional)</option>
+              <option value="">Pronomes *</option>
               <option value="ele/dele">ele/dele</option>
               <option value="ela/dela">ela/dela</option>
               <option value="elu/delu">elu/delu</option>
               <option value="ele/ela">ele/ela</option>
-              <option value="qualquer">qualquer pronome</option>
+              <option value="qualquer pronome">qualquer pronome</option>
             </select>
           </div>
           <div id="auth-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
           <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
-          <div id="auth-hint" class="auth-hint" style="margin-top:4px;"></div>
         </div>
       </div>
     </div>
@@ -725,8 +725,9 @@
             <div class="post-fields">
               <div class="pf-row">
                 <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <input type="text" id="post-location" placeholder="Adicionar local (ex: Pallet Town)">
+                <input type="text" id="post-location" placeholder="Local, Região">
               </div>
+              <div style="font-size:11px;color:#8e8e8e;padding:2px 0 0 22px">Ex: Cidade de Pallet, Kanto &nbsp;·&nbsp; Ginásio, Cidade de Pewter, Kanto</div>
             </div>
           </div>
         </div>
@@ -920,7 +921,7 @@
             <option value="ela/dela">ela/dela</option>
             <option value="elu/delu">elu/delu</option>
             <option value="ele/ela">ele/ela</option>
-            <option value="qualquer">qualquer pronome</option>
+            <option value="qualquer pronome">qualquer pronome</option>
           </select>
         </div>
 
@@ -1300,7 +1301,7 @@
                     <option value="ela/dela">ela/dela</option>
                     <option value="elu/delu">elu/delu</option>
                     <option value="ele/ela">ele/ela</option>
-                    <option value="qualquer">qualquer pronome</option>
+                    <option value="qualquer pronome">qualquer pronome</option>
                   </select>
                 </div>
                 <div class="adm-field" style="margin-bottom:0">
@@ -1376,7 +1377,8 @@
                     </div>
                     <div class="adm-field" style="margin-bottom:0">
                       <label>Local (opcional)</label>
-                      <input type="text" id="npc-post-location" placeholder="Ex: Pallet Town"/>
+                      <input type="text" id="npc-post-location" placeholder="Local, Região"/>
+                      <div style="font-size:11px;color:var(--muted);margin-top:3px">Ex: Cidade de Pallet, Kanto &nbsp;·&nbsp; Ginásio, Cidade de Pewter, Kanto</div>
                     </div>
                   </div>
                 </div>
@@ -1437,7 +1439,7 @@
             <option value="ela/dela">ela/dela</option>
             <option value="elu/delu">elu/delu</option>
             <option value="ele/ela">ele/ela</option>
-            <option value="qualquer">qualquer pronome</option>
+            <option value="qualquer pronome">qualquer pronome</option>
           </select>
         </div>
         <div class="adm-field" style="margin-bottom:0">
@@ -1601,6 +1603,7 @@ async function doAuth() {
       const pronoun = document.getElementById('login-pronoun').value;
       if (password !== confirm) { showAuthError('As senhas não coincidem.'); return; }
       if (!rpg)                 { showAuthError('Selecione seu RPG.'); return; }
+      if (!pronoun)             { showAuthError('Selecione seus pronomes.'); return; }
       if (password.length < 6)  { showAuthError('Senha deve ter ao menos 6 caracteres.'); return; }
       const user = await dbRegister(username, password, rpg, null, pronoun);
       if (!user) { showAuthError('Erro ao cadastrar. Tente novamente.'); return; }
@@ -3128,7 +3131,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
     <div onclick="showUserProfile('${author.username}')" style="cursor:pointer">${avatarHTML(author, 32, 'border:1px solid #dbdbdb')}</div>
     <div class="post-header-info">
       <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}${author.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#9e9e9e;color:#fff;margin-left:5px;letter-spacing:.3px;vertical-align:middle">NPC</span>' : ''}</div>
-      ${p.location ? `<div class="post-location-tag">${p.location}</div>` : ''}
+      ${p.location ? `<div class="post-location-tag" onclick="doSearch('${p.location.replace(/'/g,"\\'")}');event.stopPropagation()" style="cursor:pointer">${p.location}</div>` : ''}
     </div>
     <div class="post-header-more-wrap">
       <button class="post-header-more" onclick="togglePostMenu('${p.id}', this)">···</button>
@@ -3191,7 +3194,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 }
 
 function formatCaption(cap) {
-  return cap.replace(/#(\w+)/g, '<span class="cap-tag">#$1</span>');
+  return cap.replace(/#(\w+)/g, '<span class="cap-tag" onclick="doSearch(\'#$1\');event.stopPropagation()" style="cursor:pointer">#$1</span>');
 }
 
 // ── Likes ─────────────────────────────────────────────────
@@ -3306,7 +3309,7 @@ async function openComments(postId) {
           onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${avatarHTML_u}</div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:13px;cursor:pointer" onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${u.username || ''}${u.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>' : ''}</div>
-          ${post.location ? `<div style="font-size:11px;color:var(--muted)">${post.location}</div>` : ''}
+          ${post.location ? `<div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="closeModal('modal-comments');doSearch('${post.location.replace(/'/g,"\\'")}')">${post.location}</div>` : ''}
         </div>
         ${menuHTML}
       </div>
@@ -3960,7 +3963,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
             </div>
           </div>
           <div class="profile-bio">
-            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">${u.pronoun}</span>` : ''}</div>
+            <div class="prof-name">${u.name || u.username}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">(${u.pronoun})</span>` : ''}</div>
             ${u.pokemon ? `<div class="prof-starter">⭐ ${u.pokemon}</div>` : ''}
             ${u.bio ? `<div class="prof-desc">${u.bio}</div>` : ''}
           </div>
@@ -5228,9 +5231,10 @@ if (typeof db !== 'undefined') loadFilters();
     </div>
     <div style="margin-bottom:18px">
       <label style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Local</label>
-      <input type="text" id="edit-post-location" maxlength="100" placeholder="Adicionar localização..."
+      <input type="text" id="edit-post-location" maxlength="100" placeholder="Local, Região"
         style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Nunito',sans-serif;font-size:14px;outline:none;color:var(--text);box-sizing:border-box"
         onfocus="this.style.borderColor='#0095f6'" onblur="this.style.borderColor='var(--border)'">
+      <div style="font-size:11px;color:#8e8e8e;margin-top:4px">Ex: Cidade de Pallet, Kanto &nbsp;·&nbsp; Ginásio, Cidade de Pewter, Kanto</div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button onclick="closeModal('modal-edit-post')"
