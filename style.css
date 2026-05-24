@@ -347,6 +347,13 @@ input, select, textarea { font-family: var(--font); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 24px;
+  overflow: visible;
+}
+.post-card > *:first-child {
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+}
+.post-image {
   overflow: hidden;
 }
 
