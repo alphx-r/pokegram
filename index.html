@@ -442,7 +442,7 @@
 }
 .chat-input-bar input {
   flex: 1;
-  border: 1px solid var(--border, #dbdbdb);
+  border: 1.5px solid var(--user-color, var(--border, #dbdbdb));
   border-radius: 20px;
   padding: 8px 14px;
   font-size: 13px;
@@ -451,11 +451,11 @@
   background: var(--bg, #fff);
   color: var(--text, #262626);
 }
-.chat-input-bar input:focus { border-color: var(--brand-mid, #e53935); }
+.chat-input-bar input:focus { border-color: var(--user-color, #e53935); }
 .chat-send-btn {
   width: 34px; height: 34px;
   border-radius: 50%;
-  background: var(--brand-mid, #e53935);
+  background: var(--user-color, #e53935);
   border: none;
   cursor: pointer;
   display: flex;
@@ -779,8 +779,8 @@
     </div>
   </div>
 
-  <div id="modal-post" class="modal hidden">
-    <div class="modal-backdrop" onclick="closeModal('modal-post')"></div>
+  <div id="modal-comments" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-comments')"></div>
     <div class="modal-box comments-modal-box">
       <!-- Split layout: post à esq, comentários à dir -->
       <div class="comments-split">
@@ -792,7 +792,7 @@
         <!-- Lado direito: comentários -->
         <div class="comments-right-side">
           <div class="modal-header">
-            <button class="modal-x" onclick="closeModal('modal-post')">✕</button>
+            <button class="modal-x" onclick="closeModal('modal-comments')">✕</button>
             <h3>Comentários</h3>
             <span></span>
           </div>
@@ -856,11 +856,11 @@
       <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.55))">
         <div style="display:flex;align-items:center;gap:8px;width:100%">
           <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
-            style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:8px 16px;min-width:0"
+            style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:8px 16px;min-width:0"
             onfocus="storyClearTimer();svCommentFocus(true)"
             onblur="storyRestartTimer();svCommentFocus(false)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
-          <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:4px;color:#fff;font-size:22px;line-height:1;flex-shrink:0;opacity:.9" title="Enviar">➤</button>
+          <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:22px;line-height:1;flex-shrink:0;opacity:.9" title="Enviar">➤</button>
         </div>
       </div>
     </div>
@@ -3282,7 +3282,7 @@ async function openPostPage(postId) {
       .eq('post_id', postId).order('created_at', { ascending: true }),
   ]);
   const liked   = !!(likedData && likedData.length);
-  const isOwner = u.id === currentUser.id;
+  const isOwner = String(u.id) === String(currentUser.id);
 
   const imageHTML = post.image_url
     ? `<img src="${post.image_url}" style="width:100%;height:100%;object-fit:cover;display:block">`
@@ -3371,7 +3371,7 @@ async function openComments(postId) {
     post = data;
   }
 
-  if (!post) { openModal('modal-post'); return; }
+  if (!post) { openModal('modal-comments'); return; }
 
   // ── Imagem ──────────────────────────────────────────────
   if (imgEl) {
@@ -3391,7 +3391,7 @@ async function openComments(postId) {
   // ── Caption (header com avatar + username + três pontinhos) ──
   if (capEl) {
     const u         = post.users || {};
-    const isOwner   = u.id === currentUser.id;
+    const isOwner   = String(u.id) === String(currentUser.id);
     const captionEscaped = (post.caption || '').replace(/'/g, "\\'").replace(/\n/g, '\\n');
     const locationEscaped = (post.location || '').replace(/'/g, "\\'");
 
@@ -3406,7 +3406,7 @@ async function openComments(postId) {
                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                Editar publicação
              </button>
-             <button onclick="deletePost('${post.id}');closeModal('modal-post')"
+             <button onclick="deletePost('${post.id}');closeModal('modal-comments')"
                style="display:flex;align-items:center;gap:8px;width:100%;padding:11px 14px;border:none;background:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:#e53935;text-align:left">
                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                Apagar publicação
@@ -3423,10 +3423,10 @@ async function openComments(postId) {
     capEl.innerHTML = `
       <div class="cpc-header">
         <div style="width:34px;height:34px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden;cursor:pointer;border:1px solid var(--border)"
-          onclick="closeModal('modal-post');showUserProfile('${u.username}')">${avatarHTML_u}</div>
+          onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${avatarHTML_u}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;cursor:pointer" onclick="closeModal('modal-post');showUserProfile('${u.username}')">${u.username || ''}${u.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>' : ''}</div>
-          ${post.location ? `<div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="closeModal('modal-post');doSearch('${post.location.replace(/'/g,"\\'")}')">${post.location}</div>` : ''}
+          <div style="font-weight:700;font-size:13px;cursor:pointer" onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${u.username || ''}${u.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>' : ''}</div>
+          ${post.location ? `<div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="closeModal('modal-comments');doSearch('${post.location.replace(/'/g,"\\'")}')">${post.location}</div>` : ''}
         </div>
         ${menuHTML}
       </div>
@@ -3499,7 +3499,7 @@ async function openComments(postId) {
     history.pushState({ postId }, '', `/${post.users.username}/post/${postId}`);
   }
 
-  openModal('modal-post');
+  openModal('modal-comments');
 }
 
 // ── Helpers do modal de post ─────────────────────────────
@@ -4842,8 +4842,8 @@ function openModal(id)  { document.getElementById(id)?.classList.remove('hidden'
 function closeModal(id) {
   document.getElementById(id)?.classList.add('hidden');
   document.body.style.overflow = '';
-  // Ao fechar o modal de post, restaura a URL anterior
-  if (id === 'modal-post') {
+  // Ao fechar o modal de comentários, restaura a URL anterior
+  if (id === 'modal-comments') {
     const path = window.location.pathname;
     if (/\/post\//.test(path)) {
       history.pushState(null, '', path.replace(/\/post\/[^/]+$/, '') || '/');
@@ -4983,7 +4983,7 @@ async function markAllRead() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal('modal-post'); closeModal('modal-story-new'); closeModal('modal-post'); closeCropper(); closeNotifPanel(); }
+  if (e.key === 'Escape') { closeModal('modal-comments'); closeModal('modal-post'); closeModal('modal-story-new'); closeCropper(); closeNotifPanel(); }
 });
 
 // ── Browser back/forward ──────────────────────────────────
@@ -4992,16 +4992,16 @@ window.addEventListener('popstate', async () => {
   const urlPath  = window.location.pathname.replace(/^\//, '').split('?')[0];
   const postMatch = urlPath.match(/^([^/]+)\/post\/([^/]+)$/);
   if (!urlPath || urlPath === 'feed') {
-    closeModal('modal-post');
+    closeModal('modal-comments');
     await showView('feed');
   } else if (postMatch) {
-    closeModal('modal-post');
+    closeModal('modal-comments');
     await openPostPage(postMatch[2]);
   } else if (urlPath === currentUser.username) {
-    closeModal('modal-post');
+    closeModal('modal-comments');
     await showView('profile');
   } else if (urlPath !== 'adm') {
-    closeModal('modal-post');
+    closeModal('modal-comments');
     await showUserProfile(urlPath);
   }
 });
