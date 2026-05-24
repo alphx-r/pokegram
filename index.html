@@ -775,6 +775,21 @@
     </div>
   </div>
 
+  <!-- MODAL SEGUIDORES / SEGUINDO -->
+  <div id="modal-follow-list" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-follow-list')"></div>
+    <div class="modal-box" style="max-width:400px;max-height:80vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+      <div class="modal-header" style="flex-shrink:0">
+        <button class="modal-x" onclick="closeModal('modal-follow-list')">✕</button>
+        <h3 id="follow-modal-title">Seguidores</h3>
+        <div></div>
+      </div>
+      <div id="follow-modal-list" style="overflow-y:auto;flex:1;padding:8px 0">
+        <div style="text-align:center;padding:30px;color:#8e8e8e">Carregando...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL EDITAR PERFIL -->
   <div id="modal-edit-profile" class="modal hidden">
     <div class="modal-backdrop" onclick="closeModal('modal-edit-profile')"></div>
@@ -2727,6 +2742,26 @@ async function renderFeed() {
   await renderSuggestions();
 }
 
+// Gera um degradê vistoso a partir de uma cor hex:
+// mistura a cor com branco (versão clara) e com preto (versão escura)
+function makeStoryGradient(hex) {
+  // parse hex → rgb
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  // versão clara: misturar 60% com branco
+  const lr = Math.round(r + (255-r)*0.55);
+  const lg = Math.round(g + (255-g)*0.55);
+  const lb = Math.round(b + (255-b)*0.55);
+  // versão escura: misturar 40% com preto
+  const dr = Math.round(r * 0.55);
+  const dg = Math.round(g * 0.55);
+  const db = Math.round(b * 0.55);
+  const light = `rgb(${lr},${lg},${lb})`;
+  const dark  = `rgb(${dr},${dg},${db})`;
+  return `background: linear-gradient(135deg, ${light} 0%, ${hex} 45%, ${dark} 100%)`;
+}
+
 async function renderStories() {
   const list  = document.getElementById('stories-list');
   const myPic = document.getElementById('my-story-pic');
@@ -2765,7 +2800,7 @@ async function renderStories() {
     myRing.classList.toggle('story-ring-active', hasActive);
     if (hasActive) {
       const c = currentUser.color || '#e53935';
-      myRing.style.background = `linear-gradient(135deg, ${c}, ${c}aa, ${c}cc)`;
+      myRing.style.cssText += ';' + makeStoryGradient(c).replace('background: ','background:');
     } else {
       myRing.style.background = '';
     }
@@ -2788,10 +2823,9 @@ async function renderStories() {
     const u     = s.users || {};
     const count = countMap[u.id] || 1;
     const color = u.color || '#e53935';
-    // Degradê: cor sólida → versão mais clara (mistura com branco)
-    const colorLight = color + 'aa'; // versão semitransparente como ponto claro
-    const ringStyle  = `background: linear-gradient(135deg, ${color}, ${colorLight}, ${color}cc)`;
-    const badgeStyle = `background:${color}`;
+    // Gera degradê: versão clara (misturando com branco) e escura da cor
+    const ringGradient = makeStoryGradient(color);
+    const badgeStyle   = `background:${color}`;
 
     const pic = u.avatar_url
       ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
@@ -2800,7 +2834,7 @@ async function renderStories() {
       ? `<div class="story-count-badge" style="${badgeStyle}">${count}</div>`
       : '';
     return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
-      <div class="story-ring story-ring-active" style="position:relative;${ringStyle}">${pic}${badge}</div>
+      <div class="story-ring story-ring-active" style="position:relative;${ringGradient}">${pic}${badge}</div>
       <span>${u.username}</span>
     </div>`;
   }).join('');
@@ -3475,8 +3509,8 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
             </div>
             <div class="profile-stats">
               <div class="stat-item"><strong>${fmtNum(postCount)}</strong><span> posts</span></div>
-              <div class="stat-item"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
-              <div class="stat-item"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
+              <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','followers','${u.username}')"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
+              <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','following','${u.username}')"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
             </div>
           </div>
         </div>
@@ -3513,11 +3547,14 @@ async function loadUserData(username) {
   const { data: u, error } = await db.from('users').select('*').eq('username', username).maybeSingle();
   if (error) console.error('Erro ao carregar usuário:', error);
   if (!u) return null;
-  const [postsRes, followersRes, followingRes] = await Promise.all([
+  const [postsRes, followersRes, followingRes, myFollowRes] = await Promise.all([
     db.from('posts').select('id,emoji,bg,image_url').eq('user_id', u.id).order('created_at', { ascending: false }),
     db.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', u.id),
     db.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', u.id),
+    db.from('follows').select('id').eq('follower_id', currentUser.id).eq('following_id', u.id).maybeSingle(),
   ]);
+  // atualiza followState para que buildProfileHTML use o valor correto
+  followState[u.id] = !!myFollowRes.data;
   return { u, userPosts: postsRes.data || [], followers: followersRes.count || 0, following: followingRes.count || 0 };
 }
 
@@ -3550,7 +3587,58 @@ async function showUserProfile(username) {
   container.innerHTML = buildProfileHTML(u, userPosts, followers, following, false);
 }
 
-// ── Edit Profile modal ────────────────────────────────────
+// ── Modal Seguidores / Seguindo ───────────────────────────
+async function openFollowModal(userId, type, username) {
+  document.getElementById('follow-modal-title').textContent =
+    type === 'followers' ? `Seguidores de ${username}` : `${username} segue`;
+  document.getElementById('follow-modal-list').innerHTML =
+    '<div style="text-align:center;padding:30px;color:#8e8e8e">Carregando...</div>';
+  openModal('modal-follow-list');
+
+  let users = [];
+  if (type === 'followers') {
+    // quem segue userId → follower_id
+    const { data } = await db.from('follows')
+      .select('users!follower_id(id,username,name,avatar_url,color)')
+      .eq('following_id', userId);
+    users = (data || []).map(r => r.users).filter(Boolean);
+  } else {
+    // quem userId segue → following_id
+    const { data } = await db.from('follows')
+      .select('users!following_id(id,username,name,avatar_url,color)')
+      .eq('follower_id', userId);
+    users = (data || []).map(r => r.users).filter(Boolean);
+  }
+
+  if (!users.length) {
+    document.getElementById('follow-modal-list').innerHTML =
+      `<div style="text-align:center;padding:30px;color:#8e8e8e">${type === 'followers' ? 'Nenhum seguidor ainda.' : 'Não segue ninguém ainda.'}</div>`;
+    return;
+  }
+
+  document.getElementById('follow-modal-list').innerHTML = users.map(u => {
+    const av = u.avatar_url
+      ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+      : initials(u.username||'?');
+    const avBg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+    const isMe = u.id === currentUser.id;
+    const isFollowing = !!followState[u.id];
+    const followBtn = isMe ? '' :
+      `<button id="flw-btn-${u.id}"
+        onclick="toggleFollow(this,'${u.id}','${u.username}')"
+        style="padding:6px 16px;border-radius:8px;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;border:1px solid ${isFollowing?'var(--border)':'#0095f6'};background:${isFollowing?'transparent':'#0095f6'};color:${isFollowing?'var(--text)':'#fff'};transition:all .15s">
+        ${isFollowing ? 'Seguindo' : 'Seguir'}
+       </button>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer" onclick="closeModal('modal-follow-list');showUserProfile('${u.username}')">
+      <div style="width:44px;height:44px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0;font-family:'Nunito',sans-serif">${av}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px;font-family:'Nunito',sans-serif">${u.username}</div>
+        ${u.name ? `<div style="font-size:12px;color:#8e8e8e;font-family:'Nunito',sans-serif">${u.name}</div>` : ''}
+      </div>
+      ${followBtn}
+    </div>`;
+  }).join('');
+}
 let _epSelectedColor = null;
 
 function openEditProfile() {
