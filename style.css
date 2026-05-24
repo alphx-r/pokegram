@@ -1413,7 +1413,7 @@ input, select, textarea { font-family: var(--font); }
   display: none;
   position: fixed;
   top: var(--topnav-h);
-  bottom: 0;
+  bottom: 50vh;
   right: 16px;
   z-index: 500;
   width: 340px;
@@ -1575,7 +1575,7 @@ input, select, textarea { font-family: var(--font); }
     right: 0 !important; left: 0 !important;
     width: 100% !important;
     top: var(--topnav-h) !important;
-    bottom: 0 !important;
+    bottom: 50vh !important;
     border-radius: 0 !important;
     max-height: none !important;
   }
