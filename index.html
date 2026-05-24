@@ -525,7 +525,7 @@
   // Aguarda DOM pronto antes de tentar acessar elementos do splash
   async function applyFavicon() {
     try {
-      const { data } = await supabase.from('app_config').select('value').eq('key','favicon_url').maybeSingle();
+      const { data } = await supabase.from('settings').select('value').eq('key','favicon_url').maybeSingle();
       if (data?.value) {
         let link = document.querySelector("link[rel~='icon']");
         if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
@@ -1709,7 +1709,7 @@ function enterApp(user) {
   // initApp é async — splash some só depois que sprites e tudo estiver pronto
   if (typeof initApp === 'function') {
     const isFirstVisit = !sessionStorage.getItem('pg_loaded');
-    const minWait = isFirstVisit ? 3000 : 0;
+    const minWait = isFirstVisit ? 2000 : 0;
     sessionStorage.setItem('pg_loaded', '1');
     const started = Date.now();
     Promise.all([
@@ -2649,23 +2649,17 @@ async function salvarFavicon() {
   const okEl  = document.getElementById('favicon-fb-ok');
   const errEl = document.getElementById('favicon-fb-err');
   okEl.style.display = errEl.style.display = 'none';
-  const input = document.getElementById('favicon-file-input');
-  const file  = input.files[0];
-  if (!file) { errEl.textContent = 'Selecione um arquivo primeiro.'; errEl.style.display = 'block'; return; }
-  const ext  = file.name.split('.').pop().toLowerCase();
-  const path = `public/favicon.${ext}`;
-  const { error: upErr } = await db.storage.from('app-assets').upload(path, file, { upsert: true, contentType: file.type });
-  if (upErr) { errEl.textContent = 'Erro ao enviar: ' + upErr.message; errEl.style.display = 'block'; return; }
-  const { data: urlData } = db.storage.from('app-assets').getPublicUrl(path);
-  const url = urlData.publicUrl + '?v=' + Date.now();
-  // atualiza favicon na aba atual
+  const preview = document.getElementById('favicon-new-preview');
+  const base64  = preview?.src;
+  if (!base64 || !base64.startsWith('data:')) { errEl.textContent = 'Selecione um arquivo primeiro.'; errEl.style.display = 'block'; return; }
+  const { error } = await db.from('settings').upsert({ key: 'favicon_url', value: base64 }, { onConflict: 'key' });
+  if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
+  // aplica na aba imediatamente
   let link = document.querySelector("link[rel~='icon']");
   if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
-  link.href = url;
-  // salva URL no banco para carregar no próximo acesso
-  await db.from('app_config').upsert({ key: 'favicon_url', value: url });
-  // atualiza preview
-  document.getElementById('favicon-preview-adm').src = url;
+  link.href = base64;
+  // atualiza preview do "atual"
+  document.getElementById('favicon-preview-adm').src = base64;
   document.getElementById('favicon-preview-adm').style.display = 'block';
   document.getElementById('favicon-preview-empty').style.display = 'none';
   okEl.style.display = 'block';
@@ -2676,7 +2670,7 @@ async function removerFavicon() {
   const okEl  = document.getElementById('favicon-fb-ok');
   const errEl = document.getElementById('favicon-fb-err');
   okEl.style.display = errEl.style.display = 'none';
-  await db.from('app_config').delete().eq('key', 'favicon_url');
+  await db.from('settings').delete().eq('key', 'favicon_url');
   let link = document.querySelector("link[rel~='icon']");
   if (link) link.href = '/favicon.ico';
   document.getElementById('favicon-preview-adm').style.display = 'none';
@@ -2738,7 +2732,7 @@ async function carregarLogoAdm() {
 }
 
 async function carregarFaviconAdm() {
-  const { data } = await db.from('app_config').select('value').eq('key', 'favicon_url').maybeSingle();
+  const { data } = await db.from('settings').select('value').eq('key', 'favicon_url').maybeSingle();
   const url = data?.value;
   const img   = document.getElementById('favicon-preview-adm');
   const empty = document.getElementById('favicon-preview-empty');
