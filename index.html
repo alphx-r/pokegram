@@ -4524,6 +4524,9 @@ async function openStoryViewer(userId) {
   showStory(_storyViewIdx);
   document.getElementById('modal-story').style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  // atualiza URL para /usuario/stories
+  const storyUsername = stories[0]?.users?.username;
+  if (storyUsername) history.pushState({ storyUserId: userId }, '', '/' + storyUsername + '/stories');
 }
 
 function showStory(idx) {
@@ -4612,6 +4615,10 @@ function closeStoryViewer() {
   _storyPaused = false;
   document.getElementById('modal-story').style.display = 'none';
   document.body.style.overflow = '';
+  // restaura URL anterior se estava em /usuario/stories
+  if (/\/stories$/.test(window.location.pathname)) {
+    history.pushState(null, '', window.location.pathname.replace(/\/stories$/, '') || '/');
+  }
 }
 
 async function deleteCurrentStory() {
@@ -4634,7 +4641,7 @@ function svCommentFocus(on) {
   const inp = document.getElementById('sv-comment-input');
   if (!inp) return;
   inp.style.background    = on ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)';
-  inp.style.borderColor   = on ? 'rgba(255,255,255,0.7)'  : 'rgba(255,255,255,0.35)';
+  inp.style.borderColor   = on ? (getComputedStyle(document.documentElement).getPropertyValue('--user-color').trim() || 'rgba(255,255,255,0.7)') : 'var(--user-color, rgba(255,255,255,0.35))';
 }
 
 function storyClearTimer() {
@@ -4990,18 +4997,28 @@ document.addEventListener('keydown', e => {
 window.addEventListener('popstate', async () => {
   if (!currentUser) return;
   const urlPath  = window.location.pathname.replace(/^\//, '').split('?')[0];
-  const postMatch = urlPath.match(/^([^/]+)\/post\/([^/]+)$/);
+  const postMatch  = urlPath.match(/^([^/]+)\/post\/([^/]+)$/);
+  const storyMatch = urlPath.match(/^([^/]+)\/stories$/);
   if (!urlPath || urlPath === 'feed') {
     closeModal('modal-comments');
+    closeStoryViewer();
     await showView('feed');
   } else if (postMatch) {
     closeModal('modal-comments');
+    closeStoryViewer();
     await openPostPage(postMatch[2]);
+  } else if (storyMatch) {
+    // abre o story viewer do usuário da URL
+    closeModal('modal-comments');
+    const { data: storyUser } = await db.from('users').select('id').eq('username', storyMatch[1]).maybeSingle();
+    if (storyUser) await openStoryViewer(storyUser.id);
   } else if (urlPath === currentUser.username) {
     closeModal('modal-comments');
+    closeStoryViewer();
     await showView('profile');
   } else if (urlPath !== 'adm') {
     closeModal('modal-comments');
+    closeStoryViewer();
     await showUserProfile(urlPath);
   }
 });
