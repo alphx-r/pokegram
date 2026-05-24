@@ -1,7 +1,7 @@
-/* ============================
+/* =============================
    POKÉGRAM — style.css
    Instagram-style UI
-   ============================ */
+   ============================= */
 
 :root {
   --red:        #e53935;
@@ -746,6 +746,20 @@ input, select, textarea { font-family: var(--font); }
   display: inline-block;
 }
 .btn-follow-profile:hover { background: #1877d2; }
+.btn-icon-profile {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  transition: background .1s;
+  flex-shrink: 0;
+}
+.btn-icon-profile:hover { background: #f5f5f5; }
+.btn-icon-profile svg { display: block; }
 .btn-follow-profile.following {
   background: transparent;
   border: 1px solid var(--border);
