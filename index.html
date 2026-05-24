@@ -2328,10 +2328,15 @@ async function initApp(user) {
 
   // Roteamento inicial: respeita a URL atual em vez de sempre ir para feed
   const urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
+  const postMatch = urlPath.match(/^([^/]+)\/post\/([^/]+)$/);
   if (!urlPath || urlPath === 'feed') {
     await showView('feed');
   } else if (urlPath === 'explore') {
     await showView('explore');
+  } else if (postMatch) {
+    // /{username}/post/{id} → carrega feed e abre o post
+    await showView('feed');
+    await openComments(postMatch[2]);
   } else if (urlPath === user.username) {
     await showView('profile');
   } else if (urlPath !== 'adm') {
@@ -2764,6 +2769,12 @@ async function openComments(postId) {
     }
   }
   document.getElementById('new-comment').value = '';
+
+  // Atualiza a URL para /{username}/post/{id} — permite link direto e back/forward
+  if (post?.users?.username) {
+    history.pushState({ postId }, '', `/${post.users.username}/post/${postId}`);
+  }
+
   openModal('modal-comments');
 }
 
@@ -3615,8 +3626,8 @@ async function deletePost(postId) {
 }
 
 async function submitPost() {
-  const caption  = document.getElementById('post-caption').value.trim();
-  const location = document.getElementById('post-location').value.trim();
+  const caption     = document.getElementById('post-caption').value.trim();
+  const postLocation = document.getElementById('post-location').value.trim();
   if (!caption)              return toast('Escreva uma legenda!');
   if (!_postPendingImageFile) return toast('Selecione uma foto!');
 
@@ -3633,19 +3644,42 @@ async function submitPost() {
   const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
   const image_url = urlData.publicUrl;
 
-  const payload = { user_id: currentUser.id, caption, location, image_url, emoji: null, bg: null };
-  const { error } = await db.from('posts').insert(payload);
+  const payload = { user_id: currentUser.id, caption, location: postLocation, image_url, emoji: null, bg: null };
+  const { data: inserted, error } = await db.from('posts').insert(payload).select('id').maybeSingle();
   if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
   if (error) { toast('Erro ao publicar. Tente novamente.'); return; }
+
   _postPendingImageFile = null;
   closeModal('modal-post');
   await showView('feed');
-  toast('Publicação criada! 🎉');
+
+  // Gera e exibe o link permanente da postagem
+  if (inserted?.id) {
+    const postUrl = `${window.location.origin}/${currentUser.username}/post/${inserted.id}`;
+    try {
+      await navigator.clipboard.writeText(postUrl);
+      toast('✅ Publicado! Link copiado para a área de transferência');
+    } catch {
+      toast('✅ Publicado! ' + postUrl);
+    }
+  } else {
+    toast('Publicação criada! 🎉');
+  }
 }
 
 // ── Modal Helpers ─────────────────────────────────────────
 function openModal(id)  { document.getElementById(id)?.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
-function closeModal(id) { document.getElementById(id)?.classList.add('hidden');    document.body.style.overflow = ''; }
+function closeModal(id) {
+  document.getElementById(id)?.classList.add('hidden');
+  document.body.style.overflow = '';
+  // Ao fechar o modal de post, restaura a URL anterior
+  if (id === 'modal-comments') {
+    const path = window.location.pathname;
+    if (/\/post\//.test(path)) {
+      history.pushState(null, '', path.replace(/\/post\/[^/]+$/, '') || '/');
+    }
+  }
+}
 
 // ── Utils ─────────────────────────────────────────────────
 function initials(name) {
@@ -3780,12 +3814,18 @@ document.addEventListener('keydown', e => {
 // ── Browser back/forward ──────────────────────────────────
 window.addEventListener('popstate', async () => {
   if (!currentUser) return;
-  const urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
+  const urlPath  = window.location.pathname.replace(/^\//, '').split('?')[0];
+  const postMatch = urlPath.match(/^([^/]+)\/post\/([^/]+)$/);
   if (!urlPath || urlPath === 'feed') {
+    closeModal('modal-comments');
     await showView('feed');
+  } else if (postMatch) {
+    await openComments(postMatch[2]);
   } else if (urlPath === currentUser.username) {
+    closeModal('modal-comments');
     await showView('profile');
   } else if (urlPath !== 'adm') {
+    closeModal('modal-comments');
     await showUserProfile(urlPath);
   }
 });
