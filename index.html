@@ -398,12 +398,15 @@
 .chat-bubble-rich { padding:0 !important; overflow:hidden; background:transparent !important; border:1.5px solid rgba(0,0,0,.1); }
 .chat-msg-row.sent .chat-bubble-rich { border-color:rgba(255,255,255,.2); }
 
-.chat-story-preview { width:150px; height:210px; position:relative; cursor:pointer; overflow:hidden; background:#111; border-radius:14px; }
+.chat-story-preview { width:150px; height:210px; position:relative; cursor:pointer; overflow:hidden; background:#111; border-radius:14px 14px 0 0; }
 .chat-story-preview img { width:100%; height:100%; object-fit:cover; display:block; }
 .chat-story-label { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,.7)); color:#fff; font-size:11px; font-weight:700; padding:20px 10px 8px; display:flex; align-items:center; gap:4px; }
 
 .chat-rich-text { padding:7px 11px 9px; font-size:13px; line-height:1.4; background:var(--hover,#f0f0f0); color:var(--text,#262626); }
 .chat-msg-row.sent .chat-rich-text { background:var(--user-color,#e53935); color:#fff; }
+.chat-reply-btn { display:none;background:none;border:none;cursor:pointer;color:#999;padding:4px 6px;align-self:center;border-radius:50%;transition:background .15s; }
+.chat-reply-btn:hover { background:#f0f0f0;color:#333; }
+.chat-msg-row:hover .chat-reply-btn { display:flex; }
 
 .chat-post-preview { width:220px; cursor:pointer; border-radius:14px; overflow:hidden; background:#fff; }
 .chat-post-preview img { display:block; width:100%; }
@@ -886,7 +889,7 @@
           </div>
           <input type="file" id="ep-avatar-file" accept="image/*" style="display:none" onchange="previewAvatarUpload(this)">
           <div id="ep-avatar-upload-hint" style="font-size:11px;color:#0095f6;font-weight:600;cursor:pointer" onclick="document.getElementById('ep-avatar-file').click()">Alterar foto</div>
-          <div style="font-size:12px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px">Cor do avatar</div>
+          <div style="font-size:12px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px">Cor do perfil</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center" id="ep-color-picker">
             <!-- preenchido por JS -->
           </div>
@@ -1281,7 +1284,7 @@
                   </select>
                 </div>
                 <div class="adm-field" style="margin-bottom:0">
-                  <label>Cor do avatar</label>
+                  <label>Cor do perfil</label>
                   <input type="color" id="npc-color" value="#e53935" style="width:100%;height:42px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;padding:2px"/>
                 </div>
               </div>
@@ -1418,7 +1421,7 @@
           </select>
         </div>
         <div class="adm-field" style="margin-bottom:0">
-          <label>Cor do avatar</label>
+          <label>Cor do perfil</label>
           <input type="color" id="npc-modal-color" value="#e53935" style="width:100%;height:42px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;padding:2px">
         </div>
       </div>
@@ -1730,6 +1733,18 @@ async function sendPushToUser(userId, title, body, url) {
       body: JSON.stringify({ user_id: userId, title, body, url: url || '/' })
     });
   } catch(e) { console.warn('Push send error:', e); }
+}
+
+function applyUserColor(color) {
+  const c = color || '#e53935';
+  // btn-share-modal (Publicar / Compartilhar / Salvar)
+  document.querySelectorAll('.btn-share-modal').forEach(btn => {
+    btn.style.color = c;
+  });
+  // pm-switch Sair
+  document.querySelectorAll('.pm-switch a').forEach(a => {
+    a.style.color = c;
+  });
 }
 
 document.addEventListener('keydown', e => {
@@ -2737,6 +2752,7 @@ async function initApp(user) {
   document.documentElement.style.setProperty('--user-color', user.color || '#e53935');
   renderSidebarAvatar();
   applyTopnavSprites();
+  applyUserColor(user.color);
 
   // Roteamento inicial: respeita a URL atual em vez de sempre ir para feed
   const urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
@@ -2892,29 +2908,47 @@ async function renderStories() {
   (stories || []).forEach(s => { countMap[s.user_id] = (countMap[s.user_id] || 0) + 1; });
 
   // agrupar por user_id (1 bolha por usuário)
-  const seen = new Set();
+  const seenSet = new Set();
   const unique = (stories || []).filter(s => {
-    if (seen.has(s.user_id)) return false;
-    seen.add(s.user_id); return true;
+    if (seenSet.has(s.user_id)) return false;
+    seenSet.add(s.user_id); return true;
   });
 
-  list.innerHTML = unique.map(s => {
-    const u     = s.users || {};
-    const count = countMap[u.id] || 1;
-    const color = u.color || '#e53935';
-    // Gera degradê: versão clara (misturando com branco) e escura da cor
-    const ringGradient = makeStoryGradient(color);
+  // buscar quais usuários eu já vi todos os stories
+  const ownerIds = unique.map(s => s.users?.id).filter(Boolean);
+  let viewedOwners = new Set();
+  if (ownerIds.length) {
+    const { data: views } = await db
+      .from('story_views')
+      .select('owner_id')
+      .eq('viewer_id', currentUser.id)
+      .in('owner_id', ownerIds);
+    viewedOwners = new Set((views || []).map(v => v.owner_id));
+  }
+
+  // não-vistos primeiro, vistos depois
+  const unviewed = unique.filter(s => !viewedOwners.has(s.users?.id));
+  const viewed   = unique.filter(s =>  viewedOwners.has(s.users?.id));
+  const sorted   = [...unviewed, ...viewed];
+
+  list.innerHTML = sorted.map(s => {
+    const u       = s.users || {};
+    const count   = countMap[u.id] || 1;
+    const color   = u.color || '#e53935';
+    const isViewed = viewedOwners.has(u.id);
+    const ringGradient = isViewed ? 'background:none' : makeStoryGradient(color);
+    const ringBorder   = isViewed ? 'outline:2px solid #c7c7c7;outline-offset:2px' : '';
     const badgeStyle   = `background:${color}`;
 
     const pic = u.avatar_url
       ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
-      : `<div class="story-pic" style="background:${color}">${initials(u.username||'?')}</div>`;
+      : `<div class="story-pic" style="background:${isViewed ? '#b0b0b0' : color}">${initials(u.username||'?')}</div>`;
     const badge = count > 1
       ? `<div class="story-count-badge" style="${badgeStyle}">${count}</div>`
       : '';
     return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
-      <div class="story-ring story-ring-active" style="position:relative;${ringGradient}">${pic}${badge}</div>
-      <span>${u.username}</span>
+      <div class="story-ring ${isViewed ? '' : 'story-ring-active'}" style="position:relative;${ringGradient};${ringBorder}">${pic}${badge}</div>
+      <span style="color:${isViewed ? '#999' : ''}">${u.username}</span>
     </div>`;
   }).join('');
 }
@@ -3494,6 +3528,7 @@ async function toggleCommentLike(commentId, btn) {
 }
 
 async function submitComment() {
+  const input = document.getElementById('new-comment');
   const text  = input?.value.trim();
   if (!text) return;
   await db.from('comments').insert({ post_id: currentCommentPostId, user_id: currentUser.id, text });
@@ -3534,7 +3569,7 @@ function renderAsideMini() {
         <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
         <div class="pm-name">${currentUser.name || currentUser.username}</div>
       </div>
-      <div class="pm-switch"><a href="#" onclick="doLogout();return false">Sair</a></div>
+      <div class="pm-switch"><a href="#" onclick="doLogout();return false" style="color:${currentUser.color||'#e53935'}">Sair</a></div>
     </div>`;
 }
 
@@ -4016,6 +4051,7 @@ async function submitEditProfile() {
   saveSession(currentUser);
   document.documentElement.style.setProperty('--user-color', color || '#e53935');
   renderSidebarAvatar();
+  applyUserColor(color);
   closeModal('modal-edit-profile');
   await renderProfile(currentUser.username);
   toast('Perfil atualizado! ✨');
@@ -4113,6 +4149,7 @@ let _storyPendingFile = null;
 let _storyViewList    = [];
 let _storyViewIdx     = 0;
 let _storyTimer       = null;
+let _storyViewOwnerId = null;
 
 function previewStoryImage(input) {
   const file = input.files[0];
@@ -4168,8 +4205,9 @@ async function openStoryViewer(userId) {
     .order('created_at', { ascending: true });
 
   if (!stories || !stories.length) { toast('Nenhum story disponível.'); return; }
-  _storyViewList = stories;
-  _storyViewIdx  = 0;
+  _storyViewList   = stories;
+  _storyViewIdx    = 0;
+  _storyViewOwnerId = userId;
   showStory(_storyViewIdx);
   document.getElementById('modal-story').style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -4238,9 +4276,20 @@ function showStory(idx) {
   _storyTimer = setTimeout(() => storyNav(1), 5000);
 }
 
-function storyNav(dir) {
+async function storyNav(dir) {
   const next = _storyViewIdx + dir;
-  if (next < 0 || next >= _storyViewList.length) { closeStoryViewer(); return; }
+  if (next < 0 || next >= _storyViewList.length) {
+    // terminou todos os stories deste usuário — marca como visto
+    if (_storyViewOwnerId && _storyViewOwnerId !== currentUser.id) {
+      await db.from('story_views').upsert(
+        { viewer_id: currentUser.id, owner_id: _storyViewOwnerId, viewed_at: new Date().toISOString() },
+        { onConflict: 'viewer_id,owner_id' }
+      );
+    }
+    closeStoryViewer();
+    renderStories();
+    return;
+  }
   _storyViewIdx = next;
   showStory(_storyViewIdx);
 }
@@ -5011,6 +5060,14 @@ if (typeof db !== 'undefined') loadFilters();
       </div>
     </div>
     <div id="chat-messages"></div>
+    <div id="chat-reply-preview" style="display:none;padding:6px 12px;background:#f5f5f5;border-top:1px solid #e0e0e0;font-size:12px;color:#555;display:none;align-items:center;gap:8px">
+      <div style="width:3px;height:32px;background:var(--user-color,#e53935);border-radius:2px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0;overflow:hidden">
+        <div id="chat-reply-name" style="font-weight:700;font-size:11px;color:var(--user-color,#e53935)"></div>
+        <div id="chat-reply-text" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+      <button onclick="chatCancelReply()" style="background:none;border:none;cursor:pointer;font-size:16px;color:#999;padding:0;line-height:1">✕</button>
+    </div>
     <div class="chat-input-bar">
       <input type="text" id="chat-msg-input" placeholder="Mensagem..." maxlength="500"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSendMessage();}">
@@ -5039,6 +5096,7 @@ const _chat = {
   unreadCount:   0,
   realtimeSub:   null,
   loadingConvos: false,
+  replyTo:       null,
 };
 
 function _chatAvatarHTML(user, size) {
@@ -5251,6 +5309,7 @@ function chatRenderMessages() {
 
     const row = document.createElement('div');
     row.className = 'chat-msg-row ' + (isSent ? 'sent' : 'received');
+    row.id = 'chat-msg-' + msg.id;
 
     // Wrapper bolha + horário (sem mini-avatar)
     const wrap = document.createElement('div');
@@ -5260,6 +5319,18 @@ function chatRenderMessages() {
     bubble.className = 'chat-bubble';
 
     const mtype = msg.meta_type || '';
+
+    // preview de reply
+    if (msg.reply_to_id && msg.reply_preview) {
+      const replyDiv = document.createElement('div');
+      replyDiv.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;padding:5px 8px;background:rgba(0,0,0,0.07);border-radius:6px;border-left:3px solid var(--user-color,#e53935);cursor:pointer';
+      replyDiv.innerHTML = `<div style="min-width:0"><div style="font-size:10px;font-weight:700;color:var(--user-color,#e53935)">${_escHtml(msg.reply_sender||'')}</div><div style="font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(msg.reply_preview)}</div></div>`;
+      replyDiv.onclick = () => {
+        const orig = document.getElementById('chat-msg-' + msg.reply_to_id);
+        if (orig) { orig.scrollIntoView({ behavior:'smooth', block:'center' }); orig.style.background='rgba(0,149,246,.1)'; setTimeout(()=>orig.style.background='',1200); }
+      };
+      bubble.appendChild(replyDiv);
+    }
 
     if (mtype === 'story_reply') {
       bubble.className += ' chat-bubble-rich';
@@ -5294,9 +5365,14 @@ function chatRenderMessages() {
     time.className = 'chat-msg-time';
     time.textContent = _chatMsgTime(msg.created_at);
 
-    wrap.appendChild(bubble);
-    wrap.appendChild(time);
+    // botão responder (aparece no hover via CSS)
+    const replyBtn = document.createElement('button');
+    replyBtn.className = 'chat-reply-btn';
+    replyBtn.title = 'Responder';
+    replyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 00-4-4H4"/></svg>';
+    replyBtn.onclick = () => chatSetReply(msg);
     row.appendChild(wrap);
+    row.appendChild(replyBtn);
     container.appendChild(row);
   }
   container.scrollTop = container.scrollHeight;
@@ -5328,6 +5404,23 @@ async function sharePostToChat(postId, authorUsername, imageUrl, caption) {
 }
 
 // ── Enviar mensagem ──────────────────────────────────────
+function chatSetReply(msg) {
+  _chat.replyTo = msg;
+  const preview  = document.getElementById('chat-reply-preview');
+  const nameEl   = document.getElementById('chat-reply-name');
+  const textEl   = document.getElementById('chat-reply-text');
+  if (preview) preview.style.display = 'flex';
+  if (nameEl)  nameEl.textContent  = msg.sender_id === currentUser.username ? 'Você' : msg.sender_id;
+  if (textEl)  textEl.textContent  = msg.content || '';
+  document.getElementById('chat-msg-input')?.focus();
+}
+
+function chatCancelReply() {
+  _chat.replyTo = null;
+  const preview = document.getElementById('chat-reply-preview');
+  if (preview) preview.style.display = 'none';
+}
+
 async function chatSendMessage() {
   if (!currentUser || !_chat.currentPeer) return;
   const input   = document.getElementById('chat-msg-input');
@@ -5336,11 +5429,14 @@ async function chatSendMessage() {
   input.value = '';
 
   const me = currentUser.username, peer = _chat.currentPeer.username;
-  const tempMsg = { id:'temp_'+Date.now(), sender_id:me, receiver_id:peer, content, read:false, created_at:new Date().toISOString() };
+  const replyData = _chat.replyTo ? { reply_to_id: _chat.replyTo.id, reply_preview: _chat.replyTo.content?.slice(0,80), reply_sender: _chat.replyTo.sender_id } : {};
+  chatCancelReply();
+
+  const tempMsg = { id:'temp_'+Date.now(), sender_id:me, receiver_id:peer, content, read:false, created_at:new Date().toISOString(), ...replyData };
   _chat.messages.push(tempMsg);
   chatRenderMessages();
 
-  const { data, error } = await db.from('messages').insert({ sender_id:me, receiver_id:peer, content, read:false }).select().single();
+  const { data, error } = await db.from('messages').insert({ sender_id:me, receiver_id:peer, content, read:false, ...replyData }).select().single();
   if (error) {
     console.error('Chat: erro ao enviar', error);
     _chat.messages = _chat.messages.filter(m => m.id !== tempMsg.id);
