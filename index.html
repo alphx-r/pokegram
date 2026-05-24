@@ -2481,7 +2481,7 @@ async function renderStories() {
       : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username||'?')}</div>`;
     return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
       <div class="story-ring story-ring-active">${pic}</div>
-      <span style="color:${u.color||'inherit'};font-weight:${u.color?'700':'400'}">${esc(u.username)}</span>
+      <span>${u.username}</span>
     </div>`;
   }).join('');
 }
@@ -2514,7 +2514,7 @@ async function renderPosts() {
   // buscar último comentário de cada post
   const { data: lastComments } = await db
     .from('comments')
-    .select('post_id, text, users(username, color)')
+    .select('post_id, text, users(username)')
     .in('post_id', postIds)
     .order('created_at', { ascending: false });
 
@@ -2538,7 +2538,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 
   const commentPreview = lastComment
     ? `<div class="post-comment-preview">
-        <span class="cap-user" onclick="showUserProfile('${lastComment.users?.username || ''}'); event.stopPropagation()" style="cursor:pointer;color:${lastComment.users?.color||'inherit'};font-weight:700">${esc(lastComment.users?.username || '?')}</span>
+        <span class="cap-user" onclick="showUserProfile('${lastComment.users?.username || ''}'); event.stopPropagation()" style="cursor:pointer">${lastComment.users?.username || '?'}</span>
         <span>${formatCaption(lastComment.text || '')}</span>
        </div>`
     : '';
@@ -2548,7 +2548,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-header">
     <div onclick="showUserProfile('${author.username}')" style="cursor:pointer">${avatarHTML(author, 32, 'border:1px solid #dbdbdb')}</div>
     <div class="post-header-info">
-      <div class="post-username" onclick="showUserProfile('${author.username}')">${usernameSpan(author)}${author.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px;letter-spacing:.3px;vertical-align:middle">NPC</span>' : ''}</div>
+      <div class="post-username" onclick="showUserProfile('${author.username}')">${author.username}${author.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px;letter-spacing:.3px;vertical-align:middle">NPC</span>' : ''}</div>
       ${p.location ? `<div class="post-location-tag">${p.location}</div>` : ''}
     </div>
     <div class="post-header-more-wrap">
@@ -2596,7 +2596,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 
   <div class="post-likes" id="likes-${p.id}">${fmtNum(likeCount)} curtida${likeCount !== 1 ? 's' : ''}</div>
   <div class="post-caption-text">
-    <span class="cap-user" onclick="showUserProfile('${author.username}')" style="cursor:pointer;color:${author.color||'inherit'};font-weight:700">${esc(author.username)}</span>${formatCaption(p.caption||'')}
+    <span class="cap-user" onclick="showUserProfile('${author.username}')" style="cursor:pointer">${author.username}</span>${formatCaption(p.caption||'')}
   </div>
   ${commentCount > 1 ? `<div class="post-view-comments" onclick="openComments('${p.id}')">Ver todos os ${commentCount} comentários</div>` : ''}
   ${commentPreview}
@@ -2725,12 +2725,12 @@ async function openComments(postId) {
         <div style="width:34px;height:34px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden;cursor:pointer;border:1px solid var(--border)"
           onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${avatarHTML_u}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;cursor:pointer;color:${u.color||'inherit'}" onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${esc(u.username || '')}${u.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>' : ''}</div>
+          <div style="font-weight:700;font-size:13px;cursor:pointer" onclick="closeModal('modal-comments');showUserProfile('${u.username}')">${u.username || ''}${u.is_npc ? '<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>' : ''}</div>
           ${post.location ? `<div style="font-size:11px;color:var(--muted)">${post.location}</div>` : ''}
         </div>
         ${menuHTML}
       </div>
-      ${post.caption ? `<div class="cpc-text"><span style="font-weight:700;color:${u.color||'inherit'}">${esc(u.username || '')}</span> ${formatCaption(post.caption)}</div>` : ''}
+      ${post.caption ? `<div class="cpc-text"><span style="font-weight:700">${u.username || ''}</span> ${formatCaption(post.caption)}</div>` : ''}
     `;
   }
 
@@ -2897,7 +2897,7 @@ async function renderCommentsList(postId) {
       <div class="comment-item" id="comment-item-${c.id}">
         <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
         <div class="comment-body">
-          <strong onclick="showUserProfile('${u.username}')" style="cursor:pointer;color:${u.color||'inherit'}">${esc(u.username)}</strong><span> ${c.text}</span>
+          <strong onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</strong><span> ${c.text}</span>
           <div class="comment-time">${fmtTimeAgo(c.created_at)}${canDelete ? ` · <button onclick="deleteComment('${c.id}','${c.post_id}')" style="background:none;border:none;color:#e53935;font-size:11px;cursor:pointer;padding:0;font-family:inherit;font-weight:600">apagar</button>` : ''}</div>
         </div>
       </div>`;
@@ -2941,7 +2941,7 @@ function renderAsideMini() {
     <div class="profile-mini-card">
       <div class="pm-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden" onclick="showView('profile')">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
       <div class="pm-info">
-        <div class="pm-username" onclick="showView('profile')" style="color:${currentUser.color||'inherit'}">${currentUser.username}</div>
+        <div class="pm-username" onclick="showView('profile')">${currentUser.username}</div>
         <div class="pm-name">${currentUser.name || currentUser.username}</div>
       </div>
       <div class="pm-switch"><a href="#" onclick="doLogout();return false">Sair</a></div>
@@ -2956,7 +2956,7 @@ async function renderSuggestions() {
     <div class="suggestion-item">
       <div class="sug-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#e53935')};overflow:hidden" onclick="showUserProfile('${u.username}')">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
       <div class="sug-info">
-        <div class="sug-name" onclick="showUserProfile('${u.username}')" style="cursor:pointer;color:${u.color||'inherit'};font-weight:${u.color?'700':'600'}">${esc(u.username)}</div>
+        <div class="sug-name" onclick="showUserProfile('${u.username}')" style="cursor:pointer">${u.username}</div>
         <div class="sug-sub">${u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum' : u.rpg === 'pchapters' ? 'PChapters' : 'Treinador'}</div>
       </div>
       <button class="btn-follow-sm" id="follow-btn-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id] ? 'Seguindo' : 'Seguir'}</button>
@@ -2969,11 +2969,21 @@ async function toggleFollow(btn, userId, username) {
     await db.from('follows').insert({ follower_id: currentUser.id, following_id: userId });
     followState[userId] = true;
     btn.textContent = 'Seguindo';
+    btn.classList.add('following');
     toast(`Seguindo ${username}!`);
+    // notifica quem foi seguido (ignora erro silenciosamente)
+    db.from('notifications').insert({
+      user_id:  userId,
+      actor_id: currentUser.id,
+      type:     'follow',
+      post_id:  null,
+      comment_text: null
+    }).catch(() => {});
   } else {
     await db.from('follows').delete().eq('follower_id', currentUser.id).eq('following_id', userId);
     followState[userId] = false;
     btn.textContent = 'Seguir';
+    btn.classList.remove('following');
     toast(`Deixou de seguir ${username}`);
   }
 }
@@ -3106,13 +3116,7 @@ const AVATAR_COLORS = [
   '#6d4c41','#546e7a','#000000','#c0392b','#2980b9'
 ];
 
-// Retorna a cor do usuário para colorir o @username
-function userColor(u) { return (u && u.color) ? u.color : null; }
-function usernameSpan(u, extraStyle) {
-  const c = userColor(u);
-  const style = c ? `color:${c};font-weight:700;${extraStyle||''}` : (extraStyle||'');
-  return `<span style="${style}">${esc(u.username||'?')}</span>`;
-}
+function avatarHTML(u, size, extraStyle) {
   const sz = size || 40;
   const bg = u.color || '#e53935';
   if (u.avatar_url) {
@@ -3141,7 +3145,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
           </div>
           <div class="profile-meta">
             <div class="profile-top-row">
-              <span class="profile-username-text" style="color:${u.color||'inherit'}">${esc(u.username)}</span>
+              <span class="profile-username-text">${u.username}</span>
               ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
               ${isMe
                 ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
@@ -3425,7 +3429,7 @@ function showNewPost() {
   const row = document.getElementById('post-author-row');
   if (row) row.innerHTML = `
     <div class="pa-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
-    <span class="pa-name" style="color:${currentUser.color||'inherit'}">${currentUser.username}</span>`;
+    <span class="pa-name">${currentUser.username}</span>`;
 
   openModal('modal-post');
 }
@@ -3540,7 +3544,6 @@ function showStory(idx) {
     : `<div style="width:100%;height:100%;background:${u.color||'#e53935'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif">${initials(u.username||'?')}</div>`;
 
   document.getElementById('sv-username').textContent = u.username || '?';
-  document.getElementById('sv-username').style.color = u.color || '#fff';
   document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás';
 
   // botão apagar (só dono)
@@ -3822,12 +3825,17 @@ async function renderNotifList() {
       : '';
     const msg = n.type === 'like'
       ? `<span style="font-weight:700;color:${actor.color||'inherit'}">${esc(actor.username)}</span> curtiu sua publicação.`
+      : n.type === 'follow'
+      ? `<span style="font-weight:700;color:${actor.color||'inherit'}">${esc(actor.username)}</span> começou a seguir você.`
       : `<span style="font-weight:700;color:${actor.color||'inherit'}">${esc(actor.username)}</span> comentou: <span style="color:#555">${esc(n.comment_text || '')}</span>`;
+    const onclick = n.type === 'follow'
+      ? `closeNotifPanel();showUserProfile('${esc(actor.username)}')`
+      : `closeNotifPanel();openComments('${n.post_id}')`;
     const unread = !n.read ? 'background:#f0f7ff;' : '';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;${unread}" onclick="closeNotifPanel();openComments('${n.post_id}')">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;${unread}" onclick="${onclick}">
       <div style="width:38px;height:38px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0">${av}</div>
       <div style="font-size:13px;color:#1a1a1a;flex:1;line-height:1.4;min-width:0">${msg}<div style="font-size:11px;color:#8e8e8e;margin-top:2px">${fmtTimeAgo(n.created_at)}</div></div>
-      ${thumb}
+      ${n.type !== 'follow' ? thumb : ''}
     </div>`;
   }).join('');
 }
