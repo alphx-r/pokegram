@@ -1881,30 +1881,19 @@ let _admAllChats = [];
 async function admCarregarChats() {
   const list = document.getElementById('adm-chats-list');
   list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Carregando...</div>';
-
-  // Busca todas as mensagens agrupadas por conversa (user_a / user_b)
-  const { data: msgs, error } = await db
-    .from('messages')
-    .select('id,sender_id,receiver_id,content,created_at,read')
-    .order('created_at', { ascending: false });
-
+  const { data: msgs, error } = await db.from('messages').select('id,sender_id,receiver_id,content,created_at,read').order('created_at', { ascending: false });
   if (error) { list.innerHTML = `<div style="color:#e53935;font-size:13px">Erro: ${error.message}</div>`; return; }
   if (!msgs || !msgs.length) { list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Nenhuma conversa ainda.</div>'; return; }
-
-  // Agrupa por par de usuários
   const convMap = {};
   for (const m of msgs) {
     const key = [m.sender_id, m.receiver_id].sort().join('_');
     if (!convMap[key]) convMap[key] = { key, messages: [], ids: [m.sender_id, m.receiver_id].sort() };
     convMap[key].messages.push(m);
   }
-
-  // Busca nomes dos usuários envolvidos
   const allIds = [...new Set(msgs.flatMap(m => [m.sender_id, m.receiver_id]))];
-  const { data: users } = await db.from('users').select('id,username,avatar_url,color').in('id', allIds);
+  const { data: users } = await db.from('users').select('id,username,name,color,avatar_url').in('username', allIds);
   const uMap = {};
-  (users||[]).forEach(u => uMap[u.id] = u);
-
+  (users||[]).forEach(u => uMap[u.username] = u);
   _admAllChats = Object.values(convMap).map(conv => {
     const [idA, idB] = conv.ids;
     const uA = uMap[idA] || { username: idA };
@@ -1913,17 +1902,12 @@ async function admCarregarChats() {
     const unread = conv.messages.filter(m => !m.read).length;
     return { key: conv.key, uA, uB, last, total: conv.messages.length, unread, messages: conv.messages };
   }).sort((a, b) => new Date(b.last.created_at) - new Date(a.last.created_at));
-
   admChatRender(_admAllChats);
 }
 
 function admChatSearch(q) {
   const lq = q.toLowerCase();
-  const filtered = _admAllChats.filter(c =>
-    c.uA.username.toLowerCase().includes(lq) ||
-    c.uB.username.toLowerCase().includes(lq)
-  );
-  admChatRender(filtered);
+  admChatRender(_admAllChats.filter(c => c.uA.username.toLowerCase().includes(lq) || c.uB.username.toLowerCase().includes(lq)));
 }
 
 function admChatRender(chats) {
@@ -1961,9 +1945,9 @@ function admChatAbrir(key) {
         </div>
         <div style="overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px">
           ${msgs.map(m => {
-            const sender = m.sender_id === conv.uA.id ? conv.uA : conv.uB;
+            const senderName = m.sender_id === conv.uA.username ? conv.uA.username : conv.uB.username;
             return `<div style="display:flex;flex-direction:column;gap:2px">
-              <span style="font-size:11px;color:var(--muted);font-weight:700">@${esc(sender.username)} · ${fmtTimeAgo(m.created_at)}</span>
+              <span style="font-size:11px;color:var(--muted);font-weight:700">@${esc(senderName)} · ${fmtTimeAgo(m.created_at)}</span>
               <div style="background:#f5f5f5;border-radius:8px;padding:7px 10px;font-size:13px;max-width:90%">${esc(m.content||'')}</div>
             </div>`;
           }).join('')}
@@ -4402,8 +4386,8 @@ const _chat = {
 
 function _chatAvatarHTML(user, size) {
   size = size || 42;
-  const s = 'width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+(user.avatar_color||'#e53935')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:'+Math.round(size*0.38)+'px;font-weight:800;overflow:hidden;flex-shrink:0;';
-  const initial = (user.display_name || user.username || '?').charAt(0).toUpperCase();
+  const s = 'width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+(user.color||'#e53935')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:'+Math.round(size*0.38)+'px;font-weight:800;overflow:hidden;flex-shrink:0;';
+  const initial = (user.name || user.username || '?').charAt(0).toUpperCase();
   if (user.avatar_url) {
     return '<div style="'+s+'"><img src="'+user.avatar_url+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></div>';
   }
@@ -4488,7 +4472,7 @@ async function chatLoadConversations() {
     const peers = Object.keys(convMap);
     let usersMap = {};
     if (peers.length > 0) {
-      const { data: users } = await db.from('users').select('username,display_name,avatar_color,avatar_url').in('username', peers);
+      const { data: users } = await db.from('users').select('id,username,name,color,avatar_url').in('username', peers);
       (users || []).forEach(u => { usersMap[u.username] = u; });
     }
 
@@ -4504,8 +4488,8 @@ async function chatLoadConversations() {
 
     listEl.innerHTML = '';
     for (const conv of _chat.conversations) {
-      const u    = usersMap[conv.peer] || { username: conv.peer, display_name: conv.peer, avatar_color: '#e53935' };
-      const name = u.display_name || u.username;
+      const u    = usersMap[conv.peer] || { username: conv.peer, name: conv.peer, color: '#e53935' };
+      const name = u.name || u.username;
       const isMe = conv.lastMsg.sender_id === currentUser.username;
       const preview = (isMe ? 'Você: ' : '') + conv.lastMsg.content;
       const item = document.createElement('div');
@@ -4538,13 +4522,13 @@ async function chatOpenWindow(peerUser) {
   _chat.windowOpen  = true;
 
   const winAv = document.getElementById('chat-win-avatar');
-  winAv.style.background = peerUser.avatar_color || '#e53935';
+  winAv.style.background = peerUser.color || '#e53935';
   if (peerUser.avatar_url) {
     winAv.innerHTML = '<img src="'+peerUser.avatar_url+'" style="width:100%;height:100%;object-fit:cover">';
   } else {
-    winAv.textContent = (peerUser.display_name || peerUser.username || '?').charAt(0).toUpperCase();
+    winAv.textContent = (peerUser.name || peerUser.username || '?').charAt(0).toUpperCase();
   }
-  document.getElementById('chat-win-username').textContent = peerUser.display_name || peerUser.username;
+  document.getElementById('chat-win-username').textContent = peerUser.name || peerUser.username;
   document.getElementById('chat-window').classList.add('open');
   document.getElementById('chat-messages').innerHTML = '<div class="chat-msgs-loading">Carregando...</div>';
 
@@ -4597,11 +4581,11 @@ function chatRenderMessages() {
     if (!isSent && _chat.currentPeer) {
       const miniAv = document.createElement('div');
       miniAv.className = 'chat-msg-mini-avatar';
-      miniAv.style.background = _chat.currentPeer.avatar_color || '#e53935';
+      miniAv.style.background = _chat.currentPeer.color || '#e53935';
       if (_chat.currentPeer.avatar_url) {
         miniAv.innerHTML = '<img src="'+_chat.currentPeer.avatar_url+'" style="width:100%;height:100%;object-fit:cover">';
       } else {
-        miniAv.textContent = (_chat.currentPeer.display_name || _chat.currentPeer.username || '?').charAt(0).toUpperCase();
+        miniAv.textContent = (_chat.currentPeer.name || _chat.currentPeer.username || '?').charAt(0).toUpperCase();
       }
       row.appendChild(miniAv);
     }
@@ -4675,7 +4659,7 @@ function chatSubscribeRealtime() {
 // ── Iniciar conversa a partir de um perfil ───────────────
 async function chatStartConversation(peerUsername) {
   if (!currentUser || peerUsername === currentUser.username) return;
-  const { data: peerUser } = await db.from('users').select('username,display_name,avatar_color,avatar_url').eq('username', peerUsername).maybeSingle();
+  const { data: peerUser } = await db.from('users').select('id,username,name,color,avatar_url').eq('username', peerUsername).maybeSingle();
   if (!peerUser) { if (typeof showToast === 'function') showToast('Usuário não encontrado.'); return; }
   await openChatPanel();
   await chatOpenWindow(peerUser);
