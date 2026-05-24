@@ -996,6 +996,7 @@ input, select, textarea { font-family: var(--font); }
   gap: 12px;
   padding: 10px 16px;
   align-items: flex-start;
+  position: relative;
 }
 .comment-avatar {
   width: 32px; height: 32px;
