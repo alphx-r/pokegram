@@ -3470,11 +3470,26 @@ async function renderCommentsList(postId) {
     const u = c.users || { username: '?', color: '#999' };
     const canDelete = c.user_id === currentUser.id;
     const likes = c.likes || 0;
+
+    // detecta se é resposta (começa com @username)
+    const replyMatch = c.text.match(/^@(\S+)\s*/);
+    const isReply    = !!replyMatch;
+    const replyUser  = replyMatch ? replyMatch[1] : null;
+    const replyText  = replyMatch ? c.text.slice(replyMatch[0].length) : c.text;
+
+    const avatarSize = isReply ? '28px' : '34px';
+    const indent     = isReply ? 'margin-left:44px;' : '';
+
+    const textHtml = isReply
+      ? `<span style="color:var(--user-color,#e53935);font-weight:700;cursor:pointer" onclick="showUserProfile('${esc(replyUser||'')}')"">@${esc(replyUser||'')}</span> ${esc(replyText)}`
+      : esc(c.text);
+
     return `
-      <div class="comment-item" id="comment-item-${c.id}">
-        <div class="comment-avatar" style="background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
+      <div class="comment-item" id="comment-item-${c.id}" style="${indent}">
+        ${isReply ? '<div style="position:absolute;left:-22px;top:14px;width:14px;height:14px;border-left:1.5px solid #ddd;border-bottom:1.5px solid #ddd;border-radius:0 0 0 6px"></div>' : ''}
+        <div class="comment-avatar" style="width:${avatarSize};height:${avatarSize};min-width:${avatarSize};background:${u.avatar_url?'transparent':(u.color||'#999')};overflow:hidden">${u.avatar_url?`<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(u.username)}</div>
         <div class="comment-body">
-          <strong onclick="showUserProfile('${u.username}')" style="cursor:pointer;color:${u.color||'inherit'}">${u.username}</strong><span> ${c.text}</span>
+          <strong onclick="showUserProfile('${esc(u.username)}')" style="cursor:pointer">${esc(u.username)}</strong><span> ${textHtml}</span>
           <div class="comment-actions">
             <span class="comment-time">${fmtTimeAgo(c.created_at)}</span>
             <button class="comment-action-btn" onclick="replyToComment('${esc(u.username)}','${c.id}')">Responder</button>
