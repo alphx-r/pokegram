@@ -736,6 +736,17 @@ input, select, textarea { font-family: var(--font); }
   border: 1px solid var(--border);
   color: var(--text);
 }
+.btn-message-profile {
+  padding: 7px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  transition: background .1s;
+  display: inline-block;
+}
+.btn-message-profile:hover { background: #f5f5f5; }
 
 .profile-stats {
   display: flex;
@@ -1245,7 +1256,7 @@ input, select, textarea { font-family: var(--font); }
   }
   .profile-username-text { font-size: 14px; font-weight: 600; }
   .rpg-profile-badge { font-size: 10px; padding: 2px 6px; }
-  .btn-edit-profile, .btn-follow-profile {
+  .btn-edit-profile, .btn-follow-profile, .btn-message-profile {
     padding: 5px 12px; font-size: 13px; margin: 0;
   }
   .profile-stats {
