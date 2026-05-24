@@ -328,13 +328,15 @@ input, select, textarea { font-family: var(--font); }
   bottom: 2px; right: 2px;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: var(--red);
+  background: #e53935; /* fallback, sobrescrito por JS */
   color: white;
   border: 2px solid white;
   display: flex; align-items: center; justify-content: center;
   font-size: 14px;
   font-weight: 800;
   line-height: 1;
+  cursor: pointer;
+  z-index: 3;
 }
 
 /* ============================
@@ -1009,6 +1011,34 @@ input, select, textarea { font-family: var(--font); }
 .comment-body strong { font-weight: 700; margin-right: 6px; font-size: 14px; }
 .comment-body span { font-size: 14px; }
 .comment-time { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.comment-action-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  padding: 0; font-family: 'Nunito', sans-serif;
+  transition: color .15s;
+}
+.comment-action-btn:hover { color: var(--text); }
+.comment-action-delete { color: #e53935 !important; }
+.comment-action-delete:hover { color: #b71c1c !important; }
+
+.comment-like-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); padding: 4px 2px; flex-shrink: 0;
+  transition: color .15s; margin-left: auto;
+}
+.comment-like-btn:hover { color: #e53935; }
+.comment-like-btn.liked { color: #e53935; }
+.comment-like-btn.liked svg { fill: #e53935; stroke: none; }
+.comment-like-count { font-size: 10px; font-weight: 700; line-height: 1; }
 
 .comment-input-bar {
   display: flex;
