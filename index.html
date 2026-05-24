@@ -483,10 +483,8 @@
       <!-- Imagem 1080x1920 preenchendo tudo -->
       <img id="sv-image" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;user-select:none;display:block" draggable="false">
 
-      <!-- Barra de progresso no topo -->
-      <div id="story-progress-bar" style="position:absolute;top:0;left:0;right:0;height:3px;background:rgba(255,255,255,0.35);z-index:10">
-        <div id="story-progress-fill" style="height:100%;background:#fff;width:0%;transition:none"></div>
-      </div>
+      <!-- Barras de progresso no topo (uma por story) -->
+      <div id="story-progress-bar" style="position:absolute;top:8px;left:10px;right:10px;display:flex;gap:3px;z-index:10"></div>
 
       <!-- Header: pill avatar+nome+hora à esquerda, X redondo à direita -->
       <div style="position:absolute;top:14px;left:12px;right:12px;z-index:10;display:flex;align-items:center;gap:8px">
@@ -2518,6 +2516,10 @@ async function renderStories() {
   // guarda estado para openStoryOrViewer()
   window._myHasActiveStory = !!(myStories && myStories.length > 0);
 
+  // contar stories por usuário
+  const countMap = {};
+  (stories || []).forEach(s => { countMap[s.user_id] = (countMap[s.user_id] || 0) + 1; });
+
   // agrupar por user_id (1 bolha por usuário)
   const seen = new Set();
   const unique = (stories || []).filter(s => {
@@ -2526,12 +2528,17 @@ async function renderStories() {
   });
 
   list.innerHTML = unique.map(s => {
-    const u = s.users || {};
+    const u     = s.users || {};
+    const count = countMap[u.id] || 1;
     const pic = u.avatar_url
       ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
       : `<div class="story-pic" style="background:${u.color||'#e53935'}">${initials(u.username||'?')}</div>`;
+    // badge de contagem (só quando > 1)
+    const badge = count > 1
+      ? `<div class="story-count-badge">${count}</div>`
+      : '';
     return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
-      <div class="story-ring story-ring-active">${pic}</div>
+      <div class="story-ring story-ring-active" style="position:relative">${pic}${badge}</div>
       <span>${u.username}</span>
     </div>`;
   }).join('');
@@ -3623,13 +3630,19 @@ function showStory(idx) {
   const inp = document.getElementById('sv-comment-input');
   if (inp) inp.value = '';
 
-  // barra de progresso — 5s por story
-  const fill = document.getElementById('story-progress-fill');
-  fill.style.transition = 'none';
-  fill.style.width = '0%';
+  // barras de progresso — uma por story do usuário
+  const barWrap = document.getElementById('story-progress-bar');
+  barWrap.innerHTML = _storyViewList.map((_, i) => `
+    <div style="flex:1;height:3px;background:rgba(255,255,255,0.35);border-radius:2px;overflow:hidden">
+      <div id="sp-${i}" style="height:100%;background:#fff;width:${i < idx ? '100%' : '0%'};transition:none"></div>
+    </div>`).join('');
+
   requestAnimationFrame(() => {
-    fill.style.transition = 'width 5s linear';
-    fill.style.width = '100%';
+    const activeFill = document.getElementById('sp-' + idx);
+    if (activeFill) {
+      activeFill.style.transition = 'width 5s linear';
+      activeFill.style.width = '100%';
+    }
   });
   _storyTimer = setTimeout(() => storyNav(1), 5000);
 }
@@ -3665,20 +3678,20 @@ async function deleteCurrentStory() {
 // ── Story: pausar timer ao digitar ───────────────────────
 function storyClearTimer() {
   clearTimeout(_storyTimer);
-  const fill = document.getElementById('story-progress-fill');
+  const fill = document.getElementById('sp-' + _storyViewIdx);
   if (fill) {
-    const w = fill.getBoundingClientRect().width;
+    const w      = fill.getBoundingClientRect().width;
     const parent = fill.parentElement.getBoundingClientRect().width;
     fill.style.transition = 'none';
-    fill.style.width = (w / parent * 100) + '%';
+    fill.style.width = (parent > 0 ? (w / parent * 100) : 0) + '%';
   }
 }
 
 function storyRestartTimer() {
-  const fill = document.getElementById('story-progress-fill');
+  const fill = document.getElementById('sp-' + _storyViewIdx);
   if (!fill) return;
   const pct = parseFloat(fill.style.width) || 0;
-  const remaining = (1 - pct / 100) * 5000;
+  const remaining = Math.max(300, (1 - pct / 100) * 5000);
   fill.style.transition = `width ${remaining / 1000}s linear`;
   fill.style.width = '100%';
   _storyTimer = setTimeout(() => storyNav(1), remaining);
