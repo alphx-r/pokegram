@@ -2754,25 +2754,23 @@ async function initApp(user) {
   applyTopnavSprites();
   applyUserColor(user.color);
 
-  // Roteamento inicial: respeita a URL atual em vez de sempre ir para feed
+  // Roteamento inicial: não bloqueia — mostra o app imediatamente
   const urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
   const postMatch = urlPath.match(/^([^/]+)\/post\/([^/]+)$/);
+
+  // Mostra a view sem await para não bloquear
   if (!urlPath || urlPath === 'feed') {
-    await showView('feed');
+    showView('feed').catch(e => console.warn('feed:', e));
   } else if (urlPath === 'explore') {
-    await showView('explore');
+    showView('explore').catch(e => console.warn('explore:', e));
   } else if (postMatch) {
-    // /{username}/post/{id} → carrega feed e abre o post
-    await showView('feed');
-    await openComments(postMatch[2]);
+    showView('feed').then(() => openComments(postMatch[2])).catch(e => console.warn('post:', e));
   } else if (urlPath === user.username) {
-    await showView('profile');
+    showView('profile').catch(e => console.warn('profile:', e));
   } else if (urlPath !== 'adm') {
-    // /outrousuario → abre perfil desse usuário
-    await showView('feed'); // carrega feed em background
-    await showUserProfile(urlPath);
+    showView('feed').then(() => showUserProfile(urlPath)).catch(e => console.warn('user:', e));
   } else {
-    await showView('feed');
+    showView('feed').catch(e => console.warn('feed:', e));
   }
   loadNotifBadge();
   setInterval(loadNotifBadge, 30000);
@@ -2827,8 +2825,13 @@ function goBack() {
 // ── Feed ──────────────────────────────────────────────────
 async function renderFeed() {
   renderAsideMini();
-  await Promise.all([renderPosts(), renderStories()]);
-  renderSuggestions().catch(e => console.warn('suggestions:', e));
+  try {
+    await Promise.all([
+      renderPosts().catch(e => { console.warn('posts error:', e); }),
+      renderStories().catch(e => { console.warn('stories error:', e); }),
+    ]);
+  } catch(e) { console.warn('renderFeed error:', e); }
+  renderSuggestions().catch(e => console.warn('suggestions error:', e));
 }
 
 // Gera um degradê vistoso a partir de uma cor hex:
@@ -2867,20 +2870,12 @@ async function renderStories() {
     }
   }
 
-  // buscar stories ativos (não expirados) de outros usuários
-  const { data: stories } = await db
-    .from('stories')
-    .select('user_id, users(id, username, color, avatar_url, is_npc)')
-    .gt('expires_at', new Date().toISOString())
-    .neq('user_id', currentUser.id);
-
-  // buscar se eu tenho story ativo (para mostrar anel no meu avatar)
-  const { data: myStories } = await db
-    .from('stories')
-    .select('id')
-    .eq('user_id', currentUser.id)
-    .gt('expires_at', new Date().toISOString())
-    .limit(1);
+  // buscar stories e meus stories em paralelo
+  const now = new Date().toISOString();
+  const [{ data: stories }, { data: myStories }] = await Promise.all([
+    db.from('stories').select('user_id, users(id, username, color, avatar_url, is_npc)').gt('expires_at', now).neq('user_id', currentUser.id),
+    db.from('stories').select('id').eq('user_id', currentUser.id).gt('expires_at', now).limit(1),
+  ]);
 
   // anel no "Seu story" se eu tiver story ativo
   const myRing = document.querySelector('.story-mine .story-ring');
@@ -2968,21 +2963,20 @@ async function renderPosts() {
 
   appPosts = posts;
 
-  // buscar likes do usuário atual de uma vez
+  // buscar todas as queries secundárias em paralelo
   const postIds = posts.map(p => p.id);
-  const { data: myLikes } = await db.from('likes').select('post_id').eq('user_id', currentUser.id).in('post_id', postIds);
+  const [
+    { data: myLikes },
+    { data: likeCounts },
+    { data: commentCounts },
+    { data: lastComments }
+  ] = await Promise.all([
+    db.from('likes').select('post_id').eq('user_id', currentUser.id).in('post_id', postIds),
+    db.from('likes').select('post_id').in('post_id', postIds),
+    db.from('comments').select('post_id').in('post_id', postIds),
+    db.from('comments').select('post_id, text, users(username, color)').in('post_id', postIds).order('created_at', { ascending: false }),
+  ]);
   const likedSet = new Set((myLikes || []).map(l => l.post_id));
-
-  // buscar contagem de likes e comentários
-  const { data: likeCounts }    = await db.from('likes').select('post_id').in('post_id', postIds);
-  const { data: commentCounts } = await db.from('comments').select('post_id').in('post_id', postIds);
-
-  // buscar último comentário de cada post
-  const { data: lastComments } = await db
-    .from('comments')
-    .select('post_id, text, users(username, color)')
-    .in('post_id', postIds)
-    .order('created_at', { ascending: false });
 
   const likeMap    = {};
   const commentMap = {};
@@ -3590,7 +3584,7 @@ function renderAsideMini() {
 async function renderSuggestions() {
   const el = document.getElementById('suggestions-list');
   if (!el) return;
-
+  try {
   // Busca humanos e NPCs juntos, exclui o usuário logado
   const { data: allUsers } = await db
     .from('users')
@@ -3627,18 +3621,19 @@ async function renderSuggestions() {
       : 'color:'+color+';font-weight:700';
 
     return '<div class="suggestion-item">' +
-      '<div class="sug-avatar" style="background:'+avBg+';overflow:hidden;cursor:pointer" onclick="showUserProfile(''+u.username+'')">'+av+'</div>' +
+      '<div class="sug-avatar" style="background:'+avBg+';overflow:hidden;cursor:pointer" onclick="showUserProfile(\''+u.username+'\')">'+av+'</div>' +
       '<div class="sug-info">' +
-        '<div class="sug-name" onclick="showUserProfile(''+u.username+'')" style="cursor:pointer">'+u.username+'</div>' +
+        '<div class="sug-name" onclick="showUserProfile(\''+u.username+'\')" style="cursor:pointer">'+u.username+'</div>' +
         '<div class="sug-sub">'+npcBadge+rpgLabel+'</div>' +
       '</div>' +
       '<button class="btn-follow-sm'+(isFollowing?' following':'')+'" id="follow-btn-'+u.id+'" '+
-        'style="'+btnStyle+';background:none;border:none;cursor:pointer;padding:0;font-size:13px;font-family:'Nunito',sans-serif;white-space:nowrap" '+
-        'onclick="toggleFollow(this,''+u.id+'',''+u.username+'')">'+
+        'style="'+btnStyle+';background:none;border:none;cursor:pointer;padding:0;font-size:13px;font-family:Nunito,sans-serif;white-space:nowrap" '+
+        'onclick="toggleFollow(this,\''+u.id+'\',\''+u.username+'\')">'+
         (isFollowing ? 'Seguindo' : 'Seguir')+
       '</button>' +
     '</div>';
   }).join('');
+  } catch(e) { console.warn('renderSuggestions error:', e); }
 }
 
 async function toggleFollow(btn, userId, username) {
