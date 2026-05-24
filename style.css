@@ -670,8 +670,8 @@ input, select, textarea { font-family: var(--font); }
 .profile-header {
   display: flex;
   align-items: flex-start;
-  gap: 80px;
-  margin-bottom: 16px;
+  gap: 40px;
+  margin-bottom: 24px;
 }
 .profile-avatar-wrap {
   flex-shrink: 0;
@@ -738,8 +738,7 @@ input, select, textarea { font-family: var(--font); }
 .stat-item span { color: var(--text); }
 
 .profile-bio {
-  padding: 0 0 16px calc(150px + 80px); /* alinha com a coluna de texto no desktop */
-  margin-top: -8px; /* sobe um pouco para compensar o margin-bottom do header */
+  margin-top: 4px;
 }
 .profile-bio .prof-name {
   font-weight: 700;
@@ -748,6 +747,7 @@ input, select, textarea { font-family: var(--font); }
 .profile-bio .prof-starter {
   font-size: 14px;
   color: var(--text-mid);
+  opacity: .8;
 }
 .profile-bio .prof-desc {
   font-size: 14px;
@@ -1201,8 +1201,9 @@ input, select, textarea { font-family: var(--font); }
   .profile-header {
     flex-direction: row;
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 16px;
-    padding: 16px 16px 12px;
+    padding: 16px 16px 0;
     margin-bottom: 0;
   }
 
@@ -1226,10 +1227,11 @@ input, select, textarea { font-family: var(--font); }
   }
   .stat-item { font-size: 13px; }
   .stat-item strong { font-size: 14px; }
+  /* Bio no mobile: ocupa a linha inteira abaixo do avatar+meta */
   .profile-bio {
-    padding: 0 16px 12px !important;
-    margin-top: 4px;
-    width: 100%;
+    flex-basis: 100%;
+    padding: 0 0 12px !important;
+    margin-top: 0;
   }
   .profile-bio .prof-name { font-size: 13px; font-weight: 700; }
   .profile-bio .prof-desc { font-size: 13px; }
