@@ -1294,10 +1294,18 @@ input, select, textarea { font-family: var(--font); }
   }
   .stat-item { font-size: 13px; }
   .stat-item strong { font-size: 14px; }
-  /* Bio no mobile: quebra para coluna 2, linha 2 (já garantido pelo grid) */
+  /* Bio no mobile: linha 2 completa, abaixo da foto */
+  .profile-header {
+    grid-template-columns: 77px 1fr;
+    grid-template-rows: auto auto;
+  }
+  .profile-avatar-wrap { grid-column: 1; grid-row: 1; }
+  .profile-meta        { grid-column: 2; grid-row: 1; }
   .profile-bio {
-    padding: 0 0 12px;
-    margin-top: 2px;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding: 10px 0 12px;
+    margin-top: 0;
   }
   .profile-bio .prof-name { font-size: 13px; font-weight: 700; }
   .profile-bio .prof-desc { font-size: 13px; }
