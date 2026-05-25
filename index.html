@@ -4735,6 +4735,24 @@ function topnavSearch(q) {
   doSearch(q);
 }
 
+// Fechar dropdown de perfis ao clicar fora
+document.addEventListener('click', e => {
+  const dropdown = document.getElementById('explore-profiles');
+  if (!dropdown || dropdown.style.display === 'none') return;
+  const searchInput   = document.getElementById('search-input');
+  const topnavInput   = document.getElementById('topnav-search-input');
+  const searchWrap    = searchInput?.closest('.search-wrap, .explore-top');
+  const topnavWrap    = topnavInput?.closest('.topnav-search');
+  if (
+    dropdown.contains(e.target) ||
+    (searchWrap  && searchWrap.contains(e.target)) ||
+    (topnavWrap  && topnavWrap.contains(e.target)) ||
+    e.target === searchInput ||
+    e.target === topnavInput
+  ) return;
+  dropdown.style.display = 'none';
+}, true);
+
 // ── Avatar color palette ──────────────────────────────────
 const AVATAR_COLORS = [
   '#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5',
