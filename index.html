@@ -3299,7 +3299,8 @@ async function initApp(user) {
     showView('feed').catch(() => {});
   }
   loadNotifBadge();
-  setInterval(loadNotifBadge, 30000);
+  chatRefreshUnreadBadge();
+  setInterval(() => { loadNotifBadge(); chatRefreshUnreadBadge(); }, 5000);
 }
 
 function renderSidebarAvatar() {
@@ -5748,9 +5749,9 @@ if (typeof db !== 'undefined') loadFilters();
         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
       </button>
       <div class="chat-window-avatar" id="chat-win-avatar"
-        style="cursor:pointer" onclick="closeChatPanel();showUserProfile(_chat.currentPeer?.username)" title="Ver perfil"></div>
+        style="cursor:pointer" onclick="if(_chat.currentPeer?.username){closeChatPanel();showUserProfile(_chat.currentPeer.username);}" title="Ver perfil"></div>
       <div class="chat-window-userinfo" style="cursor:pointer"
-        onclick="closeChatPanel();showUserProfile(_chat.currentPeer?.username)" title="Ver perfil">
+        onclick="if(_chat.currentPeer?.username){closeChatPanel();showUserProfile(_chat.currentPeer.username);}" title="Ver perfil">
         <div class="chat-window-username" id="chat-win-username"></div>
         <div class="chat-window-status" id="chat-win-status" style="display:none">● online</div>
       </div>
@@ -5883,7 +5884,7 @@ async function chatLoadConversations() {
     const peers = Object.keys(convMap);
     let usersMap = {};
     if (peers.length > 0) {
-      const { data: users } = await db.from('users').select('username,name,color,avatar_url').in('username', peers);
+      const { data: users } = await db.from('users').select('id,username,name,color,avatar_url').in('username', peers);
       (users || []).forEach(u => { usersMap[u.username] = u; });
     }
 
