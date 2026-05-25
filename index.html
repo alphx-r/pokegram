@@ -1703,15 +1703,11 @@ function enterApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
 
-  // Splash some imediatamente — não espera o feed carregar
-  const isFirstVisit = !sessionStorage.getItem('pg_loaded');
-  sessionStorage.setItem('pg_loaded', '1');
-  const minWait = isFirstVisit ? 1800 : 0;
-  setTimeout(hideSplash, minWait);
-
-  // initApp roda em background sem bloquear o splash
+  // Splash some apenas quando o initApp terminar
   if (typeof initApp === 'function') {
-    initApp(user).catch(() => {});
+    initApp(user).catch(() => {}).finally(hideSplash);
+  } else {
+    hideSplash();
   }
   initPushNotifications(user);
 }
