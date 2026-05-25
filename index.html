@@ -1678,9 +1678,8 @@ async function dbRegister(username, password, rpg, emoji, pronoun) {
   const { data: newUser, error: userError } = await db.from('users').insert({
     id: authUid,
     username,
-    password: '', // senha gerenciada pelo Supabase Auth
+    password_plain: '', // senha gerenciada pelo Supabase Auth
     rpg,
-    emoji: emoji || '🎮',
     pronoun: pronoun || null
   }).select('*').single();
   if (userError) throw userError;
