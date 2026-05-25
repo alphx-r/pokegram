@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pokégram</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="icon" id="favicon-link" href="/favicon.ico">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
@@ -527,8 +526,11 @@
   async function applyFavicon() {
     try {
       const { data } = await supabase.from('settings').select('value').eq('key','favicon_url').maybeSingle();
-      const link = document.getElementById('favicon-link') || document.querySelector("link[rel~='icon']");
-      if (link) link.href = data?.value || '/favicon.ico';
+      if (data?.value) {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+        link.href = data.value;
+      }
     } catch(e) {}
   }
   if (document.readyState === 'loading') {
@@ -686,14 +688,14 @@
 
       <!-- VIEW POST (acesso direto via URL) -->
       <div id="view-post" class="view hidden">
-        <div id="view-post-content" style="max-width:935px;margin:0 auto;padding:20px 16px">
-          <div style="margin-bottom:16px">
-            <button onclick="goBack()" style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;padding:0;font-family:'Nunito',sans-serif">
+        <div id="view-post-content" class="vp-page-wrap">
+          <div class="vp-back-bar">
+            <button onclick="goBack()" class="vp-back-btn">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
               Voltar
             </button>
           </div>
-          <div id="view-post-inner" style="background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;min-height:500px">
+          <div id="view-post-inner" class="vp-inner comments-modal-box" style="margin:0 auto">
             <div style="text-align:center;padding:60px;color:var(--muted);width:100%">Carregando...</div>
           </div>
         </div>
@@ -1653,7 +1655,7 @@ function hideAuthError()    { document.getElementById('auth-error').style.displa
 
 async function doAuth() {
   hideAuthError();
-  const username = document.getElementById('login-username').value.replace(/\s/g,'').toLowerCase();
+  const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value;
   const btn      = document.getElementById('auth-btn');
   if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
@@ -2996,8 +2998,31 @@ async function applyTopnavSprites() {
       return;
     }
 
-    // profile_msg_btn: reusa o sprite do nav_chat — ignorado aqui, tratado no bloco nav_chat
-    if (def.key === 'profile_msg_btn') { return; }
+    // profile_msg_btn: botão de mensagem nos perfis de outros usuários
+    if (def.key === 'profile_msg_btn') {
+      // salva a URL no dataset para aplicar nos botões renderizados dinamicamente
+      document.documentElement.dataset.profileMsgSprite = val || '';
+      // aplica nos botões já existentes no DOM (se perfil já estiver aberto)
+      document.querySelectorAll('.btn-icon-profile').forEach(btn => {
+        let img = btn.querySelector('.btn-sprite-img');
+        if (val) {
+          btn.style.border = 'none';
+          if (!img) {
+            img = document.createElement('img');
+            img.className = 'btn-sprite-img';
+            img.style.cssText = 'width:28px;height:28px;object-fit:contain;display:block;pointer-events:none';
+            btn.innerHTML = '';
+            btn.appendChild(img);
+          }
+          img.src = val;
+        } else if (img) {
+          img.remove();
+          btn.style.border = '';
+          btn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
+        }
+      });
+      return;
+    }
 
     const tnBtn = (() => {
       if (def.key === 'nav_home')    return document.getElementById('btn-feed');
@@ -3005,19 +3030,7 @@ async function applyTopnavSprites() {
       if (def.key === 'nav_create')  return document.querySelector('.tn-btn[onclick="showNewPost()"]');
       if (def.key === 'nav_logout')  return document.querySelector('.tn-btn[onclick="doLogout()"]');
       if (def.key === 'nav_notif')   return document.getElementById('btn-notif');
-      if (def.key === 'nav_chat') {
-        // sincroniza o sprite com os botões de mensagem dos perfis
-        document.documentElement.dataset.profileMsgSprite = val || '';
-        document.querySelectorAll('.btn-icon-profile').forEach(btn => {
-          let img = btn.querySelector('.btn-sprite-img');
-          if (val) {
-            btn.style.border = 'none';
-            if (!img) { img = document.createElement('img'); img.className = 'btn-sprite-img'; img.style.cssText = 'width:28px;height:28px;object-fit:contain;display:block;pointer-events:none'; btn.innerHTML = ''; btn.appendChild(img); }
-            img.src = val;
-          } else if (img) { img.remove(); btn.style.border = ''; btn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>'; }
-        });
-        return document.getElementById('btn-chat');
-      }
+      if (def.key === 'nav_chat')    return document.getElementById('btn-chat');
       if (def.key === 'nav_profile') return document.getElementById('btn-profile');
     })();
     if (!tnBtn) return;
@@ -3482,15 +3495,14 @@ async function openPostPage(postId) {
     .select('*, users(id, username, color, avatar_url, is_npc, rpg)')
     .eq('id', postId).maybeSingle();
 
-  if (!post) { inner.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);width:100%">Publicação não encontrada.</div>'; return; }
+  if (!post) {
+    inner.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);width:100%">Publicação não encontrada.</div>';
+    return;
+  }
 
-  const u = post.users || {};
+  const u       = post.users || {};
+  const isOwner = String(u.id) === String(currentUser.id);
   history.replaceState(null, '', `/${u.username}/post/${postId}`);
-
-  const avatarHTML = u.avatar_url
-    ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-    : initials(u.username || '?');
-  const avatarBg = u.avatar_url ? 'transparent' : (u.color || '#999');
 
   const [{ count: likeCount }, { data: likedData }, { data: comments }] = await Promise.all([
     db.from('likes').select('*', { count: 'exact', head: true }).eq('post_id', postId),
@@ -3498,63 +3510,99 @@ async function openPostPage(postId) {
     db.from('comments').select('*, users(id, username, color, avatar_url)')
       .eq('post_id', postId).order('created_at', { ascending: true }),
   ]);
-  const liked   = !!(likedData && likedData.length);
-  const isOwner = String(u.id) === String(currentUser.id);
+  const liked = !!(likedData && likedData.length);
 
-  const imageHTML = post.image_url
+  const authorAvHTML = u.avatar_url
+    ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+    : initials(u.username || '?');
+  const authorAvBg = u.avatar_url ? 'transparent' : (u.color || '#999');
+
+  const imageInner = post.image_url
     ? `<img src="${post.image_url}" style="width:100%;height:100%;object-fit:cover;display:block">`
-    : `<div style="width:100%;height:100%;background:${post.bg||'#eee'};display:flex;align-items:center;justify-content:center;font-size:72px">${post.emoji||'📸'}</div>`;
+    : `<div style="width:100%;height:100%;background:${post.bg||'#eee'};display:flex;align-items:center;justify-content:center;font-size:100px">${post.emoji||'📸'}</div>`;
 
   const commentsHTML = (comments || []).map(c => {
-    const cu = c.users || {};
-    const cav = cu.avatar_url
+    const cu    = c.users || {};
+    const cavBg = cu.avatar_url ? 'transparent' : (cu.color || '#999');
+    const cavIn = cu.avatar_url
       ? `<img src="${cu.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
       : initials(cu.username);
-    const cavBg = cu.avatar_url ? 'transparent' : (cu.color || '#999');
-    return `<div style="display:flex;gap:10px;padding:10px 16px">
-      <div style="width:32px;height:32px;min-width:32px;border-radius:50%;background:${cavBg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;overflow:hidden;cursor:pointer" onclick="showView('feed');setTimeout(()=>showUserProfile('${cu.username}'),100)">${cav}</div>
-      <div>
-        <strong style="cursor:pointer;color:${currentUser.color||'#262626'};font-size:13px" onclick="showView('feed');setTimeout(()=>showUserProfile('${cu.username}'),100)">${cu.username||'?'}</strong>
+    return `<div style="display:flex;gap:10px;padding:10px 16px;align-items:flex-start">
+      <div style="width:32px;height:32px;min-width:32px;border-radius:50%;background:${cavBg};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;overflow:hidden;cursor:pointer;flex-shrink:0"
+        onclick="goBack();setTimeout(()=>showUserProfile('${cu.username}'),120)">${cavIn}</div>
+      <div style="min-width:0">
+        <span style="font-weight:700;cursor:pointer;color:${currentUser.color||'#262626'};font-size:13px"
+          onclick="goBack();setTimeout(()=>showUserProfile('${cu.username}'),120)">${cu.username||'?'}</span>
         <span style="font-size:13px"> ${formatCaption(c.text||'')}</span>
         <div style="font-size:11px;color:#8e8e8e;margin-top:2px">${fmtTimeAgo(c.created_at)}</div>
       </div>
     </div>`;
-  }).join('') || '<div style="padding:20px 16px;color:#8e8e8e;font-size:13px">Nenhum comentário ainda.</div>';
+  }).join('') || '<div style="padding:24px 16px;color:#8e8e8e;font-size:13px;text-align:center">Nenhum comentário ainda.</div>';
+
+  const myAvBg = currentUser.avatar_url ? 'transparent' : (currentUser.color || '#e53935');
+  const myAvIn = currentUser.avatar_url
+    ? `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+    : initials(currentUser.username);
+
+  const ownerMenuHTML = isOwner ? `
+    <div style="position:relative">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'"
+        style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;padding:4px 8px;line-height:1">···</button>
+      <div style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.12);min-width:190px;z-index:200;overflow:hidden">
+        <button onclick="openEditPost('${post.id}','${(post.caption||'').replace(/'/g,"\'")}','${(post.location||'').replace(/'/g,"\'")}');document.getElementById('view-post').classList.add('hidden')"
+          style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;text-align:left;background:none;border:none;cursor:pointer;color:#262626;border-bottom:1px solid #f0f0f0">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Editar publicação
+        </button>
+        <button onclick="deletePost('${post.id}');goBack()"
+          style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;text-align:left;background:none;border:none;cursor:pointer;color:#e53935">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          Apagar publicação
+        </button>
+      </div>
+    </div>` : '';
 
   inner.innerHTML = `
-    <div style="flex:1;min-width:0;background:#000;display:flex;align-items:center;justify-content:center;max-height:600px;aspect-ratio:1">
-      ${imageHTML}
-    </div>
-    <div style="width:340px;min-width:280px;display:flex;flex-direction:column;border-left:1px solid var(--border)">
-      <!-- Header -->
-      <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)">
-        <div style="width:34px;height:34px;border-radius:50%;background:${avatarBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;overflow:hidden;cursor:pointer;flex-shrink:0" onclick="showView('feed');setTimeout(()=>showUserProfile('${u.username}'),100)">${avatarHTML}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:13px;cursor:pointer" onclick="showView('feed');setTimeout(()=>showUserProfile('${u.username}'),100)">${u.username||''}${u.is_npc?'<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>':''}</div>
-          ${post.location ? `<div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="doSearch('${post.location.replace(/'/g,"\\'")}');goBack()">${post.location}</div>` : ''}
-        </div>
-        ${isOwner ? `<button onclick="openEditPost('${post.id}','${(post.caption||'').replace(/'/g,"\\'")}','${(post.location||'').replace(/'/g,"\\'")}');document.getElementById('view-post').classList.add('hidden')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:4px">⋯</button>` : ''}
+    <div class="comments-split">
+      <div class="comments-post-side">
+        <div class="comments-post-image">${imageInner}</div>
       </div>
-      <!-- Caption -->
-      ${post.caption ? `<div style="padding:12px 16px;font-size:13px;border-bottom:1px solid var(--border)"><strong style="color:${currentUser.color||'#262626'};cursor:pointer" onclick="showView('feed');setTimeout(()=>showUserProfile('${u.username}'),100)">${u.username}</strong> ${formatCaption(post.caption)}</div>` : ''}
-      <!-- Comentários -->
-      <div style="flex:1;overflow-y:auto">${commentsHTML}</div>
-      <!-- Ações -->
-      <div style="border-top:1px solid var(--border);padding:10px 16px">
-        <div style="display:flex;gap:16px;margin-bottom:6px">
-          <button id="vp-like-btn" onclick="toggleLike('${postId}',this)" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:${liked?'#e53935':'var(--text)'};font-family:'Nunito',sans-serif">
-            <svg viewBox="0 0 24 24" width="22" height="22" style="stroke:${liked?'#e53935':'currentColor'};fill:${liked?'#e53935':'none'};stroke-width:2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-          </button>
+      <div class="comments-right-side">
+        <div class="modal-header" style="display:flex;align-items:center;gap:10px;padding:14px 16px">
+          <div style="width:34px;height:34px;border-radius:50%;background:${authorAvBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;overflow:hidden;cursor:pointer;flex-shrink:0"
+            onclick="goBack();setTimeout(()=>showUserProfile('${u.username}'),120)">${authorAvHTML}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:13px;cursor:pointer" onclick="goBack();setTimeout(()=>showUserProfile('${u.username}'),120)">
+              ${u.username||''}${u.is_npc?'<span style="font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;background:#263238;color:#80cbc4;margin-left:5px">NPC</span>':''}
+            </div>
+            ${post.location ? `<div style="font-size:11px;color:var(--muted);cursor:pointer" onclick="goBack();doSearch('${post.location.replace(/'/g,"\'")}')"> ${post.location}</div>` : ''}
+          </div>
+          ${ownerMenuHTML}
         </div>
-        <div style="font-size:13px;font-weight:700;margin-bottom:4px" id="vp-like-count">${fmtNum(likeCount||0)} curtida${(likeCount||0)!==1?'s':''}</div>
-        <div style="font-size:11px;color:#8e8e8e">${fmtTimeAgo(post.created_at)}</div>
-      </div>
-      <!-- Input comentário -->
-      <div style="border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:10px 16px">
-        <input id="vp-comment-input" type="text" maxlength="150" placeholder="Adicione um comentário..."
-          style="flex:1;border:none;outline:none;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();submitVPComment('${postId}')}">
-        <button onclick="submitVPComment('${postId}')" style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:700;color:${currentUser.color||'#0095f6'};font-family:'Nunito',sans-serif">Publicar</button>
+        ${post.caption ? `
+        <div style="padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border);flex-shrink:0">
+          <strong style="color:${currentUser.color||'#262626'};cursor:pointer" onclick="goBack();setTimeout(()=>showUserProfile('${u.username}'),120)">${u.username}</strong>
+          ${formatCaption(post.caption)}
+        </div>` : ''}
+        <div class="comments-list" id="vp-comments-list">${commentsHTML}</div>
+        <div class="comments-footer">
+          <div class="comment-actions-bar">
+            <div class="cab-actions">
+              <button id="vp-like-btn" onclick="toggleLike('${postId}',this)"
+                style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:${liked?'#e53935':'var(--text)'};font-family:'Nunito',sans-serif;padding:4px">
+                <svg viewBox="0 0 24 24" width="22" height="22" style="stroke:${liked?'#e53935':'currentColor'};fill:${liked?'#e53935':'none'};stroke-width:2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+              </button>
+            </div>
+            <div class="cab-likes" id="vp-like-count">${fmtNum(likeCount||0)} curtida${(likeCount||0)!==1?'s':''}</div>
+            <div style="font-size:11px;color:#8e8e8e;padding:2px 4px">${fmtTimeAgo(post.created_at)}</div>
+          </div>
+          <div class="comment-input-bar">
+            <div class="comment-avatar-sm" style="background:${myAvBg};overflow:hidden">${myAvIn}</div>
+            <input id="vp-comment-input" type="text" maxlength="150" placeholder="Adicione um comentário..."
+              onkeydown="if(event.key==='Enter'){event.preventDefault();submitVPComment('${postId}')}">
+            <button class="btn-comment-send" onclick="submitVPComment('${postId}')">Publicar</button>
+          </div>
+        </div>
       </div>
     </div>`;
 }
