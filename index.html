@@ -3432,20 +3432,16 @@ async function applyTopnavSprites() {
       if (!ring) return;
       if (val) {
         ring.style.background = `url(${val}) center/cover no-repeat`;
-        // esconde o conteúdo interno (emoji/pic) para mostrar só a imagem
         const pic = ring.querySelector('.story-pic');
         if (pic) pic.style.display = 'none';
       }
-      // revela o círculo (com ou sem sprite)
       ring.style.opacity = '1';
       return;
     }
 
     // profile_msg_btn: botão de mensagem nos perfis de outros usuários
     if (def.key === 'profile_msg_btn') {
-      // salva a URL no dataset para aplicar nos botões renderizados dinamicamente
       document.documentElement.dataset.profileMsgSprite = val || '';
-      // aplica nos botões já existentes no DOM (se perfil já estiver aberto)
       document.querySelectorAll('.btn-icon-profile').forEach(btn => {
         let img = btn.querySelector('.btn-sprite-img');
         if (val) {
@@ -3482,7 +3478,7 @@ async function applyTopnavSprites() {
     let spriteImg = tnBtn.querySelector('.tn-sprite-img');
 
     if (val) {
-      // tem sprite: esconde SVG padrão, mostra/cria a imagem
+      // TEM sprite: mostra imagem, esconde SVG/avatar, torna visível e clicável
       if (defaultSvg) defaultSvg.style.display = 'none';
       if (def.key === 'nav_profile') {
         const avatar = tnBtn.querySelector('.tn-avatar');
@@ -3498,15 +3494,19 @@ async function applyTopnavSprites() {
       }
       spriteImg.src = val;
       spriteImg.style.display = 'block';
+      tnBtn.style.visibility = 'visible';
+      tnBtn.style.pointerEvents = '';
     } else {
-      // sem sprite: remove imagem e mostra o SVG padrão
+      // SEM sprite: esconde tudo, botão invisível e não clicável
       if (spriteImg) spriteImg.remove();
       if (def.key === 'nav_profile') {
         const avatar = tnBtn.querySelector('.tn-avatar');
-        if (avatar) avatar.style.display = '';
+        if (avatar) avatar.style.display = 'none';
       } else if (defaultSvg) {
-        defaultSvg.style.display = 'block';
+        defaultSvg.style.display = 'none';
       }
+      tnBtn.style.visibility = 'hidden';
+      tnBtn.style.pointerEvents = 'none';
     }
   });
 
