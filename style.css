@@ -1149,11 +1149,12 @@ input, select, textarea { font-family: var(--font); }
 }
 .comments-post-side {
   flex: 0 0 55%;
-  background: #000;
+  background: #111;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
   overflow: hidden;
+  position: relative;
 }
 .comments-post-image {
   flex: 1;
@@ -1460,12 +1461,30 @@ input, select, textarea { font-family: var(--font); }
   border-radius: var(--radius);
 }
 .vp-inner .comments-split {
-  height: calc(100vh - var(--topnav-h) - 100px);
-  min-height: 400px;
+  height: calc(100vh - var(--topnav-h) - 60px);
+  min-height: 500px;
+  max-height: none;
+}
+.vp-inner .comments-right-side {
+  overflow-y: auto;
 }
 @media (max-width: 600px) {
   .vp-page-wrap { padding: 0; }
   .vp-back-bar  { padding: 12px 16px 0; }
   .vp-inner { border: none; border-radius: 0; }
-  .vp-inner .comments-split { height: auto; min-height: auto; }
+  .vp-inner .comments-split {
+    flex-direction: column;
+    height: auto;
+    min-height: auto;
+  }
+  .vp-inner .comments-post-side {
+    flex: none;
+    height: 60vw;
+    max-height: 400px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .vp-inner .comments-right-side {
+    min-height: 50vh;
+  }
 }
