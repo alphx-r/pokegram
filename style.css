@@ -1140,12 +1140,14 @@ input, select, textarea { font-family: var(--font); }
   max-width: 900px;
   width: 95vw;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   border-radius: var(--radius);
 }
 .comments-split {
   display: flex;
   height: min(85vh, 600px);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 .comments-post-side {
   flex: 0 0 55%;
@@ -1191,7 +1193,8 @@ input, select, textarea { font-family: var(--font); }
   flex-direction: column;
   min-width: 0;
   background: var(--white);
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 .comments-right-side .modal-header {
   border-bottom: 1px solid var(--border);
