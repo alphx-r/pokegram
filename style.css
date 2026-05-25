@@ -1198,7 +1198,7 @@ input, select, textarea { font-family: var(--font); }
   min-width: 0;
   min-height: 0;
   background: var(--white);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
 }
 .comments-right-side .modal-header {
@@ -1212,6 +1212,7 @@ input, select, textarea { font-family: var(--font); }
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 /* Footer sempre grudado no bottom */
 .comments-footer {
