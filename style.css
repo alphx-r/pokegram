@@ -1140,14 +1140,18 @@ input, select, textarea { font-family: var(--font); }
   max-width: 900px;
   width: 95vw;
   padding: 0;
-  overflow: visible;
+  overflow: hidden;
   border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
 }
 .comments-split {
   display: flex;
   height: min(85vh, 600px);
   border-radius: var(--radius);
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
 .comments-post-side {
   flex: 0 0 55%;
@@ -1192,7 +1196,7 @@ input, select, textarea { font-family: var(--font); }
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100%;
+  min-height: 0;
   background: var(--white);
   overflow: hidden;
   position: relative;
@@ -1200,18 +1204,20 @@ input, select, textarea { font-family: var(--font); }
 .comments-right-side .modal-header {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  overflow: visible; /* permite o dropdown do ··· aparecer */
+  overflow: visible;
   position: relative;
   z-index: 10;
 }
 .comments-right-side .comments-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
-/* Footer fixo grudado no bottom */
+/* Footer sempre grudado no bottom */
 .comments-footer {
   flex-shrink: 0;
   border-top: 1px solid var(--border-lt);
+  margin-top: auto;
 }
 .comment-actions-bar {
   padding: 8px 12px 2px;
