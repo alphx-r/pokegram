@@ -567,6 +567,30 @@
     <span style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
   </div>
 
+  <!-- RELOAD OVERLAY (usado durante recargas do feed/stories/sugestões) -->
+  <div id="reload-overlay" style="display:none;position:fixed;inset:0;z-index:8888;align-items:center;justify-content:center;background:var(--bg,#fff)">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+      <img id="reload-gif" src="" alt="" style="display:none;width:72px;height:72px;object-fit:contain">
+      <div id="reload-pokeball" class="pokeball-logo" style="width:48px;height:48px;animation:spin .8s linear infinite">
+        <div class="pb-top"></div>
+        <div class="pb-band"><div class="pb-btn"></div></div>
+        <div class="pb-bottom"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RELOAD OVERLAY (usado durante recargas do feed/stories/sugestões) -->
+  <div id="reload-overlay" style="display:none;position:fixed;inset:0;z-index:8888;align-items:center;justify-content:center;background:var(--bg,#fff)">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+      <img id="reload-gif" src="" alt="" style="display:none;width:72px;height:72px;object-fit:contain">
+      <div id="reload-pokeball" class="pokeball-logo" style="width:48px;height:48px;animation:spin .8s linear infinite">
+        <div class="pb-top"></div>
+        <div class="pb-band"><div class="pb-btn"></div></div>
+        <div class="pb-bottom"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- AUTH SCREEN -->
   <div id="auth-screen" class="auth-screen" style="display:none">
     <div class="auth-wrap">
@@ -1691,6 +1715,44 @@ async function doAuth() {
 
 const _splashStart = Date.now();
 const SPLASH_MIN_MS = 2000; // mínimo 2s de splash
+
+// ── Reload overlay (gif durante recargas de feed/stories/etc) ──
+let _reloadGifUrl = null; // cache da URL do gif
+
+async function _getReloadGifUrl() {
+  if (_reloadGifUrl !== null) return _reloadGifUrl;
+  try {
+    const { data } = await db.from('settings').select('value').eq('key', 'splash_gif').maybeSingle();
+    _reloadGifUrl = (data && data.value) ? data.value : '';
+  } catch(_) { _reloadGifUrl = ''; }
+  return _reloadGifUrl;
+}
+
+async function showReloadOverlay() {
+  const el = document.getElementById('reload-overlay');
+  if (!el) return;
+  const gifUrl = await _getReloadGifUrl();
+  const gifEl  = document.getElementById('reload-gif');
+  const pokeEl = document.getElementById('reload-pokeball');
+  if (gifUrl && gifEl) {
+    gifEl.src = gifUrl;
+    gifEl.style.display = 'block';
+    if (pokeEl) pokeEl.style.display = 'none';
+  } else {
+    if (gifEl)  gifEl.style.display  = 'none';
+    if (pokeEl) pokeEl.style.display = 'block';
+  }
+  el.style.display = 'flex';
+  el.style.opacity = '1';
+}
+
+function hideReloadOverlay() {
+  const el = document.getElementById('reload-overlay');
+  if (!el || el.style.display === 'none') return;
+  el.style.transition = 'opacity .3s';
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; el.style.transition = ''; el.style.opacity = '1'; }, 320);
+}
 
 function hideSplash() {
   const s = document.getElementById('pg-splash');
@@ -3175,14 +3237,20 @@ function goBack() {
 }
 
 // ── Feed ──────────────────────────────────────────────────
+let _feedFirstLoad = true; // suprime overlay no carregamento inicial (splash já está visível)
+
 async function renderFeed() {
   renderAsideMini();
+  if (_feedFirstLoad) { _feedFirstLoad = false; }
+  else { await showReloadOverlay(); }
   try {
     await Promise.all([
       renderPosts().catch(e => { console.warn('posts error:', e); }),
       renderStories().catch(e => { console.warn('stories error:', e); }),
     ]);
-  } catch(e) { console.warn('renderFeed error:', e); }
+  } catch(e) { console.warn('renderFeed error:', e); } finally {
+    if (document.getElementById('reload-overlay')?.style.display === 'flex') hideReloadOverlay();
+  }
 
   // Garante que followState esteja carregado antes de renderizar sugestões
   if (!Object.keys(followState).length) {
