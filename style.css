@@ -1032,14 +1032,14 @@ input, select, textarea { font-family: var(--font); }
 .comment-body { flex: 1; }
 .comment-body strong { font-weight: 700; margin-right: 6px; font-size: 14px; }
 .comment-body span { font-size: 14px; }
-.comment-time { font-size: 11px; color: var(--text-light); }
+.comment-time { font-size: 10px; color: var(--text-light); line-height: 1; vertical-align: middle; }
 
 .comment-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-top: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 .comment-action-btn {
   background: none; border: none; cursor: pointer;
@@ -1193,12 +1193,15 @@ input, select, textarea { font-family: var(--font); }
   flex-direction: column;
   min-width: 0;
   background: var(--white);
-  overflow: visible;
+  overflow: hidden;
   position: relative;
 }
 .comments-right-side .modal-header {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  overflow: visible; /* permite o dropdown do ··· aparecer */
+  position: relative;
+  z-index: 10;
 }
 .comments-right-side .comments-list {
   flex: 1;
