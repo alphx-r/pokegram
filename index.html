@@ -632,7 +632,7 @@
       <div class="topnav-search">
         <div class="topnav-search-inner">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="topnav-search-input" placeholder="Buscar..." oninput="doSearch(this.value)" onclick="showView('explore')">
+          <input type="text" id="topnav-search-input" placeholder="Buscar..." oninput="topnavSearch(this.value)" onclick="if(document.getElementById('view-explore')?.classList.contains('hidden'))showView('explore')" autocomplete="off">
         </div>
       </div>
       <div class="topnav-actions">
@@ -4572,6 +4572,11 @@ function doSearch(q) {
   } else {
     renderExplore(q);
   }
+}
+
+// ── Busca no topnav desktop ───────────────────────────────
+function topnavSearch(q) {
+  doSearch(q);
 }
 
 // ── Avatar color palette ──────────────────────────────────
