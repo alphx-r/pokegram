@@ -3085,10 +3085,17 @@ let currentViewHistory   = ['feed'];
 // ── Init ──────────────────────────────────────────────────
 async function initApp(user) {
   currentUser = user;
-  // Aplica a cor do personagem como variável CSS global
   document.documentElement.style.setProperty('--user-color', user.color || '#e53935');
   renderSidebarAvatar();
-  // await garante que sprites sejam aplicados ANTES de revelar o topnav
+
+  // Pré-carrega todos os follows do usuário logado antes de qualquer render
+  // Isso garante que sugestões, perfis e modais mostrem o estado correto desde o início
+  const { data: followingRows } = await db.from('follows')
+    .select('following_id')
+    .eq('follower_id', user.id)
+    .catch(() => ({ data: [] }));
+  if (followingRows) followingRows.forEach(row => { followState[row.following_id] = true; });
+
   await applyTopnavSprites().catch(() => {
     // fallback: se o banco falhar, revela mesmo assim
     const nav = document.getElementById('topnav');
