@@ -2139,8 +2139,8 @@ async function admNpcSalvar() {
   // Upload de avatar se houver
   let avatar_url = editId ? (_allNpcs.find(u=>u.id===editId)?.avatar_url || null) : null;
   if (_npcPendingAvatarFile) {
-    const path = `npc_${username}_${Date.now()}.jpg`;
-    const { error: upErr } = await db.storage.from('avatars').upload(path, _npcPendingAvatarFile, { upsert: true, contentType: 'image/jpeg' });
+    const path = `npc_${username}_${Date.now()}.png`;
+    const { error: upErr } = await db.storage.from('avatars').upload(path, _npcPendingAvatarFile, { upsert: true, contentType: 'image/png' });
     if (upErr) { errEl.textContent = 'Erro no upload: ' + upErr.message; errEl.style.display = 'block'; return; }
     const { data: ud } = db.storage.from('avatars').getPublicUrl(path);
     avatar_url = ud.publicUrl;
@@ -2290,8 +2290,8 @@ async function admNpcModalSalvar() {
 
   let avatar_url = _allNpcs.find(u => u.id === id)?.avatar_url || null;
   if (_npcModalPendingAvatarFile) {
-    const path = `npc_${username}_${Date.now()}.jpg`;
-    const { error: upErr } = await db.storage.from('avatars').upload(path, _npcModalPendingAvatarFile, { upsert: true, contentType: 'image/jpeg' });
+    const path = `npc_${username}_${Date.now()}.png`;
+    const { error: upErr } = await db.storage.from('avatars').upload(path, _npcModalPendingAvatarFile, { upsert: true, contentType: 'image/png' });
     if (upErr) { errEl.textContent = 'Erro no upload: ' + upErr.message; errEl.style.display = 'block'; return; }
     const { data: ud } = db.storage.from('avatars').getPublicUrl(path);
     avatar_url = ud.publicUrl;
@@ -2415,8 +2415,8 @@ async function admNpcSubmitPost() {
     image_url = existing?.image_url || null;
   }
   if (_npcPendingPostImgFile) {
-    const path = `npc_${uid}_${Date.now()}.jpg`;
-    const { error: upErr } = await db.storage.from('posts').upload(path, _npcPendingPostImgFile, { upsert: false, contentType: 'image/jpeg' });
+    const path = `npc_${uid}_${Date.now()}.png`;
+    const { error: upErr } = await db.storage.from('posts').upload(path, _npcPendingPostImgFile, { upsert: false, contentType: 'image/png' });
     if (upErr) {
       errEl.textContent = 'Erro no upload: ' + upErr.message;
       errEl.style.display = 'block';
@@ -4664,10 +4664,10 @@ async function submitEditProfile() {
   let avatar_url = currentUser.avatar_url || null;
   if (_epPendingAvatarFile) {
     // usar path com timestamp para forçar nova URL sem cache
-    const path = `${currentUser.id}_${Date.now()}.jpg`;
+    const path = `${currentUser.id}_${Date.now()}.png`;
     const { error: upErr } = await db.storage
       .from('avatars')
-      .upload(path, _epPendingAvatarFile, { upsert: false, contentType: 'image/jpeg' });
+      .upload(path, _epPendingAvatarFile, { upsert: false, contentType: 'image/png' });
     if (upErr) {
       errEl.textContent = 'Erro ao enviar foto: ' + upErr.message + '. Verifique as políticas do bucket "avatars" no Supabase.';
       errEl.style.display = 'block';
@@ -4816,8 +4816,8 @@ async function submitStory() {
   const btn = document.querySelector('#modal-story-new .btn-share-modal');
   if (btn) { btn.textContent = 'Publicando...'; btn.disabled = true; }
 
-  const path = `${currentUser.id}_${Date.now()}.jpg`;
-  const { error: upErr } = await db.storage.from('stories').upload(path, _storyPendingFile, { upsert: false, contentType: 'image/jpeg' });
+  const path = `${currentUser.id}_${Date.now()}.png`;
+  const { error: upErr } = await db.storage.from('stories').upload(path, _storyPendingFile, { upsert: false, contentType: 'image/png' });
   if (upErr) {
     toast('Erro ao enviar story: ' + upErr.message);
     if (btn) { btn.textContent = 'Publicar story'; btn.disabled = false; }
@@ -5141,8 +5141,8 @@ async function submitPost() {
   const shareBtn = document.querySelector('#modal-post .btn-share-modal');
   if (shareBtn) { shareBtn.textContent = 'Publicando...'; shareBtn.disabled = true; }
 
-  const path = `${currentUser.id}_${Date.now()}.jpg`;
-  const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/jpeg' });
+  const path = `${currentUser.id}_${Date.now()}.png`;
+  const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/png' });
   if (upErr) {
     toast('Erro ao enviar foto: ' + upErr.message);
     if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
@@ -5652,11 +5652,11 @@ function confirmarCrop() {
   }
 
   finalCanvas.toBlob(blob => {
-    const file = new File([blob], 'image.jpg', { type: 'image/jpeg' });
+    const file = new File([blob], 'image.png', { type: 'image/png' });
     fecharCrop();
     _cropCallback = null; // limpa só depois de usar
     cb(file);             // dispara o callback com o arquivo recortado
-  }, 'image/jpeg', 0.92);
+  }, 'image/png');
 }
 
 function _cropRotate(deg) { if (_cropperInstance) _cropperInstance.rotate(deg); }
