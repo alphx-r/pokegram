@@ -1658,6 +1658,10 @@ async function dbLogin(username, password) {
   const { data: authData, error: authError } = authResult;
   if (authError) {
     const msg = authError.message || '';
+    // Erro de schema interno do Supabase: trata como falha genérica recuperável
+    if (msg.toLowerCase().includes('schema') || msg.toLowerCase().includes('database error')) {
+      throw new Error('Erro interno do banco. Tente novamente em instantes.');
+    }
     if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials') || msg.toLowerCase().includes('password')) {
       return null;
     }
@@ -1665,16 +1669,50 @@ async function dbLogin(username, password) {
   }
   // busca dados completos do usuário na tabela users
   const { data: user } = await db.from('users').select('*').eq('username', username).maybeSingle();
+  // Usuário existe no Auth mas não na tabela users (cadastro incompleto anterior)
+  if (!user && authData?.user?.id) {
+    // Faz logout para não deixar sessão Auth sem perfil correspondente
+    await db.auth.signOut().catch(() => {});
+    throw new Error('Cadastro incompleto detectado. Por favor, refaça o cadastro com o mesmo usuário e senha.');
+  }
   return user || null;
 }
 async function dbRegister(username, password, rpg, emoji, pronoun) {
   const fakeEmail = username + '@pokegram.app';
-  // 1. cria no Supabase Auth
+  let authUid = null;
+
+  // 1. Tenta criar no Supabase Auth
   const { data: authData, error: authError } = await db.auth.signUp({ email: fakeEmail, password });
-  if (authError) throw authError;
-  const authUid = authData?.user?.id;
-  if (!authUid) throw new Error('Erro ao criar autenticação.');
-  // 2. cria na tabela users com o mesmo id do auth
+
+  if (authError) {
+    const msg = authError.message || '';
+    // "User already registered" = usuário fantasma (existe no Auth, não existe na tabela users)
+    // Tenta fazer login com a mesma senha para recuperar o authUid
+    if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already been registered')) {
+      const { data: loginData, error: loginError } = await db.auth.signInWithPassword({ email: fakeEmail, password });
+      if (loginError) {
+        // Senha diferente — usuário realmente já existe com outra senha
+        throw new Error('Este usuário já está cadastrado. Tente fazer login.');
+      }
+      authUid = loginData?.user?.id;
+      if (!authUid) throw new Error('Erro ao recuperar autenticação.');
+      // Verifica se de fato não existe na tabela users (cadastro incompleto)
+      const { data: existing } = await db.from('users').select('id').eq('id', authUid).maybeSingle();
+      if (existing) {
+        // Existe nos dois lugares — usuário realmente já cadastrado, só senha errada antes
+        await db.auth.signOut().catch(() => {});
+        throw new Error('Este usuário já está cadastrado. Tente fazer login.');
+      }
+      // Não existe na tabela users — pode completar o cadastro com esse authUid
+    } else {
+      throw authError;
+    }
+  } else {
+    authUid = authData?.user?.id;
+    if (!authUid) throw new Error('Erro ao criar autenticação.');
+  }
+
+  // 2. Cria na tabela users com o id do auth
   const { data: newUser, error: userError } = await db.from('users').insert({
     id: authUid,
     username,
@@ -1682,7 +1720,13 @@ async function dbRegister(username, password, rpg, emoji, pronoun) {
     rpg,
     pronoun: pronoun || null
   }).select('*').single();
-  if (userError) throw userError;
+
+  if (userError) {
+    // Falhou o insert — faz logout para evitar sessão Auth sem perfil
+    await db.auth.signOut().catch(() => {});
+    throw userError;
+  }
+
   return newUser || null;
 }
 async function dbCheckUserExists(username) {
@@ -1904,7 +1948,28 @@ async function initPokegram() {
     if (emManutencao) return; // para tudo — overlay já está visível
   }
   // tenta restaurar sessão pelo Supabase Auth primeiro
-  const { data: { session } } = await db.auth.getSession();
+  let session = null;
+  try {
+    const { data, error } = await db.auth.getSession();
+    if (error) {
+      const msg = error.message || '';
+      // Erro de schema interno do Supabase — limpa sessão e pede novo login
+      if (msg.toLowerCase().includes('schema') || msg.toLowerCase().includes('database error')) {
+        await db.auth.signOut().catch(() => {});
+        clearSession();
+        hideSplash();
+        document.getElementById('auth-screen').style.display = 'flex';
+        return;
+      }
+      throw error;
+    }
+    session = data?.session || null;
+  } catch (e) {
+    clearSession();
+    hideSplash();
+    document.getElementById('auth-screen').style.display = 'flex';
+    return;
+  }
   if (session) {
     const saved = loadSession();
     if (saved) {
@@ -1915,7 +1980,12 @@ async function initPokegram() {
     db.from('users').select('*').eq('id', session.user.id).maybeSingle()
       .then(({ data: fresh }) => {
         if (fresh) { currentUser = fresh; saveSession(fresh); if (saved) renderSidebarAvatar(); else enterApp(fresh); }
-        else if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; }
+        else {
+          // Auth existe mas não tem perfil na tabela users — limpa e pede login
+          db.auth.signOut().catch(() => {});
+          clearSession();
+          if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; }
+        }
       }).catch(() => { if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; } });
   } else {
     clearSession();
