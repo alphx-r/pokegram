@@ -3124,19 +3124,35 @@ async function initApp(user) {
 
 function renderSidebarAvatar() {
   const el = document.getElementById('sn-avatar');
-  if (!el || !currentUser) return;
-  el.style.overflow        = 'hidden';
-  el.style.display         = 'flex';
-  el.style.alignItems      = 'center';
-  el.style.justifyContent  = 'center';
-  el.style.borderRadius    = '50%';
-  el.style.background      = currentUser.avatar_url ? 'transparent' : (currentUser.color || '#e53935');
-  if (currentUser.avatar_url) {
-    el.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
-  } else {
-    el.innerHTML = '';
-    el.textContent = initials(currentUser.username);
+  if (!currentUser) return;
+  if (el) {
+    el.style.overflow        = 'hidden';
+    el.style.display         = 'flex';
+    el.style.alignItems      = 'center';
+    el.style.justifyContent  = 'center';
+    el.style.borderRadius    = '50%';
+    el.style.background      = currentUser.avatar_url ? 'transparent' : (currentUser.color || '#e53935');
+    if (currentUser.avatar_url) {
+      el.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
+    } else {
+      el.innerHTML = '';
+      el.textContent = initials(currentUser.username);
+    }
   }
+  // Preenche o "Seu story" com o avatar/cor corretos antes do renderStories para evitar flash
+  const myPic = document.getElementById('my-story-pic');
+  if (myPic) {
+    if (currentUser.avatar_url) {
+      myPic.style.background = 'transparent';
+      myPic.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    } else {
+      myPic.style.background = currentUser.color || '#e53935';
+      myPic.textContent = initials(currentUser.username);
+    }
+  }
+  // Preenche a cor do botão + desde já
+  const myPlus = document.querySelector('.story-plus');
+  if (myPlus) myPlus.style.background = currentUser.color || '#e53935';
 }
 
 // ── View Routing ──────────────────────────────────────────
@@ -3224,8 +3240,14 @@ async function renderStories() {
 
   // buscar stories e meus stories em paralelo
   const now = new Date().toISOString();
+  // buscar quem o currentUser segue
+  const { data: followRows } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id);
+  const followingIds = (followRows || []).map(r => r.following_id);
+
   const [{ data: stories }, { data: myStories }] = await Promise.all([
-    db.from('stories').select('user_id, users(id, username, color, avatar_url, is_npc)').gt('expires_at', now).neq('user_id', currentUser.id),
+    followingIds.length
+      ? db.from('stories').select('user_id, users(id, username, color, avatar_url, is_npc)').gt('expires_at', now).neq('user_id', currentUser.id).in('user_id', followingIds)
+      : Promise.resolve({ data: [] }),
     db.from('stories').select('id').eq('user_id', currentUser.id).gt('expires_at', now).limit(1),
   ]);
 
@@ -3302,11 +3324,12 @@ async function renderStories() {
 async function renderPosts() {
   const container = document.getElementById('feed-posts');
   if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
 
+  // Busca apenas posts de usuários do mesmo RPG do currentUser
   const { data: posts, error } = await db
     .from('posts')
-    .select('*, users(id, username, color, avatar_url, is_npc)')
+    .select('*, users!inner(id, username, color, avatar_url, is_npc, rpg)')
+    .eq('users.rpg', currentUser.rpg)
     .order('created_at', { ascending: false })
     .limit(30);
 
