@@ -3604,7 +3604,7 @@ async function openComments(postId) {
 
   // Atualiza a URL para /{username}/post/{id} — permite link direto e back/forward
   if (post?.users?.username) {
-    history.pushState({ postId }, '', `/${post.users.username}/post/${postId}`);
+    // Não altera a URL ao abrir o modal de post
   }
 
   openModal('modal-comments');
