@@ -352,7 +352,6 @@ input, select, textarea { font-family: var(--font); }
 }
 .post-card > *:first-child {
   border-radius: var(--radius) var(--radius) 0 0;
-  overflow: hidden;
 }
 .post-image {
   overflow: hidden;
@@ -1456,13 +1455,17 @@ input, select, textarea { font-family: var(--font); }
 .vp-inner {
   width: 100%;
   max-width: 935px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 .vp-inner .comments-split {
-  height: calc(100vh - var(--topnav-h) - 80px);
+  height: calc(100vh - var(--topnav-h) - 100px);
   min-height: 400px;
 }
 @media (max-width: 600px) {
   .vp-page-wrap { padding: 0; }
   .vp-back-bar  { padding: 12px 16px 0; }
+  .vp-inner { border: none; border-radius: 0; }
   .vp-inner .comments-split { height: auto; min-height: auto; }
 }
