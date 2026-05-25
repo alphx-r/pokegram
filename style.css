@@ -1428,3 +1428,39 @@ input, select, textarea { font-family: var(--font); }
 #sv-comment-bar button[onclick="storySendComment()"] {
   color: var(--user-color, #fff) !important;
 }
+
+/* ── Post page (URL direta) ── */
+.vp-page-wrap {
+  max-width: 935px;
+  margin: 0 auto;
+  padding: 20px 16px;
+}
+.vp-back-bar {
+  margin-bottom: 16px;
+}
+.vp-back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  font-family: 'Nunito', sans-serif;
+}
+/* Herda o layout split do modal de comentários mas ocupa a página */
+.vp-inner {
+  width: 100%;
+  max-width: 935px;
+}
+.vp-inner .comments-split {
+  height: min(80vh, 640px);
+}
+@media (max-width: 600px) {
+  .vp-page-wrap { padding: 0; }
+  .vp-back-bar  { padding: 12px 16px 0; }
+  .vp-inner .comments-split { height: auto; max-height: none; }
+}
