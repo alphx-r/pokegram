@@ -3513,7 +3513,7 @@ async function openComments(postId) {
            <button onclick="toggleModalPostMenu('${post.id}',this)"
              style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;line-height:1;border-radius:6px"
              title="Opções">···</button>
-           <div id="modal-post-menu-${post.id}" style="display:none;position:fixed;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.15);min-width:180px;z-index:99999;overflow:hidden">
+           <div id="modal-post-menu-${post.id}" style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.15);min-width:180px;z-index:99999;overflow:hidden">
              <button onclick="openEditPost('${post.id}','${captionEscaped}','${locationEscaped}');closeModalPostMenu('${post.id}')"
                style="display:flex;align-items:center;gap:8px;width:100%;padding:11px 14px;border:none;background:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:var(--text);text-align:left">
                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -3620,31 +3620,17 @@ function toggleModalPostMenu(postId, btn) {
   const menu = document.getElementById('modal-post-menu-' + postId);
   if (!menu) return;
   const isOpen = menu.style.display !== 'none';
-  if (isOpen) { menu.style.display = 'none'; return; }
-
-  // Mover para o body para escapar de qualquer overflow/clip
-  if (menu.parentElement !== document.body) document.body.appendChild(menu);
-
-  menu.style.display = 'block';
-  // Posicionar abaixo do botão usando fixed coords
-  const rect = btn.getBoundingClientRect();
-  const menuW = 200;
-  let left = rect.right - menuW;
-  if (left < 8) left = 8;
-  let top = rect.bottom + 4;
-  // Se não cabe abaixo, abre acima
-  if (top + 120 > window.innerHeight) top = rect.top - 120;
-  menu.style.left = left + 'px';
-  menu.style.top  = top  + 'px';
-
-  setTimeout(() => {
-    document.addEventListener('click', function handler(e) {
-      if (!menu.contains(e.target) && e.target !== btn) {
-        menu.style.display = 'none';
-        document.removeEventListener('click', handler);
-      }
-    });
-  }, 0);
+  menu.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', function handler(e) {
+        if (!menu.contains(e.target) && e.target !== btn) {
+          menu.style.display = 'none';
+          document.removeEventListener('click', handler);
+        }
+      });
+    }, 0);
+  }
 }
 function closeModalPostMenu(postId) {
   const menu = document.getElementById('modal-post-menu-' + postId);
@@ -3824,6 +3810,14 @@ async function renderCommentsList(postId) {
     list.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e;font-size:14px">Nenhum comentário ainda.<br>Seja o primeiro! 🎤</div>';
     return;
   }
+  // mapa username → cor para colorir @mentions corretamente
+  const userColorMap = {};
+  userColorMap[currentUser.username] = currentUser.color || '#e53935';
+  comments.forEach(c => {
+    const u = c.users || {};
+    if (u.username && u.color) userColorMap[u.username] = u.color;
+  });
+
   list.innerHTML = comments.map(c => {
     const u = c.users || { username: '?', color: '#999' };
     const canDelete = c.user_id === currentUser.id;
@@ -3838,8 +3832,11 @@ async function renderCommentsList(postId) {
     const avatarSize = isReply ? '28px' : '34px';
     const indent     = isReply ? 'margin-left:44px;' : '';
 
+    // usa a cor real do usuário mencionado, com fallback para verde
+    const mentionColor = replyUser ? (userColorMap[replyUser] || '#43a047') : '#43a047';
+
     const textHtml = isReply
-      ? `<span style="color:var(--user-color,#e53935);font-weight:700;cursor:pointer" onclick="showUserProfile('${esc(replyUser||'')}')"">@${esc(replyUser||'')}</span> ${esc(replyText)}`
+      ? `<span style="color:${mentionColor};font-weight:700;cursor:pointer" onclick="showUserProfile('${esc(replyUser||'')}')">@${esc(replyUser||'')}</span> ${esc(replyText)}`
       : esc(c.text);
 
     return `
