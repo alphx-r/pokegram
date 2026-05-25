@@ -3122,8 +3122,9 @@ async function initApp(user) {
   } else if (urlPath === 'explore') {
     showView('explore').catch(() => {});
   } else if (postMatch) {
-    // /username/post/id — abre o post direto, sem esperar o feed
-    openPostPage(postMatch[1]).catch(() => {});
+    // /username/post/id — SEMPRE abre o feed primeiro e depois o modal-comments com o post.
+    // Nunca abre página separada: o modal é a única forma de visualizar um post.
+    showView('feed').then(() => openComments(postMatch[1])).catch(() => {});
   } else if (urlPath === user.username) {
     showView('profile').catch(() => {});
   } else if (urlPath !== 'adm') {
@@ -5353,9 +5354,12 @@ window.addEventListener('popstate', async () => {
     closeStoryViewer();
     await showView('feed');
   } else if (postMatch) {
+    // /username/post/id — SEMPRE fecha modais, carrega o feed e abre o modal-comments.
+    // Nunca abre página separada: o modal é a única forma de visualizar um post.
     closeModal('modal-comments');
     closeStoryViewer();
-    await openPostPage(postMatch[1]);
+    await showView('feed');
+    await openComments(postMatch[1]);
   } else if (storyMatch) {
     // abre o story viewer do usuário da URL
     closeModal('modal-comments');
