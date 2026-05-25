@@ -1663,6 +1663,16 @@ async function dbLogin(username, password) {
       throw new Error('Erro interno do banco. Tente novamente em instantes.');
     }
     if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials') || msg.toLowerCase().includes('password')) {
+      // FALLBACK: tenta senha em password_plain (usuários migrados)
+      const { data: legacyUser } = await db.from('users')
+        .select('*').eq('username', username).eq('password_plain', password).maybeSingle();
+      if (legacyUser) {
+        // Cria no Supabase Auth para que nas próximas vezes já funcione normalmente
+        try {
+          await db.auth.signUp({ email: fakeEmail, password });
+        } catch(e) { /* ignora */ }
+        return legacyUser;
+      }
       return null;
     }
     throw authError;
