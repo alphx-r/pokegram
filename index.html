@@ -1689,12 +1689,19 @@ async function doAuth() {
   finally { btn.disabled = false; btn.textContent = isRegisterMode ? 'Cadastrar' : 'Entrar'; }
 }
 
+const _splashStart = Date.now();
+const SPLASH_MIN_MS = 2000; // mínimo 2s de splash
+
 function hideSplash() {
   const s = document.getElementById('pg-splash');
   if (!s || s.style.display === 'none') return;
-  s.style.transition = 'opacity .35s';
-  s.style.opacity = '0';
-  setTimeout(() => { s.style.display = 'none'; }, 380);
+  const elapsed   = Date.now() - _splashStart;
+  const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+  setTimeout(() => {
+    s.style.transition = 'opacity .35s';
+    s.style.opacity    = '0';
+    setTimeout(() => { s.style.display = 'none'; }, 380);
+  }, remaining);
 }
 
 function enterApp(user) {
@@ -1703,7 +1710,7 @@ function enterApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
 
-  // Splash some apenas quando o initApp terminar
+  // Splash some apenas quando o initApp terminar (e o mínimo de 2s tiver passado)
   if (typeof initApp === 'function') {
     initApp(user).catch(() => {}).finally(hideSplash);
   } else {
@@ -1717,7 +1724,6 @@ function doLogout() { clearSession(); currentUser = null; location.reload(); }
 async function initPokegram() {
   const saved = loadSession();
   if (saved) {
-    // Entra imediatamente sem esperar o banco
     currentUser = saved;
     enterApp(currentUser);
     // Re-fetch em background para atualizar dados frescos
