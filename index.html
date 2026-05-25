@@ -1735,9 +1735,17 @@ async function dbCheckUserExists(username) {
 }
 
 let authCheckTimeout = null;
+function sanitizeUsername(val) {
+  // Remove acentos via NFD + strip combining marks, depois remove tudo que não seja a-z 0-9 _ .
+  return val
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // á→a, ç→c, etc.
+    .replace(/\s/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_.]/g, ''); // bloqueia qualquer outro char especial
+}
 async function onAuthInput() {
   const raw      = document.getElementById('login-username').value;
-  const username = raw.replace(/\s/g, '').toLowerCase();
+  const username = sanitizeUsername(raw);
   // reflecte o valor normalizado no campo
   if (raw !== username) document.getElementById('login-username').value = username;
   clearTimeout(authCheckTimeout);
@@ -1763,7 +1771,7 @@ function hideAuthError()    { document.getElementById('auth-error').style.displa
 
 async function doAuth() {
   hideAuthError();
-  const username = document.getElementById('login-username').value.trim();
+  const username = sanitizeUsername(document.getElementById('login-username').value);
   const password = document.getElementById('login-password').value;
   const btn      = document.getElementById('auth-btn');
   if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
