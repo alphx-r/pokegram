@@ -2165,7 +2165,7 @@ async function admNpcSalvar() {
 
   let error;
   if (editId) {
-    const { error: e } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url, ...(password !== null ? { password } : {}) }).eq('id', editId);
+    const { error: e } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url, ...(password !== null ? { password_plain: password } : {}) }).eq('id', editId);
     error = e;
   } else {
     // Verifica se username já existe
