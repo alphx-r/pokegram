@@ -3108,13 +3108,13 @@ async function initApp(user) {
   } else if (urlPath === 'explore') {
     showView('explore').catch(() => {});
   } else if (postMatch) {
-    // /username/post/id — SEMPRE abre o feed primeiro e depois o modal-comments com o post.
-    // Nunca abre página separada: o modal é a única forma de visualizar um post.
+    // /username/post/id — abre o feed e depois o modal do post
     showView('feed').then(() => openComments(postMatch[1])).catch(() => {});
   } else if (urlPath === user.username) {
     showView('profile').catch(() => {});
   } else if (urlPath !== 'adm') {
-    showView('feed').then(() => showUserProfile(urlPath)).catch(() => {});
+    // /outrousuario — vai direto para o perfil sem carregar o feed
+    showUserProfile(urlPath).catch(() => {});
   } else {
     showView('feed').catch(() => {});
   }
