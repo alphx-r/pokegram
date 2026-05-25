@@ -477,6 +477,61 @@
   #chat-panel { width: 100vw; right: -100vw; }
 }
 
+
+/* ── Emoji Picker ───────────────────────────────────────── */
+.emoji-trigger {
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 4px 6px;
+  opacity: .55; transition: opacity .15s;
+  flex-shrink: 0;
+}
+.emoji-trigger:hover { opacity: 1; }
+.emoji-picker-popup {
+  position: absolute;
+  background: var(--white, #fff);
+  border: 1px solid var(--border, #dbdbdb);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  z-index: 9000;
+  width: 300px;
+  overflow: hidden;
+  display: none;
+}
+.emoji-picker-popup.open { display: block; }
+.emoji-picker-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border, #dbdbdb);
+}
+.emoji-picker-search input {
+  width: 100%; border: 1px solid var(--border, #dbdbdb);
+  border-radius: 8px; padding: 6px 10px; font-size: 13px;
+  outline: none; font-family: var(--font, sans-serif);
+}
+.emoji-picker-cats {
+  display: flex; overflow-x: auto; padding: 6px 8px;
+  gap: 2px; border-bottom: 1px solid var(--border-lt, #efefef);
+  scrollbar-width: none;
+}
+.emoji-picker-cats::-webkit-scrollbar { display: none; }
+.emoji-cat-btn {
+  flex-shrink: 0; font-size: 16px;
+  padding: 4px 6px; border-radius: 6px;
+  opacity: .5; transition: opacity .1s, background .1s;
+}
+.emoji-cat-btn:hover, .emoji-cat-btn.active { opacity: 1; background: #f0f0f0; }
+.emoji-picker-grid-wrap {
+  height: 200px; overflow-y: auto; padding: 6px 8px;
+}
+.emoji-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+}
+.emoji-btn {
+  font-size: 22px; padding: 4px; border-radius: 6px;
+  text-align: center; cursor: pointer; transition: background .1s;
+  line-height: 1.3;
+}
+.emoji-btn:hover { background: #f0f0f0; }
+
 </style>
 </head>
 <body>
@@ -750,7 +805,7 @@
           </div>
           <div class="post-caption-side">
             <div id="post-author-row" class="post-author-row"></div>
-            <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
+            <div style="position:relative;display:flex;align-items:flex-start;gap:4px"><textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200" style="flex:1"></textarea><button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'post-caption')" title="Emojis">😊</button></div>
             <div class="post-fields">
               <div class="pf-row">
                 <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -819,7 +874,7 @@
             <!-- Input de comentário -->
             <div class="comment-input-bar">
               <div class="comment-avatar-sm" id="my-comment-avatar"></div>
-              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
+              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150"><button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'new-comment')" title="Emojis">😊</button>
               <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
             </div>
           </div>
@@ -869,7 +924,7 @@
       <!-- Barra de comentário (só para stories de outros) -->
       <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.55))">
         <div style="display:flex;align-items:center;gap:8px;width:100%">
-          <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
+          <button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'sv-comment-input')" title="Emojis" style="color:white;opacity:.7">😊</button><input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
             style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:8px 16px;min-width:0"
             onfocus="storyClearTimer();svCommentFocus(true)"
             onblur="storyRestartTimer();svCommentFocus(false)"
@@ -956,8 +1011,8 @@
 
         <div style="display:flex;flex-direction:column;gap:4px">
           <label style="font-size:12px;font-weight:700;color:#8e8e8e">Bio</label>
-          <textarea id="ep-bio" maxlength="150" placeholder="Conte um pouco sobre você..." rows="3"
-            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;resize:none;outline:none"></textarea>
+          <div style="position:relative;display:flex;align-items:flex-start;gap:4px"><textarea id="ep-bio" maxlength="150" placeholder="Conte um pouco sobre você..." rows="3" style="flex:1"
+            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;resize:none;outline:none"></textarea><button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,\'ep-bio\')" title="Emojis" style="align-self:flex-start;margin-top:2px">😊</button>
           <span style="font-size:11px;color:#8e8e8e;text-align:right" id="ep-bio-count">0/150</span>
         </div>
 
@@ -4401,8 +4456,8 @@ async function toggleFollow(btn, userId, username) {
 
 // ── Explore ───────────────────────────────────────────────
 // ── Explore com paginação infinita ───────────────────────
-const EXPLORE_FIRST_SIZE = 25; // itens no primeiro carregamento
-const EXPLORE_PAGE_SIZE  = 9;  // itens por página subsequente
+const EXPLORE_FIRST_SIZE = 12; // itens no primeiro carregamento
+const EXPLORE_PAGE_SIZE  = 3;  // itens por página subsequente
 let _explorePage    = 0;      // próxima página a carregar (0-based, após o primeiro)
 let _exploreQuery   = '';     // filtro de busca ativo
 let _exploreLoading = false;  // evita requisições duplas
@@ -4573,8 +4628,11 @@ function doSearch(q) {
     });
   } else {
     if (!q || !q.trim()) {
-      // Apagou a busca: só esconde perfis, não recarrega o grid
+      // Apagou a busca: esconde perfis E recarrega o grid original
       _exploreSearchProfiles('');
+      renderExplore('');
+      const si = document.getElementById('search-input');
+      if (si) si.value = '';
     } else {
       renderExplore(q);
     }
@@ -6061,7 +6119,7 @@ if (typeof db !== 'undefined') loadFilters();
       <button onclick="chatCancelReply()" style="background:none;border:none;cursor:pointer;font-size:16px;color:#999;padding:0;line-height:1">✕</button>
     </div>
     <div class="chat-input-bar">
-      <input type="text" id="chat-msg-input" placeholder="Mensagem..." maxlength="500"
+      <button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'chat-msg-input')" title="Emojis">😊</button><input type="text" id="chat-msg-input" placeholder="Mensagem..." maxlength="500"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSendMessage();}">
       <button class="chat-send-btn" onclick="chatSendMessage()" title="Enviar">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
@@ -6495,6 +6553,127 @@ async function chatStartConversation(peerUsername) {
   await openChatPanel();
   await chatOpenWindow(peerUser);
 }
+</script>
+
+
+<!-- Global Emoji Picker -->
+<div id="emoji-picker-popup" class="emoji-picker-popup">
+  <div class="emoji-picker-search">
+    <input type="text" id="emoji-search-input" placeholder="Buscar emoji..." oninput="_emojiSearch(this.value)">
+  </div>
+  <div class="emoji-picker-cats" id="emoji-cats"></div>
+  <div class="emoji-picker-grid-wrap">
+    <div class="emoji-grid" id="emoji-grid"></div>
+  </div>
+</div>
+
+<script>
+// ── Emoji Picker ─────────────────────────────────────────
+const EMOJI_CATS = [
+  { label:'😀', name:'Rostos',     emojis:'😀😁😂🤣😃😄😅😆😉😊😋😎😍🥰😘😗😙🥲😚☺️🙂🤗🤩🤔🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵💫🤯🤠🥳😎🤓🧐😕😟🙁☹️😮😯😲😳🥺😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬😈👿💀☠️💩🤡👹👺👻👽👾🤖' },
+  { label:'👋', name:'Pessoas',    emojis:'👋🤚🖐✋🖖👌🤌🤏✌️🤞🤟🤘🤙👈👉👆🖕👇☝️👍👎✊👊🤛🤜👏🙌👐🤲🤝🙏✍️💅🤳💪🦾🦿🦵🦶👂🦻👃🧠🫀🫁🦷🦴👀👁👅👄🫦💋🫂👤👥' },
+  { label:'🐶', name:'Animais',    emojis:'🐶🐱🐭🐹🐰🦊🐻🐼🐻‍❄️🐨🐯🦁🐮🐷🐸🐵🙈🙉🙊🐔🐧🐦🐤🦆🦅🦉🦇🐝🪱🐛🦋🐌🐞🐜🪲🦟🦗🪳🕷🦂🐢🐍🦎🦖🦕🐙🦑🦐🦞🦀🐡🐠🐟🐬🐳🐋🦈🦭🐊🐅🐆🦓🦍🦧🦣🐘🦛🦏🐪🐫🦒🦘🦬🐃🐂🐄🐎🐖🐏🐑🦙🐐🦌🐕🐩🦮🐕‍🦺🐈🐈‍⬛🪶🐓🦃🦤🦚🦜🦢🦩🕊🐇🦝🦨🦡🦫🦦🦥🐁🐀🐿🦔' },
+  { label:'🌸', name:'Natureza',   emojis:'🌸🌼🌻🌺🌹🌷🌱🌲🌳🌴🌵🌾🍀🍁🍂🍃🍄🌿☘️🪴🎋🎍🪸🪨🪵🌍🌎🌏🌐🗺🏔⛰🌋🗻🏕🏖🏗🏘🏙🏚🏛🏜🏝🏞🌅🌄🌠🎇🎆🌇🌆🏙🌃🌉🌁🌌🌠⭐🌟💫✨☀️🌤⛅🌥☁️🌦🌧⛈🌩🌨❄️☃️⛄🌬🌀🌈🌂☂️🌊⛱' },
+  { label:'🍔', name:'Comida',     emojis:'🍎🍐🍊🍋🍌🍉🍇🍓🫐🍈🍒🍑🥭🍍🥥🥝🍅🍆🥑🥦🧄🧅🥔🌽🌶🫑🥒🥬🥗🫙🧂🥫🍿🫕🥘🍲🫔🍱🍘🍙🍚🍛🍜🍝🍞🥐🥨🧀🥚🍳🧈🥞🧇🥓🥩🍗🍖🌭🍔🍟🍕🫓🥪🥙🧆🌮🌯🥣🥗🥫🍣🍱🥟🦪🍤🍙🍘🍥🥮🍢🧁🍰🎂🍮🍭🍬🍫🍿🍩🍪🌰🥜🍯🧃🥤🧋☕🫖🍵🧉🍺🍻🥂🍷🥃🍸🍹🍾🧊' },
+  { label:'⚽', name:'Atividades', emojis:'⚽🏀🏈⚾🎾🏐🏉🎱🏓🏸🏒🥊🥋🎽⛸🛹🛼🛷🎿⛷🤺🏇🏋🤼🤸🤺🏊🤽🚣🧗🚴🏄🏌🏹🎣🤿🧘🧗🚵🎽🏆🥇🥈🥉🎖🏅🎗🎪🤹🎭🩰🎨🖼🎰🎲♟🎮🕹🎯🎳🎻🎸🎺🎷🥁🪘🎬🎤🎵🎶🎼🎹🎲♠️♥️♦️♣️🃏🀄🎴' },
+  { label:'🚗', name:'Viagem',     emojis:'🚗🚕🚙🚌🚎🏎🚓🚑🚒🚐🛻🚚🚛🚜🏍🛵🛺🚲🛴🛹🛼🚏🛣🛤⛽🛞🚨🚥🚦🛑🚧⚓🛟⛵🚤🛳⛴🚢✈️🛩🛫🛬💺🚁🚟🚠🚡🛰🚀🛸🚀🛶⛲🎠🎡🎢🎪🏕⛺🌃🌆🗼🗽🗾🏯🏰' },
+  { label:'💡', name:'Objetos',    emojis:'⌚📱💻⌨🖥🖨🖱🕹🗜💾💿📀📼📷📸📹🎥📽🎞📞☎️📟📠📺📻🧭⏱⏲⏰🕰⌛⏳📡🔋🔌💡🔦🕯🪔🧱💰💴💵💶💷💸💳🪙💹📈📉📊📋📌📍📎🖇📏📐✂️🗃🗄🗑🔒🔓🔏🔐🔑🗝🔨🪓⛏⚒🛠🗡⚔🛡🪚🔧🪛🔩⚙🗜🔗⛓🪝🧲🪜🧰🧲🪤🧲' },
+  { label:'❤️', name:'Símbolos',   emojis:'❤️🧡💛💚💙💜🖤🤍🤎💔❣️💕💞💓💗💖💘💝💟☮️✝️☪️🕉☸️🔯✡️🪯🛐⛎♈♉♊♋♌♍♎♏♐♑♒♓🆚🆒🆙🆕🆖🆗🆘🆓🆑⚠️🔰♻️✅❌❎🔱⭕🛑⛔📛🚫🔞🔞🚭🚯🚱🚳📵🔕❗❓‼️⁉️🔅🔆📶📳📴📵💯🔤🔡🔢🔣🔠🏧💲💱©️®️™️#️⃣*️⃣0️⃣' },
+  { label:'🏳️', name:'Pokémon',    emojis:'⚡🔥💧🌿👻🪨🐉🧊🦅🧪🌙🌊🧬🔮🎯🏆🥊⚔️🛡️🪄🎪🌀🗺️🧭📜🪙💎🔑🗝️🎁🎀🎊🎉🎗️🎖️🥇🏅🌟✨💫⭐🌈🌸🌺🌸🍃🌙🌠🔴⚪🔵🟡🟢🟣⚫' },
+];
+
+let _emojiTarget  = null; // elemento onde inserir
+let _emojiCatIdx  = 0;
+
+function _initEmojiPicker() {
+  const cats = document.getElementById('emoji-cats');
+  if (!cats || cats.children.length) return;
+  cats.innerHTML = EMOJI_CATS.map((c,i) =>
+    `<button class="emoji-cat-btn${i===0?' active':''}" title="${c.name}" onclick="_emojiCat(${i})">${c.label}</button>`
+  ).join('');
+  _emojiRenderCat(0);
+}
+
+function _emojiRenderCat(idx) {
+  _emojiCatIdx = idx;
+  const grid = document.getElementById('emoji-grid');
+  if (!grid) return;
+  const emojis = [...EMOJI_CATS[idx].emojis];
+  grid.innerHTML = emojis.map(e =>
+    `<div class="emoji-btn" onclick="_insertEmoji('${e}')">${e}</div>`
+  ).join('');
+  document.querySelectorAll('.emoji-cat-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+}
+
+function _emojiCat(idx) { _emojiRenderCat(idx); document.getElementById('emoji-search-input').value = ''; }
+
+function _emojiSearch(q) {
+  const grid = document.getElementById('emoji-grid');
+  if (!grid) return;
+  if (!q) { _emojiRenderCat(_emojiCatIdx); return; }
+  const all = EMOJI_CATS.flatMap(c => [...c.emojis]);
+  // simple filter: show all (emoji search by name not feasible without dict, just show all)
+  grid.innerHTML = all.slice(0, 80).map(e =>
+    `<div class="emoji-btn" onclick="_insertEmoji('${e}')">${e}</div>`
+  ).join('');
+}
+
+function _insertEmoji(emoji) {
+  if (!_emojiTarget) return;
+  const el = _emojiTarget;
+  const start = el.selectionStart ?? el.value.length;
+  const end   = el.selectionEnd   ?? el.value.length;
+  el.value = el.value.slice(0, start) + emoji + el.value.slice(end);
+  el.selectionStart = el.selectionEnd = start + emoji.length;
+  el.focus();
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function toggleEmojiPicker(triggerEl, targetId) {
+  _initEmojiPicker();
+  const picker = document.getElementById('emoji-picker-popup');
+  const target = document.getElementById(targetId);
+  _emojiTarget = target;
+
+  if (picker.classList.contains('open') && picker.dataset.for === targetId) {
+    picker.classList.remove('open');
+    picker.dataset.for = '';
+    return;
+  }
+
+  // Position picker near trigger
+  const rect = triggerEl.getBoundingClientRect();
+  picker.style.position = 'fixed';
+
+  // Decide if it opens up or down
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const pickerH = 280;
+  if (spaceBelow < pickerH && rect.top > pickerH) {
+    picker.style.top  = (rect.top - pickerH - 4) + 'px';
+  } else {
+    picker.style.top  = (rect.bottom + 4) + 'px';
+  }
+
+  // Horizontal: align left but keep within viewport
+  let left = rect.left;
+  if (left + 300 > window.innerWidth) left = window.innerWidth - 308;
+  picker.style.left = Math.max(4, left) + 'px';
+
+  picker.dataset.for = targetId;
+  picker.classList.add('open');
+  document.getElementById('emoji-search-input').value = '';
+  _emojiRenderCat(_emojiCatIdx);
+}
+
+// Close picker when clicking outside
+document.addEventListener('click', e => {
+  const picker = document.getElementById('emoji-picker-popup');
+  if (!picker?.classList.contains('open')) return;
+  if (picker.contains(e.target)) return;
+  if (e.target.closest('.emoji-trigger')) return;
+  picker.classList.remove('open');
+  picker.dataset.for = '';
+}, true);
 </script>
 
 </body>
