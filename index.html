@@ -543,7 +543,9 @@
   const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  const IS_ADM = window.location.pathname.startsWith('/adm');
+  const IS_ADM = window.location.pathname.startsWith('/adm')
+    || window.location.hash === '#adm'
+    || new URLSearchParams(window.location.search).get('page') === 'adm';
 
   // ── Logo da rede social (armazenada no Supabase) ──────────
   let _logoUrl = null;
@@ -1011,8 +1013,8 @@
 
         <div style="display:flex;flex-direction:column;gap:4px">
           <label style="font-size:12px;font-weight:700;color:#8e8e8e">Bio</label>
-          <div style="position:relative;display:flex;align-items:flex-start;gap:4px"><textarea id="ep-bio" maxlength="150" placeholder="Conte um pouco sobre você..." rows="3" style="flex:1"
-            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;resize:none;outline:none"></textarea><button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,\'ep-bio\')" title="Emojis" style="align-self:flex-start;margin-top:2px">😊</button>
+          <div style="position:relative;display:flex;flex-direction:column;gap:4px"><textarea id="ep-bio" maxlength="150" placeholder="Conte um pouco sobre você..." rows="3"
+            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;resize:none;outline:none;width:100%;box-sizing:border-box"></textarea>
           <span style="font-size:11px;color:#8e8e8e;text-align:right" id="ep-bio-count">0/150</span>
         </div>
 
@@ -1911,7 +1913,7 @@ async function doAuth() {
       if (password.length < 6)  { showAuthError('Senha deve ter ao menos 6 caracteres.'); return; }
       const user = await dbRegister(username, password, rpg, null, pronoun);
       if (!user) { showAuthError('Erro ao cadastrar. Tente novamente.'); return; }
-      currentUser = user; saveSession(user); enterApp(user);
+      currentUser = user; saveSession(user); enterApp(user, true);
     } else {
       const user = await dbLogin(username, password);
       if (!user) { showAuthError('Usuário ou senha incorretos.'); return; }
@@ -1941,7 +1943,7 @@ function hideSplash() {
   setTimeout(() => { s.style.display = 'none'; }, 380);
 }
 
-function enterApp(user) {
+function enterApp(user, isFirstLogin) {
   if (!user.avatar_color) user.avatar_color = user.color;
   if (!user.display_name) user.display_name = user.name || user.username;
   document.getElementById('auth-screen').style.display = 'none';
@@ -1949,11 +1951,85 @@ function enterApp(user) {
 
   // Splash some apenas quando o initApp terminar
   if (typeof initApp === 'function') {
-    initApp(user).catch(() => {}).finally(hideSplash);
+    initApp(user).catch(() => {}).finally(() => {
+      hideSplash();
+      // No primeiro login, abre modal de configuração de perfil
+      if (isFirstLogin) {
+        setTimeout(() => openProfileSetupModal(), 300);
+      }
+    });
   } else {
     hideSplash();
+    if (isFirstLogin) {
+      setTimeout(() => openProfileSetupModal(), 300);
+    }
   }
   initPushNotifications(user);
+}
+
+// ── Modal de configuração de perfil (primeiro login) ──────
+function openProfileSetupModal() {
+  // Reutiliza o modal de editar perfil mas com banner de boas-vindas
+  const modal = document.getElementById('modal-edit-profile');
+  if (!modal) return;
+
+  // Adiciona/atualiza banner de boas-vindas
+  let banner = document.getElementById('ep-welcome-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'ep-welcome-banner';
+    banner.style.cssText = 'background:linear-gradient(135deg,#e53935,#f4511e);color:#fff;padding:16px 20px;text-align:center;border-radius:12px;margin-bottom:4px';
+    banner.innerHTML = `
+      <div style="font-size:22px;margin-bottom:6px">🎉 Bem-vindo ao Pokégram!</div>
+      <div style="font-size:14px;font-weight:700;opacity:.95">Configure seu perfil antes de começar</div>
+      <div style="font-size:12px;opacity:.8;margin-top:4px">Você pode editar isso depois nas configurações de perfil</div>`;
+    const modalBody = modal.querySelector('.modal-box > div:last-child') || modal.querySelector('[style*="padding:20px"]');
+    if (modalBody) modalBody.insertBefore(banner, modalBody.firstChild);
+  }
+  banner.style.display = 'block';
+
+  // Bloqueia o fechamento pelo X e backdrop no primeiro acesso
+  modal._isFirstLogin = true;
+
+  // Troca o texto do botão salvar
+  const saveBtn = modal.querySelector('.btn-share-modal');
+  if (saveBtn) {
+    saveBtn._originalText = saveBtn.textContent;
+    saveBtn.textContent = 'Começar →';
+  }
+
+  // Atualiza header
+  const header = modal.querySelector('.modal-header h3');
+  if (header) header.textContent = 'Configure seu perfil';
+
+  // Remove o X e o backdrop temporariamente
+  const closeBtn = modal.querySelector('.modal-x');
+  if (closeBtn) closeBtn.style.display = 'none';
+  const backdrop = modal.querySelector('.modal-backdrop');
+  if (backdrop) backdrop.style.pointerEvents = 'none';
+
+  openEditProfile();
+}
+
+function _closeProfileSetupMode() {
+  const modal = document.getElementById('modal-edit-profile');
+  if (!modal || !modal._isFirstLogin) return;
+  modal._isFirstLogin = false;
+
+  const banner = document.getElementById('ep-welcome-banner');
+  if (banner) banner.style.display = 'none';
+
+  const saveBtn = modal.querySelector('.btn-share-modal');
+  if (saveBtn && saveBtn._originalText) saveBtn.textContent = saveBtn._originalText;
+
+  const header = modal.querySelector('.modal-header h3');
+  if (header) header.textContent = 'Editar perfil';
+
+  const closeBtn = modal.querySelector('.modal-x');
+  if (closeBtn) closeBtn.style.display = '';
+
+  const backdrop = modal.querySelector('.modal-backdrop');
+  if (backdrop) backdrop.style.pointerEvents = '';
 }
 
 async function doLogout() { await db.auth.signOut(); clearSession(); currentUser = null; location.reload(); }
@@ -3837,6 +3913,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
     <div class="mini-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
       oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
+    <button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'inline-comment-${p.id}')" title="Emojis" style="font-size:16px;padding:2px 4px;opacity:.45">😊</button>
     <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
   </div>
 </div>`;
@@ -4496,15 +4573,29 @@ async function _exploreSearchProfiles(query) {
     .or(`username.ilike.%${q}%,name.ilike.%${q}%`)
     .limit(8);
 
+  const myColor = currentUser?.color || '#e53935';
+
+  // Chip de busca por termo (sempre mostra quando há query)
+  const searchChip = `
+    <div style="padding:10px 14px 4px">
+      <div onclick="renderExplore('${q.replace(/'/g,"\\'")}');document.getElementById('explore-profiles').style.display='none';"
+        style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1.5px solid #dbdbdb;border-radius:24px;cursor:pointer;transition:background .12s;font-family:'Nunito',sans-serif"
+        onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8e8e8e" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span style="font-size:13px;font-weight:700;color:#262626">Ver publicações e perfis com "<span style="color:${myColor}">${q}</span>"</span>
+      </div>
+    </div>`;
+
   if (!users || !users.length) {
-    container.style.display = 'none';
-    container.innerHTML = '';
+    container.innerHTML = searchChip;
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
     return;
   }
 
-  const myColor = currentUser?.color || '#e53935';
   container.innerHTML =
-    '<div style="font-size:12px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px;padding:12px 14px 6px">Perfis</div>' +
+    searchChip +
+    '<div style="font-size:12px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px;padding:10px 14px 6px">Perfis</div>' +
     users.map(u => {
       const av = u.avatar_url
         ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
@@ -4982,6 +5073,7 @@ async function submitEditProfile() {
   document.documentElement.style.setProperty('--user-color', color || '#e53935');
   renderSidebarAvatar();
   applyUserColor(color);
+  _closeProfileSetupMode();
   closeModal('modal-edit-profile');
   await renderProfile(currentUser.username);
   toast('Perfil atualizado! ✨');
@@ -6570,16 +6662,11 @@ async function chatStartConversation(peerUsername) {
 <script>
 // ── Emoji Picker ─────────────────────────────────────────
 const EMOJI_CATS = [
-  { label:'😀', name:'Rostos',     emojis:'😀😁😂🤣😃😄😅😆😉😊😋😎😍🥰😘😗😙🥲😚☺️🙂🤗🤩🤔🤨😐😑😶😏😒🙄😬🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵💫🤯🤠🥳😎🤓🧐😕😟🙁☹️😮😯😲😳🥺😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬😈👿💀☠️💩🤡👹👺👻👽👾🤖' },
-  { label:'👋', name:'Pessoas',    emojis:'👋🤚🖐✋🖖👌🤌🤏✌️🤞🤟🤘🤙👈👉👆🖕👇☝️👍👎✊👊🤛🤜👏🙌👐🤲🤝🙏✍️💅🤳💪🦾🦿🦵🦶👂🦻👃🧠🫀🫁🦷🦴👀👁👅👄🫦💋🫂👤👥' },
-  { label:'🐶', name:'Animais',    emojis:'🐶🐱🐭🐹🐰🦊🐻🐼🐻‍❄️🐨🐯🦁🐮🐷🐸🐵🙈🙉🙊🐔🐧🐦🐤🦆🦅🦉🦇🐝🪱🐛🦋🐌🐞🐜🪲🦟🦗🪳🕷🦂🐢🐍🦎🦖🦕🐙🦑🦐🦞🦀🐡🐠🐟🐬🐳🐋🦈🦭🐊🐅🐆🦓🦍🦧🦣🐘🦛🦏🐪🐫🦒🦘🦬🐃🐂🐄🐎🐖🐏🐑🦙🐐🦌🐕🐩🦮🐕‍🦺🐈🐈‍⬛🪶🐓🦃🦤🦚🦜🦢🦩🕊🐇🦝🦨🦡🦫🦦🦥🐁🐀🐿🦔' },
-  { label:'🌸', name:'Natureza',   emojis:'🌸🌼🌻🌺🌹🌷🌱🌲🌳🌴🌵🌾🍀🍁🍂🍃🍄🌿☘️🪴🎋🎍🪸🪨🪵🌍🌎🌏🌐🗺🏔⛰🌋🗻🏕🏖🏗🏘🏙🏚🏛🏜🏝🏞🌅🌄🌠🎇🎆🌇🌆🏙🌃🌉🌁🌌🌠⭐🌟💫✨☀️🌤⛅🌥☁️🌦🌧⛈🌩🌨❄️☃️⛄🌬🌀🌈🌂☂️🌊⛱' },
-  { label:'🍔', name:'Comida',     emojis:'🍎🍐🍊🍋🍌🍉🍇🍓🫐🍈🍒🍑🥭🍍🥥🥝🍅🍆🥑🥦🧄🧅🥔🌽🌶🫑🥒🥬🥗🫙🧂🥫🍿🫕🥘🍲🫔🍱🍘🍙🍚🍛🍜🍝🍞🥐🥨🧀🥚🍳🧈🥞🧇🥓🥩🍗🍖🌭🍔🍟🍕🫓🥪🥙🧆🌮🌯🥣🥗🥫🍣🍱🥟🦪🍤🍙🍘🍥🥮🍢🧁🍰🎂🍮🍭🍬🍫🍿🍩🍪🌰🥜🍯🧃🥤🧋☕🫖🍵🧉🍺🍻🥂🍷🥃🍸🍹🍾🧊' },
-  { label:'⚽', name:'Atividades', emojis:'⚽🏀🏈⚾🎾🏐🏉🎱🏓🏸🏒🥊🥋🎽⛸🛹🛼🛷🎿⛷🤺🏇🏋🤼🤸🤺🏊🤽🚣🧗🚴🏄🏌🏹🎣🤿🧘🧗🚵🎽🏆🥇🥈🥉🎖🏅🎗🎪🤹🎭🩰🎨🖼🎰🎲♟🎮🕹🎯🎳🎻🎸🎺🎷🥁🪘🎬🎤🎵🎶🎼🎹🎲♠️♥️♦️♣️🃏🀄🎴' },
-  { label:'🚗', name:'Viagem',     emojis:'🚗🚕🚙🚌🚎🏎🚓🚑🚒🚐🛻🚚🚛🚜🏍🛵🛺🚲🛴🛹🛼🚏🛣🛤⛽🛞🚨🚥🚦🛑🚧⚓🛟⛵🚤🛳⛴🚢✈️🛩🛫🛬💺🚁🚟🚠🚡🛰🚀🛸🚀🛶⛲🎠🎡🎢🎪🏕⛺🌃🌆🗼🗽🗾🏯🏰' },
-  { label:'💡', name:'Objetos',    emojis:'⌚📱💻⌨🖥🖨🖱🕹🗜💾💿📀📼📷📸📹🎥📽🎞📞☎️📟📠📺📻🧭⏱⏲⏰🕰⌛⏳📡🔋🔌💡🔦🕯🪔🧱💰💴💵💶💷💸💳🪙💹📈📉📊📋📌📍📎🖇📏📐✂️🗃🗄🗑🔒🔓🔏🔐🔑🗝🔨🪓⛏⚒🛠🗡⚔🛡🪚🔧🪛🔩⚙🗜🔗⛓🪝🧲🪜🧰🧲🪤🧲' },
-  { label:'❤️', name:'Símbolos',   emojis:'❤️🧡💛💚💙💜🖤🤍🤎💔❣️💕💞💓💗💖💘💝💟☮️✝️☪️🕉☸️🔯✡️🪯🛐⛎♈♉♊♋♌♍♎♏♐♑♒♓🆚🆒🆙🆕🆖🆗🆘🆓🆑⚠️🔰♻️✅❌❎🔱⭕🛑⛔📛🚫🔞🔞🚭🚯🚱🚳📵🔕❗❓‼️⁉️🔅🔆📶📳📴📵💯🔤🔡🔢🔣🔠🏧💲💱©️®️™️#️⃣*️⃣0️⃣' },
-  { label:'🏳️', name:'Pokémon',    emojis:'⚡🔥💧🌿👻🪨🐉🧊🦅🧪🌙🌊🧬🔮🎯🏆🥊⚔️🛡️🪄🎪🌀🗺️🧭📜🪙💎🔑🗝️🎁🎀🎊🎉🎗️🎖️🥇🏅🌟✨💫⭐🌈🌸🌺🌸🍃🌙🌠🔴⚪🔵🟡🟢🟣⚫' },
+  { label:'😀', name:'Rostos & Pessoas', emojis:'😀😁😂🤣😄😅😆😉😊😋😎😍🥰😘🙂🤗🤩🤔😐😑😶😏😒🙄😬😌😔😪😴😷🤒🤢🤮🥵🥶😵🤯🤠🥳🤓😕😟☹️😮😲😳🥺😢😭😱😖😞😤😡🤬😈💀💩🤡👻👽🤖👋🤚✋👌✌️🤞👍👎✊👏🙌🤝🙏💪👀👅💋🫂' },
+  { label:'🐾', name:'Animais & Natureza', emojis:'🐶🐱🐭🐹🐰🦊🐻🐼🐨🐯🦁🐮🐷🐸🐵🐔🐧🦆🦅🦉🐝🐛🦋🐌🐞🐢🐍🦎🐙🦑🐬🐳🦈🐘🦒🦓🦌🐕🐈🌸🌼🌻🌺🌹🌷🌱🌲🌳🌴🌵🍀🍁🍂🍃🍄🌿⭐🌟✨☀️🌤⛅☁️🌧⛈❄️☃️🌀🌈🌊' },
+  { label:'🍔', name:'Comida & Bebida', emojis:'🍎🍊🍋🍌🍉🍇🍓🫐🍒🍑🍍🥥🥝🍅🥑🥦🥔🌽🌶🥒🥗🧂🍞🥐🧀🥚🍳🥞🥓🥩🍗🍔🍟🍕🌮🌯🍣🥟🍱🍚🍜🍝🧆🥘🍲🧁🍰🎂🍫🍬🍭🍩🍪🥜🍯☕🫖🍵🧋🥤🍺🍷🥂🍸🍾🧊' },
+  { label:'⚽', name:'Atividades & Viagem', emojis:'⚽🏀🏈⚾🎾🏐🎱🏓🥊🥋🏆🥇🥈🥉🏅🎖🎮🕹🎯🎲🎭🎨🎬🎤🎵🎶🎹🎸🎺🎷🥁🚗🚕🚙🚌🏎🚓🚑🚒🚲🏍✈️🛩💺🚀🛸⛵🚢🏕⛺🏖🏝🏔🌋🗺🏯🏰🗼🗽🌅🌆🌃🌉' },
+  { label:'❤️', name:'Símbolos & Pokémon', emojis:'❤️🧡💛💚💙💜🖤🤍💔💕💞💓💗💖💘💝🔥⚡💧🌿👻🪨🐉🧊🦅🧪🌙🧬🔮🎯⚔️🛡️🪄🌀🗺️📜🪙💎🔑🎁🎀🎊🎉🌟✨🌈🌸🍃🔴⚪🔵🟡🟢🟣⚫♻️✅❌⚠️💯🔔📣🎗️🏆🌐💫' },
 ];
 
 let _emojiTarget  = null; // elemento onde inserir
