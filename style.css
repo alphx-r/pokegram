@@ -1,4 +1,4 @@
-/* ============================
+/* =============================
    POKÉGRAM — style.css
    Instagram-style UI
    ============================= */
@@ -1140,7 +1140,7 @@ input, select, textarea { font-family: var(--font); }
   max-width: 900px;
   width: 95vw;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   border-radius: var(--radius);
   display: flex;
   flex-direction: column;
@@ -1149,7 +1149,7 @@ input, select, textarea { font-family: var(--font); }
   display: flex;
   height: min(85vh, 600px);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow: visible;
   flex: 1;
   min-height: 0;
 }
@@ -1185,6 +1185,8 @@ input, select, textarea { font-family: var(--font); }
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
+  position: relative;
+  overflow: visible;
 }
 .cpc-text {
   font-size: 13px;
