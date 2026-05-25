@@ -1648,34 +1648,43 @@ function loadSession()  {
 function clearSession() { localStorage.removeItem('pg_user'); }
 
 async function dbLogin(username, password) {
-  let result;
+  const fakeEmail = username + '@pokegram.app';
+  let authResult;
   try {
-    result = await db.rpc('login_user', { p_username: username, p_password: password });
+    authResult = await db.auth.signInWithPassword({ email: fakeEmail, password });
   } catch (netErr) {
     throw new Error('network');
   }
-  const { data, error } = result;
-  if (error) {
-    const msg = error.message || '';
-    if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('senha') || msg.toLowerCase().includes('password')) {
+  const { data: authData, error: authError } = authResult;
+  if (authError) {
+    const msg = authError.message || '';
+    if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials') || msg.toLowerCase().includes('password')) {
       return null;
     }
-    throw error;
+    throw authError;
   }
-  // RPC pode retornar array ou objeto — normaliza sempre para objeto único
-  if (Array.isArray(data)) return data[0] || null;
-  return data;
+  // busca dados completos do usuário na tabela users
+  const { data: user } = await db.from('users').select('*').eq('username', username).maybeSingle();
+  return user || null;
 }
 async function dbRegister(username, password, rpg, emoji, pronoun) {
-  const { data, error } = await db.rpc('register_user', { p_username: username, p_password: password, p_rpg: rpg, p_emoji: emoji || '🎮' });
-  if (error) throw error;
-  const user = Array.isArray(data) ? data[0] : data;
-  // salva pronome separadamente pois a RPC pode não suportá-lo ainda
-  if (user && pronoun) {
-    await db.from('users').update({ pronoun }).eq('id', user.id);
-    user.pronoun = pronoun;
-  }
-  return user || null;
+  const fakeEmail = username + '@pokegram.app';
+  // 1. cria no Supabase Auth
+  const { data: authData, error: authError } = await db.auth.signUp({ email: fakeEmail, password });
+  if (authError) throw authError;
+  const authUid = authData?.user?.id;
+  if (!authUid) throw new Error('Erro ao criar autenticação.');
+  // 2. cria na tabela users com o mesmo id do auth
+  const { data: newUser, error: userError } = await db.from('users').insert({
+    id: authUid,
+    username,
+    password: '', // senha gerenciada pelo Supabase Auth
+    rpg,
+    emoji: emoji || '🎮',
+    pronoun: pronoun || null
+  }).select('*').single();
+  if (userError) throw userError;
+  return newUser || null;
 }
 async function dbCheckUserExists(username) {
   const { data } = await db.from('users').select('id').eq('username', username).maybeSingle();
@@ -1772,7 +1781,7 @@ function enterApp(user) {
   initPushNotifications(user);
 }
 
-function doLogout() { clearSession(); currentUser = null; location.reload(); }
+async function doLogout() { await db.auth.signOut(); clearSession(); currentUser = null; location.reload(); }
 
 // ── Manutenção ────────────────────────────────────────────
 async function checkManutencao() {
@@ -1895,17 +1904,22 @@ async function initPokegram() {
     const emManutencao = await checkManutencao();
     if (emManutencao) return; // para tudo — overlay já está visível
   }
-  const saved = loadSession();
-  if (saved) {
-    // Entra imediatamente sem esperar o banco
-    currentUser = saved;
-    enterApp(currentUser);
+  // tenta restaurar sessão pelo Supabase Auth primeiro
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    const saved = loadSession();
+    if (saved) {
+      currentUser = saved;
+      enterApp(currentUser);
+    }
     // Re-fetch em background para atualizar dados frescos
-    db.from('users').select('*').eq('id', saved.id).maybeSingle()
+    db.from('users').select('*').eq('id', session.user.id).maybeSingle()
       .then(({ data: fresh }) => {
-        if (fresh) { currentUser = fresh; saveSession(fresh); renderSidebarAvatar(); }
-      }).catch(() => {});
+        if (fresh) { currentUser = fresh; saveSession(fresh); if (saved) renderSidebarAvatar(); else enterApp(fresh); }
+        else if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; }
+      }).catch(() => { if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; } });
   } else {
+    clearSession();
     hideSplash();
     document.getElementById('auth-screen').style.display = 'flex';
   }
@@ -6021,10 +6035,10 @@ function chatRenderMessages() {
     if (msg.reply_to_id) {
       const isSent = msg.sender_id === currentUser.username;
       const replyDiv = document.createElement('div');
-      replyDiv.style.cssText = `display:flex;gap:6px;margin-bottom:6px;padding:5px 8px;background:${isSent ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.07)'};border-radius:6px;border-left:3px solid ${isSent ? 'rgba(255,255,255,0.6)' : 'var(--user-color,#e53935)'};cursor:pointer`;
+      replyDiv.style.cssText = `display:flex;flex-direction:column;gap:2px;margin:-8px -12px 8px -12px;padding:7px 12px 8px;background:${isSent ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.10)'};border-radius:14px 14px 0 0;border-bottom:1px solid ${isSent ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};cursor:pointer`;
       const senderLabel = msg.reply_sender ? _escHtml(msg.reply_sender) : '';
       const previewText = msg.reply_preview ? _escHtml(msg.reply_preview) : '<em style="opacity:.6">Mensagem</em>';
-      replyDiv.innerHTML = `<div style="min-width:0">${senderLabel ? `<div style="font-size:10px;font-weight:700;color:${isSent ? 'rgba(255,255,255,0.8)' : 'var(--user-color,#e53935)'};margin-bottom:1px">${senderLabel}</div>` : ''}<div style="font-size:11px;color:${isSent ? 'rgba(255,255,255,0.75)' : '#555'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${previewText}</div></div>`;
+      replyDiv.innerHTML = `${senderLabel ? `<div style="font-size:10px;font-weight:800;color:${isSent ? 'rgba(255,255,255,0.9)' : 'var(--user-color,#e53935)'};letter-spacing:.2px">${senderLabel}</div>` : ''}<div style="font-size:11px;color:${isSent ? 'rgba(255,255,255,0.7)' : '#555'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${previewText}</div>`;
       replyDiv.onclick = () => {
         const orig = document.getElementById('chat-msg-' + msg.reply_to_id);
         if (orig) { orig.scrollIntoView({ behavior:'smooth', block:'center' }); orig.style.background='rgba(0,149,246,.1)'; setTimeout(()=>orig.style.background='',1200); }
