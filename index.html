@@ -3181,6 +3181,12 @@ async function renderFeed() {
       renderStories().catch(e => { console.warn('stories error:', e); }),
     ]);
   } catch(e) { console.warn('renderFeed error:', e); }
+
+  // Garante que followState esteja carregado antes de renderizar sugestões
+  if (!Object.keys(followState).length) {
+    const { data } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id).catch(() => ({ data: [] }));
+    if (data) data.forEach(r => { followState[r.following_id] = true; });
+  }
   renderSuggestions().catch(e => console.warn('suggestions error:', e));
 }
 
