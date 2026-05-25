@@ -543,7 +543,7 @@
   const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  const IS_ADM = window.location.pathname.startsWith('/adm')
+  var IS_ADM = window.location.pathname.startsWith('/adm')
     || window.location.hash === '#adm'
     || new URLSearchParams(window.location.search).get('page') === 'adm';
 
