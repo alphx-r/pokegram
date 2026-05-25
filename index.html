@@ -695,8 +695,10 @@
             <input type="text" id="search-input" placeholder="Buscar treinadores, #tags..." oninput="doSearch(this.value)">
           </div>
         </div>
-        <div id="explore-profiles" style="display:none;flex-direction:column;gap:0;margin-bottom:8px"></div>
-        <div id="explore-grid" class="explore-grid"></div>
+        <div style="position:relative">
+          <div id="explore-profiles" style="display:none;position:absolute;top:0;left:0;right:0;z-index:50;background:#fff;border-bottom:1px solid #efefef;box-shadow:0 4px 16px rgba(0,0,0,.08);flex-direction:column;gap:0"></div>
+          <div id="explore-grid" class="explore-grid"></div>
+        </div>
       </div>
 
       <div id="view-profile" class="view hidden">
@@ -4570,7 +4572,12 @@ function doSearch(q) {
       if (si) { si.value = q; si.focus(); }
     });
   } else {
-    renderExplore(q);
+    if (!q || !q.trim()) {
+      // Apagou a busca: só esconde perfis, não recarrega o grid
+      _exploreSearchProfiles('');
+    } else {
+      renderExplore(q);
+    }
   }
 }
 
