@@ -1741,32 +1741,17 @@ function enterApp(user) {
 function doLogout() { clearSession(); currentUser = null; location.reload(); }
 
 async function initPokegram() {
-  // Salva o post ID pendente se acessar /user/post/ID sem estar logado
-  const _urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
-  const _postMatch = _urlPath.match(/^([^/]+)\/post\/([^/]+)$/);
-  if (_postMatch) sessionStorage.setItem('pg_pending_post', _postMatch[2]);
-
-  const splashTimeout = setTimeout(() => {
-    const saved = loadSession();
-    if (saved) {
-      enterApp(saved);
-    } else {
-      hideSplash();
-      document.getElementById('auth-screen').style.display = 'flex';
-    }
-  }, 8000);
-
   const saved = loadSession();
   if (saved) {
+    // Entra imediatamente sem esperar o banco
     currentUser = saved;
-    try {
-      const { data: fresh } = await db.from('users').select('*').eq('id', saved.id).maybeSingle();
-      if (fresh) { currentUser = fresh; saveSession(fresh); }
-    } catch(_) {}
-    clearTimeout(splashTimeout);
     enterApp(currentUser);
+    // Re-fetch em background para atualizar dados frescos
+    db.from('users').select('*').eq('id', saved.id).maybeSingle()
+      .then(({ data: fresh }) => {
+        if (fresh) { currentUser = fresh; saveSession(fresh); renderSidebarAvatar(); }
+      }).catch(() => {});
   } else {
-    clearTimeout(splashTimeout);
     hideSplash();
     document.getElementById('auth-screen').style.display = 'flex';
   }
@@ -3135,29 +3120,24 @@ async function initApp(user) {
   applyUserColor(user.color);
 
   // Verifica post pendente (URL acessada antes do login)
-  const pendingPost = sessionStorage.getItem('pg_pending_post');
-  if (pendingPost) {
-    sessionStorage.removeItem('pg_pending_post');
-    openPostPage(pendingPost).catch(e => console.warn('post:', e));
-    return;
-  }
-
-  // Roteamento inicial: não bloqueia — mostra o app imediatamente
+  // Roteamento por URL — única fonte de verdade
+  sessionStorage.removeItem('pg_pending_post'); // limpa pendências antigas
   const urlPath = window.location.pathname.replace(/^\//, '').split('?')[0];
-  const postMatch = urlPath.match(/^([^/]+)\/post\/([^/]+)$/);
+  const postMatch = urlPath.match(/^([^\/]+)\/post\/([^\/]+)$/);
 
   if (!urlPath || urlPath === 'feed') {
-    showView('feed').catch(e => console.warn('feed:', e));
+    showView('feed').catch(() => {});
   } else if (urlPath === 'explore') {
-    showView('explore').catch(e => console.warn('explore:', e));
+    showView('explore').catch(() => {});
   } else if (postMatch) {
-    openPostPage(postMatch[2]).catch(e => console.warn('post:', e));
+    // /username/post/id — abre o feed em background e depois o post
+    showView('feed').then(() => openPostPage(postMatch[2])).catch(() => {});
   } else if (urlPath === user.username) {
-    showView('profile').catch(e => console.warn('profile:', e));
+    showView('profile').catch(() => {});
   } else if (urlPath !== 'adm') {
-    showView('feed').then(() => showUserProfile(urlPath)).catch(e => console.warn('user:', e));
+    showView('feed').then(() => showUserProfile(urlPath)).catch(() => {});
   } else {
-    showView('feed').catch(e => console.warn('feed:', e));
+    showView('feed').catch(() => {});
   }
   loadNotifBadge();
   setInterval(loadNotifBadge, 30000);
