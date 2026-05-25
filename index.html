@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- build:20260524044838 -->
+<!DOCTYPE html><!-- build:20260524044838 --->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -565,30 +565,6 @@
     <!-- GIF customizado (se configurado no ADM) -->
     <img id="splash-custom-gif" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain">
     <span style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
-  </div>
-
-  <!-- RELOAD OVERLAY (usado durante recargas do feed/stories/sugestões) -->
-  <div id="reload-overlay" style="display:none;position:fixed;inset:0;z-index:8888;align-items:center;justify-content:center;background:var(--bg,#fff)">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
-      <img id="reload-gif" src="" alt="" style="display:none;width:72px;height:72px;object-fit:contain">
-      <div id="reload-pokeball" class="pokeball-logo" style="width:48px;height:48px;animation:spin .8s linear infinite">
-        <div class="pb-top"></div>
-        <div class="pb-band"><div class="pb-btn"></div></div>
-        <div class="pb-bottom"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RELOAD OVERLAY (usado durante recargas do feed/stories/sugestões) -->
-  <div id="reload-overlay" style="display:none;position:fixed;inset:0;z-index:8888;align-items:center;justify-content:center;background:var(--bg,#fff)">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
-      <img id="reload-gif" src="" alt="" style="display:none;width:72px;height:72px;object-fit:contain">
-      <div id="reload-pokeball" class="pokeball-logo" style="width:48px;height:48px;animation:spin .8s linear infinite">
-        <div class="pb-top"></div>
-        <div class="pb-band"><div class="pb-btn"></div></div>
-        <div class="pb-bottom"></div>
-      </div>
-    </div>
   </div>
 
   <!-- AUTH SCREEN -->
@@ -1713,57 +1689,12 @@ async function doAuth() {
   finally { btn.disabled = false; btn.textContent = isRegisterMode ? 'Cadastrar' : 'Entrar'; }
 }
 
-const _splashStart = Date.now();
-const SPLASH_MIN_MS = 2000; // mínimo 2s de splash
-
-// ── Reload overlay (gif durante recargas de feed/stories/etc) ──
-let _reloadGifUrl = null; // cache da URL do gif
-
-async function _getReloadGifUrl() {
-  if (_reloadGifUrl !== null) return _reloadGifUrl;
-  try {
-    const { data } = await db.from('settings').select('value').eq('key', 'splash_gif').maybeSingle();
-    _reloadGifUrl = (data && data.value) ? data.value : '';
-  } catch(_) { _reloadGifUrl = ''; }
-  return _reloadGifUrl;
-}
-
-async function showReloadOverlay() {
-  const el = document.getElementById('reload-overlay');
-  if (!el) return;
-  const gifUrl = await _getReloadGifUrl();
-  const gifEl  = document.getElementById('reload-gif');
-  const pokeEl = document.getElementById('reload-pokeball');
-  if (gifUrl && gifEl) {
-    gifEl.src = gifUrl;
-    gifEl.style.display = 'block';
-    if (pokeEl) pokeEl.style.display = 'none';
-  } else {
-    if (gifEl)  gifEl.style.display  = 'none';
-    if (pokeEl) pokeEl.style.display = 'block';
-  }
-  el.style.display = 'flex';
-  el.style.opacity = '1';
-}
-
-function hideReloadOverlay() {
-  const el = document.getElementById('reload-overlay');
-  if (!el || el.style.display === 'none') return;
-  el.style.transition = 'opacity .3s';
-  el.style.opacity = '0';
-  setTimeout(() => { el.style.display = 'none'; el.style.transition = ''; el.style.opacity = '1'; }, 320);
-}
-
 function hideSplash() {
   const s = document.getElementById('pg-splash');
   if (!s || s.style.display === 'none') return;
-  const elapsed   = Date.now() - _splashStart;
-  const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
-  setTimeout(() => {
-    s.style.transition = 'opacity .35s';
-    s.style.opacity    = '0';
-    setTimeout(() => { s.style.display = 'none'; }, 380);
-  }, remaining);
+  s.style.transition = 'opacity .35s';
+  s.style.opacity = '0';
+  setTimeout(() => { s.style.display = 'none'; }, 380);
 }
 
 function enterApp(user) {
@@ -1772,7 +1703,7 @@ function enterApp(user) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
 
-  // Splash some apenas quando o initApp terminar (e o mínimo de 2s tiver passado)
+  // Splash some apenas quando o initApp terminar
   if (typeof initApp === 'function') {
     initApp(user).catch(() => {}).finally(hideSplash);
   } else {
@@ -1786,6 +1717,7 @@ function doLogout() { clearSession(); currentUser = null; location.reload(); }
 async function initPokegram() {
   const saved = loadSession();
   if (saved) {
+    // Entra imediatamente sem esperar o banco
     currentUser = saved;
     enterApp(currentUser);
     // Re-fetch em background para atualizar dados frescos
@@ -3237,20 +3169,14 @@ function goBack() {
 }
 
 // ── Feed ──────────────────────────────────────────────────
-let _feedFirstLoad = true; // suprime overlay no carregamento inicial (splash já está visível)
-
 async function renderFeed() {
   renderAsideMini();
-  if (_feedFirstLoad) { _feedFirstLoad = false; }
-  else { await showReloadOverlay(); }
   try {
     await Promise.all([
       renderPosts().catch(e => { console.warn('posts error:', e); }),
       renderStories().catch(e => { console.warn('stories error:', e); }),
     ]);
-  } catch(e) { console.warn('renderFeed error:', e); } finally {
-    if (document.getElementById('reload-overlay')?.style.display === 'flex') hideReloadOverlay();
-  }
+  } catch(e) { console.warn('renderFeed error:', e); }
 
   // Garante que followState esteja carregado antes de renderizar sugestões
   if (!Object.keys(followState).length) {
@@ -3587,7 +3513,7 @@ async function openComments(postId) {
            <button onclick="toggleModalPostMenu('${post.id}',this)"
              style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;line-height:1;border-radius:6px"
              title="Opções">···</button>
-           <div id="modal-post-menu-${post.id}" style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.15);min-width:180px;z-index:200;overflow:hidden">
+           <div id="modal-post-menu-${post.id}" style="display:none;position:fixed;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.15);min-width:180px;z-index:99999;overflow:hidden">
              <button onclick="openEditPost('${post.id}','${captionEscaped}','${locationEscaped}');closeModalPostMenu('${post.id}')"
                style="display:flex;align-items:center;gap:8px;width:100%;padding:11px 14px;border:none;background:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:var(--text);text-align:left">
                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -3694,18 +3620,31 @@ function toggleModalPostMenu(postId, btn) {
   const menu = document.getElementById('modal-post-menu-' + postId);
   if (!menu) return;
   const isOpen = menu.style.display !== 'none';
-  menu.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) {
-    // fecha ao clicar fora
-    setTimeout(() => {
-      document.addEventListener('click', function handler(e) {
-        if (!menu.contains(e.target) && e.target !== btn) {
-          menu.style.display = 'none';
-          document.removeEventListener('click', handler);
-        }
-      });
-    }, 0);
-  }
+  if (isOpen) { menu.style.display = 'none'; return; }
+
+  // Mover para o body para escapar de qualquer overflow/clip
+  if (menu.parentElement !== document.body) document.body.appendChild(menu);
+
+  menu.style.display = 'block';
+  // Posicionar abaixo do botão usando fixed coords
+  const rect = btn.getBoundingClientRect();
+  const menuW = 200;
+  let left = rect.right - menuW;
+  if (left < 8) left = 8;
+  let top = rect.bottom + 4;
+  // Se não cabe abaixo, abre acima
+  if (top + 120 > window.innerHeight) top = rect.top - 120;
+  menu.style.left = left + 'px';
+  menu.style.top  = top  + 'px';
+
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!menu.contains(e.target) && e.target !== btn) {
+        menu.style.display = 'none';
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 0);
 }
 function closeModalPostMenu(postId) {
   const menu = document.getElementById('modal-post-menu-' + postId);
