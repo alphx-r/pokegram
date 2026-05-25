@@ -567,6 +567,17 @@
     <span style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
   </div>
 
+  <!-- OVERLAY DE MANUTENÇÃO -->
+  <div id="manutencao-overlay" style="display:none;position:fixed;inset:0;z-index:99999;background:#fff;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+    <img id="manutencao-overlay-img" src="" alt="" style="display:none;max-width:220px;max-height:220px;object-fit:contain">
+    <div id="manutencao-overlay-pokeball" class="pokeball-logo" style="width:56px;height:56px;animation:spin .8s linear infinite">
+      <div class="pb-top"></div>
+      <div class="pb-band"><div class="pb-btn"></div></div>
+      <div class="pb-bottom"></div>
+    </div>
+    <span id="manutencao-overlay-msg" style="font-family:'Nunito',sans-serif;font-size:16px;font-weight:700;color:#555;text-align:center;padding:0 32px">Estamos em Atualização.</span>
+  </div>
+
   <!-- AUTH SCREEN -->
   <div id="auth-screen" class="auth-screen" style="display:none">
     <div class="auth-wrap">
@@ -1040,6 +1051,8 @@
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'npcs')">🤖 NPCs</button>
           <div class="adm-snav-sep"></div>
+          <button class="adm-snav-btn" onclick="admTab(this,'manutencao')" id="adm-btn-manutencao">🚧 Manutenção</button>
+          <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn adm-snav-danger" onclick="admLogout()">⬅ Sair</button>
         </aside>
 
@@ -1461,6 +1474,53 @@
             </div>
           </div>
 
+          <!-- MANUTENÇÃO -->
+          <div class="adm-section" id="sec-manutencao">
+            <div class="adm-sec-title">🚧 Manutenção</div>
+            <div class="adm-sec-sub">Ative o modo de manutenção para exibir uma tela de "Estamos em Atualização" para todos os visitantes. O painel ADM continua acessível normalmente.</div>
+            <div class="adm-box" style="max-width:480px">
+              <div id="manutencao-status" style="display:flex;align-items:center;gap:14px;padding:18px 0 22px">
+                <div id="manutencao-indicator" style="width:14px;height:14px;border-radius:50%;background:#4caf50;flex-shrink:0;box-shadow:0 0 0 3px rgba(76,175,80,.2)"></div>
+                <div>
+                  <div id="manutencao-label" style="font-weight:700;font-size:15px;font-family:'Nunito',sans-serif">Site Online</div>
+                  <div id="manutencao-sublabel" style="font-size:12px;color:var(--muted);margin-top:2px">Visitantes estão acessando normalmente.</div>
+                </div>
+              </div>
+              <div style="margin-bottom:18px">
+                <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Imagem da página (opcional)</label>
+                <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+                  <img id="manutencao-img-preview" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:6px;background:#fff">
+                  <span id="manutencao-img-empty" style="font-size:12px;color:var(--muted)">Nenhuma imagem — pokeball padrão será exibida.</span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;background:var(--bg)">
+                    📁 Escolher imagem
+                    <input type="file" id="manutencao-img-file" accept="image/*" style="display:none" onchange="manutencaoPreviewImg(this)">
+                  </label>
+                  <button id="manutencao-img-save-btn" onclick="manutencaoSaveImg()" style="display:none;padding:8px 14px;border:none;border-radius:8px;background:var(--brand);color:#fff;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">💾 Salvar imagem</button>
+                  <button id="manutencao-img-remove-btn" onclick="manutencaoRemoveImg()" style="display:none;padding:8px 14px;border:none;border-radius:8px;background:#eee;color:#555;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">🗑 Remover</button>
+                </div>
+                <div id="manutencao-img-fb" style="margin-top:8px;font-size:12px;font-weight:700;display:none"></div>
+              </div>
+              <div id="manutencao-msg-wrap" style="margin-bottom:18px">
+                <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Mensagem personalizada (opcional)</label>
+                <input id="manutencao-msg-input" type="text" maxlength="120" placeholder="Estamos em Atualização."
+                  style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Nunito',sans-serif;font-size:14px;outline:none;background:var(--bg)">
+              </div>
+              <div style="display:flex;gap:10px">
+                <button id="btn-ativar-manutencao" onclick="setManutencao(true)"
+                  style="flex:1;padding:12px;border:none;border-radius:8px;background:#f44336;color:#fff;font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;cursor:pointer">
+                  🚧 Ativar Manutenção
+                </button>
+                <button id="btn-desativar-manutencao" onclick="setManutencao(false)"
+                  style="flex:1;padding:12px;border:none;border-radius:8px;background:#4caf50;color:#fff;font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;cursor:pointer;display:none">
+                  ✅ Desativar Manutenção
+                </button>
+              </div>
+              <div id="manutencao-fb" style="margin-top:12px;font-size:13px;font-weight:700;display:none"></div>
+            </div>
+          </div>
+
         </div><!-- /adm-content -->
       </div><!-- /adm-layout -->
     </div><!-- /adm-wrap -->
@@ -1714,7 +1774,127 @@ function enterApp(user) {
 
 function doLogout() { clearSession(); currentUser = null; location.reload(); }
 
+// ── Manutenção ────────────────────────────────────────────
+async function checkManutencao() {
+  try {
+    const { data } = await db.from('settings').select('value').eq('key', 'manutencao').maybeSingle();
+    if (data && data.value === 'true') {
+      const { data: msgData } = await db.from('settings').select('value').eq('key', 'manutencao_msg').maybeSingle();
+      const msg = (msgData && msgData.value) ? msgData.value : 'Estamos em Atualização.';
+      const overlay = document.getElementById('manutencao-overlay');
+      const msgEl   = document.getElementById('manutencao-overlay-msg');
+      if (msgEl)   msgEl.textContent = msg;
+      if (overlay) { overlay.style.display = 'flex'; }
+      return true; // está em manutenção
+    }
+  } catch(e) {}
+  return false;
+}
+
+function manutencaoPreviewImg(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev  = document.getElementById('manutencao-img-preview');
+    const empty = document.getElementById('manutencao-img-empty');
+    const saveBtn = document.getElementById('manutencao-img-save-btn');
+    prev.src = e.target.result;
+    prev.style.display   = 'block';
+    empty.style.display  = 'none';
+    saveBtn.style.display = 'inline-flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function manutencaoSaveImg() {
+  const file = document.getElementById('manutencao-img-file').files[0];
+  const fb   = document.getElementById('manutencao-img-fb');
+  if (!file) return;
+  fb.style.display = 'none';
+  // Converte para base64
+  const base64 = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const { error } = await db.from('settings').upsert({ key: 'manutencao_img', value: base64 }, { onConflict: 'key' });
+  if (error) {
+    fb.textContent = '❌ Erro ao salvar.'; fb.style.color = '#f44336'; fb.style.display = 'block';
+    return;
+  }
+  document.getElementById('manutencao-img-remove-btn').style.display = 'inline-flex';
+  document.getElementById('manutencao-img-save-btn').style.display   = 'none';
+  fb.textContent = '✅ Imagem salva!'; fb.style.color = '#4caf50'; fb.style.display = 'block';
+  setTimeout(() => { fb.style.display = 'none'; }, 2500);
+}
+
+async function manutencaoRemoveImg() {
+  const fb = document.getElementById('manutencao-img-fb');
+  await db.from('settings').delete().eq('key', 'manutencao_img');
+  const prev  = document.getElementById('manutencao-img-preview');
+  const empty = document.getElementById('manutencao-img-empty');
+  prev.src = ''; prev.style.display = 'none';
+  empty.style.display = 'block';
+  document.getElementById('manutencao-img-remove-btn').style.display = 'none';
+  document.getElementById('manutencao-img-file').value = '';
+  fb.textContent = '✅ Imagem removida.'; fb.style.color = '#4caf50'; fb.style.display = 'block';
+  setTimeout(() => { fb.style.display = 'none'; }, 2500);
+}
+
+async function setManutencao(ativo) {
+  const fb  = document.getElementById('manutencao-fb');
+  const msg = document.getElementById('manutencao-msg-input')?.value.trim() || 'Estamos em Atualização.';
+  fb.style.display = 'none';
+  try {
+    await db.from('settings').upsert({ key: 'manutencao', value: ativo ? 'true' : 'false' }, { onConflict: 'key' });
+    if (ativo) {
+      await db.from('settings').upsert({ key: 'manutencao_msg', value: msg }, { onConflict: 'key' });
+    }
+    // atualiza UI
+    document.getElementById('manutencao-indicator').style.background   = ativo ? '#f44336' : '#4caf50';
+    document.getElementById('manutencao-indicator').style.boxShadow    = ativo ? '0 0 0 3px rgba(244,67,54,.2)' : '0 0 0 3px rgba(76,175,80,.2)';
+    document.getElementById('manutencao-label').textContent            = ativo ? 'Site em Manutenção' : 'Site Online';
+    document.getElementById('manutencao-sublabel').textContent         = ativo ? 'Visitantes veem a tela de atualização.' : 'Visitantes estão acessando normalmente.';
+    document.getElementById('btn-ativar-manutencao').style.display     = ativo ? 'none'  : 'flex';
+    document.getElementById('btn-desativar-manutencao').style.display  = ativo ? 'flex'  : 'none';
+    document.getElementById('adm-btn-manutencao').style.background     = ativo ? 'rgba(244,67,54,.12)' : '';
+    document.getElementById('adm-btn-manutencao').style.color          = ativo ? '#f44336' : '';
+    fb.textContent     = ativo ? '✅ Manutenção ativada.' : '✅ Site reativado.';
+    fb.style.color     = ativo ? '#f44336' : '#4caf50';
+    fb.style.display   = 'block';
+    setTimeout(() => { fb.style.display = 'none'; }, 3000);
+  } catch(e) {
+    fb.textContent   = '❌ Erro ao salvar. Tente novamente.';
+    fb.style.color   = '#f44336';
+    fb.style.display = 'block';
+  }
+}
+
+async function loadManutencaoStatus() {
+  try {
+    const { data }    = await db.from('settings').select('value').eq('key', 'manutencao').maybeSingle();
+    const { data: md } = await db.from('settings').select('value').eq('key', 'manutencao_msg').maybeSingle();
+    const ativo = data && data.value === 'true';
+    document.getElementById('manutencao-indicator').style.background  = ativo ? '#f44336' : '#4caf50';
+    document.getElementById('manutencao-indicator').style.boxShadow   = ativo ? '0 0 0 3px rgba(244,67,54,.2)' : '0 0 0 3px rgba(76,175,80,.2)';
+    document.getElementById('manutencao-label').textContent           = ativo ? 'Site em Manutenção' : 'Site Online';
+    document.getElementById('manutencao-sublabel').textContent        = ativo ? 'Visitantes veem a tela de atualização.' : 'Visitantes estão acessando normalmente.';
+    document.getElementById('btn-ativar-manutencao').style.display    = ativo ? 'none'  : 'flex';
+    document.getElementById('btn-desativar-manutencao').style.display = ativo ? 'flex'  : 'none';
+    document.getElementById('adm-btn-manutencao').style.background    = ativo ? 'rgba(244,67,54,.12)' : '';
+    document.getElementById('adm-btn-manutencao').style.color         = ativo ? '#f44336' : '';
+    if (md && md.value) document.getElementById('manutencao-msg-input').value = md.value;
+  } catch(e) {}
+}
+
 async function initPokegram() {
+  // Verifica manutenção antes de qualquer coisa (exceto ADM)
+  if (!IS_ADM) {
+    const emManutencao = await checkManutencao();
+    if (emManutencao) return; // para tudo — overlay já está visível
+  }
   const saved = loadSession();
   if (saved) {
     // Entra imediatamente sem esperar o banco
