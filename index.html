@@ -3087,13 +3087,10 @@ async function initApp(user) {
   document.documentElement.style.setProperty('--user-color', user.color || '#e53935');
   renderSidebarAvatar();
 
-  // Pré-carrega todos os follows do usuário logado antes de qualquer render
-  // Isso garante que sugestões, perfis e modais mostrem o estado correto desde o início
-  const { data: followingRows } = await db.from('follows')
-    .select('following_id')
-    .eq('follower_id', user.id)
-    .catch(() => ({ data: [] }));
-  if (followingRows) followingRows.forEach(row => { followState[row.following_id] = true; });
+  // Pré-carrega todos os follows em background — não bloqueia o render do feed
+  db.from('follows').select('following_id').eq('follower_id', user.id)
+    .then(({ data }) => { if (data) data.forEach(r => { followState[r.following_id] = true; }); })
+    .catch(() => {});
 
   await applyTopnavSprites().catch(() => {
     // fallback: se o banco falhar, revela mesmo assim
