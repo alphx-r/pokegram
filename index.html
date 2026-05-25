@@ -1658,11 +1658,20 @@ async function dbLogin(username, password) {
   const { data: authData, error: authError } = authResult;
   if (authError) {
     const msg = authError.message || '';
+    const status = authError.status || 0;
     // Erro de schema interno do Supabase: trata como falha genérica recuperável
     if (msg.toLowerCase().includes('schema') || msg.toLowerCase().includes('database error')) {
       throw new Error('Erro interno do banco. Tente novamente em instantes.');
     }
-    if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials') || msg.toLowerCase().includes('password')) {
+    // Qualquer erro de credenciais (400, 401, ou mensagem de senha/invalid)
+    // tenta o fallback por password_plain antes de desistir
+    const isCredentialError = status === 400 || status === 401
+      || msg.toLowerCase().includes('invalid')
+      || msg.toLowerCase().includes('credentials')
+      || msg.toLowerCase().includes('password')
+      || msg.toLowerCase().includes('email')
+      || msg.toLowerCase().includes('user');
+    if (isCredentialError) {
       // FALLBACK: tenta senha em password_plain (usuários migrados)
       const { data: legacyUser } = await db.from('users')
         .select('*').eq('username', username).eq('password_plain', password).maybeSingle();
