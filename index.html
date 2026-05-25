@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pokégram</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" id="favicon-link" href="/favicon.ico">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
@@ -526,11 +527,8 @@
   async function applyFavicon() {
     try {
       const { data } = await supabase.from('settings').select('value').eq('key','favicon_url').maybeSingle();
-      if (data?.value) {
-        let link = document.querySelector("link[rel~='icon']");
-        if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
-        link.href = data.value;
-      }
+      const link = document.getElementById('favicon-link') || document.querySelector("link[rel~='icon']");
+      if (link) link.href = data?.value || '/favicon.ico';
     } catch(e) {}
   }
   if (document.readyState === 'loading') {
@@ -1655,7 +1653,7 @@ function hideAuthError()    { document.getElementById('auth-error').style.displa
 
 async function doAuth() {
   hideAuthError();
-  const username = document.getElementById('login-username').value.trim();
+  const username = document.getElementById('login-username').value.replace(/\s/g,'').toLowerCase();
   const password = document.getElementById('login-password').value;
   const btn      = document.getElementById('auth-btn');
   if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
@@ -2998,31 +2996,8 @@ async function applyTopnavSprites() {
       return;
     }
 
-    // profile_msg_btn: botão de mensagem nos perfis de outros usuários
-    if (def.key === 'profile_msg_btn') {
-      // salva a URL no dataset para aplicar nos botões renderizados dinamicamente
-      document.documentElement.dataset.profileMsgSprite = val || '';
-      // aplica nos botões já existentes no DOM (se perfil já estiver aberto)
-      document.querySelectorAll('.btn-icon-profile').forEach(btn => {
-        let img = btn.querySelector('.btn-sprite-img');
-        if (val) {
-          btn.style.border = 'none';
-          if (!img) {
-            img = document.createElement('img');
-            img.className = 'btn-sprite-img';
-            img.style.cssText = 'width:28px;height:28px;object-fit:contain;display:block;pointer-events:none';
-            btn.innerHTML = '';
-            btn.appendChild(img);
-          }
-          img.src = val;
-        } else if (img) {
-          img.remove();
-          btn.style.border = '';
-          btn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>';
-        }
-      });
-      return;
-    }
+    // profile_msg_btn: reusa o sprite do nav_chat — ignorado aqui, tratado no bloco nav_chat
+    if (def.key === 'profile_msg_btn') { return; }
 
     const tnBtn = (() => {
       if (def.key === 'nav_home')    return document.getElementById('btn-feed');
@@ -3030,7 +3005,19 @@ async function applyTopnavSprites() {
       if (def.key === 'nav_create')  return document.querySelector('.tn-btn[onclick="showNewPost()"]');
       if (def.key === 'nav_logout')  return document.querySelector('.tn-btn[onclick="doLogout()"]');
       if (def.key === 'nav_notif')   return document.getElementById('btn-notif');
-      if (def.key === 'nav_chat')    return document.getElementById('btn-chat');
+      if (def.key === 'nav_chat') {
+        // sincroniza o sprite com os botões de mensagem dos perfis
+        document.documentElement.dataset.profileMsgSprite = val || '';
+        document.querySelectorAll('.btn-icon-profile').forEach(btn => {
+          let img = btn.querySelector('.btn-sprite-img');
+          if (val) {
+            btn.style.border = 'none';
+            if (!img) { img = document.createElement('img'); img.className = 'btn-sprite-img'; img.style.cssText = 'width:28px;height:28px;object-fit:contain;display:block;pointer-events:none'; btn.innerHTML = ''; btn.appendChild(img); }
+            img.src = val;
+          } else if (img) { img.remove(); btn.style.border = ''; btn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>'; }
+        });
+        return document.getElementById('btn-chat');
+      }
       if (def.key === 'nav_profile') return document.getElementById('btn-profile');
     })();
     if (!tnBtn) return;
