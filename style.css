@@ -348,6 +348,7 @@ input, select, textarea { font-family: var(--font); }
   border-radius: var(--radius);
   margin-bottom: 24px;
   overflow: visible;
+  position: relative;
 }
 .post-card > *:first-child {
   border-radius: var(--radius) var(--radius) 0 0;
@@ -1341,9 +1342,9 @@ input, select, textarea { font-family: var(--font); }
   background: #fff;
   border: 1px solid #dbdbdb;
   border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
   min-width: 200px;
-  z-index: 50;
+  z-index: 9999;
   overflow: hidden;
   animation: menuPop .15s ease;
 }
@@ -1457,10 +1458,11 @@ input, select, textarea { font-family: var(--font); }
   max-width: 935px;
 }
 .vp-inner .comments-split {
-  height: min(80vh, 640px);
+  height: calc(100vh - var(--topnav-h) - 80px);
+  min-height: 400px;
 }
 @media (max-width: 600px) {
   .vp-page-wrap { padding: 0; }
   .vp-back-bar  { padding: 12px 16px 0; }
-  .vp-inner .comments-split { height: auto; max-height: none; }
+  .vp-inner .comments-split { height: auto; min-height: auto; }
 }
