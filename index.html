@@ -1953,84 +1953,14 @@ function enterApp(user, isFirstLogin) {
   if (typeof initApp === 'function') {
     initApp(user).catch(() => {}).finally(() => {
       hideSplash();
-      // No primeiro login, abre modal de configuração de perfil
-      if (isFirstLogin) {
-        setTimeout(() => openProfileSetupModal(), 300);
-      }
     });
   } else {
     hideSplash();
-    if (isFirstLogin) {
-      setTimeout(() => openProfileSetupModal(), 300);
-    }
   }
   initPushNotifications(user);
 }
 
-// ── Modal de configuração de perfil (primeiro login) ──────
-function openProfileSetupModal() {
-  // Reutiliza o modal de editar perfil mas com banner de boas-vindas
-  const modal = document.getElementById('modal-edit-profile');
-  if (!modal) return;
-
-  // Adiciona/atualiza banner de boas-vindas
-  let banner = document.getElementById('ep-welcome-banner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'ep-welcome-banner';
-    banner.style.cssText = 'background:linear-gradient(135deg,#e53935,#f4511e);color:#fff;padding:16px 20px;text-align:center;border-radius:12px;margin-bottom:4px';
-    banner.innerHTML = `
-      <div style="font-size:22px;margin-bottom:6px">🎉 Bem-vindo ao Pokégram!</div>
-      <div style="font-size:14px;font-weight:700;opacity:.95">Configure seu perfil antes de começar</div>
-      <div style="font-size:12px;opacity:.8;margin-top:4px">Você pode editar isso depois nas configurações de perfil</div>`;
-    const modalBody = modal.querySelector('.modal-box > div:last-child') || modal.querySelector('[style*="padding:20px"]');
-    if (modalBody) modalBody.insertBefore(banner, modalBody.firstChild);
-  }
-  banner.style.display = 'block';
-
-  // Bloqueia o fechamento pelo X e backdrop no primeiro acesso
-  modal._isFirstLogin = true;
-
-  // Troca o texto do botão salvar
-  const saveBtn = modal.querySelector('.btn-share-modal');
-  if (saveBtn) {
-    saveBtn._originalText = saveBtn.textContent;
-    saveBtn.textContent = 'Começar →';
-  }
-
-  // Atualiza header
-  const header = modal.querySelector('.modal-header h3');
-  if (header) header.textContent = 'Configure seu perfil';
-
-  // Remove o X e o backdrop temporariamente
-  const closeBtn = modal.querySelector('.modal-x');
-  if (closeBtn) closeBtn.style.display = 'none';
-  const backdrop = modal.querySelector('.modal-backdrop');
-  if (backdrop) backdrop.style.pointerEvents = 'none';
-
-  openEditProfile();
-}
-
-function _closeProfileSetupMode() {
-  const modal = document.getElementById('modal-edit-profile');
-  if (!modal || !modal._isFirstLogin) return;
-  modal._isFirstLogin = false;
-
-  const banner = document.getElementById('ep-welcome-banner');
-  if (banner) banner.style.display = 'none';
-
-  const saveBtn = modal.querySelector('.btn-share-modal');
-  if (saveBtn && saveBtn._originalText) saveBtn.textContent = saveBtn._originalText;
-
-  const header = modal.querySelector('.modal-header h3');
-  if (header) header.textContent = 'Editar perfil';
-
-  const closeBtn = modal.querySelector('.modal-x');
-  if (closeBtn) closeBtn.style.display = '';
-
-  const backdrop = modal.querySelector('.modal-backdrop');
-  if (backdrop) backdrop.style.pointerEvents = '';
-}
+function _closeProfileSetupMode() { /* removido */ }
 
 async function doLogout() { await db.auth.signOut(); clearSession(); currentUser = null; location.reload(); }
 
