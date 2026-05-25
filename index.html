@@ -6018,10 +6018,13 @@ function chatRenderMessages() {
     const mtype = msg.meta_type || '';
 
     // preview de reply
-    if (msg.reply_to_id && msg.reply_preview) {
+    if (msg.reply_to_id) {
+      const isSent = msg.sender_id === currentUser.username;
       const replyDiv = document.createElement('div');
-      replyDiv.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;padding:5px 8px;background:rgba(0,0,0,0.07);border-radius:6px;border-left:3px solid var(--user-color,#e53935);cursor:pointer';
-      replyDiv.innerHTML = `<div style="min-width:0"><div style="font-size:10px;font-weight:700;color:var(--user-color,#e53935)">${_escHtml(msg.reply_sender||'')}</div><div style="font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(msg.reply_preview)}</div></div>`;
+      replyDiv.style.cssText = `display:flex;gap:6px;margin-bottom:6px;padding:5px 8px;background:${isSent ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.07)'};border-radius:6px;border-left:3px solid ${isSent ? 'rgba(255,255,255,0.6)' : 'var(--user-color,#e53935)'};cursor:pointer`;
+      const senderLabel = msg.reply_sender ? _escHtml(msg.reply_sender) : '';
+      const previewText = msg.reply_preview ? _escHtml(msg.reply_preview) : '<em style="opacity:.6">Mensagem</em>';
+      replyDiv.innerHTML = `<div style="min-width:0">${senderLabel ? `<div style="font-size:10px;font-weight:700;color:${isSent ? 'rgba(255,255,255,0.8)' : 'var(--user-color,#e53935)'};margin-bottom:1px">${senderLabel}</div>` : ''}<div style="font-size:11px;color:${isSent ? 'rgba(255,255,255,0.75)' : '#555'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${previewText}</div></div>`;
       replyDiv.onclick = () => {
         const orig = document.getElementById('chat-msg-' + msg.reply_to_id);
         if (orig) { orig.scrollIntoView({ behavior:'smooth', block:'center' }); orig.style.background='rgba(0,149,246,.1)'; setTimeout(()=>orig.style.background='',1200); }
