@@ -543,13 +543,9 @@
   const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  var IS_ADM = window.location.pathname.startsWith('/adm')
-    || window.location.pathname.endsWith('/adm')
-    || window.location.pathname.endsWith('/adm.html')
+  const IS_ADM = window.location.pathname.startsWith('/adm')
     || window.location.hash === '#adm'
-    || window.location.hash.startsWith('#adm')
-    || new URLSearchParams(window.location.search).get('page') === 'adm'
-    || sessionStorage.getItem('pg_adm_mode') === '1';
+    || new URLSearchParams(window.location.search).get('page') === 'adm';
 
   // ── Logo da rede social (armazenada no Supabase) ──────────
   let _logoUrl = null;
@@ -676,9 +672,6 @@
           </div>
           <div id="auth-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
           <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
-        </div>
-        <div style="text-align:center;margin-top:14px">
-          <a href="#" onclick="abrirModoAdm();return false;" style="font-size:11px;color:rgba(0,0,0,0.2);text-decoration:none;user-select:none" title="Área administrativa">· · ·</a>
         </div>
       </div>
     </div>
@@ -1960,14 +1953,84 @@ function enterApp(user, isFirstLogin) {
   if (typeof initApp === 'function') {
     initApp(user).catch(() => {}).finally(() => {
       hideSplash();
+      // No primeiro login, abre modal de configuração de perfil
+      if (isFirstLogin) {
+        setTimeout(() => openProfileSetupModal(), 300);
+      }
     });
   } else {
     hideSplash();
+    if (isFirstLogin) {
+      setTimeout(() => openProfileSetupModal(), 300);
+    }
   }
   initPushNotifications(user);
 }
 
-function _closeProfileSetupMode() { /* removido */ }
+// ── Modal de configuração de perfil (primeiro login) ──────
+function openProfileSetupModal() {
+  // Reutiliza o modal de editar perfil mas com banner de boas-vindas
+  const modal = document.getElementById('modal-edit-profile');
+  if (!modal) return;
+
+  // Adiciona/atualiza banner de boas-vindas
+  let banner = document.getElementById('ep-welcome-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'ep-welcome-banner';
+    banner.style.cssText = 'background:linear-gradient(135deg,#e53935,#f4511e);color:#fff;padding:16px 20px;text-align:center;border-radius:12px;margin-bottom:4px';
+    banner.innerHTML = `
+      <div style="font-size:22px;margin-bottom:6px">🎉 Bem-vindo ao Pokégram!</div>
+      <div style="font-size:14px;font-weight:700;opacity:.95">Configure seu perfil antes de começar</div>
+      <div style="font-size:12px;opacity:.8;margin-top:4px">Você pode editar isso depois nas configurações de perfil</div>`;
+    const modalBody = modal.querySelector('.modal-box > div:last-child') || modal.querySelector('[style*="padding:20px"]');
+    if (modalBody) modalBody.insertBefore(banner, modalBody.firstChild);
+  }
+  banner.style.display = 'block';
+
+  // Bloqueia o fechamento pelo X e backdrop no primeiro acesso
+  modal._isFirstLogin = true;
+
+  // Troca o texto do botão salvar
+  const saveBtn = modal.querySelector('.btn-share-modal');
+  if (saveBtn) {
+    saveBtn._originalText = saveBtn.textContent;
+    saveBtn.textContent = 'Começar →';
+  }
+
+  // Atualiza header
+  const header = modal.querySelector('.modal-header h3');
+  if (header) header.textContent = 'Configure seu perfil';
+
+  // Remove o X e o backdrop temporariamente
+  const closeBtn = modal.querySelector('.modal-x');
+  if (closeBtn) closeBtn.style.display = 'none';
+  const backdrop = modal.querySelector('.modal-backdrop');
+  if (backdrop) backdrop.style.pointerEvents = 'none';
+
+  openEditProfile();
+}
+
+function _closeProfileSetupMode() {
+  const modal = document.getElementById('modal-edit-profile');
+  if (!modal || !modal._isFirstLogin) return;
+  modal._isFirstLogin = false;
+
+  const banner = document.getElementById('ep-welcome-banner');
+  if (banner) banner.style.display = 'none';
+
+  const saveBtn = modal.querySelector('.btn-share-modal');
+  if (saveBtn && saveBtn._originalText) saveBtn.textContent = saveBtn._originalText;
+
+  const header = modal.querySelector('.modal-header h3');
+  if (header) header.textContent = 'Editar perfil';
+
+  const closeBtn = modal.querySelector('.modal-x');
+  if (closeBtn) closeBtn.style.display = '';
+
+  const backdrop = modal.querySelector('.modal-backdrop');
+  if (backdrop) backdrop.style.pointerEvents = '';
+}
 
 async function doLogout() { await db.auth.signOut(); clearSession(); currentUser = null; location.reload(); }
 
@@ -2241,8 +2304,7 @@ function applyUserColor(color) {
 }
 
 document.addEventListener('keydown', e => {
-    const authScreen = document.getElementById('auth-screen');
-    if (e.key === 'Enter' && authScreen && authScreen.style.display !== 'none') doAuth();
+    if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doAuth();
   });
 
 // ════════════════════════════════════════════════════════════
@@ -2257,16 +2319,10 @@ function admLoadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_
 function admClearSession() { sessionStorage.removeItem('pg_adm'); }
 
 async function initAdm() {
-  try {
-    const saved = admLoadSession();
-    if (saved && saved.username) { admLogado = saved; mostrarPainelAdm(); }
-    else { document.getElementById('adm-login-page').style.display = 'flex'; }
-  } catch(e) {
-    console.error('initAdm error:', e);
-    document.getElementById('adm-login-page').style.display = 'flex';
-  } finally {
-    document.getElementById('adm-loading').style.display = 'none';
-  }
+  const saved = admLoadSession();
+  if (saved) { admLogado = saved; mostrarPainelAdm(); }
+  else { document.getElementById('adm-login-page').style.display = 'flex'; }
+  document.getElementById('adm-loading').style.display = 'none';
 }
 
 async function fazerLoginAdm() {
@@ -2723,30 +2779,18 @@ function admNpcCancelarPostEdit() {
   _npcPendingPostImgFile = null;
 }
 
-function admLogout() { admClearSession(); sessionStorage.removeItem('pg_adm_mode'); admLogado = null; location.reload(); }
-
-function abrirModoAdm() {
-  sessionStorage.setItem('pg_adm_mode', '1');
-  location.reload();
-}
+function admLogout() { admClearSession(); admLogado = null; location.reload(); }
 
 function mostrarPainelAdm() {
-  try {
   document.getElementById('adm-login-page').style.display = 'none';
   document.getElementById('adm-panel').style.display      = 'block';
-  document.getElementById('adm-nav-user').textContent     = '👤 ' + (admLogado.username || 'ADM');
+  document.getElementById('adm-nav-user').textContent     = '👤 ' + admLogado.username;
   document.getElementById('adm-nav-user').style.display   = 'inline';
   document.getElementById('adm-btn-logout').style.display = 'inline-block';
   const admChatBtn = document.getElementById('adm-btn-chat');
   if (admChatBtn) admChatBtn.style.display = 'inline-flex';
-  document.getElementById('adm-sidebar-user').textContent = admLogado.username || '';
+  document.getElementById('adm-sidebar-user').textContent = admLogado.username;
   carregarUsuarios();
-  } catch(e) {
-    console.error('mostrarPainelAdm error:', e);
-    // fallback: garante que o painel apareça mesmo com erro parcial
-    document.getElementById('adm-login-page').style.display = 'none';
-    document.getElementById('adm-panel').style.display = 'block';
-  }
 }
 
 function admImgTab(btn, id) {
@@ -3388,16 +3432,20 @@ async function applyTopnavSprites() {
       if (!ring) return;
       if (val) {
         ring.style.background = `url(${val}) center/cover no-repeat`;
+        // esconde o conteúdo interno (emoji/pic) para mostrar só a imagem
         const pic = ring.querySelector('.story-pic');
         if (pic) pic.style.display = 'none';
       }
+      // revela o círculo (com ou sem sprite)
       ring.style.opacity = '1';
       return;
     }
 
     // profile_msg_btn: botão de mensagem nos perfis de outros usuários
     if (def.key === 'profile_msg_btn') {
+      // salva a URL no dataset para aplicar nos botões renderizados dinamicamente
       document.documentElement.dataset.profileMsgSprite = val || '';
+      // aplica nos botões já existentes no DOM (se perfil já estiver aberto)
       document.querySelectorAll('.btn-icon-profile').forEach(btn => {
         let img = btn.querySelector('.btn-sprite-img');
         if (val) {
@@ -3434,7 +3482,7 @@ async function applyTopnavSprites() {
     let spriteImg = tnBtn.querySelector('.tn-sprite-img');
 
     if (val) {
-      // TEM sprite: mostra imagem, esconde SVG/avatar, torna visível e clicável
+      // tem sprite: esconde SVG padrão, mostra/cria a imagem
       if (defaultSvg) defaultSvg.style.display = 'none';
       if (def.key === 'nav_profile') {
         const avatar = tnBtn.querySelector('.tn-avatar');
@@ -3450,19 +3498,15 @@ async function applyTopnavSprites() {
       }
       spriteImg.src = val;
       spriteImg.style.display = 'block';
-      tnBtn.style.visibility = 'visible';
-      tnBtn.style.pointerEvents = '';
     } else {
-      // SEM sprite: esconde tudo, botão invisível e não clicável
+      // sem sprite: remove imagem e mostra o SVG padrão
       if (spriteImg) spriteImg.remove();
       if (def.key === 'nav_profile') {
         const avatar = tnBtn.querySelector('.tn-avatar');
-        if (avatar) avatar.style.display = 'none';
+        if (avatar) avatar.style.display = '';
       } else if (defaultSvg) {
-        defaultSvg.style.display = 'none';
+        defaultSvg.style.display = 'block';
       }
-      tnBtn.style.visibility = 'hidden';
-      tnBtn.style.pointerEvents = 'none';
     }
   });
 
@@ -4691,24 +4735,6 @@ function topnavSearch(q) {
   doSearch(q);
 }
 
-// Fechar dropdown de perfis ao clicar fora
-document.addEventListener('click', e => {
-  const dropdown = document.getElementById('explore-profiles');
-  if (!dropdown || dropdown.style.display === 'none') return;
-  const searchInput   = document.getElementById('search-input');
-  const topnavInput   = document.getElementById('topnav-search-input');
-  const searchWrap    = searchInput?.closest('.search-wrap, .explore-top');
-  const topnavWrap    = topnavInput?.closest('.topnav-search');
-  if (
-    dropdown.contains(e.target) ||
-    (searchWrap  && searchWrap.contains(e.target)) ||
-    (topnavWrap  && topnavWrap.contains(e.target)) ||
-    e.target === searchInput ||
-    e.target === topnavInput
-  ) return;
-  dropdown.style.display = 'none';
-}, true);
-
 // ── Avatar color palette ──────────────────────────────────
 const AVATAR_COLORS = [
   '#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5',
@@ -5778,11 +5804,6 @@ window.addEventListener('popstate', async () => {
 
 // ── Roteamento — executado após todas as funções estarem definidas ──
 if (IS_ADM) {
-  sessionStorage.setItem('pg_adm_mode', '1');
-  // Esconde o splash diretamente (position:fixed sobrepõe mesmo com pokegram-root oculto)
-  const _splash = document.getElementById('pg-splash');
-  if (_splash) { _splash.style.display = 'none'; }
-  hideSplash();
   document.getElementById('pokegram-root').style.display = 'none';
   document.getElementById('adm-root').style.display = 'block';
   document.body.classList.add('adm-body');
@@ -5793,14 +5814,6 @@ if (IS_ADM) {
   applyLogos();
   initPokegram();
 }
-
-// ── Suporte a navegação por hash para ADM ──────────────────
-window.addEventListener('hashchange', () => {
-  if ((window.location.hash === '#adm' || window.location.hash.startsWith('#adm')) && !IS_ADM) {
-    sessionStorage.setItem('pg_adm_mode', '1');
-    location.reload();
-  }
-});
 </script>
 
 <!-- CROPPER MODAL -->
