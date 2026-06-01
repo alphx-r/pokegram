@@ -543,7 +543,7 @@
   const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  var IS_ADM = window.location.pathname.startsWith('/adm')
+  const IS_ADM = window.location.pathname.startsWith('/adm')
     || window.location.hash === '#adm'
     || new URLSearchParams(window.location.search).get('page') === 'adm';
 
@@ -4734,24 +4734,6 @@ function doSearch(q) {
 function topnavSearch(q) {
   doSearch(q);
 }
-
-// Fechar dropdown de perfis ao clicar fora
-document.addEventListener('click', e => {
-  const dropdown = document.getElementById('explore-profiles');
-  if (!dropdown || dropdown.style.display === 'none') return;
-  const searchInput   = document.getElementById('search-input');
-  const topnavInput   = document.getElementById('topnav-search-input');
-  const searchWrap    = searchInput?.closest('.search-wrap, .explore-top');
-  const topnavWrap    = topnavInput?.closest('.topnav-search');
-  if (
-    dropdown.contains(e.target) ||
-    (searchWrap  && searchWrap.contains(e.target)) ||
-    (topnavWrap  && topnavWrap.contains(e.target)) ||
-    e.target === searchInput ||
-    e.target === topnavInput
-  ) return;
-  dropdown.style.display = 'none';
-}, true);
 
 // ── Avatar color palette ──────────────────────────────────
 const AVATAR_COLORS = [
