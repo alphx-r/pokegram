@@ -544,6 +544,8 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   var IS_ADM = window.location.pathname.startsWith('/adm')
+    || window.location.pathname.endsWith('/adm')
+    || window.location.pathname.endsWith('/adm.html')
     || window.location.hash === '#adm'
     || window.location.hash.startsWith('#adm')
     || new URLSearchParams(window.location.search).get('page') === 'adm'
@@ -674,6 +676,9 @@
           </div>
           <div id="auth-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
           <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
+        </div>
+        <div style="text-align:center;margin-top:14px">
+          <a href="#" onclick="abrirModoAdm();return false;" style="font-size:11px;color:rgba(0,0,0,0.2);text-decoration:none;user-select:none" title="Área administrativa">· · ·</a>
         </div>
       </div>
     </div>
@@ -2251,10 +2256,16 @@ function admLoadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_
 function admClearSession() { sessionStorage.removeItem('pg_adm'); }
 
 async function initAdm() {
-  const saved = admLoadSession();
-  if (saved) { admLogado = saved; mostrarPainelAdm(); }
-  else { document.getElementById('adm-login-page').style.display = 'flex'; }
-  document.getElementById('adm-loading').style.display = 'none';
+  try {
+    const saved = admLoadSession();
+    if (saved && saved.username) { admLogado = saved; mostrarPainelAdm(); }
+    else { document.getElementById('adm-login-page').style.display = 'flex'; }
+  } catch(e) {
+    console.error('initAdm error:', e);
+    document.getElementById('adm-login-page').style.display = 'flex';
+  } finally {
+    document.getElementById('adm-loading').style.display = 'none';
+  }
 }
 
 async function fazerLoginAdm() {
@@ -2713,16 +2724,28 @@ function admNpcCancelarPostEdit() {
 
 function admLogout() { admClearSession(); sessionStorage.removeItem('pg_adm_mode'); admLogado = null; location.reload(); }
 
+function abrirModoAdm() {
+  sessionStorage.setItem('pg_adm_mode', '1');
+  location.reload();
+}
+
 function mostrarPainelAdm() {
+  try {
   document.getElementById('adm-login-page').style.display = 'none';
   document.getElementById('adm-panel').style.display      = 'block';
-  document.getElementById('adm-nav-user').textContent     = '👤 ' + admLogado.username;
+  document.getElementById('adm-nav-user').textContent     = '👤 ' + (admLogado.username || 'ADM');
   document.getElementById('adm-nav-user').style.display   = 'inline';
   document.getElementById('adm-btn-logout').style.display = 'inline-block';
   const admChatBtn = document.getElementById('adm-btn-chat');
   if (admChatBtn) admChatBtn.style.display = 'inline-flex';
-  document.getElementById('adm-sidebar-user').textContent = admLogado.username;
+  document.getElementById('adm-sidebar-user').textContent = admLogado.username || '';
   carregarUsuarios();
+  } catch(e) {
+    console.error('mostrarPainelAdm error:', e);
+    // fallback: garante que o painel apareça mesmo com erro parcial
+    document.getElementById('adm-login-page').style.display = 'none';
+    document.getElementById('adm-panel').style.display = 'block';
+  }
 }
 
 function admImgTab(btn, id) {
