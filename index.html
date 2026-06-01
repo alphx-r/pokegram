@@ -7,25 +7,6 @@
 <link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<script>
-  // Executado de forma síncrona no <head> — antes de qualquer elemento ser pintado.
-  // Se a URL for /adm, injeta um <style> que oculta o pokegram-root desde o início,
-  // eliminando qualquer flash do app normal antes do roteamento final.
-  (function() {
-    var p = window.location.pathname;
-    var isAdm = p === '/adm' || p === '/adm/' || p.startsWith('/adm/') ||
-                p.endsWith('/adm') || p.endsWith('/adm.html') ||
-                window.location.hash.startsWith('#adm') ||
-                new URLSearchParams(window.location.search).get('page') === 'adm' ||
-                (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('pg_adm_mode') === '1');
-    if (isAdm) {
-      var style = document.createElement('style');
-      style.textContent = '#pokegram-root{display:none!important}#adm-root{display:block!important}';
-      document.head.appendChild(style);
-      if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('pg_adm_mode', '1');
-    }
-  })();
-</script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -633,17 +614,6 @@
   // Estado de autenticação — declarado aqui para evitar "before initialization"
   var isRegisterMode = false;
   var currentUser    = null;
-
-  // Oculta imediatamente o app normal se for rota ADM,
-  // evitando flash de conteúdo antes do roteamento final
-  if (IS_ADM) {
-    document.addEventListener('DOMContentLoaded', function() {
-      var pgRoot  = document.getElementById('pokegram-root');
-      var admRoot = document.getElementById('adm-root');
-      if (pgRoot)  pgRoot.style.display  = 'none';
-      if (admRoot) admRoot.style.display = 'block';
-    });
-  }
 </script>
 
 <!-- ════════════════════════════════════════════════════════
@@ -2271,7 +2241,8 @@ function applyUserColor(color) {
 }
 
 document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doAuth();
+    const authScreen = document.getElementById('auth-screen');
+    if (e.key === 'Enter' && authScreen && authScreen.style.display !== 'none') doAuth();
   });
 
 // ════════════════════════════════════════════════════════════
