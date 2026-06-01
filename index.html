@@ -5779,6 +5779,9 @@ window.addEventListener('popstate', async () => {
 // ── Roteamento — executado após todas as funções estarem definidas ──
 if (IS_ADM) {
   sessionStorage.setItem('pg_adm_mode', '1');
+  // Esconde o splash diretamente (position:fixed sobrepõe mesmo com pokegram-root oculto)
+  const _splash = document.getElementById('pg-splash');
+  if (_splash) { _splash.style.display = 'none'; }
   hideSplash();
   document.getElementById('pokegram-root').style.display = 'none';
   document.getElementById('adm-root').style.display = 'block';
