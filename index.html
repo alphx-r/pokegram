@@ -477,6 +477,61 @@
   #chat-panel { width: 100vw; right: -100vw; }
 }
 
+
+/* ── Emoji Picker ───────────────────────────────────────── */
+.emoji-trigger {
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 4px 6px;
+  opacity: .55; transition: opacity .15s;
+  flex-shrink: 0;
+}
+.emoji-trigger:hover { opacity: 1; }
+.emoji-picker-popup {
+  position: absolute;
+  background: var(--white, #fff);
+  border: 1px solid var(--border, #dbdbdb);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  z-index: 9000;
+  width: 300px;
+  overflow: hidden;
+  display: none;
+}
+.emoji-picker-popup.open { display: block; }
+.emoji-picker-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border, #dbdbdb);
+}
+.emoji-picker-search input {
+  width: 100%; border: 1px solid var(--border, #dbdbdb);
+  border-radius: 8px; padding: 6px 10px; font-size: 13px;
+  outline: none; font-family: var(--font, sans-serif);
+}
+.emoji-picker-cats {
+  display: flex; overflow-x: auto; padding: 6px 8px;
+  gap: 2px; border-bottom: 1px solid var(--border-lt, #efefef);
+  scrollbar-width: none;
+}
+.emoji-picker-cats::-webkit-scrollbar { display: none; }
+.emoji-cat-btn {
+  flex-shrink: 0; font-size: 16px;
+  padding: 4px 6px; border-radius: 6px;
+  opacity: .5; transition: opacity .1s, background .1s;
+}
+.emoji-cat-btn:hover, .emoji-cat-btn.active { opacity: 1; background: #f0f0f0; }
+.emoji-picker-grid-wrap {
+  height: 200px; overflow-y: auto; padding: 6px 8px;
+}
+.emoji-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+}
+.emoji-btn {
+  font-size: 22px; padding: 4px; border-radius: 6px;
+  text-align: center; cursor: pointer; transition: background .1s;
+  line-height: 1.3;
+}
+.emoji-btn:hover { background: #f0f0f0; }
+
 </style>
 </head>
 <body>
@@ -488,7 +543,34 @@
   const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-  const IS_ADM = window.location.pathname.startsWith('/adm');
+  // Detecção robusta de rota ADM — grava no sessionStorage ao primeiro acesso
+  (function() {
+    var p = window.location.pathname;
+    var h = window.location.hash;
+    var q = window.location.search;
+    if (
+      p === '/adm' || p === '/adm/' ||
+      p.startsWith('/adm/') ||
+      p.endsWith('/adm') ||
+      p.endsWith('/adm.html') ||
+      h === '#adm' || h.startsWith('#adm') ||
+      new URLSearchParams(q).get('page') === 'adm'
+    ) { sessionStorage.setItem('pg_adm_mode', '1'); }
+  })();
+  var IS_ADM = (function() {
+    var p = window.location.pathname;
+    var h = window.location.hash;
+    var q = window.location.search;
+    return (
+      p === '/adm' || p === '/adm/' ||
+      p.startsWith('/adm/') ||
+      p.endsWith('/adm') ||
+      p.endsWith('/adm.html') ||
+      h === '#adm' || h.startsWith('#adm') ||
+      new URLSearchParams(q).get('page') === 'adm' ||
+      sessionStorage.getItem('pg_adm_mode') === '1'
+    );
+  })();
 
   // ── Logo da rede social (armazenada no Supabase) ──────────
   let _logoUrl = null;
@@ -616,6 +698,9 @@
           <div id="auth-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
           <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
         </div>
+        <div style="text-align:center;margin-top:14px">
+          <a href="#" onclick="abrirModoAdm();return false;" style="font-size:11px;color:rgba(0,0,0,0.2);text-decoration:none;user-select:none" title="Área administrativa">· · ·</a>
+        </div>
       </div>
     </div>
   </div>
@@ -632,7 +717,7 @@
       <div class="topnav-search">
         <div class="topnav-search-inner">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="topnav-search-input" placeholder="Buscar..." oninput="doSearch(this.value)" onclick="showView('explore')">
+          <input type="text" id="topnav-search-input" placeholder="Buscar..." oninput="topnavSearch(this.value)" onclick="if(document.getElementById('view-explore')?.classList.contains('hidden'))showView('explore')" autocomplete="off">
         </div>
       </div>
       <div class="topnav-actions">
@@ -695,7 +780,10 @@
             <input type="text" id="search-input" placeholder="Buscar treinadores, #tags..." oninput="doSearch(this.value)">
           </div>
         </div>
-        <div id="explore-grid" class="explore-grid"></div>
+        <div style="position:relative">
+          <div id="explore-profiles" style="display:none;position:absolute;top:0;left:0;right:0;z-index:50;background:#fff;border-bottom:1px solid #efefef;box-shadow:0 4px 16px rgba(0,0,0,.08);flex-direction:column;gap:0"></div>
+          <div id="explore-grid" class="explore-grid"></div>
+        </div>
       </div>
 
       <div id="view-profile" class="view hidden">
@@ -747,7 +835,7 @@
           </div>
           <div class="post-caption-side">
             <div id="post-author-row" class="post-author-row"></div>
-            <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
+            <div style="position:relative;display:flex;align-items:flex-start;gap:4px"><textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200" style="flex:1"></textarea><button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'post-caption')" title="Emojis">😊</button></div>
             <div class="post-fields">
               <div class="pf-row">
                 <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -816,7 +904,7 @@
             <!-- Input de comentário -->
             <div class="comment-input-bar">
               <div class="comment-avatar-sm" id="my-comment-avatar"></div>
-              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
+              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150"><button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'new-comment')" title="Emojis">😊</button>
               <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
             </div>
           </div>
@@ -866,7 +954,7 @@
       <!-- Barra de comentário (só para stories de outros) -->
       <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.55))">
         <div style="display:flex;align-items:center;gap:8px;width:100%">
-          <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
+          <button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'sv-comment-input')" title="Emojis" style="color:white;opacity:.7">😊</button><input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
             style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:8px 16px;min-width:0"
             onfocus="storyClearTimer();svCommentFocus(true)"
             onblur="storyRestartTimer();svCommentFocus(false)"
@@ -953,8 +1041,8 @@
 
         <div style="display:flex;flex-direction:column;gap:4px">
           <label style="font-size:12px;font-weight:700;color:#8e8e8e">Bio</label>
-          <textarea id="ep-bio" maxlength="150" placeholder="Conte um pouco sobre você..." rows="3"
-            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;resize:none;outline:none"></textarea>
+          <div style="position:relative;display:flex;flex-direction:column;gap:4px"><textarea id="ep-bio" maxlength="150" placeholder="Conte um pouco sobre você..." rows="3"
+            style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;resize:none;outline:none;width:100%;box-sizing:border-box"></textarea>
           <span style="font-size:11px;color:#8e8e8e;text-align:right" id="ep-bio-count">0/150</span>
         </div>
 
@@ -969,6 +1057,53 @@
         </div>
 
         <div id="ep-save-err" style="display:none;font-size:12px;color:#e53935;text-align:center;padding:8px;background:#fde8e8;border-radius:8px"></div>
+
+        <!-- Separador -->
+        <div style="height:1px;background:#efefef"></div>
+
+        <!-- Alterar senha -->
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0" onclick="toggleEpPasswordSection()">
+            <label style="font-size:12px;font-weight:700;color:#8e8e8e;cursor:pointer">🔑 Alterar senha</label>
+            <span id="ep-pw-toggle-icon" style="font-size:13px;color:#8e8e8e;transition:transform .2s">▼</span>
+          </div>
+          <div id="ep-password-section" style="display:none;flex-direction:column;gap:10px;margin-top:4px">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;font-weight:700;color:#8e8e8e">Senha atual</label>
+              <div style="position:relative">
+                <input id="ep-pw-atual" type="password" placeholder="••••••••"
+                  style="padding:9px 38px 9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+                <button type="button" onclick="epTogglePw('ep-pw-atual',this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8e8e8e;font-size:15px;padding:0;line-height:1">👁</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;font-weight:700;color:#8e8e8e">Nova senha</label>
+              <div style="position:relative">
+                <input id="ep-pw-nova" type="password" placeholder="Mín. 6 caracteres"
+                  style="padding:9px 38px 9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+                <button type="button" onclick="epTogglePw('ep-pw-nova',this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8e8e8e;font-size:15px;padding:0;line-height:1">👁</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;font-weight:700;color:#8e8e8e">Confirmar nova senha</label>
+              <div style="position:relative">
+                <input id="ep-pw-conf" type="password" placeholder="••••••••"
+                  style="padding:9px 38px 9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+                <button type="button" onclick="epTogglePw('ep-pw-conf',this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8e8e8e;font-size:15px;padding:0;line-height:1">👁</button>
+              </div>
+            </div>
+            <div id="ep-pw-err" style="display:none;font-size:12px;color:#e53935;padding:8px;background:#fde8e8;border-radius:8px"></div>
+            <div id="ep-pw-ok" style="display:none;font-size:12px;color:#1a7a1a;padding:8px;background:#e0f0e0;border-radius:8px">Senha alterada com sucesso! ✅</div>
+            <button type="button" onclick="submitChangePw()"
+              style="align-self:flex-start;padding:8px 18px;background:#262626;color:#fff;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+              Salvar nova senha
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1648,34 +1783,105 @@ function loadSession()  {
 function clearSession() { localStorage.removeItem('pg_user'); }
 
 async function dbLogin(username, password) {
-  let result;
+  const fakeEmail = username + '@pokegram.app';
+  let authResult;
   try {
-    result = await db.rpc('login_user', { p_username: username, p_password: password });
+    authResult = await db.auth.signInWithPassword({ email: fakeEmail, password });
   } catch (netErr) {
     throw new Error('network');
   }
-  const { data, error } = result;
-  if (error) {
-    const msg = error.message || '';
-    if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('incorrect') || msg.toLowerCase().includes('senha') || msg.toLowerCase().includes('password')) {
+  const { data: authData, error: authError } = authResult;
+  if (authError) {
+    const msg = authError.message || '';
+    const status = authError.status || 0;
+    // Erro de schema interno do Supabase: trata como falha genérica recuperável
+    if (msg.toLowerCase().includes('schema') || msg.toLowerCase().includes('database error')) {
+      throw new Error('Erro interno do banco. Tente novamente em instantes.');
+    }
+    // Qualquer erro de credenciais (400, 401, ou mensagem de senha/invalid)
+    // tenta o fallback por password_plain antes de desistir
+    const isCredentialError = status === 400 || status === 401
+      || msg.toLowerCase().includes('invalid')
+      || msg.toLowerCase().includes('credentials')
+      || msg.toLowerCase().includes('password')
+      || msg.toLowerCase().includes('email')
+      || msg.toLowerCase().includes('user');
+    if (isCredentialError) {
+      // FALLBACK: tenta senha em password_plain (usuários migrados)
+      const { data: legacyUser } = await db.from('users')
+        .select('*').eq('username', username).eq('password_plain', password).maybeSingle();
+      if (legacyUser) {
+        // Cria no Supabase Auth para que nas próximas vezes já funcione normalmente
+        try {
+          await db.auth.signUp({ email: fakeEmail, password });
+        } catch(e) { /* ignora */ }
+        return legacyUser;
+      }
       return null;
     }
-    throw error;
+    throw authError;
   }
-  // RPC pode retornar array ou objeto — normaliza sempre para objeto único
-  if (Array.isArray(data)) return data[0] || null;
-  return data;
-}
-async function dbRegister(username, password, rpg, emoji, pronoun) {
-  const { data, error } = await db.rpc('register_user', { p_username: username, p_password: password, p_rpg: rpg, p_emoji: emoji || '🎮' });
-  if (error) throw error;
-  const user = Array.isArray(data) ? data[0] : data;
-  // salva pronome separadamente pois a RPC pode não suportá-lo ainda
-  if (user && pronoun) {
-    await db.from('users').update({ pronoun }).eq('id', user.id);
-    user.pronoun = pronoun;
+  // busca dados completos do usuário na tabela users
+  const { data: user } = await db.from('users').select('*').eq('username', username).maybeSingle();
+  // Usuário existe no Auth mas não na tabela users (cadastro incompleto anterior)
+  if (!user && authData?.user?.id) {
+    // Faz logout para não deixar sessão Auth sem perfil correspondente
+    await db.auth.signOut().catch(() => {});
+    throw new Error('Cadastro incompleto detectado. Por favor, refaça o cadastro com o mesmo usuário e senha.');
   }
   return user || null;
+}
+async function dbRegister(username, password, rpg, emoji, pronoun) {
+  const fakeEmail = username + '@pokegram.app';
+  let authUid = null;
+
+  // 1. Tenta criar no Supabase Auth
+  const { data: authData, error: authError } = await db.auth.signUp({ email: fakeEmail, password });
+
+  if (authError) {
+    const msg = authError.message || '';
+    // "User already registered" = usuário fantasma (existe no Auth, não existe na tabela users)
+    // Tenta fazer login com a mesma senha para recuperar o authUid
+    if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already been registered')) {
+      const { data: loginData, error: loginError } = await db.auth.signInWithPassword({ email: fakeEmail, password });
+      if (loginError) {
+        // Senha diferente — usuário realmente já existe com outra senha
+        throw new Error('Este usuário já está cadastrado. Tente fazer login.');
+      }
+      authUid = loginData?.user?.id;
+      if (!authUid) throw new Error('Erro ao recuperar autenticação.');
+      // Verifica se de fato não existe na tabela users (cadastro incompleto)
+      const { data: existing } = await db.from('users').select('id').eq('id', authUid).maybeSingle();
+      if (existing) {
+        // Existe nos dois lugares — usuário realmente já cadastrado, só senha errada antes
+        await db.auth.signOut().catch(() => {});
+        throw new Error('Este usuário já está cadastrado. Tente fazer login.');
+      }
+      // Não existe na tabela users — pode completar o cadastro com esse authUid
+    } else {
+      throw authError;
+    }
+  } else {
+    authUid = authData?.user?.id;
+    if (!authUid) throw new Error('Erro ao criar autenticação.');
+  }
+
+  // 2. Cria na tabela users com o id do auth
+  const { data: newUser, error: userError } = await db.from('users').insert({
+    id: authUid,
+    username,
+    password_plain: '', // senha gerenciada pelo Supabase Auth
+    rpg,
+    pronoun: pronoun || null
+  }).select('*').single();
+
+  if (userError) {
+    // Falhou o insert — faz logout para evitar sessão Auth sem perfil
+    await db.auth.signOut().catch(() => {});
+    throw userError;
+  }
+
+  return newUser || null;
 }
 async function dbCheckUserExists(username) {
   const { data } = await db.from('users').select('id').eq('username', username).maybeSingle();
@@ -1683,9 +1889,17 @@ async function dbCheckUserExists(username) {
 }
 
 let authCheckTimeout = null;
+function sanitizeUsername(val) {
+  // Remove acentos via NFD + strip combining marks, depois remove tudo que não seja a-z 0-9 _ .
+  return val
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // á→a, ç→c, etc.
+    .replace(/\s/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_.]/g, ''); // bloqueia qualquer outro char especial
+}
 async function onAuthInput() {
   const raw      = document.getElementById('login-username').value;
-  const username = raw.replace(/\s/g, '').toLowerCase();
+  const username = sanitizeUsername(raw);
   // reflecte o valor normalizado no campo
   if (raw !== username) document.getElementById('login-username').value = username;
   clearTimeout(authCheckTimeout);
@@ -1711,7 +1925,7 @@ function hideAuthError()    { document.getElementById('auth-error').style.displa
 
 async function doAuth() {
   hideAuthError();
-  const username = document.getElementById('login-username').value.trim();
+  const username = sanitizeUsername(document.getElementById('login-username').value);
   const password = document.getElementById('login-password').value;
   const btn      = document.getElementById('auth-btn');
   if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
@@ -1727,7 +1941,7 @@ async function doAuth() {
       if (password.length < 6)  { showAuthError('Senha deve ter ao menos 6 caracteres.'); return; }
       const user = await dbRegister(username, password, rpg, null, pronoun);
       if (!user) { showAuthError('Erro ao cadastrar. Tente novamente.'); return; }
-      currentUser = user; saveSession(user); enterApp(user);
+      currentUser = user; saveSession(user); enterApp(user, true);
     } else {
       const user = await dbLogin(username, password);
       if (!user) { showAuthError('Usuário ou senha incorretos.'); return; }
@@ -1757,7 +1971,7 @@ function hideSplash() {
   setTimeout(() => { s.style.display = 'none'; }, 380);
 }
 
-function enterApp(user) {
+function enterApp(user, isFirstLogin) {
   if (!user.avatar_color) user.avatar_color = user.color;
   if (!user.display_name) user.display_name = user.name || user.username;
   document.getElementById('auth-screen').style.display = 'none';
@@ -1765,14 +1979,18 @@ function enterApp(user) {
 
   // Splash some apenas quando o initApp terminar
   if (typeof initApp === 'function') {
-    initApp(user).catch(() => {}).finally(hideSplash);
+    initApp(user).catch(() => {}).finally(() => {
+      hideSplash();
+    });
   } else {
     hideSplash();
   }
   initPushNotifications(user);
 }
 
-function doLogout() { clearSession(); currentUser = null; location.reload(); }
+function _closeProfileSetupMode() { /* removido */ }
+
+async function doLogout() { await db.auth.signOut(); clearSession(); currentUser = null; location.reload(); }
 
 // ── Manutenção ────────────────────────────────────────────
 async function checkManutencao() {
@@ -1895,17 +2113,48 @@ async function initPokegram() {
     const emManutencao = await checkManutencao();
     if (emManutencao) return; // para tudo — overlay já está visível
   }
-  const saved = loadSession();
-  if (saved) {
-    // Entra imediatamente sem esperar o banco
-    currentUser = saved;
-    enterApp(currentUser);
+  // tenta restaurar sessão pelo Supabase Auth primeiro
+  let session = null;
+  try {
+    const { data, error } = await db.auth.getSession();
+    if (error) {
+      const msg = error.message || '';
+      // Erro de schema interno do Supabase — limpa sessão e pede novo login
+      if (msg.toLowerCase().includes('schema') || msg.toLowerCase().includes('database error')) {
+        await db.auth.signOut().catch(() => {});
+        clearSession();
+        hideSplash();
+        document.getElementById('auth-screen').style.display = 'flex';
+        return;
+      }
+      throw error;
+    }
+    session = data?.session || null;
+  } catch (e) {
+    clearSession();
+    hideSplash();
+    document.getElementById('auth-screen').style.display = 'flex';
+    return;
+  }
+  if (session) {
+    const saved = loadSession();
+    if (saved) {
+      currentUser = saved;
+      enterApp(currentUser);
+    }
     // Re-fetch em background para atualizar dados frescos
-    db.from('users').select('*').eq('id', saved.id).maybeSingle()
+    db.from('users').select('*').eq('id', session.user.id).maybeSingle()
       .then(({ data: fresh }) => {
-        if (fresh) { currentUser = fresh; saveSession(fresh); renderSidebarAvatar(); }
-      }).catch(() => {});
+        if (fresh) { currentUser = fresh; saveSession(fresh); if (saved) renderSidebarAvatar(); else enterApp(fresh); }
+        else {
+          // Auth existe mas não tem perfil na tabela users — limpa e pede login
+          db.auth.signOut().catch(() => {});
+          clearSession();
+          if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; }
+        }
+      }).catch(() => { if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; } });
   } else {
+    clearSession();
     hideSplash();
     document.getElementById('auth-screen').style.display = 'flex';
   }
@@ -2028,10 +2277,16 @@ function admLoadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_
 function admClearSession() { sessionStorage.removeItem('pg_adm'); }
 
 async function initAdm() {
-  const saved = admLoadSession();
-  if (saved) { admLogado = saved; mostrarPainelAdm(); }
-  else { document.getElementById('adm-login-page').style.display = 'flex'; }
-  document.getElementById('adm-loading').style.display = 'none';
+  try {
+    const saved = admLoadSession();
+    if (saved && saved.username) { admLogado = saved; mostrarPainelAdm(); }
+    else { document.getElementById('adm-login-page').style.display = 'flex'; }
+  } catch(e) {
+    console.error('initAdm error:', e);
+    document.getElementById('adm-login-page').style.display = 'flex';
+  } finally {
+    document.getElementById('adm-loading').style.display = 'none';
+  }
 }
 
 async function fazerLoginAdm() {
@@ -2151,7 +2406,7 @@ async function admNpcSalvar() {
 
   let error;
   if (editId) {
-    const { error: e } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url, ...(password !== null ? { password } : {}) }).eq('id', editId);
+    const { error: e } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url, ...(password !== null ? { password_plain: password } : {}) }).eq('id', editId);
     error = e;
   } else {
     // Verifica se username já existe
@@ -2488,18 +2743,30 @@ function admNpcCancelarPostEdit() {
   _npcPendingPostImgFile = null;
 }
 
-function admLogout() { admClearSession(); admLogado = null; location.reload(); }
+function admLogout() { admClearSession(); sessionStorage.removeItem('pg_adm_mode'); admLogado = null; location.reload(); }
+
+function abrirModoAdm() {
+  sessionStorage.setItem('pg_adm_mode', '1');
+  location.reload();
+}
 
 function mostrarPainelAdm() {
+  try {
   document.getElementById('adm-login-page').style.display = 'none';
   document.getElementById('adm-panel').style.display      = 'block';
-  document.getElementById('adm-nav-user').textContent     = '👤 ' + admLogado.username;
+  document.getElementById('adm-nav-user').textContent     = '👤 ' + (admLogado.username || 'ADM');
   document.getElementById('adm-nav-user').style.display   = 'inline';
   document.getElementById('adm-btn-logout').style.display = 'inline-block';
   const admChatBtn = document.getElementById('adm-btn-chat');
   if (admChatBtn) admChatBtn.style.display = 'inline-flex';
-  document.getElementById('adm-sidebar-user').textContent = admLogado.username;
+  document.getElementById('adm-sidebar-user').textContent = admLogado.username || '';
   carregarUsuarios();
+  } catch(e) {
+    console.error('mostrarPainelAdm error:', e);
+    // fallback: garante que o painel apareça mesmo com erro parcial
+    document.getElementById('adm-login-page').style.display = 'none';
+    document.getElementById('adm-panel').style.display = 'block';
+  }
 }
 
 function admImgTab(btn, id) {
@@ -3141,20 +3408,16 @@ async function applyTopnavSprites() {
       if (!ring) return;
       if (val) {
         ring.style.background = `url(${val}) center/cover no-repeat`;
-        // esconde o conteúdo interno (emoji/pic) para mostrar só a imagem
         const pic = ring.querySelector('.story-pic');
         if (pic) pic.style.display = 'none';
       }
-      // revela o círculo (com ou sem sprite)
       ring.style.opacity = '1';
       return;
     }
 
     // profile_msg_btn: botão de mensagem nos perfis de outros usuários
     if (def.key === 'profile_msg_btn') {
-      // salva a URL no dataset para aplicar nos botões renderizados dinamicamente
       document.documentElement.dataset.profileMsgSprite = val || '';
-      // aplica nos botões já existentes no DOM (se perfil já estiver aberto)
       document.querySelectorAll('.btn-icon-profile').forEach(btn => {
         let img = btn.querySelector('.btn-sprite-img');
         if (val) {
@@ -3191,7 +3454,7 @@ async function applyTopnavSprites() {
     let spriteImg = tnBtn.querySelector('.tn-sprite-img');
 
     if (val) {
-      // tem sprite: esconde SVG padrão, mostra/cria a imagem
+      // TEM sprite: mostra imagem, esconde SVG/avatar, torna visível e clicável
       if (defaultSvg) defaultSvg.style.display = 'none';
       if (def.key === 'nav_profile') {
         const avatar = tnBtn.querySelector('.tn-avatar');
@@ -3207,15 +3470,19 @@ async function applyTopnavSprites() {
       }
       spriteImg.src = val;
       spriteImg.style.display = 'block';
+      tnBtn.style.visibility = 'visible';
+      tnBtn.style.pointerEvents = '';
     } else {
-      // sem sprite: remove imagem e mostra o SVG padrão
+      // SEM sprite: esconde tudo, botão invisível e não clicável
       if (spriteImg) spriteImg.remove();
       if (def.key === 'nav_profile') {
         const avatar = tnBtn.querySelector('.tn-avatar');
-        if (avatar) avatar.style.display = '';
+        if (avatar) avatar.style.display = 'none';
       } else if (defaultSvg) {
-        defaultSvg.style.display = 'block';
+        defaultSvg.style.display = 'none';
       }
+      tnBtn.style.visibility = 'hidden';
+      tnBtn.style.pointerEvents = 'none';
     }
   });
 
@@ -3622,6 +3889,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
     <div class="mini-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
       oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
+    <button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'inline-comment-${p.id}')" title="Emojis" style="font-size:16px;padding:2px 4px;opacity:.45">😊</button>
     <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
   </div>
 </div>`;
@@ -4151,12 +4419,15 @@ async function renderSuggestions() {
   const el = document.getElementById('suggestions-list');
   if (!el) return;
   try {
-  // Busca humanos e NPCs juntos, exclui o usuário logado
-  const { data: allUsers } = await db
+  // Busca usuários do mesmo RPG do perfil logado, exclui o próprio usuário
+  let sugQuery = db
     .from('users')
     .select('id,username,color,avatar_url,rpg,is_npc')
-    .neq('id', currentUser.id)
-    .limit(30);
+    .neq('id', currentUser.id);
+  if (currentUser.rpg) {
+    sugQuery = sugQuery.eq('rpg', currentUser.rpg);
+  }
+  const { data: allUsers } = await sugQuery.limit(30);
   if (!allUsers || !allUsers.length) { el.innerHTML = ''; return; }
 
   // Embaralha Fisher-Yates e pega até 5
@@ -4238,8 +4509,8 @@ async function toggleFollow(btn, userId, username) {
 
 // ── Explore ───────────────────────────────────────────────
 // ── Explore com paginação infinita ───────────────────────
-const EXPLORE_FIRST_SIZE = 25; // itens no primeiro carregamento
-const EXPLORE_PAGE_SIZE  = 9;  // itens por página subsequente
+const EXPLORE_FIRST_SIZE = 12; // itens no primeiro carregamento
+const EXPLORE_PAGE_SIZE  = 3;  // itens por página subsequente
 let _explorePage    = 0;      // próxima página a carregar (0-based, após o primeiro)
 let _exploreQuery   = '';     // filtro de busca ativo
 let _exploreLoading = false;  // evita requisições duplas
@@ -4257,7 +4528,77 @@ async function renderExplore(query) {
   const grid = document.getElementById('explore-grid');
   if (!grid) return;
   grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
+
+  // Busca e renderiza perfis quando há query
+  await _exploreSearchProfiles(_exploreQuery);
+
   await _exploreLoadMore(true);
+}
+
+async function _exploreSearchProfiles(query) {
+  const container = document.getElementById('explore-profiles');
+  if (!container) return;
+  if (!query || !query.trim()) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+  const q = query.trim().toLowerCase();
+  const { data: users } = await db.from('users')
+    .select('id,username,name,color,avatar_url,rpg,is_npc')
+    .or(`username.ilike.%${q}%,name.ilike.%${q}%`)
+    .limit(8);
+
+  const myColor = currentUser?.color || '#e53935';
+
+  // Chip de busca por termo (sempre mostra quando há query)
+  const searchChip = `
+    <div style="padding:10px 14px 4px">
+      <div onclick="renderExplore('${q.replace(/'/g,"\\'")}');document.getElementById('explore-profiles').style.display='none';"
+        style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1.5px solid #dbdbdb;border-radius:24px;cursor:pointer;transition:background .12s;font-family:'Nunito',sans-serif"
+        onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8e8e8e" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span style="font-size:13px;font-weight:700;color:#262626">Ver publicações e perfis com "<span style="color:${myColor}">${q}</span>"</span>
+      </div>
+    </div>`;
+
+  if (!users || !users.length) {
+    container.innerHTML = searchChip;
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    return;
+  }
+
+  container.innerHTML =
+    searchChip +
+    '<div style="font-size:12px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px;padding:10px 14px 6px">Perfis</div>' +
+    users.map(u => {
+      const av = u.avatar_url
+        ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : `<span style="font-size:16px;font-weight:800;color:#fff;font-family:Nunito,sans-serif">${(u.username||'?')[0].toUpperCase()}</span>`;
+      const avBg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+      const rpgLabel = u.rpg === 'kingdom_platinum' ? 'Kingdom Platinum'
+                     : u.rpg === 'pchapters'        ? 'PChapters'
+                     : (u.is_npc ? 'Personagem' : 'Treinador');
+      const npcBadge = u.is_npc
+        ? '<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;background:#9e9e9e;color:#fff;margin-left:5px;vertical-align:middle">NPC</span>'
+        : '';
+      const isFollowing = !!(typeof followState !== 'undefined' && followState[u.id]);
+      const btnStyle = isFollowing ? 'color:#8e8e8e' : `color:${myColor}`;
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" onclick="showUserProfile('${u.username}')">
+        <div style="width:44px;height:44px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden">${av}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:#262626;font-family:Nunito,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.username}${npcBadge}</div>
+          <div style="font-size:12px;color:#8e8e8e;font-family:Nunito,sans-serif">${u.name ? u.name + ' · ' : ''}${rpgLabel}</div>
+        </div>
+        <button style="background:none;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:Nunito,sans-serif;white-space:nowrap;${btnStyle}" id="ep-follow-${u.id}"
+          onclick="event.stopPropagation();toggleFollow(this,'${u.id}','${u.username}')">${isFollowing ? 'Seguindo' : 'Seguir'}</button>
+      </div>`;
+    }).join('') +
+    '<div style="height:1px;background:#efefef;margin:8px 0"></div>';
+
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
 }
 
 async function _exploreLoadMore(reset) {
@@ -4353,9 +4694,40 @@ function doSearch(q) {
       if (si) { si.value = q; si.focus(); }
     });
   } else {
-    renderExplore(q);
+    if (!q || !q.trim()) {
+      // Apagou a busca: esconde perfis E recarrega o grid original
+      _exploreSearchProfiles('');
+      renderExplore('');
+      const si = document.getElementById('search-input');
+      if (si) si.value = '';
+    } else {
+      renderExplore(q);
+    }
   }
 }
+
+// ── Busca no topnav desktop ───────────────────────────────
+function topnavSearch(q) {
+  doSearch(q);
+}
+
+// Fechar dropdown de perfis ao clicar fora
+document.addEventListener('click', e => {
+  const dropdown = document.getElementById('explore-profiles');
+  if (!dropdown || dropdown.style.display === 'none') return;
+  const searchInput   = document.getElementById('search-input');
+  const topnavInput   = document.getElementById('topnav-search-input');
+  const searchWrap    = searchInput?.closest('.search-wrap, .explore-top');
+  const topnavWrap    = topnavInput?.closest('.topnav-search');
+  if (
+    dropdown.contains(e.target) ||
+    (searchWrap  && searchWrap.contains(e.target)) ||
+    (topnavWrap  && topnavWrap.contains(e.target)) ||
+    e.target === searchInput ||
+    e.target === topnavInput
+  ) return;
+  dropdown.style.display = 'none';
+}, true);
 
 // ── Avatar color palette ──────────────────────────────────
 const AVATAR_COLORS = [
@@ -4695,9 +5067,76 @@ async function submitEditProfile() {
   document.documentElement.style.setProperty('--user-color', color || '#e53935');
   renderSidebarAvatar();
   applyUserColor(color);
+  _closeProfileSetupMode();
   closeModal('modal-edit-profile');
   await renderProfile(currentUser.username);
   toast('Perfil atualizado! ✨');
+}
+
+// ── Alterar senha no editar perfil ───────────────────────
+function toggleEpPasswordSection() {
+  const section = document.getElementById('ep-password-section');
+  const icon    = document.getElementById('ep-pw-toggle-icon');
+  if (!section) return;
+  const open = section.style.display === 'flex';
+  section.style.display = open ? 'none' : 'flex';
+  if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+  // limpa feedbacks ao fechar
+  if (open) {
+    ['ep-pw-atual','ep-pw-nova','ep-pw-conf'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['ep-pw-err','ep-pw-ok'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  }
+}
+
+function epTogglePw(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+  else { input.type = 'password'; btn.textContent = '👁'; }
+}
+
+async function submitChangePw() {
+  const atual = document.getElementById('ep-pw-atual')?.value || '';
+  const nova  = document.getElementById('ep-pw-nova')?.value  || '';
+  const conf  = document.getElementById('ep-pw-conf')?.value  || '';
+  const errEl = document.getElementById('ep-pw-err');
+  const okEl  = document.getElementById('ep-pw-ok');
+  const btn   = document.querySelector('#ep-password-section button[onclick="submitChangePw()"]');
+
+  errEl.style.display = okEl.style.display = 'none';
+
+  if (!atual)          { errEl.textContent = 'Informe a senha atual.'; errEl.style.display = 'block'; return; }
+  if (nova.length < 6) { errEl.textContent = 'A nova senha deve ter ao menos 6 caracteres.'; errEl.style.display = 'block'; return; }
+  if (nova !== conf)   { errEl.textContent = 'As novas senhas não coincidem.'; errEl.style.display = 'block'; return; }
+
+  if (btn) { btn.textContent = 'Salvando...'; btn.disabled = true; }
+
+  try {
+    // Reautentica para verificar a senha atual
+    const userEmail = (await db.auth.getUser()).data?.user?.email;
+    if (!userEmail) throw new Error('Sessão expirada. Faça login novamente.');
+
+    const { error: signInErr } = await db.auth.signInWithPassword({ email: userEmail, password: atual });
+    if (signInErr) {
+      errEl.textContent = 'Senha atual incorreta.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    // Atualiza a senha
+    const { error: updateErr } = await db.auth.updateUser({ password: nova });
+    if (updateErr) throw updateErr;
+
+    // Limpa campos e mostra sucesso
+    ['ep-pw-atual','ep-pw-nova','ep-pw-conf'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    okEl.style.display = 'block';
+    setTimeout(() => { okEl.style.display = 'none'; toggleEpPasswordSection(); }, 2500);
+  } catch (err) {
+    errEl.textContent = 'Erro ao alterar senha: ' + (err.message || err);
+    errEl.style.display = 'block';
+  } finally {
+    if (btn) { btn.textContent = 'Salvar nova senha'; btn.disabled = false; }
+  }
 }
 
 // ── New Story ─────────────────────────────────────────────
@@ -5359,6 +5798,8 @@ window.addEventListener('popstate', async () => {
 
 // ── Roteamento — executado após todas as funções estarem definidas ──
 if (IS_ADM) {
+  sessionStorage.setItem('pg_adm_mode', '1');
+  hideSplash();
   document.getElementById('pokegram-root').style.display = 'none';
   document.getElementById('adm-root').style.display = 'block';
   document.body.classList.add('adm-body');
@@ -5369,6 +5810,14 @@ if (IS_ADM) {
   applyLogos();
   initPokegram();
 }
+
+// ── Suporte a navegação por hash para ADM ──────────────────
+window.addEventListener('hashchange', () => {
+  if ((window.location.hash === '#adm' || window.location.hash.startsWith('#adm')) && !IS_ADM) {
+    sessionStorage.setItem('pg_adm_mode', '1');
+    location.reload();
+  }
+});
 </script>
 
 <!-- CROPPER MODAL -->
@@ -5766,7 +6215,7 @@ if (typeof db !== 'undefined') loadFilters();
       <button onclick="chatCancelReply()" style="background:none;border:none;cursor:pointer;font-size:16px;color:#999;padding:0;line-height:1">✕</button>
     </div>
     <div class="chat-input-bar">
-      <input type="text" id="chat-msg-input" placeholder="Mensagem..." maxlength="500"
+      <button class="emoji-trigger" type="button" onclick="toggleEmojiPicker(this,'chat-msg-input')" title="Emojis">😊</button><input type="text" id="chat-msg-input" placeholder="Mensagem..." maxlength="500"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSendMessage();}">
       <button class="chat-send-btn" onclick="chatSendMessage()" title="Enviar">
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
@@ -6018,10 +6467,13 @@ function chatRenderMessages() {
     const mtype = msg.meta_type || '';
 
     // preview de reply
-    if (msg.reply_to_id && msg.reply_preview) {
+    if (msg.reply_to_id) {
+      const isSent = msg.sender_id === currentUser.username;
       const replyDiv = document.createElement('div');
-      replyDiv.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;padding:5px 8px;background:rgba(0,0,0,0.07);border-radius:6px;border-left:3px solid var(--user-color,#e53935);cursor:pointer';
-      replyDiv.innerHTML = `<div style="min-width:0"><div style="font-size:10px;font-weight:700;color:var(--user-color,#e53935)">${_escHtml(msg.reply_sender||'')}</div><div style="font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(msg.reply_preview)}</div></div>`;
+      replyDiv.style.cssText = `display:flex;flex-direction:column;gap:2px;margin:-8px -12px 8px -12px;padding:7px 12px 8px;background:${isSent ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.10)'};border-radius:14px 14px 0 0;border-bottom:1px solid ${isSent ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'};cursor:pointer`;
+      const senderLabel = msg.reply_sender ? _escHtml(msg.reply_sender) : '';
+      const previewText = msg.reply_preview ? _escHtml(msg.reply_preview) : '<em style="opacity:.6">Mensagem</em>';
+      replyDiv.innerHTML = `${senderLabel ? `<div style="font-size:10px;font-weight:800;color:${isSent ? 'rgba(255,255,255,0.9)' : 'var(--user-color,#e53935)'};letter-spacing:.2px">${senderLabel}</div>` : ''}<div style="font-size:11px;color:${isSent ? 'rgba(255,255,255,0.7)' : '#555'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${previewText}</div>`;
       replyDiv.onclick = () => {
         const orig = document.getElementById('chat-msg-' + msg.reply_to_id);
         if (orig) { orig.scrollIntoView({ behavior:'smooth', block:'center' }); orig.style.background='rgba(0,149,246,.1)'; setTimeout(()=>orig.style.background='',1200); }
@@ -6031,7 +6483,8 @@ function chatRenderMessages() {
 
     if (mtype === 'story_reply') {
       bubble.className += ' chat-bubble-rich';
-      bubble.innerHTML = `
+      const storyDiv = document.createElement('div');
+      storyDiv.innerHTML = `
         <div class="chat-story-preview" onclick="openStoryViewer('${_escHtml(msg.meta_ref_id||msg.sender_id||'')}')">
           ${msg.meta_img
             ? `<img src="${_escHtml(msg.meta_img)}" style="width:100%;height:100%;object-fit:cover;display:block">`
@@ -6042,9 +6495,11 @@ function chatRenderMessages() {
           </div>
         </div>
         ${msg.content ? `<div class="chat-rich-text">${_escHtml(msg.content)}</div>` : ''}`;
+      bubble.appendChild(storyDiv);
     } else if (mtype === 'post_share') {
       bubble.className += ' chat-bubble-rich';
-      bubble.innerHTML = `
+      const postDiv = document.createElement('div');
+      postDiv.innerHTML = `
         <div class="chat-post-preview" onclick="openComments('${_escHtml(msg.meta_ref_id||'')}')">
           ${msg.meta_img
             ? `<img src="${_escHtml(msg.meta_img)}" style="width:100%;height:160px;object-fit:cover;display:block">`
@@ -6054,8 +6509,10 @@ function chatRenderMessages() {
             ${msg.meta_caption ? `<div style="font-size:12px;color:#444;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${_escHtml(msg.meta_caption)}</div>` : ''}
           </div>
         </div>`;
+      bubble.appendChild(postDiv);
     } else {
-      bubble.textContent = msg.content;
+      const textNode = document.createTextNode(msg.content);
+      bubble.appendChild(textNode);
     }
 
     const time = document.createElement('div');
@@ -6192,6 +6649,122 @@ async function chatStartConversation(peerUsername) {
   await openChatPanel();
   await chatOpenWindow(peerUser);
 }
+</script>
+
+
+<!-- Global Emoji Picker -->
+<div id="emoji-picker-popup" class="emoji-picker-popup">
+  <div class="emoji-picker-search">
+    <input type="text" id="emoji-search-input" placeholder="Buscar emoji..." oninput="_emojiSearch(this.value)">
+  </div>
+  <div class="emoji-picker-cats" id="emoji-cats"></div>
+  <div class="emoji-picker-grid-wrap">
+    <div class="emoji-grid" id="emoji-grid"></div>
+  </div>
+</div>
+
+<script>
+// ── Emoji Picker ─────────────────────────────────────────
+const EMOJI_CATS = [
+  { label:'😀', name:'Rostos & Pessoas', emojis:'😀😁😂🤣😄😅😆😉😊😋😎😍🥰😘🙂🤗🤩🤔😐😑😶😏😒🙄😬😌😔😪😴😷🤒🤢🤮🥵🥶😵🤯🤠🥳🤓😕😟☹️😮😲😳🥺😢😭😱😖😞😤😡🤬😈💀💩🤡👻👽🤖👋🤚✋👌✌️🤞👍👎✊👏🙌🤝🙏💪👀👅💋🫂' },
+  { label:'🐾', name:'Animais & Natureza', emojis:'🐶🐱🐭🐹🐰🦊🐻🐼🐨🐯🦁🐮🐷🐸🐵🐔🐧🦆🦅🦉🐝🐛🦋🐌🐞🐢🐍🦎🐙🦑🐬🐳🦈🐘🦒🦓🦌🐕🐈🌸🌼🌻🌺🌹🌷🌱🌲🌳🌴🌵🍀🍁🍂🍃🍄🌿⭐🌟✨☀️🌤⛅☁️🌧⛈❄️☃️🌀🌈🌊' },
+  { label:'🍔', name:'Comida & Bebida', emojis:'🍎🍊🍋🍌🍉🍇🍓🫐🍒🍑🍍🥥🥝🍅🥑🥦🥔🌽🌶🥒🥗🧂🍞🥐🧀🥚🍳🥞🥓🥩🍗🍔🍟🍕🌮🌯🍣🥟🍱🍚🍜🍝🧆🥘🍲🧁🍰🎂🍫🍬🍭🍩🍪🥜🍯☕🫖🍵🧋🥤🍺🍷🥂🍸🍾🧊' },
+  { label:'⚽', name:'Atividades & Viagem', emojis:'⚽🏀🏈⚾🎾🏐🎱🏓🥊🥋🏆🥇🥈🥉🏅🎖🎮🕹🎯🎲🎭🎨🎬🎤🎵🎶🎹🎸🎺🎷🥁🚗🚕🚙🚌🏎🚓🚑🚒🚲🏍✈️🛩💺🚀🛸⛵🚢🏕⛺🏖🏝🏔🌋🗺🏯🏰🗼🗽🌅🌆🌃🌉' },
+  { label:'❤️', name:'Símbolos & Pokémon', emojis:'❤️🧡💛💚💙💜🖤🤍💔💕💞💓💗💖💘💝🔥⚡💧🌿👻🪨🐉🧊🦅🧪🌙🧬🔮🎯⚔️🛡️🪄🌀🗺️📜🪙💎🔑🎁🎀🎊🎉🌟✨🌈🌸🍃🔴⚪🔵🟡🟢🟣⚫♻️✅❌⚠️💯🔔📣🎗️🏆🌐💫' },
+];
+
+let _emojiTarget  = null; // elemento onde inserir
+let _emojiCatIdx  = 0;
+
+function _initEmojiPicker() {
+  const cats = document.getElementById('emoji-cats');
+  if (!cats || cats.children.length) return;
+  cats.innerHTML = EMOJI_CATS.map((c,i) =>
+    `<button class="emoji-cat-btn${i===0?' active':''}" title="${c.name}" onclick="_emojiCat(${i})">${c.label}</button>`
+  ).join('');
+  _emojiRenderCat(0);
+}
+
+function _emojiRenderCat(idx) {
+  _emojiCatIdx = idx;
+  const grid = document.getElementById('emoji-grid');
+  if (!grid) return;
+  const emojis = [...EMOJI_CATS[idx].emojis];
+  grid.innerHTML = emojis.map(e =>
+    `<div class="emoji-btn" onclick="_insertEmoji('${e}')">${e}</div>`
+  ).join('');
+  document.querySelectorAll('.emoji-cat-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+}
+
+function _emojiCat(idx) { _emojiRenderCat(idx); document.getElementById('emoji-search-input').value = ''; }
+
+function _emojiSearch(q) {
+  const grid = document.getElementById('emoji-grid');
+  if (!grid) return;
+  if (!q) { _emojiRenderCat(_emojiCatIdx); return; }
+  const all = EMOJI_CATS.flatMap(c => [...c.emojis]);
+  // simple filter: show all (emoji search by name not feasible without dict, just show all)
+  grid.innerHTML = all.slice(0, 80).map(e =>
+    `<div class="emoji-btn" onclick="_insertEmoji('${e}')">${e}</div>`
+  ).join('');
+}
+
+function _insertEmoji(emoji) {
+  if (!_emojiTarget) return;
+  const el = _emojiTarget;
+  const start = el.selectionStart ?? el.value.length;
+  const end   = el.selectionEnd   ?? el.value.length;
+  el.value = el.value.slice(0, start) + emoji + el.value.slice(end);
+  el.selectionStart = el.selectionEnd = start + emoji.length;
+  el.focus();
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function toggleEmojiPicker(triggerEl, targetId) {
+  _initEmojiPicker();
+  const picker = document.getElementById('emoji-picker-popup');
+  const target = document.getElementById(targetId);
+  _emojiTarget = target;
+
+  if (picker.classList.contains('open') && picker.dataset.for === targetId) {
+    picker.classList.remove('open');
+    picker.dataset.for = '';
+    return;
+  }
+
+  // Position picker near trigger
+  const rect = triggerEl.getBoundingClientRect();
+  picker.style.position = 'fixed';
+
+  // Decide if it opens up or down
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const pickerH = 280;
+  if (spaceBelow < pickerH && rect.top > pickerH) {
+    picker.style.top  = (rect.top - pickerH - 4) + 'px';
+  } else {
+    picker.style.top  = (rect.bottom + 4) + 'px';
+  }
+
+  // Horizontal: align left but keep within viewport
+  let left = rect.left;
+  if (left + 300 > window.innerWidth) left = window.innerWidth - 308;
+  picker.style.left = Math.max(4, left) + 'px';
+
+  picker.dataset.for = targetId;
+  picker.classList.add('open');
+  document.getElementById('emoji-search-input').value = '';
+  _emojiRenderCat(_emojiCatIdx);
+}
+
+// Close picker when clicking outside
+document.addEventListener('click', e => {
+  const picker = document.getElementById('emoji-picker-popup');
+  if (!picker?.classList.contains('open')) return;
+  if (picker.contains(e.target)) return;
+  if (e.target.closest('.emoji-trigger')) return;
+  picker.classList.remove('open');
+  picker.dataset.for = '';
+}, true);
 </script>
 
 </body>
