@@ -545,7 +545,9 @@
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   var IS_ADM = window.location.pathname.startsWith('/adm')
     || window.location.hash === '#adm'
-    || new URLSearchParams(window.location.search).get('page') === 'adm';
+    || window.location.hash.startsWith('#adm')
+    || new URLSearchParams(window.location.search).get('page') === 'adm'
+    || sessionStorage.getItem('pg_adm_mode') === '1';
 
   // ── Logo da rede social (armazenada no Supabase) ──────────
   let _logoUrl = null;
@@ -2709,7 +2711,7 @@ function admNpcCancelarPostEdit() {
   _npcPendingPostImgFile = null;
 }
 
-function admLogout() { admClearSession(); admLogado = null; location.reload(); }
+function admLogout() { admClearSession(); sessionStorage.removeItem('pg_adm_mode'); admLogado = null; location.reload(); }
 
 function mostrarPainelAdm() {
   document.getElementById('adm-login-page').style.display = 'none';
@@ -5752,6 +5754,7 @@ window.addEventListener('popstate', async () => {
 
 // ── Roteamento — executado após todas as funções estarem definidas ──
 if (IS_ADM) {
+  sessionStorage.setItem('pg_adm_mode', '1');
   hideSplash();
   document.getElementById('pokegram-root').style.display = 'none';
   document.getElementById('adm-root').style.display = 'block';
@@ -5763,6 +5766,14 @@ if (IS_ADM) {
   applyLogos();
   initPokegram();
 }
+
+// ── Suporte a navegação por hash para ADM ──────────────────
+window.addEventListener('hashchange', () => {
+  if ((window.location.hash === '#adm' || window.location.hash.startsWith('#adm')) && !IS_ADM) {
+    sessionStorage.setItem('pg_adm_mode', '1');
+    location.reload();
+  }
+});
 </script>
 
 <!-- CROPPER MODAL -->
