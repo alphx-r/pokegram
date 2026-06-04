@@ -290,22 +290,6 @@
         </div>
       </div>
 
-      <!-- VIEW POKÉETS PERFIL -->
-      <div id="view-pokeets-profile" class="view hidden">
-        <div class="pokeets-layout">
-          <div class="pokeets-center">
-            <div id="pkp-header" class="pkp-header"></div>
-            <div class="pokeets-divider"></div>
-            <div id="pkp-feed"></div>
-          </div>
-          <aside class="pokeets-aside">
-            <div class="pk-trend-box">
-              <div class="pk-trend-title">Tendências</div>
-              <div id="pokeets-trends-profile"></div>
-            </div>
-          </aside>
-        </div>
-      </div>
 
       <!-- MODAL POKÉET THREAD -->
       <div id="modal-pokeet-thread" class="modal hidden">
@@ -3123,15 +3107,12 @@ async function initApp(user) {
   const urlPath = window.location.pathname.slice(1).split('?')[0];
   const _pmParts = urlPath.split('/post/'); const postMatch = (_pmParts.length === 2 && _pmParts[0]) ? _pmParts : null;
 
-  const pokeetProfileMatch = urlPath.startsWith('pokeets/') ? urlPath.slice('pokeets/'.length) : null;
   if (!urlPath || urlPath === 'feed') {
     showView('feed').catch(() => {});
   } else if (urlPath === 'explore') {
     showView('explore').catch(() => {});
   } else if (urlPath === 'pokeets') {
     showView('pokeets').catch(() => {});
-  } else if (pokeetProfileMatch) {
-    showPkProfile(pokeetProfileMatch).catch(() => {});
   } else if (postMatch) {
     // /username/post/id — abre o feed e depois o modal do post
     showView('feed').then(() => openComments(postMatch[1])).catch(() => {});
@@ -3201,7 +3182,6 @@ async function showView(name) {
   if (name === 'profile') await renderProfile(currentUser.username);
   if (name === 'pokeets') { history.replaceState(null,'','/pokeets');
     await renderPokeets(); }
-  // pokeets-profile: showPkProfile cuida do conteúdo; showView só troca a view
 
   currentViewHistory.push(name);
   window.scrollTo(0, 0);
@@ -5321,10 +5301,6 @@ window.addEventListener('popstate', async () => {
     closeModal('modal-comments');
     closeStoryViewer();
     await showView('pokeets');
-  } else if (urlPath.startsWith('pokeets/')) {
-    closeModal('modal-comments');
-    closeStoryViewer();
-    await showPkProfile(urlPath.slice('pokeets/'.length));
   } else if (postMatch) {
     // /username/post/id — SEMPRE fecha modais, carrega o feed e abre o modal-comments.
     // Nunca abre página separada: o modal é a única forma de visualizar um post.
@@ -6782,146 +6758,7 @@ function pkSearchHashtag(tag) {
 }
 
 // ── Pokéets Profile ──────────────────────────────────────
-async function showPkProfile(username) {
-  if (!username) return;
-
-  await showView('pokeets-profile');
-  history.replaceState(null, '', '/pokeets/' + username);
-
-  const header = document.getElementById('pkp-header');
-  const feed   = document.getElementById('pkp-feed');
-  const trends = document.getElementById('pokeets-trends-profile');
-  if (!header || !feed) return;
-
-  // Skeleton — mesmo visual do /user
-  header.innerHTML = `
-    <div class="pkp-header">
-      <div class="pkp-topbar">
-        <button class="pkp-back-btn" onclick="showView('pokeets')">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-        </button>
-        <div class="pkp-topbar-info">
-          <div style="width:120px;height:16px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
-          <div style="width:70px;height:12px;background:#efefef;border-radius:6px;margin-top:4px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
-        </div>
-      </div>
-      <div class="pkp-banner" style="background:#e0e0e0"></div>
-      <div class="pkp-identity">
-        <div style="width:72px;height:72px;border-radius:50%;background:#e0e0e0;border:4px solid #fff;margin-top:-36px;margin-bottom:10px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-          <div style="width:140px;height:18px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
-          <div style="width:100px;height:13px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
-        </div>
-      </div>
-    </div>`;
-
-  feed.innerHTML = `<div class="pk-loading">${[1,2,3].map(() => `
-    <div class="pk-skeleton">
-      <div class="pk-skel-avatar"></div>
-      <div class="pk-skel-body">
-        <div class="pk-skel-line" style="width:40%"></div>
-        <div class="pk-skel-line" style="width:90%"></div>
-        <div class="pk-skel-line" style="width:70%"></div>
-      </div>
-    </div>`).join('')}</div>`;
-
-  try {
-    const { data: u, error: uErr } = await db.from('users')
-      .select('id, username, name, color, avatar_url, bio, pronoun, pokemon, rpg')
-      .eq('username', username)
-      .maybeSingle();
-    if (uErr) throw uErr;
-    if (!u) {
-      header.innerHTML = `<div class="profile-page"><button class="pkp-back-btn" onclick="showView('pokeets')" style="margin-bottom:16px">← Pokéets</button><div class="pk-thread-empty">Usuário não encontrado.</div></div>`;
-      feed.innerHTML = '';
-      return;
-    }
-
-    const { count: pkCount } = await db.from('pokeets')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', u.id)
-      .is('reply_to_id', null);
-
-    const color      = u.color || '#e53935';
-    const avatarInner = u.avatar_url
-      ? `<img src="${esc(u.avatar_url)}" alt="${esc(u.username)}">`
-      : `<span>${initials(u.username || '?')}</span>`;
-    const avatarBg = u.avatar_url ? 'transparent' : color;
-    const count    = pkCount || 0;
-    const isMe     = u.username === currentUser?.username;
-
-    header.innerHTML = `
-      <div class="pkp-header">
-        <div class="pkp-topbar">
-          <button class="pkp-back-btn" onclick="showView('pokeets')">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-          </button>
-          <div class="pkp-topbar-info">
-            <span class="pkp-topbar-name">${esc(u.name || u.username)}</span>
-            <span class="pkp-topbar-sub">${count} pokéets</span>
-          </div>
-        </div>
-        <div class="pkp-banner" style="background:linear-gradient(135deg,${color} 0%,${color}cc 55%,#1a1a1a 100%)"></div>
-        <div class="pkp-identity">
-          <div class="pkp-identity-row">
-            <div class="pkp-header-avatar" style="background:${avatarBg}" onclick="${isMe ? 'openEditProfile()' : ''}">${avatarInner}</div>
-            <div style="flex:1"></div>
-            ${isMe
-              ? `<button class="btn-edit-profile" style="margin-top:8px" onclick="openEditProfile()">Editar perfil</button>`
-              : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" style="margin-top:8px" onclick="toggleFollow(this,'${u.id}','${esc(u.username)}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
-            }
-          </div>
-          <div class="pkp-header-info" style="margin-top:4px">
-            <span class="pkp-header-name">${esc(u.name || u.username)}${u.rpg ? `<span class="rpg-profile-badge" style="margin-left:6px">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}</span>
-            <span class="pkp-header-user">@${esc(u.username)}${u.pronoun ? ` · ${esc(u.pronoun)}` : ''}</span>
-            ${u.pokemon ? `<div style="font-size:13px;color:#8e8e8e;margin-top:4px">⭐ ${esc(u.pokemon)}</div>` : ''}
-            ${u.bio ? `<div style="font-size:14px;color:#262626;margin-top:6px;white-space:pre-wrap">${esc(u.bio)}</div>` : ''}
-          </div>
-          <div class="pkp-stats">
-            <div class="pkp-stat">
-              <span class="pkp-stat-value">${count}</span>
-              <span class="pkp-stat-label">pokéets</span>
-            </div>
-          </div>
-        </div>
-        <div class="pkp-header-divider"></div>
-        <div class="pokeets-tabs" style="margin-bottom:0">
-          <button class="pkTab active">
-            <svg viewBox="0 0 24 24" width="15" height="15" style="stroke:currentColor;fill:none;stroke-width:1.8;margin-right:4px"><path d="M21 3L9 15"/><path d="M21 3L14 21l-5-8-8-5 21-7z"/></svg>
-            Pokéets
-          </button>
-        </div>
-      </div>`;
-
-    const { data: pokeets, error: pkErr } = await db.from('pokeets')
-      .select('*')
-      .eq('user_id', u.id)
-      .is('reply_to_id', null)
-      .order('pinned', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(60);
-    if (pkErr) throw pkErr;
-
-    if (!pokeets || !pokeets.length) {
-      feed.innerHTML = '<div class="pk-thread-empty">Nenhum Pokéet ainda.</div>';
-      return;
-    }
-
-    await pkHydrateAndRender(pokeets, feed, {
-      skipFeedCache: true,
-      skipTrends: false,
-      trendsContainer: trends || undefined,
-    });
-
-  } catch(e) {
-    console.error('pkProfile error:', e);
-    header.innerHTML = `<div class="profile-page"><button class="pkp-back-btn" onclick="showView('pokeets')" style="margin-bottom:16px">← Pokéets</button><div class="pk-thread-empty">Erro: ${esc(e.message || '')}</div></div>`;
-    feed.innerHTML = '';
-  }
-}
-
-// ── showView — adiciona suporte a pokeets-profile ─────────
-// (integrado no showView principal via enterApp)
+// ── showView — integrado no showView principal via enterApp ──
 
 // ── SQL para criar as tabelas (exibido no console) ────────
 // Execute isso no SQL Editor do Supabase:
