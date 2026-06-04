@@ -6795,22 +6795,22 @@ async function showPkProfile(username) {
 
   // Skeleton — mesmo visual do /user
   header.innerHTML = `
-    <div class="profile-page" style="padding-bottom:0">
-      <button class="pkp-back-btn" onclick="showView('pokeets')" style="margin-bottom:16px">← Pokéets</button>
-      <div class="profile-header">
-        <div class="profile-avatar-wrap">
-          <div class="profile-avatar" style="background:#e0e0e0;animation:pkSkel .9s ease-in-out infinite alternate"></div>
+    <div class="pkp-header">
+      <div class="pkp-topbar">
+        <button class="pkp-back-btn" onclick="showView('pokeets')">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="pkp-topbar-info">
+          <div style="width:120px;height:16px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
+          <div style="width:70px;height:12px;background:#efefef;border-radius:6px;margin-top:4px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
         </div>
-        <div class="profile-meta">
-          <div class="profile-top-row">
-            <div style="width:140px;height:20px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
-          </div>
-          <div class="profile-stats">
-            <div style="width:70px;height:16px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
-          </div>
-        </div>
-        <div class="profile-bio">
-          <div style="width:100px;height:14px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
+      </div>
+      <div class="pkp-banner" style="background:#e0e0e0"></div>
+      <div class="pkp-identity">
+        <div style="width:72px;height:72px;border-radius:50%;background:#e0e0e0;border:4px solid #fff;margin-top:-36px;margin-bottom:10px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <div style="width:140px;height:18px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
+          <div style="width:100px;height:13px;background:#efefef;border-radius:6px;animation:pkSkel .9s ease-in-out infinite alternate"></div>
         </div>
       </div>
     </div>`;
@@ -6851,34 +6851,43 @@ async function showPkProfile(username) {
     const isMe     = u.username === currentUser?.username;
 
     header.innerHTML = `
-      <div class="profile-page" style="padding-bottom:0">
-        <button class="pkp-back-btn" onclick="showView('pokeets')" style="margin-bottom:16px">← Pokéets</button>
-        <div class="profile-header">
-          <div class="profile-avatar-wrap">
-            <div class="profile-avatar" style="background:${avatarBg}">${avatarInner}</div>
-          </div>
-          <div class="profile-meta">
-            <div class="profile-top-row">
-              <span class="profile-username-text">${esc(u.username)}</span>
-              ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
-              ${isMe
-                ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
-                : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" onclick="toggleFollow(this,'${u.id}','${esc(u.username)}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
-              }
-            </div>
-            <div class="profile-stats">
-              <div class="stat-item"><strong>${count}</strong><span> pokéets</span></div>
-            </div>
-          </div>
-          <div class="profile-bio">
-            <div class="prof-name">${esc(u.name || u.username)}${u.pronoun ? `<span style="font-size:12px;font-weight:400;color:#8e8e8e;margin-left:6px">(${esc(u.pronoun)})</span>` : ''}</div>
-            ${u.pokemon ? `<div class="prof-starter">⭐ ${esc(u.pokemon)}</div>` : ''}
-            ${u.bio ? `<div class="prof-desc">${esc(u.bio)}</div>` : ''}
+      <div class="pkp-header">
+        <div class="pkp-topbar">
+          <button class="pkp-back-btn" onclick="showView('pokeets')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          </button>
+          <div class="pkp-topbar-info">
+            <span class="pkp-topbar-name">${esc(u.name || u.username)}</span>
+            <span class="pkp-topbar-sub">${count} pokéets</span>
           </div>
         </div>
-        <div class="profile-tabs">
-          <button class="tab-btn active">
-            <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8"><path d="M21 3L9 15"/><path d="M21 3L14 21l-5-8-8-5 21-7z"/></svg>
+        <div class="pkp-banner" style="background:linear-gradient(135deg,${color} 0%,${color}cc 55%,#1a1a1a 100%)"></div>
+        <div class="pkp-identity">
+          <div class="pkp-identity-row">
+            <div class="pkp-header-avatar" style="background:${avatarBg}" onclick="${isMe ? 'openEditProfile()' : ''}">${avatarInner}</div>
+            <div style="flex:1"></div>
+            ${isMe
+              ? `<button class="btn-edit-profile" style="margin-top:8px" onclick="openEditProfile()">Editar perfil</button>`
+              : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" style="margin-top:8px" onclick="toggleFollow(this,'${u.id}','${esc(u.username)}')">${followState[u.id]?'Seguindo':'Seguir'}</button>`
+            }
+          </div>
+          <div class="pkp-header-info" style="margin-top:4px">
+            <span class="pkp-header-name">${esc(u.name || u.username)}${u.rpg ? `<span class="rpg-profile-badge" style="margin-left:6px">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}</span>
+            <span class="pkp-header-user">@${esc(u.username)}${u.pronoun ? ` · ${esc(u.pronoun)}` : ''}</span>
+            ${u.pokemon ? `<div style="font-size:13px;color:#8e8e8e;margin-top:4px">⭐ ${esc(u.pokemon)}</div>` : ''}
+            ${u.bio ? `<div style="font-size:14px;color:#262626;margin-top:6px;white-space:pre-wrap">${esc(u.bio)}</div>` : ''}
+          </div>
+          <div class="pkp-stats">
+            <div class="pkp-stat">
+              <span class="pkp-stat-value">${count}</span>
+              <span class="pkp-stat-label">pokéets</span>
+            </div>
+          </div>
+        </div>
+        <div class="pkp-header-divider"></div>
+        <div class="pokeets-tabs" style="margin-bottom:0">
+          <button class="pkTab active">
+            <svg viewBox="0 0 24 24" width="15" height="15" style="stroke:currentColor;fill:none;stroke-width:1.8;margin-right:4px"><path d="M21 3L9 15"/><path d="M21 3L14 21l-5-8-8-5 21-7z"/></svg>
             Pokéets
           </button>
         </div>
