@@ -477,6 +477,267 @@
   #chat-panel { width: 100vw; right: -100vw; }
 }
 
+/* ══════════════════════════════════════════
+   POKÉETS — estilos
+══════════════════════════════════════════ */
+.pokeets-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px 80px;
+  align-items: start;
+}
+.pokeets-center { min-width: 0; }
+.pokeets-aside  { position: sticky; top: 72px; }
+
+/* Composer */
+.pokeet-composer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0 12px;
+  border-bottom: 1px solid var(--border, #efefef);
+}
+.pokeet-composer-avatar {
+  width: 42px; height: 42px; border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: #fff;
+  overflow: hidden; font-family: 'Nunito', sans-serif;
+}
+.pokeet-composer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pokeet-composer-body { flex: 1; min-width: 0; }
+.pokeet-composer-input {
+  width: 100%; border: none; outline: none; resize: none;
+  font-family: 'Nunito', sans-serif; font-size: 16px; color: var(--text, #262626);
+  background: transparent; line-height: 1.5; min-height: 56px; max-height: 200px;
+  overflow-y: auto;
+}
+.pokeet-composer-input::placeholder { color: #aaa; }
+.pokeet-composer-footer {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 12px; margin-top: 8px;
+}
+.pkc-char-wrap { position: relative; width: 28px; height: 28px; }
+.pkc-ring { width: 28px; height: 28px; transform: rotate(-90deg); }
+.pkc-ring-bg   { fill: none; stroke: #efefef; stroke-width: 3; }
+.pkc-ring-fill {
+  fill: none; stroke: #e53935; stroke-width: 3;
+  stroke-dasharray: 88; stroke-dashoffset: 0;
+  stroke-linecap: round; transition: stroke-dashoffset .15s, stroke .15s;
+}
+.pkc-char-text {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 8px; font-weight: 700;
+  color: var(--text, #262626); font-family: 'Nunito', sans-serif;
+}
+.pokeet-btn-post {
+  padding: 7px 18px; border-radius: 20px; border: none;
+  background: #e53935; color: #fff; font-family: 'Nunito', sans-serif;
+  font-size: 14px; font-weight: 800; cursor: pointer; transition: all .15s;
+  letter-spacing: .3px;
+}
+.pokeet-btn-post:disabled { opacity: .45; cursor: default; }
+.pokeet-btn-post:not(:disabled):hover { background: #c62828; transform: scale(1.03); }
+
+/* Tabs */
+.pokeets-divider { height: 1px; background: var(--border, #efefef); }
+.pokeets-tabs {
+  display: flex; border-bottom: 1px solid var(--border, #efefef);
+}
+.pkTab {
+  flex: 1; padding: 14px 8px; background: none; border: none;
+  font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 700;
+  color: #8e8e8e; cursor: pointer; transition: all .15s;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.pkTab.active { color: var(--text, #262626); border-bottom-color: #e53935; }
+.pkTab:hover:not(.active) { background: #f8f8f8; }
+
+/* Pokéet card */
+.pokeet-card {
+  display: flex; gap: 12px; padding: 14px 4px;
+  border-bottom: 1px solid var(--border, #efefef);
+  transition: background .1s;
+  cursor: pointer;
+}
+.pokeet-card:hover { background: #fafafa; }
+.pk-card-avatar {
+  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: #fff;
+  overflow: hidden; font-family: 'Nunito', sans-serif;
+}
+.pk-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pk-card-body { flex: 1; min-width: 0; }
+.pk-card-header {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+.pk-card-name  { font-size: 14px; font-weight: 800; color: var(--text, #262626); font-family: 'Nunito', sans-serif; }
+.pk-card-user  { font-size: 13px; color: #8e8e8e; font-family: 'Nunito', sans-serif; }
+.pk-card-time  { font-size: 12px; color: #aaa; font-family: 'Nunito', sans-serif; margin-left: auto; }
+.pk-card-text  {
+  font-size: 15px; color: var(--text, #262626); line-height: 1.55;
+  font-family: 'Nunito', sans-serif; word-break: break-word; white-space: pre-wrap;
+}
+.pk-card-text .pk-mention { color: #e53935; font-weight: 700; cursor: pointer; }
+.pk-card-text .pk-hashtag { color: #0095f6; cursor: pointer; }
+.pk-card-repost-label {
+  font-size: 12px; color: #8e8e8e; font-weight: 700;
+  display: flex; align-items: center; gap: 4px; margin-bottom: 6px;
+  font-family: 'Nunito', sans-serif;
+}
+.pk-repost-quote {
+  border: 1px solid var(--border, #efefef); border-radius: 12px;
+  padding: 10px 12px; margin-top: 8px; background: #fafafa;
+  cursor: pointer;
+}
+.pk-repost-quote:hover { background: #f2f2f2; }
+.pk-repost-quote-header {
+  display: flex; gap: 6px; align-items: center; margin-bottom: 4px;
+}
+.pk-rq-avatar {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 800; color: #fff; flex-shrink: 0;
+  overflow: hidden;
+}
+.pk-rq-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pk-rq-name { font-size: 13px; font-weight: 800; color: var(--text, #262626); font-family: 'Nunito', sans-serif; }
+.pk-rq-user { font-size: 12px; color: #8e8e8e; font-family: 'Nunito', sans-serif; }
+.pk-rq-text  {
+  font-size: 14px; color: var(--text, #262626); line-height: 1.5;
+  font-family: 'Nunito', sans-serif; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Actions bar */
+.pk-actions {
+  display: flex; gap: 0; margin-top: 10px;
+  margin-left: -6px;
+}
+.pk-action-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 8px; border: none; background: none; cursor: pointer;
+  font-family: 'Nunito', sans-serif; font-size: 13px; color: #8e8e8e;
+  border-radius: 20px; transition: all .12s;
+}
+.pk-action-btn:hover { background: rgba(229,57,53,.08); color: #e53935; }
+.pk-action-btn.liked  { color: #e53935; }
+.pk-action-btn.liked svg { fill: #e53935; }
+.pk-action-btn.reposted  { color: #1a9a1a; }
+.pk-action-btn.reposted svg { stroke: #1a9a1a; }
+.pk-action-btn svg { flex-shrink: 0; }
+
+/* Pinned */
+.pk-pinned-label {
+  font-size: 12px; color: #8e8e8e; font-weight: 700;
+  display: flex; align-items: center; gap: 4px; margin-bottom: 6px;
+  font-family: 'Nunito', sans-serif;
+}
+.pk-card-pinned { background: #fffbf0; }
+.pk-card-pinned:hover { background: #fff8e8; }
+
+/* Thread modal */
+.pk-thread-box { max-width: 560px; max-height: 90vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.pk-thread-content { overflow-y: auto; flex: 1; padding: 0 20px; }
+.pk-thread-root    { padding: 16px 0 0; border-bottom: 1px solid var(--border, #efefef); }
+.pk-thread-replies { padding-top: 0; }
+.pk-thread-reply   { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border, #efefef); }
+.pk-thread-reply:last-child { border-bottom: none; }
+.pk-reply-composer {
+  display: flex; gap: 12px; padding: 12px 20px 16px;
+  border-top: 1px solid var(--border, #efefef); flex-shrink: 0;
+}
+.pk-thread-empty {
+  text-align: center; padding: 32px 20px;
+  color: #8e8e8e; font-size: 14px; font-family: 'Nunito', sans-serif;
+}
+
+/* Repost modal */
+#modal-pokeet-repost .modal-box {
+  max-width: 420px; padding: 20px;
+}
+.pk-repost-options { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.pk-repost-opt-btn {
+  padding: 12px 16px; border-radius: 10px; border: 1.5px solid var(--border, #efefef);
+  background: #fff; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all .15s; text-align: left; color: var(--text, #262626);
+  display: flex; align-items: center; gap: 10px;
+}
+.pk-repost-opt-btn:hover { background: #f5f5f5; border-color: #ccc; }
+
+/* Repost quote composer */
+.pk-repost-quote-composer { padding: 0 0 12px; }
+.pk-rqc-preview {
+  border: 1px solid var(--border, #efefef); border-radius: 10px;
+  padding: 10px 12px; background: #fafafa; margin-top: 8px;
+}
+
+/* Trend box */
+.pk-trend-box {
+  background: #f8f8f8; border-radius: 16px; padding: 16px; overflow: hidden;
+}
+.pk-trend-title {
+  font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 800;
+  color: var(--text, #262626); margin-bottom: 12px;
+}
+.pk-trend-item {
+  padding: 8px 0; border-bottom: 1px solid #efefef; cursor: pointer;
+}
+.pk-trend-item:last-child { border-bottom: none; }
+.pk-trend-item:hover .pk-trend-tag { color: #e53935; }
+.pk-trend-cat  { font-size: 11px; color: #8e8e8e; font-family: 'Nunito', sans-serif; }
+.pk-trend-tag  { font-size: 14px; font-weight: 800; color: var(--text, #262626); font-family: 'Nunito', sans-serif; transition: color .12s; }
+.pk-trend-count{ font-size: 11px; color: #aaa; font-family: 'Nunito', sans-serif; }
+
+/* Loading pokéets */
+.pk-loading {
+  display: flex; flex-direction: column; gap: 16px; padding: 24px 0;
+}
+.pk-skeleton {
+  display: flex; gap: 12px;
+}
+.pk-skel-avatar {
+  width: 42px; height: 42px; border-radius: 50%; background: #efefef;
+  flex-shrink: 0; animation: pkSkel .9s ease-in-out infinite alternate;
+}
+.pk-skel-body  { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.pk-skel-line  { height: 12px; border-radius: 6px; background: #efefef; animation: pkSkel .9s ease-in-out infinite alternate; }
+@keyframes pkSkel { from { opacity: 1; } to { opacity: .4; } }
+
+/* Pin button in menu */
+.pk-menu { position: relative; }
+.pk-menu-btn {
+  padding: 4px 8px; border: none; background: none;
+  cursor: pointer; color: #aaa; border-radius: 6px; font-size: 18px; line-height: 1;
+  transition: all .1s;
+}
+.pk-menu-btn:hover { background: #f0f0f0; color: #555; }
+.pk-dropdown {
+  position: absolute; right: 0; top: 28px; min-width: 160px;
+  background: #fff; border: 1px solid #efefef; border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.12); z-index: 100; overflow: hidden;
+  display: none;
+}
+.pk-dropdown.open { display: block; }
+.pk-dd-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; font-size: 13px; font-weight: 700;
+  font-family: 'Nunito', sans-serif; cursor: pointer; transition: background .1s;
+  color: var(--text, #262626);
+}
+.pk-dd-item:hover { background: #f5f5f5; }
+.pk-dd-item.danger { color: #e53935; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pokeets-layout { grid-template-columns: 1fr; padding: 0 12px 80px; }
+  .pokeets-aside  { display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -650,6 +911,9 @@
         <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
           <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
+        <button class="tn-btn" id="btn-pokeets" onclick="showView('pokeets')" title="Pokéets">
+          <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L9 15"/><path d="M21 3L14 21l-5-8-8-5 21-7z"/></svg>
+        </button>
         <button class="tn-btn" id="btn-profile" onclick="showView('profile')" title="Perfil">
           <div class="tn-avatar" id="sn-avatar"></div>
         </button>
@@ -709,8 +973,136 @@
         <div id="user-profile-content"></div>
       </div>
 
+      <!-- VIEW POKÉETS -->
+      <div id="view-pokeets" class="view hidden">
+        <div class="pokeets-layout">
+          <div class="pokeets-center">
+            <!-- Composer -->
+            <div class="pokeet-composer" id="pokeet-composer">
+              <div class="pokeet-composer-avatar" id="pkc-avatar"></div>
+              <div class="pokeet-composer-body">
+                <textarea
+                  id="pokeet-text"
+                  class="pokeet-composer-input"
+                  placeholder="O que está acontecendo no mundo Pokémon?"
+                  maxlength="280"
+                  oninput="pkOnInput(this)"
+                ></textarea>
+                <div class="pokeet-composer-footer">
+                  <div class="pkc-char-wrap">
+                    <svg class="pkc-ring" viewBox="0 0 36 36">
+                      <circle class="pkc-ring-bg" cx="18" cy="18" r="14"/>
+                      <circle class="pkc-ring-fill" id="pkc-ring-fill" cx="18" cy="18" r="14"/>
+                    </svg>
+                    <span id="pkc-char-count" class="pkc-char-text">280</span>
+                  </div>
+                  <button class="pokeet-btn-post" id="pokeet-btn-post" onclick="submitPokeet()" disabled>Pokéet</button>
+                </div>
+              </div>
+            </div>
+            <div class="pokeets-divider"></div>
+            <!-- Tabs -->
+            <div class="pokeets-tabs" id="pokeets-tabs">
+              <button class="pkTab active" onclick="pkSwitchTab(this,'for-you')">Para você</button>
+              <button class="pkTab" onclick="pkSwitchTab(this,'following')">Seguindo</button>
+            </div>
+            <!-- Feed -->
+            <div id="pokeets-feed"></div>
+          </div>
+          <!-- Sidebar -->
+          <aside class="pokeets-aside">
+            <div class="pk-trend-box">
+              <div class="pk-trend-title">Tendências</div>
+              <div id="pokeets-trends"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- MODAL POKÉET THREAD -->
+      <div id="modal-pokeet-thread" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeModal('modal-pokeet-thread')"></div>
+        <div class="modal-box pk-thread-box">
+          <div class="modal-header">
+            <button class="modal-x" onclick="closeModal('modal-pokeet-thread')">✕</button>
+            <h3 id="pk-thread-title">Pokéet</h3>
+            <span></span>
+          </div>
+          <div id="pk-thread-content" class="pk-thread-content"></div>
+          <div class="pk-reply-composer" id="pk-reply-composer">
+            <div class="pokeet-composer-avatar" id="pk-reply-avatar"></div>
+            <div class="pokeet-composer-body">
+              <textarea
+                id="pk-reply-text"
+                class="pokeet-composer-input"
+                placeholder="Responder ao Pokéet..."
+                maxlength="280"
+                oninput="pkOnInputReply(this)"
+              ></textarea>
+              <div class="pokeet-composer-footer">
+                <div class="pkc-char-wrap">
+                  <svg class="pkc-ring" viewBox="0 0 36 36">
+                    <circle class="pkc-ring-bg" cx="18" cy="18" r="14"/>
+                    <circle class="pkc-ring-fill" id="pkc-ring-fill-reply" cx="18" cy="18" r="14"/>
+                  </svg>
+                  <span id="pkc-char-count-reply" class="pkc-char-text">280</span>
+                </div>
+                <button class="pokeet-btn-post" id="pk-reply-btn" onclick="submitPokeetReply()" disabled>Responder</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- VIEW POST (acesso direto via URL) -->
     </main>
+  </div>
+
+  <!-- MODAL POKÉET REPOST -->
+  <div id="modal-pokeet-repost" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-pokeet-repost')"></div>
+    <div class="modal-box" style="max-width:440px;padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <h3 id="pk-repost-modal-title" style="font-family:'Nunito',sans-serif;font-size:16px;font-weight:800">Repostar</h3>
+        <button class="modal-x" onclick="closeModal('modal-pokeet-repost')" style="position:static;transform:none">✕</button>
+      </div>
+      <div class="pk-repost-options">
+        <button class="pk-repost-opt-btn" id="pk-repost-simple-btn" onclick="pkRepostSimple()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          Repostar
+        </button>
+        <button class="pk-repost-opt-btn" onclick="pkOpenQuoteCompose()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Citar Pokéet
+        </button>
+      </div>
+      <!-- Quote composer (oculto por default) -->
+      <div id="pk-quote-compose-area" style="display:none;margin-top:16px">
+        <div class="pokeet-composer" style="padding:0;border:none">
+          <div class="pokeet-composer-avatar" id="pk-quote-avatar"></div>
+          <div class="pokeet-composer-body">
+            <textarea
+              id="pk-quote-text"
+              class="pokeet-composer-input"
+              placeholder="Adicione um comentário..."
+              maxlength="280"
+              oninput="pkOnInputQuote(this)"
+            ></textarea>
+            <div id="pk-quote-preview" class="pk-rqc-preview" style="display:none"></div>
+            <div class="pokeet-composer-footer">
+              <div class="pkc-char-wrap">
+                <svg class="pkc-ring" viewBox="0 0 36 36">
+                  <circle class="pkc-ring-bg" cx="18" cy="18" r="14"/>
+                  <circle class="pkc-ring-fill" id="pkc-ring-fill-quote" cx="18" cy="18" r="14"/>
+                </svg>
+                <span id="pkc-char-count-quote" class="pkc-char-text">280</span>
+              </div>
+              <button class="pokeet-btn-post" id="pk-quote-btn" onclick="submitPokeetQuote()">Citar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- MODAIS POKÉGRAM -->
@@ -3514,6 +3906,8 @@ async function showView(name) {
   if (name === 'explore') { history.replaceState(null,'','/explore');
     await renderExplore(); }
   if (name === 'profile') await renderProfile(currentUser.username);
+  if (name === 'pokeets') { history.replaceState(null,'','/pokeets');
+    await renderPokeets(); }
 
   currentViewHistory.push(name);
   window.scrollTo(0, 0);
@@ -6495,6 +6889,588 @@ async function chatStartConversation(peerUsername) {
   await openChatPanel();
   await chatOpenWindow(peerUser);
 }
+
+// ════════════════════════════════════════════════════════
+// POKÉETS — lógica completa
+// ════════════════════════════════════════════════════════
+
+let _pk = {
+  tab: 'for-you',         // aba ativa
+  feed: [],               // pokéets carregados
+  repostTarget: null,     // pokéet alvo do repost
+  threadTarget: null,     // pokéet alvo do thread
+  realtimeSub: null,
+};
+
+// ── Helpers ──────────────────────────────────────────────
+function pkAvatar(user, size) {
+  const sz = size || 42;
+  const color = user.avatar_color || user.color || '#e53935';
+  const cls = size === 20 ? 'pk-rq-avatar' : (size === 42 ? 'pk-card-avatar' : 'pokeet-composer-avatar');
+  if (user.avatar_url) {
+    return `<div class="${cls}" style="width:${sz}px;height:${sz}px;background:${color}"><img src="${esc(user.avatar_url)}" alt=""></div>`;
+  }
+  return `<div class="${cls}" style="width:${sz}px;height:${sz}px;background:${color};font-size:${Math.round(sz*0.36)}px">${initials(user.username||'?')}</div>`;
+}
+
+function pkFormatText(text) {
+  if (!text) return '';
+  return esc(text)
+    .replace(/@([a-zA-Z0-9_.]+)/g, '<span class="pk-mention" onclick="event.stopPropagation();showUserProfile(\'$1\')">@$1</span>')
+    .replace(/#([^\s#<&]+)/g, '<span class="pk-hashtag" onclick="event.stopPropagation();pkSearchHashtag(\'$1\')">#$1</span>');
+}
+
+function pkTimeAgo(iso) {
+  const diff = (Date.now() - new Date(iso)) / 1000;
+  if (diff < 60)    return 'agora';
+  if (diff < 3600)  return Math.floor(diff/60)   + 'min';
+  if (diff < 86400) return Math.floor(diff/3600)  + 'h';
+  if (diff < 604800)return Math.floor(diff/86400) + 'd';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+}
+
+function pkCharRing(circleId, countId, val, max) {
+  const fill = document.getElementById(circleId);
+  const count = document.getElementById(countId);
+  if (!fill || !count) return;
+  const remaining = max - val;
+  const pct = val / max;
+  const circumference = 88;
+  const offset = circumference * (1 - pct);
+  fill.style.strokeDashoffset = offset;
+  fill.style.stroke = pct > 0.9 ? '#c62828' : pct > 0.7 ? '#ffa726' : '#e53935';
+  count.textContent = remaining;
+  count.style.color = pct > 0.9 ? '#c62828' : pct > 0.7 ? '#ffa726' : '';
+}
+
+// ── Composer ─────────────────────────────────────────────
+function pkOnInput(el) {
+  const val = el.value.length;
+  pkCharRing('pkc-ring-fill', 'pkc-char-count', val, 280);
+  const btn = document.getElementById('pokeet-btn-post');
+  if (btn) btn.disabled = val === 0;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function pkOnInputReply(el) {
+  const val = el.value.length;
+  pkCharRing('pkc-ring-fill-reply', 'pkc-char-count-reply', val, 280);
+  const btn = document.getElementById('pk-reply-btn');
+  if (btn) btn.disabled = val === 0;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function pkOnInputQuote(el) {
+  const val = el.value.length;
+  pkCharRing('pkc-ring-fill-quote', 'pkc-char-count-quote', val, 280);
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+// ── Render composer avatar ────────────────────────────────
+function pkRenderComposerAvatar() {
+  if (!currentUser) return;
+  const ids = ['pkc-avatar', 'pk-reply-avatar', 'pk-quote-avatar'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const color = currentUser.avatar_color || currentUser.color || '#e53935';
+    if (currentUser.avatar_url) {
+      el.innerHTML = `<img src="${esc(currentUser.avatar_url)}" alt="">`;
+      el.style.background = color;
+    } else {
+      el.textContent = initials(currentUser.username || '?');
+      el.style.background = color;
+    }
+  });
+}
+
+// ── Load feed ─────────────────────────────────────────────
+async function renderPokeets() {
+  const container = document.getElementById('pokeets-feed');
+  if (!container) return;
+
+  // skeleton
+  container.innerHTML = `<div class="pk-loading">${[1,2,3].map(()=>`
+    <div class="pk-skeleton">
+      <div class="pk-skel-avatar"></div>
+      <div class="pk-skel-body">
+        <div class="pk-skel-line" style="width:40%"></div>
+        <div class="pk-skel-line" style="width:90%"></div>
+        <div class="pk-skel-line" style="width:70%"></div>
+      </div>
+    </div>`).join('')}</div>`;
+
+  pkRenderComposerAvatar();
+
+  try {
+    // Busca pokéets do mesmo RPG (join com users)
+    let query = db
+      .from('pokeets')
+      .select(`
+        *,
+        users!pokeets_user_id_fkey(id, username, name, color, avatar_url, rpg),
+        quoted:pokeets!pokeets_quote_id_fkey(
+          id, text, created_at,
+          users!pokeets_user_id_fkey(id, username, name, color, avatar_url)
+        )
+      `)
+      .is('reply_to_id', null)
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(40);
+
+    if (_pk.tab === 'for-you') {
+      query = query.eq('users.rpg', currentUser.rpg);
+    } else {
+      // Seguindo
+      const { data: follows } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id);
+      const ids = (follows || []).map(f => f.following_id);
+      if (!ids.length) {
+        container.innerHTML = `<div class="pk-thread-empty">Você ainda não segue ninguém.<br>Explore perfis para seguir pessoas!</div>`;
+        return;
+      }
+      query = query.in('user_id', ids);
+    }
+
+    const { data: pokeets, error } = await query;
+    if (error) throw error;
+
+    if (!pokeets || !pokeets.length) {
+      container.innerHTML = `<div class="pk-thread-empty">Nenhum Pokéet ainda.<br>Seja o primeiro a tweetar! 🐦</div>`;
+      return;
+    }
+
+    _pk.feed = pokeets;
+
+    // Buscar likes e contagens em paralelo
+    const ids = pokeets.map(p => p.id);
+    const [{ data: myLikes }, { data: likeCounts }, { data: replyCounts }, { data: repostCounts }] = await Promise.all([
+      db.from('pokeet_likes').select('pokeet_id').eq('user_id', currentUser.id).in('pokeet_id', ids),
+      db.from('pokeet_likes').select('pokeet_id').in('pokeet_id', ids),
+      db.from('pokeets').select('reply_to_id').in('reply_to_id', ids),
+      db.from('pokeets').select('repost_of_id').in('repost_of_id', ids).is('quote_id', null),
+    ]);
+
+    const likedSet   = new Set((myLikes     || []).map(l => l.pokeet_id));
+    const likeMap    = {};  (likeCounts   || []).forEach(l => { likeMap[l.pokeet_id]   = (likeMap[l.pokeet_id]   || 0) + 1; });
+    const replyMap   = {};  (replyCounts  || []).forEach(r => { replyMap[r.reply_to_id] = (replyMap[r.reply_to_id] || 0) + 1; });
+    const repostMap  = {};  (repostCounts || []).forEach(r => { repostMap[r.repost_of_id] = (repostMap[r.repost_of_id] || 0) + 1; });
+
+    // Verificar quais o usuário repostou
+    const { data: myReposts } = await db.from('pokeets').select('repost_of_id').eq('user_id', currentUser.id).in('repost_of_id', ids).is('quote_id', null);
+    const repostedSet = new Set((myReposts || []).map(r => r.repost_of_id));
+
+    container.innerHTML = pokeets.map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
+
+    // Carregar tendências
+    pkLoadTrends(pokeets);
+
+  } catch(e) {
+    console.error('Pokéets error:', e);
+    container.innerHTML = `<div class="pk-thread-empty">Erro ao carregar Pokéets.<br>${e.message || ''}</div>`;
+  }
+}
+
+// ── Render card ───────────────────────────────────────────
+function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
+  if (!p || !p.users) return '';
+  const u = p.users;
+  const liked    = likedSet   ? likedSet.has(p.id)   : false;
+  const reposted = repostedSet? repostedSet.has(p.id) : false;
+  const likes    = likeMap    ? (likeMap[p.id]    || 0) : (p._likes    || 0);
+  const replies  = replyMap   ? (replyMap[p.id]   || 0) : (p._replies  || 0);
+  const reposts  = repostMap  ? (repostMap[p.id]  || 0) : (p._reposts  || 0);
+  const color    = u.avatar_color || u.color || '#e53935';
+
+  const isRepost = !!p.repost_of_id && !p.quote_id;
+  const isQuote  = !!p.quote_id;
+  const isPinned = !!p.pinned;
+  const isOwn    = p.user_id === currentUser.id;
+
+  let pinnedLabel = isPinned ? `<div class="pk-pinned-label">📌 Pokéet fixado</div>` : '';
+  let repostLabel = isRepost ? `<div class="pk-card-repost-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>${esc(u.username)} repostou</div>` : '';
+
+  let quoteHtml = '';
+  if (isQuote && p.quoted) {
+    const q = p.quoted;
+    const qu = q.users || {};
+    const qColor = qu.color || '#e53935';
+    quoteHtml = `<div class="pk-repost-quote" onclick="event.stopPropagation();pkOpenThread('${q.id}')">
+      <div class="pk-repost-quote-header">
+        ${pkAvatar(qu, 20)}
+        <span class="pk-rq-name">${esc(qu.name || qu.username || '')}</span>
+        <span class="pk-rq-user">@${esc(qu.username || '')}</span>
+      </div>
+      <div class="pk-rq-text">${pkFormatText(q.text)}</div>
+    </div>`;
+  }
+
+  const avatarHtml = u.avatar_url
+    ? `<div class="pk-card-avatar" style="background:${color};overflow:hidden"><img src="${esc(u.avatar_url)}" alt=""></div>`
+    : `<div class="pk-card-avatar" style="background:${color};font-size:15px">${initials(u.username||'?')}</div>`;
+
+  const menuHtml = isOwn ? `<div class="pk-menu" style="margin-left:auto;flex-shrink:0">
+    <button class="pk-menu-btn" onclick="event.stopPropagation();pkToggleMenu('${p.id}')" title="Opções">···</button>
+    <div class="pk-dropdown" id="pkdrop-${p.id}">
+      <div class="pk-dd-item" onclick="pkTogglePin('${p.id}',${isPinned})">${isPinned ? '📌 Desafixar' : '📌 Fixar'} Pokéet</div>
+      <div class="pk-dd-item danger" onclick="pkDelete('${p.id}')">🗑 Apagar Pokéet</div>
+    </div>
+  </div>` : '';
+
+  return `<div class="pokeet-card${isPinned?' pk-card-pinned':''}" id="pkcard-${p.id}" onclick="pkOpenThread('${p.id}')">
+    ${pinnedLabel}${repostLabel}
+    ${avatarHtml}
+    <div class="pk-card-body">
+      <div class="pk-card-header">
+        <span class="pk-card-name" onclick="event.stopPropagation();showUserProfile('${esc(u.username)}')">${esc(u.name || u.username)}</span>
+        <span class="pk-card-user">@${esc(u.username)}</span>
+        <span class="pk-card-time">${pkTimeAgo(p.created_at)}</span>
+        ${menuHtml}
+      </div>
+      <div class="pk-card-text">${pkFormatText(p.text)}</div>
+      ${quoteHtml}
+      <div class="pk-actions">
+        <button class="pk-action-btn" onclick="event.stopPropagation();pkOpenThread('${p.id}')" title="Responder">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          ${replies > 0 ? replies : ''}
+        </button>
+        <button class="pk-action-btn${reposted?' reposted':''}" id="pkbtn-repost-${p.id}" onclick="event.stopPropagation();pkOpenRepost('${p.id}')" title="Repostar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+          ${reposts > 0 ? reposts : ''}
+        </button>
+        <button class="pk-action-btn${liked?' liked':''}" id="pkbtn-like-${p.id}" onclick="event.stopPropagation();pkToggleLike('${p.id}')" title="Curtir">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="${liked?'#e53935':'none'}" stroke="${liked?'#e53935':'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          ${likes > 0 ? likes : ''}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Submit Pokéet ─────────────────────────────────────────
+async function submitPokeet() {
+  if (!currentUser) return;
+  const input = document.getElementById('pokeet-text');
+  const text  = input.value.trim();
+  if (!text) return;
+  const btn = document.getElementById('pokeet-btn-post');
+  btn.disabled = true; btn.textContent = 'Publicando...';
+  const { error } = await db.from('pokeets').insert({ user_id: currentUser.id, text });
+  btn.textContent = 'Pokéet';
+  if (error) { toast('Erro ao publicar: ' + error.message); btn.disabled = false; return; }
+  input.value = '';
+  input.style.height = 'auto';
+  pkCharRing('pkc-ring-fill', 'pkc-char-count', 0, 280);
+  btn.disabled = true;
+  toast('Pokéet publicado! 🐦');
+  await renderPokeets();
+}
+
+// ── Toggle like ───────────────────────────────────────────
+async function pkToggleLike(pokeetId) {
+  if (!currentUser) return;
+  const btn = document.getElementById('pkbtn-like-' + pokeetId);
+  if (!btn) return;
+  const isLiked = btn.classList.contains('liked');
+  if (isLiked) {
+    btn.classList.remove('liked');
+    btn.querySelector('svg').setAttribute('fill', 'none');
+    btn.querySelector('svg').setAttribute('stroke', 'currentColor');
+    await db.from('pokeet_likes').delete().eq('user_id', currentUser.id).eq('pokeet_id', pokeetId);
+  } else {
+    btn.classList.add('liked');
+    btn.querySelector('svg').setAttribute('fill', '#e53935');
+    btn.querySelector('svg').setAttribute('stroke', '#e53935');
+    await db.from('pokeet_likes').upsert({ user_id: currentUser.id, pokeet_id: pokeetId }, { onConflict: 'user_id,pokeet_id' });
+  }
+  // Atualiza contador otimisticamente
+  const spans = btn.querySelectorAll('span');
+  const currentCount = parseInt(btn.textContent.replace(/\D/g,'')) || 0;
+  const newCount = isLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
+  // re-render only the text node
+  const svg = btn.querySelector('svg');
+  btn.innerHTML = '';
+  btn.appendChild(svg);
+  if (newCount > 0) btn.append(document.createTextNode(' ' + newCount));
+}
+
+// ── Thread (replies) ──────────────────────────────────────
+async function pkOpenThread(pokeetId) {
+  if (!pokeetId) return;
+  _pk.threadTarget = pokeetId;
+  const content = document.getElementById('pk-thread-content');
+  const title   = document.getElementById('pk-thread-title');
+  if (!content) return;
+  content.innerHTML = '<div class="pk-thread-empty">Carregando...</div>';
+  openModal('modal-pokeet-thread');
+  pkRenderComposerAvatar();
+
+  try {
+    // Busca pokéet raiz
+    const { data: root } = await db.from('pokeets').select(`
+      *, users!pokeets_user_id_fkey(id, username, name, color, avatar_url),
+      quoted:pokeets!pokeets_quote_id_fkey(id, text, created_at, users!pokeets_user_id_fkey(id, username, name, color, avatar_url))
+    `).eq('id', pokeetId).maybeSingle();
+
+    if (!root) { content.innerHTML = '<div class="pk-thread-empty">Pokéet não encontrado.</div>'; return; }
+
+    // Busca respostas
+    const { data: replies } = await db.from('pokeets').select(`
+      *, users!pokeets_user_id_fkey(id, username, name, color, avatar_url)
+    `).eq('reply_to_id', pokeetId).order('created_at', { ascending: true });
+
+    // Curtidas do usuário
+    const allIds = [root.id, ...(replies||[]).map(r=>r.id)];
+    const [{ data: myLikes }, { data: likeCounts }] = await Promise.all([
+      db.from('pokeet_likes').select('pokeet_id').eq('user_id', currentUser.id).in('pokeet_id', allIds),
+      db.from('pokeet_likes').select('pokeet_id').in('pokeet_id', allIds),
+    ]);
+    const likedSet = new Set((myLikes || []).map(l => l.pokeet_id));
+    const likeMap  = {};  (likeCounts || []).forEach(l => { likeMap[l.pokeet_id] = (likeMap[l.pokeet_id]||0)+1; });
+
+    if (title) title.textContent = root.users?.username ? `@${root.users.username}` : 'Pokéet';
+
+    content.innerHTML = `
+      <div class="pk-thread-root">
+        ${pkRenderCard(root, likedSet, likeMap, null, null, null, true)}
+      </div>
+      <div class="pk-thread-replies">
+        ${(replies || []).length === 0
+          ? '<div class="pk-thread-empty">Nenhuma resposta ainda. Seja o primeiro!</div>'
+          : (replies || []).map(r => `
+            <div class="pk-thread-reply">
+              ${r.users?.avatar_url
+                ? `<div class="pk-card-avatar" style="width:36px;height:36px;background:${r.users.color||'#e53935'};flex-shrink:0;overflow:hidden"><img src="${esc(r.users.avatar_url)}" alt=""></div>`
+                : `<div class="pk-card-avatar" style="width:36px;height:36px;background:${r.users?.color||'#e53935'};font-size:12px;flex-shrink:0">${initials(r.users?.username||'?')}</div>`
+              }
+              <div class="pk-card-body">
+                <div class="pk-card-header">
+                  <span class="pk-card-name">${esc(r.users?.name || r.users?.username || '')}</span>
+                  <span class="pk-card-user">@${esc(r.users?.username||'')}</span>
+                  <span class="pk-card-time">${pkTimeAgo(r.created_at)}</span>
+                </div>
+                <div class="pk-card-text">${pkFormatText(r.text)}</div>
+                <div class="pk-actions">
+                  <button class="pk-action-btn${likedSet.has(r.id)?' liked':''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="${likedSet.has(r.id)?'#e53935':'none'}" stroke="${likedSet.has(r.id)?'#e53935':'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                    ${(likeMap[r.id]||0) > 0 ? likeMap[r.id] : ''}
+                  </button>
+                </div>
+              </div>
+            </div>`).join('')
+        }
+      </div>`;
+  } catch(e) {
+    content.innerHTML = `<div class="pk-thread-empty">Erro ao carregar thread: ${e.message}</div>`;
+  }
+}
+
+async function submitPokeetReply() {
+  if (!currentUser || !_pk.threadTarget) return;
+  const input = document.getElementById('pk-reply-text');
+  const text  = input.value.trim();
+  if (!text) return;
+  const btn = document.getElementById('pk-reply-btn');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  const { error } = await db.from('pokeets').insert({
+    user_id: currentUser.id, text, reply_to_id: _pk.threadTarget
+  });
+  btn.textContent = 'Responder'; btn.disabled = false;
+  if (error) { toast('Erro ao responder: ' + error.message); return; }
+  input.value = ''; input.style.height = 'auto';
+  pkCharRing('pkc-ring-fill-reply', 'pkc-char-count-reply', 0, 280);
+  btn.disabled = true;
+  toast('Resposta enviada! 💬');
+  await pkOpenThread(_pk.threadTarget);
+}
+
+// ── Repost ────────────────────────────────────────────────
+function pkOpenRepost(pokeetId) {
+  if (!currentUser) return;
+  _pk.repostTarget = pokeetId;
+  document.getElementById('pk-quote-compose-area').style.display = 'none';
+  document.getElementById('pk-quote-text').value = '';
+  document.getElementById('pk-quote-preview').style.display = 'none';
+  openModal('modal-pokeet-repost');
+  pkRenderComposerAvatar();
+}
+
+async function pkRepostSimple() {
+  if (!currentUser || !_pk.repostTarget) return;
+  const btn = document.getElementById('pk-repost-simple-btn');
+  btn.disabled = true;
+  // Toggle: se já repostou, remove
+  const { data: existing } = await db.from('pokeets').select('id').eq('user_id', currentUser.id).eq('repost_of_id', _pk.repostTarget).is('quote_id', null).maybeSingle();
+  if (existing) {
+    await db.from('pokeets').delete().eq('id', existing.id);
+    toast('Repost removido.');
+  } else {
+    const { error } = await db.from('pokeets').insert({ user_id: currentUser.id, repost_of_id: _pk.repostTarget, text: '' });
+    if (error) { toast('Erro ao repostar.'); btn.disabled = false; return; }
+    toast('Repostado! 🔁');
+  }
+  closeModal('modal-pokeet-repost');
+  btn.disabled = false;
+  await renderPokeets();
+}
+
+function pkOpenQuoteCompose() {
+  const area = document.getElementById('pk-quote-compose-area');
+  area.style.display = 'flex';
+  area.style.flexDirection = 'column';
+  // Show preview of original pokéet
+  const target = _pk.feed.find(p => p.id === _pk.repostTarget);
+  if (target) {
+    const preview = document.getElementById('pk-quote-preview');
+    const u = target.users || {};
+    preview.innerHTML = `
+      <div class="pk-repost-quote-header">
+        ${pkAvatar(u, 20)}
+        <span class="pk-rq-name">${esc(u.name || u.username || '')}</span>
+        <span class="pk-rq-user">@${esc(u.username||'')}</span>
+      </div>
+      <div class="pk-rq-text">${pkFormatText(target.text)}</div>`;
+    preview.style.display = 'block';
+  }
+  document.getElementById('pk-quote-text').focus();
+}
+
+async function submitPokeetQuote() {
+  if (!currentUser || !_pk.repostTarget) return;
+  const input = document.getElementById('pk-quote-text');
+  const text  = input.value.trim();
+  const btn   = document.getElementById('pk-quote-btn');
+  btn.disabled = true; btn.textContent = 'Publicando...';
+  const { error } = await db.from('pokeets').insert({
+    user_id: currentUser.id,
+    text,
+    repost_of_id: _pk.repostTarget,
+    quote_id: _pk.repostTarget
+  });
+  btn.textContent = 'Citar'; btn.disabled = false;
+  if (error) { toast('Erro ao citar: ' + error.message); return; }
+  closeModal('modal-pokeet-repost');
+  toast('Pokéet citado! ✏️');
+  await renderPokeets();
+}
+
+// ── Pin / Delete ──────────────────────────────────────────
+function pkToggleMenu(pokeetId) {
+  document.querySelectorAll('.pk-dropdown').forEach(d => {
+    if (d.id !== 'pkdrop-' + pokeetId) d.classList.remove('open');
+  });
+  document.getElementById('pkdrop-' + pokeetId)?.classList.toggle('open');
+  // Fecha ao clicar fora
+  setTimeout(() => {
+    document.addEventListener('click', function closer() {
+      document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
+      document.removeEventListener('click', closer);
+    });
+  }, 10);
+}
+
+async function pkTogglePin(pokeetId, isPinned) {
+  document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
+  if (!isPinned) {
+    // Desfixa todos antes de fixar o novo
+    await db.from('pokeets').update({ pinned: false }).eq('user_id', currentUser.id).eq('pinned', true);
+  }
+  const { error } = await db.from('pokeets').update({ pinned: !isPinned }).eq('id', pokeetId);
+  if (error) { toast('Erro ao ' + (isPinned ? 'desafixar' : 'fixar') + '.'); return; }
+  toast(isPinned ? 'Pokéet desafixado.' : 'Pokéet fixado! 📌');
+  await renderPokeets();
+}
+
+async function pkDelete(pokeetId) {
+  document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
+  if (!confirm('Apagar este Pokéet?')) return;
+  const { error } = await db.from('pokeets').delete().eq('id', pokeetId);
+  if (error) { toast('Erro ao apagar.'); return; }
+  document.getElementById('pkcard-' + pokeetId)?.remove();
+  toast('Pokéet apagado.');
+}
+
+// ── Tabs ──────────────────────────────────────────────────
+function pkSwitchTab(btn, tab) {
+  document.querySelectorAll('.pkTab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _pk.tab = tab;
+  renderPokeets();
+}
+
+// ── Trends ────────────────────────────────────────────────
+function pkLoadTrends(pokeets) {
+  const container = document.getElementById('pokeets-trends');
+  if (!container) return;
+  const tagCount = {};
+  (pokeets || []).forEach(p => {
+    const matches = (p.text || '').match(/#([^\s#<&]+)/g) || [];
+    matches.forEach(m => {
+      const tag = m.slice(1).toLowerCase();
+      tagCount[tag] = (tagCount[tag] || 0) + 1;
+    });
+  });
+  const sorted = Object.entries(tagCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
+  if (!sorted.length) {
+    container.innerHTML = '<div style="font-size:13px;color:#aaa;font-family:\'Nunito\',sans-serif">Nenhuma hashtag ainda.</div>';
+    return;
+  }
+  container.innerHTML = sorted.map(([tag, count]) => `
+    <div class="pk-trend-item" onclick="pkSearchHashtag('${esc(tag)}')">
+      <div class="pk-trend-cat">Pokémon · Tendência</div>
+      <div class="pk-trend-tag">#${esc(tag)}</div>
+      <div class="pk-trend-count">${count} Pokéet${count>1?'s':''}</div>
+    </div>`).join('');
+}
+
+function pkSearchHashtag(tag) {
+  toast('#' + tag + ' — Busca por hashtag em breve!');
+}
+
+// ── SQL para criar as tabelas (exibido no console) ────────
+// Execute isso no SQL Editor do Supabase:
+/*
+CREATE TABLE IF NOT EXISTS pokeets (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text         TEXT NOT NULL DEFAULT '',
+  reply_to_id  UUID REFERENCES pokeets(id) ON DELETE CASCADE,
+  repost_of_id UUID REFERENCES pokeets(id) ON DELETE SET NULL,
+  quote_id     UUID REFERENCES pokeets(id) ON DELETE SET NULL,
+  pinned       BOOLEAN DEFAULT FALSE,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pokeet_likes (
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pokeet_id  UUID NOT NULL REFERENCES pokeets(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, pokeet_id)
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_pokeets_user_id    ON pokeets(user_id);
+CREATE INDEX IF NOT EXISTS idx_pokeets_reply_to   ON pokeets(reply_to_id);
+CREATE INDEX IF NOT EXISTS idx_pokeets_repost_of  ON pokeets(repost_of_id);
+CREATE INDEX IF NOT EXISTS idx_pokeets_created_at ON pokeets(created_at DESC);
+
+-- RLS
+ALTER TABLE pokeets      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pokeet_likes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "pokeets_select" ON pokeets      FOR SELECT USING (true);
+CREATE POLICY "pokeets_insert" ON pokeets      FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "pokeets_update" ON pokeets      FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "pokeets_delete" ON pokeets      FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "pokeet_likes_select" ON pokeet_likes FOR SELECT USING (true);
+CREATE POLICY "pokeet_likes_insert" ON pokeet_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid() = user_id);
+*/
 </script>
 
 </body>
