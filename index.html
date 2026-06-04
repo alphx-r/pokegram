@@ -3175,6 +3175,7 @@ async function showView(name) {
   if (name === 'explore') { history.replaceState(null,'','/explore');
     await renderExplore(); }
   if (name === 'profile') await renderProfile(currentUser.username);
+  if (name === 'pokeets') await renderPokeets();
 
   currentViewHistory.push(name);
   window.scrollTo(0, 0);
