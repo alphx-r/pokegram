@@ -814,7 +814,7 @@
   position: relative;
 }
 
-/* Avatar sai 38px acima do topo da pkp-identity */
+/* Avatar sai sobre o banner via margin negativa */
 .pkp-header-avatar {
   width: 72px;
   height: 72px;
@@ -825,12 +825,12 @@
   overflow: hidden;
   font-family: 'Nunito', sans-serif;
   cursor: pointer;
-  margin-top: -36px;        /* puxa para cima sobre o banner */
-  margin-bottom: 8px;
+  margin-top: -36px;
+  margin-bottom: 10px;
   box-shadow: 0 1px 6px rgba(0,0,0,.18);
   transition: opacity .15s;
   flex-shrink: 0;
-  position: relative;       /* sem absolute — sem problemas de overflow */
+  position: relative;
   z-index: 2;
 }
 .pkp-header-avatar:hover { opacity: .88; }
@@ -4041,14 +4041,24 @@ function renderSidebarAvatar() {
   const el = document.getElementById('sn-avatar');
   if (!currentUser) return;
   if (el) {
+    el.style.width           = '28px';
+    el.style.height          = '28px';
+    el.style.minWidth        = '28px';
+    el.style.minHeight       = '28px';
+    el.style.maxWidth        = '28px';
+    el.style.maxHeight       = '28px';
     el.style.overflow        = 'hidden';
     el.style.display         = 'flex';
     el.style.alignItems      = 'center';
     el.style.justifyContent  = 'center';
     el.style.borderRadius    = '50%';
+    el.style.fontSize        = '11px';
+    el.style.fontWeight      = '800';
+    el.style.color           = '#fff';
+    el.style.fontFamily      = "'Nunito', sans-serif";
     el.style.background      = currentUser.avatar_url ? 'transparent' : (currentUser.color || '#e53935');
     if (currentUser.avatar_url) {
-      el.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
+      el.innerHTML = `<img src="${currentUser.avatar_url}" style="width:28px;height:28px;min-width:28px;object-fit:cover;border-radius:50%;display:block">`;
     } else {
       el.innerHTML = '';
       el.textContent = initials(currentUser.username);
