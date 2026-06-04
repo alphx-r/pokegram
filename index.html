@@ -7008,35 +7008,27 @@ async function renderPokeets() {
 
   try {
     // Busca IDs de usuários conforme a aba selecionada
-    let userIds = [];
-    if (_pk.tab === 'for-you') {
-      // Todos os usuários do mesmo RPG
-      const { data: rpgUsers, error: rpgErr } = await db.from('users').select('id').eq('rpg', currentUser.rpg);
-      if (rpgErr) throw rpgErr;
-      userIds = (rpgUsers || []).map(u => u.id);
-    } else {
+    let pokeetsQuery = db
+      .from('pokeets')
+      .select('*, users!pokeets_user_id_fkey(id, username, name, color, avatar_url, rpg)')
+      .is('reply_to_id', null)
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(40);
+
+    if (_pk.tab === 'following') {
       // Seguindo
       const { data: follows } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id);
-      userIds = (follows || []).map(f => f.following_id);
+      const userIds = (follows || []).map(f => f.following_id);
       if (!userIds.length) {
         container.innerHTML = `<div class="pk-thread-empty">Você ainda não segue ninguém.<br>Explore perfis para seguir pessoas!</div>`;
         return;
       }
+      pokeetsQuery = pokeetsQuery.in('user_id', userIds);
     }
+    // aba "for-you": sem filtro, mostra todos os pokeets
 
-    if (!userIds.length) {
-      container.innerHTML = `<div class="pk-thread-empty">Nenhum Pokéet ainda.<br>Seja o primeiro a tweetar! 🐦</div>`;
-      return;
-    }
-
-    const { data: pokeets, error } = await db
-      .from('pokeets')
-      .select('*, users!pokeets_user_id_fkey(id, username, name, color, avatar_url, rpg)')
-      .is('reply_to_id', null)
-      .in('user_id', userIds)
-      .order('pinned', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(40);
+    const { data: pokeets, error } = await pokeetsQuery;
     if (error) throw error;
 
     // Busca pokéets citados separadamente (self-join não suportado no Supabase)
