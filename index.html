@@ -7010,7 +7010,7 @@ async function renderPokeets() {
     // Busca IDs de usuários conforme a aba selecionada
     let pokeetsQuery = db
       .from('pokeets')
-      .select('*, users(id, username, name, color, avatar_url, rpg)')
+      .select('*, users!user_id(id, username, name, color, avatar_url, rpg)')
       .is('reply_to_id', null)
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
@@ -7037,7 +7037,7 @@ async function renderPokeets() {
     if (quoteIds.length) {
       const { data: quotedRows } = await db
         .from('pokeets')
-        .select('id, text, created_at, users(id, username, name, color, avatar_url)')
+        .select('id, text, created_at, users!user_id(id, username, name, color, avatar_url)')
         .in('id', quoteIds);
       (quotedRows || []).forEach(q => { quotedMap[q.id] = q; });
     }
@@ -7216,13 +7216,13 @@ async function pkOpenThread(pokeetId) {
   try {
     // Busca pokéet raiz
     const { data: root } = await db.from('pokeets').select(
-      '*, users(id, username, name, color, avatar_url)'
+      '*, users!user_id(id, username, name, color, avatar_url)'
     ).eq('id', pokeetId).maybeSingle();
 
     // Busca pokéet citado separadamente (self-join não suportado)
     if (root && root.quote_id) {
       const { data: quotedRow } = await db.from('pokeets')
-        .select('id, text, created_at, users(id, username, name, color, avatar_url)')
+        .select('id, text, created_at, users!user_id(id, username, name, color, avatar_url)')
         .eq('id', root.quote_id).maybeSingle();
       root.quoted = quotedRow || null;
     }
@@ -7230,7 +7230,7 @@ async function pkOpenThread(pokeetId) {
     if (!root) { content.innerHTML = '<div class="pk-thread-empty">Pokéet não encontrado.</div>'; return; }
 
     // Busca respostas
-    const { data: replies } = await db.from('pokeets').select('*, users(id, username, name, color, avatar_url)').eq('reply_to_id', pokeetId).order('created_at', { ascending: true });
+    const { data: replies } = await db.from('pokeets').select('*, users!user_id(id, username, name, color, avatar_url)').eq('reply_to_id', pokeetId).order('created_at', { ascending: true });
 
     // Curtidas do usuário
     const allIds = [root.id, ...(replies||[]).map(r=>r.id)];
