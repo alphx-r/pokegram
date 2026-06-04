@@ -7031,20 +7031,25 @@ async function renderPokeets() {
 
     const { data: pokeets, error } = await db
       .from('pokeets')
-      .select(`
-        *,
-        users!pokeets_user_id_fkey(id, username, name, color, avatar_url, rpg),
-        quoted:pokeets!pokeets_quote_id_fkey(
-          id, text, created_at,
-          users!pokeets_user_id_fkey(id, username, name, color, avatar_url)
-        )
-      `)
+      .select('*, users!pokeets_user_id_fkey(id, username, name, color, avatar_url, rpg)')
       .is('reply_to_id', null)
       .in('user_id', userIds)
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(40);
     if (error) throw error;
+
+    // Busca pokéets citados separadamente (self-join não suportado no Supabase)
+    const quoteIds = (pokeets || []).map(p => p.quote_id).filter(Boolean);
+    let quotedMap = {};
+    if (quoteIds.length) {
+      const { data: quotedRows } = await db
+        .from('pokeets')
+        .select('id, text, created_at, users!pokeets_user_id_fkey(id, username, name, color, avatar_url)')
+        .in('id', quoteIds);
+      (quotedRows || []).forEach(q => { quotedMap[q.id] = q; });
+    }
+    (pokeets || []).forEach(p => { if (p.quote_id) p.quoted = quotedMap[p.quote_id] || null; });
 
     if (!pokeets || !pokeets.length) {
       container.innerHTML = `<div class="pk-thread-empty">Nenhum Pokéet ainda.<br>Seja o primeiro a tweetar! 🐦</div>`;
@@ -7218,10 +7223,17 @@ async function pkOpenThread(pokeetId) {
 
   try {
     // Busca pokéet raiz
-    const { data: root } = await db.from('pokeets').select(`
-      *, users!pokeets_user_id_fkey(id, username, name, color, avatar_url),
-      quoted:pokeets!pokeets_quote_id_fkey(id, text, created_at, users!pokeets_user_id_fkey(id, username, name, color, avatar_url))
-    `).eq('id', pokeetId).maybeSingle();
+    const { data: root } = await db.from('pokeets').select(
+      '*, users!pokeets_user_id_fkey(id, username, name, color, avatar_url)'
+    ).eq('id', pokeetId).maybeSingle();
+
+    // Busca pokéet citado separadamente (self-join não suportado)
+    if (root && root.quote_id) {
+      const { data: quotedRow } = await db.from('pokeets')
+        .select('id, text, created_at, users!pokeets_user_id_fkey(id, username, name, color, avatar_url)')
+        .eq('id', root.quote_id).maybeSingle();
+      root.quoted = quotedRow || null;
+    }
 
     if (!root) { content.innerHTML = '<div class="pk-thread-empty">Pokéet não encontrado.</div>'; return; }
 
