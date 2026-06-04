@@ -182,9 +182,6 @@
         <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
           <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
-        <button class="tn-btn" id="btn-pokeets" onclick="showView('pokeets')" title="Pokéets">
-          <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L9 15"/><path d="M21 3L14 21l-5-8-8-5 21-7z"/></svg>
-        </button>
         <button class="tn-btn" id="btn-profile" onclick="showView('profile')" title="Perfil">
           <div class="tn-avatar" id="sn-avatar"></div>
         </button>
@@ -3111,8 +3108,6 @@ async function initApp(user) {
     showView('feed').catch(() => {});
   } else if (urlPath === 'explore') {
     showView('explore').catch(() => {});
-  } else if (urlPath === 'pokeets') {
-    showView('pokeets').catch(() => {});
   } else if (postMatch) {
     // /username/post/id — abre o feed e depois o modal do post
     showView('feed').then(() => openComments(postMatch[1])).catch(() => {});
@@ -3180,8 +3175,6 @@ async function showView(name) {
   if (name === 'explore') { history.replaceState(null,'','/explore');
     await renderExplore(); }
   if (name === 'profile') await renderProfile(currentUser.username);
-  if (name === 'pokeets') { history.replaceState(null,'','/pokeets');
-    await renderPokeets(); }
 
   currentViewHistory.push(name);
   window.scrollTo(0, 0);
@@ -5297,10 +5290,6 @@ window.addEventListener('popstate', async () => {
     closeModal('modal-comments');
     closeStoryViewer();
     await showView('feed');
-  } else if (urlPath === 'pokeets') {
-    closeModal('modal-comments');
-    closeStoryViewer();
-    await showView('pokeets');
   } else if (postMatch) {
     // /username/post/id — SEMPRE fecha modais, carrega o feed e abre o modal-comments.
     // Nunca abre página separada: o modal é a única forma de visualizar um post.
