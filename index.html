@@ -3965,6 +3965,7 @@ async function showView(name) {
   if (name === 'profile') await renderProfile(currentUser.username);
   if (name === 'pokeets') { history.replaceState(null,'','/pokeets');
     await renderPokeets(); }
+  // pokeets-profile: showPkProfile cuida do conteúdo; showView só troca a view
 
   currentViewHistory.push(name);
   window.scrollTo(0, 0);
@@ -7173,7 +7174,7 @@ async function pkHydrateAndRender(pokeets, container, opts) {
 
   if (!opts.skipFeedCache) _pk.feed = pokeets;
   container.innerHTML = pokeets.map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
-  if (!opts.skipTrends) pkLoadTrends(pokeets);
+  if (!opts.skipTrends) pkLoadTrends(pokeets, opts.trendsContainer || null);
 }
 
 // ── Render card ───────────────────────────────────────────
@@ -7547,48 +7548,63 @@ function pkSearchHashtag(tag) {
 // ── Pokéets Profile ──────────────────────────────────────
 async function showPkProfile(username) {
   if (!username) return;
-  // Mostrar view
-  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-  document.getElementById('view-pokeets-profile')?.classList.remove('hidden');
+
+  // Usa showView para trocar a view corretamente (atualiza nav, seta hidden nas outras)
+  await showView('pokeets-profile');
   history.replaceState(null, '', '/pokeets/' + username);
 
-  const header  = document.getElementById('pkp-header');
-  const feed    = document.getElementById('pkp-feed');
-  const trends  = document.getElementById('pokeets-trends-profile');
-
+  const header = document.getElementById('pkp-header');
+  const feed   = document.getElementById('pkp-feed');
+  const trends = document.getElementById('pokeets-trends-profile');
   if (!header || !feed) return;
-  header.innerHTML = `<div style="padding:24px 0;color:#aaa;font-family:'Nunito',sans-serif">Carregando...</div>`;
-  feed.innerHTML   = '';
+
+  // Skeleton header
+  header.innerHTML = `
+    <button class="pkp-back-btn" onclick="showView('pokeets')">← Pokéets</button>
+    <div class="pkp-user-row" style="display:flex;align-items:center;gap:16px;margin-top:10px">
+      <div class="pkp-header-avatar" style="background:#e0e0e0"></div>
+      <div>
+        <div style="width:120px;height:14px;background:#efefef;border-radius:6px;margin-bottom:6px"></div>
+        <div style="width:80px;height:11px;background:#efefef;border-radius:6px"></div>
+      </div>
+    </div>`;
+
+  // Skeleton feed
+  feed.innerHTML = `<div class="pk-loading">${[1,2,3].map(() => `
+    <div class="pk-skeleton">
+      <div class="pk-skel-avatar"></div>
+      <div class="pk-skel-body">
+        <div class="pk-skel-line" style="width:40%"></div>
+        <div class="pk-skel-line" style="width:90%"></div>
+        <div class="pk-skel-line" style="width:70%"></div>
+      </div>
+    </div>`).join('')}</div>`;
 
   try {
-    // Busca usuário
     const { data: u, error: uErr } = await db.from('users')
       .select('id, username, name, color, avatar_url')
       .eq('username', username)
       .maybeSingle();
     if (uErr) throw uErr;
     if (!u) {
-      header.innerHTML = '<div class="pk-thread-empty">Usuário não encontrado.</div>';
+      header.innerHTML = `<button class="pkp-back-btn" onclick="showView('pokeets')">← Pokéets</button><div class="pk-thread-empty">Usuário não encontrado.</div>`;
+      feed.innerHTML = '';
       return;
     }
 
-    // Contagem de pokéets
     const { count: pkCount } = await db.from('pokeets')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', u.id)
       .is('reply_to_id', null);
 
-    // Header
     const color = u.color || '#e53935';
     const avatarHtml = u.avatar_url
-      ? `<div class="pkp-header-avatar" style="background:${color}" onclick="showUserProfile('${esc(u.username)}')"><img src="${esc(u.avatar_url)}" alt=""></div>`
-      : `<div class="pkp-header-avatar" style="background:${color}" onclick="showUserProfile('${esc(u.username)}')">${initials(u.username || '?')}</div>`;
+      ? `<div class="pkp-header-avatar" style="background:${color};cursor:pointer" onclick="showUserProfile('${esc(u.username)}')"><img src="${esc(u.avatar_url)}" alt=""></div>`
+      : `<div class="pkp-header-avatar" style="background:${color};cursor:pointer" onclick="showUserProfile('${esc(u.username)}')">${initials(u.username || '?')}</div>`;
 
     header.innerHTML = `
-      <button class="pkp-back-btn" onclick="showView('pokeets')">
-        ← Pokéets
-      </button>
-      <div style="display:flex;align-items:center;gap:16px;flex:1">
+      <button class="pkp-back-btn" onclick="showView('pokeets')">← Pokéets</button>
+      <div style="display:flex;align-items:center;gap:16px;margin-top:10px">
         ${avatarHtml}
         <div class="pkp-header-info">
           <div class="pkp-header-name" onclick="showUserProfile('${esc(u.username)}')">${esc(u.name || u.username)}</div>
@@ -7596,17 +7612,6 @@ async function showPkProfile(username) {
           <div class="pkp-header-count"><b>${pkCount || 0}</b> Pokéet${(pkCount || 0) !== 1 ? 's' : ''}</div>
         </div>
       </div>`;
-
-    // Feed
-    feed.innerHTML = `<div class="pk-loading">${[1,2,3].map(() => `
-      <div class="pk-skeleton">
-        <div class="pk-skel-avatar"></div>
-        <div class="pk-skel-body">
-          <div class="pk-skel-line" style="width:40%"></div>
-          <div class="pk-skel-line" style="width:90%"></div>
-          <div class="pk-skel-line" style="width:70%"></div>
-        </div>
-      </div>`).join('')}</div>`;
 
     const { data: pokeets, error: pkErr } = await db.from('pokeets')
       .select('*')
@@ -7622,17 +7627,16 @@ async function showPkProfile(username) {
       return;
     }
 
-    await pkHydrateAndRender(pokeets, feed, { skipFeedCache: true, skipTrends: false });
-
-    // Tendências do perfil
-    if (trends) {
-      const trendContainer = { innerHTML: '' };
-      pkLoadTrends(pokeets, trends);
-    }
+    await pkHydrateAndRender(pokeets, feed, {
+      skipFeedCache: true,
+      skipTrends: false,
+      trendsContainer: trends || undefined,
+    });
 
   } catch(e) {
     console.error('pkProfile error:', e);
-    if (header) header.innerHTML = `<div class="pk-thread-empty">Erro: ${e.message || ''}</div>`;
+    header.innerHTML = `<button class="pkp-back-btn" onclick="showView('pokeets')">← Pokéets</button><div class="pk-thread-empty">Erro: ${esc(e.message || '')}</div>`;
+    feed.innerHTML = '';
   }
 }
 
