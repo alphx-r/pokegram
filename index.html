@@ -1493,6 +1493,7 @@
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'npcs')">🤖 NPCs</button>
           <button class="adm-snav-btn" onclick="admTab(this,'gerador')">✨ Gerador IA</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'automacao')">🤖 Automação</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'manutencao')" id="adm-btn-manutencao">🚧 Manutenção</button>
           <div class="adm-snav-sep"></div>
@@ -2062,6 +2063,16 @@
 
             <!-- Error -->
             <div id="gerador-error" style="display:none;background:#fde8e8;border:1.5px solid #f0c0c0;border-radius:8px;padding:14px 16px;color:var(--red);font-size:13px;font-weight:600;margin-top:16px"></div>
+          </div>
+
+          <!-- AUTOMAÇÃO -->
+          <div class="adm-section" id="sec-automacao">
+            <div class="adm-sec-title">🤖 Automação de Postagens</div>
+            <div class="adm-sec-sub">Configure quais NPCs postam automaticamente, com que frequência e em quais horários. O sistema roda em background mesmo com o site fechado.</div>
+
+            <div id="automacao-lista" style="display:flex;flex-direction:column;gap:12px"></div>
+            <div id="automacao-loading" style="text-align:center;padding:40px;color:var(--muted);font-size:13px">⏳ Carregando NPCs...</div>
+            <div id="automacao-vazio" style="display:none;text-align:center;padding:40px;color:var(--muted);font-size:13px">Nenhum NPC cadastrado.</div>
           </div>
 
         </div><!-- /adm-content -->
@@ -3185,6 +3196,7 @@ function admTab(btn, id) {
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
   if (id === 'npcs')    admNpcLoad();
   if (id === 'gerador') geradorInit();
+  if (id === 'automacao') automacaoInit();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3465,6 +3477,141 @@ async function geradorPublicarPokeet(cardId, npcId) {
   btn.style.display = 'none';
   status.style.display = '';
   document.getElementById(cardId).style.opacity = '0.65';
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUTOMAÇÃO DE POSTAGENS
+// ══════════════════════════════════════════════════════════
+let _autoNpcs = [];
+let _autoConfigs = {};
+
+async function automacaoInit() {
+  document.getElementById('automacao-loading').style.display = 'block';
+  document.getElementById('automacao-lista').innerHTML = '';
+  document.getElementById('automacao-vazio').style.display = 'none';
+
+  const [{ data: npcs }, { data: configs }] = await Promise.all([
+    db.from('users').select('id,username,name,avatar_url,bio,rpg').eq('is_npc', true).order('username'),
+    db.from('npc_autoposts').select('*'),
+  ]);
+
+  _autoNpcs = npcs || [];
+  _autoConfigs = {};
+  (configs || []).forEach(c => { _autoConfigs[c.npc_id] = c; });
+
+  document.getElementById('automacao-loading').style.display = 'none';
+
+  if (!_autoNpcs.length) {
+    document.getElementById('automacao-vazio').style.display = 'block';
+    return;
+  }
+
+  const lista = document.getElementById('automacao-lista');
+  lista.innerHTML = _autoNpcs.map(npc => {
+    const cfg = _autoConfigs[npc.id] || {};
+    const ativo = cfg.ativo || false;
+    const tipo = cfg.tipo || 'pokegram';
+    const ppd = cfg.posts_por_dia || 2;
+    const tom = cfg.tom || 'natural';
+    const contexto = cfg.contexto_fixo || '';
+    const horarios = (cfg.horarios || ['09:00','18:00']).join(', ');
+    const ultimoPost = cfg.ultimo_post ? new Date(cfg.ultimo_post).toLocaleString('pt-BR') : '—';
+
+    return `<div class="adm-box" id="auto-card-${npc.id}" style="border-left:3px solid ${ativo ? 'var(--green)' : 'var(--border)'}">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="font-size:22px">${npc.avatar_url ? `<img src="${npc.avatar_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover">` : '🤖'}</div>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:14px">@${esc(npc.username)}${npc.name ? ' · ' + esc(npc.name) : ''}</div>
+          <div style="font-size:11px;color:var(--muted)">Último post automático: ${ultimoPost}</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700">
+          <input type="checkbox" id="auto-ativo-${npc.id}" ${ativo ? 'checked' : ''} onchange="autoToggleAtivo('${npc.id}')" style="width:16px;height:16px;cursor:pointer">
+          <span id="auto-ativo-label-${npc.id}" style="color:${ativo ? 'var(--green)' : 'var(--muted)'}">${ativo ? '✅ Ativo' : '⏸ Inativo'}</span>
+        </label>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="adm-field" style="margin:0">
+          <label>Tipo</label>
+          <select id="auto-tipo-${npc.id}" style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
+            <option value="pokegram" ${tipo==='pokegram'?'selected':''}>📸 Pokégram</option>
+            <option value="pokeet" ${tipo==='pokeet'?'selected':''}>🐦 Pokeet</option>
+            <option value="ambos" ${tipo==='ambos'?'selected':''}>🔀 Ambos (aleatório)</option>
+          </select>
+        </div>
+        <div class="adm-field" style="margin:0">
+          <label>Tom</label>
+          <select id="auto-tom-${npc.id}" style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
+            <option value="natural" ${tom==='natural'?'selected':''}>Natural</option>
+            <option value="animado" ${tom==='animado'?'selected':''}>Animado</option>
+            <option value="poetico" ${tom==='poetico'?'selected':''}>Poético</option>
+            <option value="misterioso" ${tom==='misterioso'?'selected':''}>Misterioso</option>
+            <option value="formal" ${tom==='formal'?'selected':''}>Formal</option>
+            <option value="comico" ${tom==='comico'?'selected':''}>Cômico</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="adm-field" style="margin-bottom:12px">
+        <label>Horários de postagem <span style="font-weight:400;text-transform:none;letter-spacing:0">(HH:MM separados por vírgula)</span></label>
+        <input type="text" id="auto-horarios-${npc.id}" value="${esc(horarios)}" placeholder="09:00, 13:00, 18:00"
+          style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;box-sizing:border-box;background:var(--surface)">
+      </div>
+
+      <div class="adm-field" style="margin-bottom:14px">
+        <label>Contexto fixo <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional — guia a IA sempre)</span></label>
+        <textarea id="auto-contexto-${npc.id}" rows="2" placeholder="Ex: Está viajando pela região de Johto, focado em se tornar mestre Pokémon..."
+          style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);resize:vertical;width:100%;box-sizing:border-box;background:var(--surface)">${esc(contexto)}</textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="autoSalvar('${npc.id}')">💾 Salvar</button>
+        <span id="auto-save-status-${npc.id}" style="font-size:12px;font-weight:700;color:var(--green);display:none">✓ Salvo!</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function autoToggleAtivo(npcId) {
+  const cb = document.getElementById(`auto-ativo-${npcId}`);
+  const label = document.getElementById(`auto-ativo-label-${npcId}`);
+  const card = document.getElementById(`auto-card-${npcId}`);
+  const ativo = cb.checked;
+  label.textContent = ativo ? '✅ Ativo' : '⏸ Inativo';
+  label.style.color = ativo ? 'var(--green)' : 'var(--muted)';
+  card.style.borderLeftColor = ativo ? 'var(--green)' : 'var(--border)';
+}
+
+async function autoSalvar(npcId) {
+  const ativo    = document.getElementById(`auto-ativo-${npcId}`).checked;
+  const tipo     = document.getElementById(`auto-tipo-${npcId}`).value;
+  const tom      = document.getElementById(`auto-tom-${npcId}`).value;
+  const contexto = document.getElementById(`auto-contexto-${npcId}`).value.trim();
+  const horariosRaw = document.getElementById(`auto-horarios-${npcId}`).value;
+  const horarios = horariosRaw.split(',').map(h => h.trim()).filter(h => /^\d{2}:\d{2}$/.test(h));
+
+  if (!horarios.length) {
+    alert('Informe ao menos um horário válido no formato HH:MM.');
+    return;
+  }
+
+  const btn = document.querySelector(`#auto-card-${npcId} .adm-btn-primary`);
+  btn.disabled = true; btn.textContent = '⏳';
+
+  const { error } = await db.from('npc_autoposts').upsert({
+    npc_id: npcId, ativo, tipo, tom,
+    posts_por_dia: horarios.length,
+    horarios,
+    contexto_fixo: contexto || null,
+  }, { onConflict: 'npc_id' });
+
+  btn.disabled = false; btn.textContent = '💾 Salvar';
+
+  if (error) { alert('Erro ao salvar: ' + error.message); return; }
+
+  const status = document.getElementById(`auto-save-status-${npcId}`);
+  status.style.display = '';
+  setTimeout(() => status.style.display = 'none', 2000);
 }
 
 // ── Usuários ──────────────────────────────────────────────
