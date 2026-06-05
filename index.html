@@ -477,6 +477,58 @@
   #chat-panel { width: 100vw; right: -100vw; }
 }
 
+/* ══ BOTTOM TAB BAR (mobile) ══════════════════════════════ */
+#bottom-tab-bar {
+  display: none;
+}
+@media (max-width: 768px) {
+  /* Esconde logo e busca no topnav mobile */
+  .topnav-logo  { display: none !important; }
+  .topnav-search { display: none !important; }
+
+  /* Padding no conteúdo para não ficar atrás da barra */
+  .main-content { padding-bottom: 64px !important; }
+
+  #bottom-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 56px;
+    background: var(--surface, #fff);
+    border-top: 1px solid var(--border, #dbdbdb);
+    z-index: 1000;
+    align-items: stretch;
+  }
+  .btab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'Pacifico', cursive;
+    font-size: 15px;
+    color: var(--muted, #8e8e8e);
+    gap: 0;
+    transition: color .15s;
+    padding: 0;
+    position: relative;
+  }
+  .btab.active {
+    color: var(--text, #262626);
+  }
+  .btab.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 20%; right: 20%;
+    height: 2px;
+    background: currentColor;
+    border-radius: 0 0 2px 2px;
+  }
+}
+
 /* ══════════════════════════════════════════
    POKÉETS — estilos
 ══════════════════════════════════════════ */
@@ -922,6 +974,12 @@
         </button>
       </div>
     </nav>
+
+    <!-- BOTTOM TAB BAR (mobile only) -->
+    <div id="bottom-tab-bar">
+      <button class="btab active" id="btab-feed" onclick="bottomTab('feed')">Pokégram</button>
+      <button class="btab" id="btab-pokeets" onclick="bottomTab('pokeets')">Pokeet</button>
+    </div>
 
     <main class="main-content">
       <div id="view-feed" class="view">
@@ -4444,7 +4502,18 @@ function renderSidebarAvatar() {
 }
 
 // ── View Routing ──────────────────────────────────────────
+function bottomTab(name) {
+  document.querySelectorAll('.btab').forEach(b => b.classList.remove('active'));
+  const active = document.getElementById('btab-' + name) || document.getElementById('btab-feed');
+  if (active) active.classList.add('active');
+  showView(name);
+}
+
 async function showView(name) {
+  // Sync bottom tab bar
+  document.querySelectorAll('.btab').forEach(b => b.classList.remove('active'));
+  const bt = document.getElementById('btab-' + name) || (name === 'feed' ? document.getElementById('btab-feed') : null);
+  if (bt) bt.classList.add('active');
   document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
   const v = document.getElementById('view-' + name);
   if (v) v.classList.remove('hidden');
