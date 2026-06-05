@@ -1492,6 +1492,7 @@
           <button class="adm-snav-btn" onclick="admTab(this,'filtros')">✨ Filtros de Foto</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'npcs')">🤖 NPCs</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'gerador')">✨ Gerador IA</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'manutencao')" id="adm-btn-manutencao">🚧 Manutenção</button>
           <div class="adm-snav-sep"></div>
@@ -1961,6 +1962,95 @@
               </div>
               <div id="manutencao-fb" style="margin-top:12px;font-size:13px;font-weight:700;display:none"></div>
             </div>
+          </div>
+
+          <!-- GERADOR IA -->
+          <div class="adm-section" id="sec-gerador">
+            <div class="adm-sec-title">✨ Gerador de Postagens IA</div>
+            <div class="adm-sec-sub">Gere legendas para o Pokégram ou textos para o Pokeets automaticamente para qualquer NPC usando Inteligência Artificial.</div>
+
+            <!-- Config box -->
+            <div class="adm-box" id="gerador-config-box">
+              <div class="adm-box-title">⚙️ Configurações</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+
+                <!-- NPC selector -->
+                <div class="adm-field" style="margin:0">
+                  <label>NPC</label>
+                  <select id="gerador-npc-select" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
+                    <option value="">— Carregando NPCs... —</option>
+                  </select>
+                </div>
+
+                <!-- Tipo -->
+                <div class="adm-field" style="margin:0">
+                  <label>Tipo de Conteúdo</label>
+                  <select id="gerador-tipo" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)" onchange="geradorTipoChange()">
+                    <option value="pokegram">📸 Pokégram (legenda + local)</option>
+                    <option value="pokeet">🐦 Pokeet (texto curto)</option>
+                  </select>
+                </div>
+
+                <!-- Qtd -->
+                <div class="adm-field" style="margin:0">
+                  <label>Quantidade</label>
+                  <select id="gerador-qtd" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
+                    <option value="1">1 sugestão</option>
+                    <option value="3" selected>3 sugestões</option>
+                    <option value="5">5 sugestões</option>
+                  </select>
+                </div>
+
+                <!-- Tom -->
+                <div class="adm-field" style="margin:0">
+                  <label>Tom / Estilo</label>
+                  <select id="gerador-tom" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
+                    <option value="natural">Natural (baseado no bio)</option>
+                    <option value="animado">Animado e empolgado</option>
+                    <option value="poetico">Poético e contemplativo</option>
+                    <option value="misterioso">Misterioso e sombrio</option>
+                    <option value="formal">Formal e sério</option>
+                    <option value="comico">Cômico e descontraído</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Contexto -->
+              <div class="adm-field" style="margin-bottom:14px">
+                <label>Contexto / Situação <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional)</span></label>
+                <textarea id="gerador-contexto" rows="3" placeholder="Ex: O personagem acabou de vencer uma batalha em Pewter City. Estava explorando uma floresta misteriosa à noite. Encontrou um Pokémon raro..."
+                  style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);resize:vertical;width:100%;box-sizing:border-box;background:var(--surface)"></textarea>
+              </div>
+
+              <!-- Local padrão (só Pokégram) -->
+              <div class="adm-field" id="gerador-local-wrap" style="margin-bottom:14px">
+                <label>Local sugerido <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional — dica para a IA)</span></label>
+                <input type="text" id="gerador-local" placeholder="Ex: Floresta de Viridian, Kanto" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;box-sizing:border-box;background:var(--surface)">
+              </div>
+
+              <button class="adm-btn adm-btn-primary" id="gerador-btn" onclick="geradorGerar()" style="min-width:160px">
+                ✨ Gerar sugestões
+              </button>
+            </div>
+
+            <!-- Results -->
+            <div id="gerador-results" style="display:none">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+                <div style="font-size:14px;font-weight:700;color:var(--brand)" id="gerador-results-title">Sugestões geradas</div>
+                <button class="adm-btn adm-btn-sm" style="background:var(--surface2);border:1.5px solid var(--border);color:var(--text)" onclick="geradorLimpar()">✕ Limpar</button>
+              </div>
+              <div id="gerador-cards" style="display:flex;flex-direction:column;gap:14px"></div>
+            </div>
+
+            <!-- Loading state -->
+            <div id="gerador-loading" style="display:none;text-align:center;padding:40px 20px">
+              <div style="font-size:30px;margin-bottom:10px">✨</div>
+              <div style="font-size:14px;font-weight:700;color:var(--brand);margin-bottom:6px">Gerando sugestões...</div>
+              <div style="font-size:12px;color:var(--muted)" id="gerador-loading-sub">Aguarde um momento</div>
+            </div>
+
+            <!-- Error -->
+            <div id="gerador-error" style="display:none;background:#fde8e8;border:1.5px solid #f0c0c0;border-radius:8px;padding:14px 16px;color:var(--red);font-size:13px;font-weight:600;margin-top:16px"></div>
           </div>
 
         </div><!-- /adm-content -->
@@ -3083,6 +3173,255 @@ function admTab(btn, id) {
   if (id === 'imagens') { carregarLogoAdm(); carregarFaviconAdm(); }
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
   if (id === 'npcs')    admNpcLoad();
+  if (id === 'gerador') geradorInit();
+}
+
+// ══════════════════════════════════════════════════════════
+//  GERADOR DE POSTAGENS IA
+// ══════════════════════════════════════════════════════════
+let _geradorNpcs = [];
+
+async function geradorInit() {
+  // Carrega NPCs no select se ainda não carregado
+  const sel = document.getElementById('gerador-npc-select');
+  if (_geradorNpcs.length) return; // já carregado
+  sel.innerHTML = '<option value="">— Carregando... —</option>';
+  const { data } = await db.from('users').select('id,username,name,bio,rpg,color,avatar_url').eq('is_npc', true).order('username');
+  _geradorNpcs = data || [];
+  if (!_geradorNpcs.length) {
+    sel.innerHTML = '<option value="">— Nenhum NPC cadastrado —</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">— Selecione um NPC —</option>' +
+    _geradorNpcs.map(n => `<option value="${n.id}">${esc(n.username)}${n.name ? ' · ' + esc(n.name) : ''}</option>`).join('');
+}
+
+function geradorTipoChange() {
+  const tipo = document.getElementById('gerador-tipo').value;
+  document.getElementById('gerador-local-wrap').style.display = tipo === 'pokegram' ? '' : 'none';
+}
+
+function geradorLimpar() {
+  document.getElementById('gerador-results').style.display = 'none';
+  document.getElementById('gerador-cards').innerHTML = '';
+  document.getElementById('gerador-error').style.display = 'none';
+}
+
+async function geradorGerar() {
+  const npcId = document.getElementById('gerador-npc-select').value;
+  if (!npcId) { alert('Selecione um NPC primeiro.'); return; }
+  const npc = _geradorNpcs.find(n => n.id === npcId);
+  if (!npc) return;
+
+  const tipo     = document.getElementById('gerador-tipo').value;
+  const qtd      = parseInt(document.getElementById('gerador-qtd').value) || 3;
+  const tom      = document.getElementById('gerador-tom').value;
+  const contexto = document.getElementById('gerador-contexto').value.trim();
+  const local    = document.getElementById('gerador-local').value.trim();
+
+  // UI: mostrar loading
+  document.getElementById('gerador-loading').style.display = 'block';
+  document.getElementById('gerador-results').style.display = 'none';
+  document.getElementById('gerador-error').style.display = 'none';
+  document.getElementById('gerador-btn').disabled = true;
+  document.getElementById('gerador-btn').textContent = '⏳ Gerando...';
+
+  const tomsMap = {
+    natural:'natural, condizente com a personalidade e bio do personagem',
+    animado:'animado, empolgado, cheio de energia',
+    poetico:'poético, contemplativo, com metáforas',
+    misterioso:'misterioso, sombrio, enigmático',
+    formal:'formal, sério, distinto',
+    comico:'cômico, descontraído, com humor',
+  };
+  const tomDesc = tomsMap[tom] || 'natural';
+
+  let systemPrompt, userPrompt;
+
+  if (tipo === 'pokegram') {
+    systemPrompt = `Você é um assistente criativo para um RPG de Pokémon chamado Pokégram. Gere sugestões de legendas para postagens de fotos do personagem descrito. As legendas devem parecer postagens reais de uma rede social estilo Instagram no universo Pokémon. Use português brasileiro informal. Inclua hashtags relevantes ao universo Pokémon no final de cada legenda. Responda APENAS com um JSON válido, sem texto extra, sem marcação markdown.`;
+
+    userPrompt = `Personagem: @${npc.username}${npc.name ? ' (' + npc.name + ')' : ''}
+Bio: ${npc.bio || 'Sem bio definida'}
+RPG: ${npc.rpg || 'Não definido'}
+
+Contexto da postagem: ${contexto || 'Situação cotidiana do personagem no universo Pokémon'}
+${local ? 'Local da postagem: ' + local : ''}
+Tom desejado: ${tomDesc}
+
+Gere ${qtd} sugestão(ões) de legenda para uma postagem do Pokégram. Para cada sugestão, forneça uma legenda (máximo 300 caracteres com hashtags) e uma sugestão de local no formato "Cidade/Local, Região" do universo Pokémon.
+
+Responda exatamente neste formato JSON:
+{"sugestoes":[{"legenda":"texto da legenda com #hashtags","local":"Nome do Local, Região"}]}`;
+
+  } else {
+    systemPrompt = `Você é um assistente criativo para um RPG de Pokémon chamado Pokégram. Gere sugestões de Pokeets (posts curtos estilo Twitter) do personagem descrito. Os textos devem parecer posts reais de uma rede social no universo Pokémon. Use português brasileiro informal. Máximo de 280 caracteres cada. Responda APENAS com um JSON válido, sem texto extra, sem marcação markdown.`;
+
+    userPrompt = `Personagem: @${npc.username}${npc.name ? ' (' + npc.name + ')' : ''}
+Bio: ${npc.bio || 'Sem bio definida'}
+RPG: ${npc.rpg || 'Não definido'}
+
+Contexto: ${contexto || 'Situação cotidiana do personagem no universo Pokémon'}
+Tom desejado: ${tomDesc}
+
+Gere ${qtd} sugestão(ões) de Pokeet (texto curto, máximo 280 caracteres). Podem incluir hashtags, menções com @ e emojis.
+
+Responda exatamente neste formato JSON:
+{"sugestoes":[{"texto":"texto do pokeet"}]}`;
+  }
+
+  try {
+    const msgs = [{ role:'user', content: userPrompt }];
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: msgs,
+      })
+    });
+    if (!resp.ok) throw new Error('Erro HTTP ' + resp.status);
+    const data = await resp.json();
+    const raw = (data.content || []).map(b => b.text || '').join('');
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    const sugestoes = parsed.sugestoes || [];
+    geradorRenderCards(sugestoes, tipo, npc);
+  } catch(err) {
+    const errEl = document.getElementById('gerador-error');
+    errEl.textContent = '❌ Erro ao gerar sugestões: ' + err.message;
+    errEl.style.display = 'block';
+  } finally {
+    document.getElementById('gerador-loading').style.display = 'none';
+    document.getElementById('gerador-btn').disabled = false;
+    document.getElementById('gerador-btn').textContent = '✨ Gerar sugestões';
+  }
+}
+
+function geradorRenderCards(sugestoes, tipo, npc) {
+  if (!sugestoes.length) {
+    document.getElementById('gerador-error').textContent = 'Nenhuma sugestão retornada. Tente novamente.';
+    document.getElementById('gerador-error').style.display = 'block';
+    return;
+  }
+
+  const titulo = tipo === 'pokegram'
+    ? `📸 ${sugestoes.length} legenda(s) para @${npc.username}`
+    : `🐦 ${sugestoes.length} pokeet(s) para @${npc.username}`;
+  document.getElementById('gerador-results-title').textContent = titulo;
+
+  const container = document.getElementById('gerador-cards');
+  container.innerHTML = sugestoes.map((s, i) => {
+    const cardId = `gcard-${i}`;
+    if (tipo === 'pokegram') {
+      return `<div class="adm-box" id="${cardId}" style="border-left:3px solid var(--brand-mid)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--brand-mid);text-transform:uppercase;letter-spacing:.4px">📸 Sugestão ${i+1}</div>
+          <div id="${cardId}-status" style="font-size:12px;font-weight:700;color:var(--green);display:none">✓ Publicado!</div>
+        </div>
+        <div class="adm-field" style="margin-bottom:10px">
+          <label>Legenda</label>
+          <textarea id="${cardId}-cap" rows="3" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);resize:vertical;width:100%;box-sizing:border-box;background:var(--surface)">${esc(s.legenda||'')}</textarea>
+        </div>
+        <div class="adm-field" style="margin-bottom:12px">
+          <label>Local</label>
+          <input type="text" id="${cardId}-loc" value="${esc(s.local||'')}" style="padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;box-sizing:border-box;background:var(--surface)">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="adm-btn adm-btn-primary adm-btn-sm" id="${cardId}-btn" onclick="geradorPublicarPost('${cardId}','${npc.id}')">📤 Publicar no Pokégram</button>
+          <button class="adm-btn adm-btn-sm" style="background:var(--surface2);border:1.5px solid var(--border);color:var(--text)" onclick="admNpcAbrirPosts('${npc.id}','${npc.username}');admTab(document.querySelector('[onclick*=\\'npcs\\']'),\\'npcs\\')">📋 Ver posts</button>
+        </div>
+      </div>`;
+    } else {
+      const chars = (s.texto||'').length;
+      const over  = chars > 280;
+      return `<div class="adm-box" id="${cardId}" style="border-left:3px solid #c62828">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;color:#c62828;text-transform:uppercase;letter-spacing:.4px">🐦 Pokeet ${i+1}</div>
+          <div id="${cardId}-status" style="font-size:12px;font-weight:700;color:var(--green);display:none">✓ Publicado!</div>
+        </div>
+        <div class="adm-field" style="margin-bottom:10px">
+          <label>Texto <span id="${cardId}-chars" style="font-weight:400;text-transform:none;letter-spacing:0;color:${over?'var(--red)':'var(--muted)'}">(${chars}/280)</span></label>
+          <textarea id="${cardId}-txt" rows="3" maxlength="300" oninput="geradorCountChars('${cardId}-txt','${cardId}-chars')" style="padding:10px 12px;border-radius:8px;border:1.5px solid ${over?'var(--red)':'var(--border)'};font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);resize:vertical;width:100%;box-sizing:border-box;background:var(--surface)">${esc(s.texto||'')}</textarea>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="adm-btn adm-btn-sm" id="${cardId}-btn" style="background:#c62828;color:#fff" onclick="geradorPublicarPokeet('${cardId}','${npc.id}')">🐦 Publicar Pokeet</button>
+        </div>
+      </div>`;
+    }
+  }).join('');
+
+  document.getElementById('gerador-results').style.display = 'block';
+  document.getElementById('gerador-results').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function geradorCountChars(taId, spanId) {
+  const ta = document.getElementById(taId);
+  const sp = document.getElementById(spanId);
+  if (!ta || !sp) return;
+  const n = ta.value.length;
+  sp.textContent = `(${n}/280)`;
+  sp.style.color = n > 280 ? 'var(--red)' : 'var(--muted)';
+  ta.style.borderColor = n > 280 ? 'var(--red)' : 'var(--border)';
+}
+
+async function geradorPublicarPost(cardId, npcId) {
+  const caption  = document.getElementById(cardId + '-cap').value.trim();
+  const location = document.getElementById(cardId + '-loc').value.trim();
+  const btn      = document.getElementById(cardId + '-btn');
+  const status   = document.getElementById(cardId + '-status');
+
+  if (!caption) { alert('A legenda não pode estar vazia.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Publicando...';
+
+  const { error } = await db.from('posts').insert({
+    user_id: npcId,
+    caption,
+    location: location || null,
+    image_url: null,
+    emoji: '📸',
+    bg: '#f5f5f5'
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = '📤 Publicar no Pokégram';
+    alert('Erro ao publicar: ' + error.message);
+    return;
+  }
+
+  btn.style.display = 'none';
+  status.style.display = '';
+  document.getElementById(cardId).style.opacity = '0.65';
+}
+
+async function geradorPublicarPokeet(cardId, npcId) {
+  const text   = document.getElementById(cardId + '-txt').value.trim();
+  const btn    = document.getElementById(cardId + '-btn');
+  const status = document.getElementById(cardId + '-status');
+
+  if (!text) { alert('O texto não pode estar vazio.'); return; }
+  if (text.length > 280) { alert('O pokeet tem mais de 280 caracteres!'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Publicando...';
+
+  const { error } = await db.from('pokeets').insert({ user_id: npcId, text });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = '🐦 Publicar Pokeet';
+    alert('Erro ao publicar: ' + error.message);
+    return;
+  }
+
+  btn.style.display = 'none';
+  status.style.display = '';
+  document.getElementById(cardId).style.opacity = '0.65';
 }
 
 // ── Usuários ──────────────────────────────────────────────
