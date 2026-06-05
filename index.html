@@ -7954,6 +7954,7 @@ async function renderPokeets() {
       ...authorIds,
       ...pokeets.map(p => p.quoted?.user_id).filter(Boolean)
     ])];
+    // IMPORTANTE: await obrigatório — os perfis precisam estar no mapa antes de pkRenderCard
     if (typeof pkFetchProfiles === 'function') await pkFetchProfiles(allAuthorIds);
 
     _pk.feed = pokeets;
@@ -7989,7 +7990,9 @@ async function renderPokeets() {
 
 // ── Render card ───────────────────────────────────────────
 function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
-  if (!p || !p.users) return '';
+  if (!p) return '';
+  // Garante objeto users mesmo se o lookup falhou (usuário sem cadastro na tabela users)
+  if (!p.users) p = { ...p, users: { id: p.user_id, username: 'usuario', name: 'Usuário', color: '#e53935', avatar_url: null } };
   // Aplica perfil Pokeet do autor (visível para todos)
   if (typeof pkApplyProfile === 'function') {
     p = { ...p, users: pkApplyProfile(p.users) };
@@ -8506,7 +8509,7 @@ function pkEffectiveUser() {
 
 // ── Mescla perfil Pokeet num objeto user genérico ─────────
 function pkApplyProfile(userObj) {
-  if (!userObj) return userObj;
+  if (!userObj || !userObj.id) return userObj;
   const prof = _pkProfilesMap[userObj.id];
   if (!prof) return userObj;
   return {
