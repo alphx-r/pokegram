@@ -3839,6 +3839,8 @@ async function initApp(user) {
     showView('feed').catch(() => {});
   } else if (urlPath === 'explore') {
     showView('explore').catch(() => {});
+  } else if (urlPath === 'pokeet' || urlPath === 'pokeet/') {
+    showView('pokeets').catch(() => {});
   } else if (postMatch) {
     // /username/post/id — abre o feed e depois o modal do post
     showView('feed').then(() => openComments(postMatch[1])).catch(() => {});
@@ -3906,7 +3908,7 @@ async function showView(name) {
   if (name === 'explore') { history.replaceState(null,'','/explore');
     await renderExplore(); }
   if (name === 'profile') await renderProfile(currentUser.username);
-  if (name === 'pokeets') {
+  if (name === 'pokeets') { history.replaceState(null,'','/pokeet');
     await renderPokeets(); }
 
   currentViewHistory.push(name);
@@ -6023,6 +6025,10 @@ window.addEventListener('popstate', async () => {
     closeModal('modal-comments');
     closeStoryViewer();
     await showView('feed');
+  } else if (urlPath === 'pokeet' || urlPath === 'pokeet/') {
+    closeModal('modal-comments');
+    closeStoryViewer();
+    await showView('pokeets');
   } else if (postMatch) {
     // /username/post/id — SEMPRE fecha modais, carrega o feed e abre o modal-comments.
     // Nunca abre página separada: o modal é a única forma de visualizar um post.
