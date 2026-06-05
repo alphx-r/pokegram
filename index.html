@@ -7863,17 +7863,17 @@ function pkOnInputQuote(el) {
 // ── Render composer avatar ────────────────────────────────
 function pkRenderComposerAvatar() {
   if (!currentUser) return;
+  const u = (typeof pkEffectiveUser === 'function') ? pkEffectiveUser() : currentUser;
   const ids = ['pkc-avatar', 'pk-reply-avatar', 'pk-quote-avatar'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    const color = currentUser.avatar_color || currentUser.color || '#e53935';
-    if (currentUser.avatar_url) {
-      el.innerHTML = `<img src="${esc(currentUser.avatar_url)}" alt="">`;
-      el.style.background = color;
+    const color = u.avatar_color || u.color || '#e53935';
+    el.style.background = color;
+    if (u.avatar_url) {
+      el.innerHTML = `<img src="${esc(u.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
     } else {
-      el.textContent = initials(currentUser.username || '?');
-      el.style.background = color;
+      el.textContent = initials(u.username || '?');
     }
   });
 }
@@ -7882,6 +7882,9 @@ function pkRenderComposerAvatar() {
 async function renderPokeets() {
   const container = document.getElementById('pokeets-feed');
   if (!container) return;
+
+  // Carrega cache de perfis Pokeet (para exibição imediata)
+  if (typeof pkProfilesMapLoad === 'function') pkProfilesMapLoad();
 
   // skeleton
   container.innerHTML = `<div class="pk-loading">${[1,2,3].map(()=>`
@@ -7987,6 +7990,11 @@ async function renderPokeets() {
 // ── Render card ───────────────────────────────────────────
 function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
   if (!p || !p.users) return '';
+  // Aplica perfil Pokeet do autor (visível para todos)
+  if (typeof pkApplyProfile === 'function') {
+    p = { ...p, users: pkApplyProfile(p.users) };
+    if (p.quoted && p.quoted.users) p = { ...p, quoted: { ...p.quoted, users: pkApplyProfile(p.quoted.users) } };
+  }
   const u = p.users;
   const liked    = likedSet   ? likedSet.has(p.id)   : false;
   const reposted = repostedSet? repostedSet.has(p.id) : false;
@@ -8511,40 +8519,6 @@ function pkApplyProfile(userObj) {
   };
 }
 
-// ── Override pkRenderComposerAvatar ───────────────────────
-pkRenderComposerAvatar = function() {
-  const u = pkEffectiveUser();
-  if (!u) return;
-  const ids = ['pkc-avatar', 'pk-reply-avatar', 'pk-quote-avatar'];
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const color = u.avatar_color || '#e53935';
-    el.style.background = color;
-    if (u.avatar_url) {
-      el.innerHTML = `<img src="${esc(u.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-    } else {
-      el.textContent = initials(u.username || '?');
-    }
-  });
-};
-
-// ── Override pkRenderCard — aplica perfil Pokeet em todos os autores ──
-const _origPkRenderCard = pkRenderCard;
-pkRenderCard = function(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
-  if (!p) return '';
-  if (p.users) p = { ...p, users: pkApplyProfile(p.users) };
-  if (p.quoted && p.quoted.users) p = { ...p, quoted: { ...p.quoted, users: pkApplyProfile(p.quoted.users) } };
-  return _origPkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread);
-};
-
-// ── Override renderPokeets — garante cache de perfis atualizado ──
-const _origRenderPokeets = renderPokeets;
-renderPokeets = async function() {
-  pkProfilesMapLoad();
-  await _origRenderPokeets();
-};
-
 // ── Modal: abrir ─────────────────────────────────────────
 async function pkOpenProfileModal() {
   if (!currentUser) return;
@@ -8690,6 +8664,6 @@ async function pkSaveProfile() {
   await renderPokeets();
 }
 
-// ── Inicialização: carrega perfis ao abrir a view Pokeets ──
+// ── Inicialização ─────────────────────────────────────────
 pkProfilesMapLoad();
 </script>
