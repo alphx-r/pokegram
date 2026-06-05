@@ -555,7 +555,7 @@
 .pkTab.active { color: var(--text, #262626); border-bottom-color: #e53935; }
 .pkTab:hover:not(.active) { background: #f8f8f8; }
 
-/* Pokéet card */
+/* Pokeet card */
 .pokeet-card {
   display: flex; gap: 12px; padding: 14px 4px;
   border-bottom: 1px solid var(--border, #efefef);
@@ -911,7 +911,7 @@
         <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
           <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
-        <button class="tn-btn" id="btn-pokeets" onclick="showView('pokeets')" title="Pokéets">
+        <button class="tn-btn" id="btn-pokeets" onclick="showView('pokeets')" title="Pokeets">
           <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L9 15"/><path d="M21 3L14 21l-5-8-8-5 21-7z"/></svg>
         </button>
         <button class="tn-btn" id="btn-profile" onclick="showView('profile')" title="Perfil">
@@ -996,7 +996,7 @@
                     </svg>
                     <span id="pkc-char-count" class="pkc-char-text">280</span>
                   </div>
-                  <button class="pokeet-btn-post" id="pokeet-btn-post" onclick="submitPokeet()" disabled>Pokéet</button>
+                  <button class="pokeet-btn-post" id="pokeet-btn-post" onclick="submitPokeet()" disabled>Pokeet</button>
                 </div>
               </div>
             </div>
@@ -1025,7 +1025,7 @@
         <div class="modal-box pk-thread-box">
           <div class="modal-header">
             <button class="modal-x" onclick="closeModal('modal-pokeet-thread')">✕</button>
-            <h3 id="pk-thread-title">Pokéet</h3>
+            <h3 id="pk-thread-title">Pokeet</h3>
             <span></span>
           </div>
           <div id="pk-thread-content" class="pk-thread-content"></div>
@@ -1035,7 +1035,7 @@
               <textarea
                 id="pk-reply-text"
                 class="pokeet-composer-input"
-                placeholder="Responder ao Pokéet..."
+                placeholder="Responder ao Pokeet..."
                 maxlength="280"
                 oninput="pkOnInputReply(this)"
               ></textarea>
@@ -1073,7 +1073,7 @@
         </button>
         <button class="pk-repost-opt-btn" onclick="pkOpenQuoteCompose()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Citar Pokéet
+          Citar Pokeet
         </button>
       </div>
       <!-- Quote composer (oculto por default) -->
@@ -7030,7 +7030,7 @@ async function renderPokeets() {
     if (error) throw error;
 
     if (!pokeets || !pokeets.length) {
-      container.innerHTML = `<div class="pk-thread-empty">Nenhum Pokéet ainda.<br>Seja o primeiro a tweetar! 🐦</div>`;
+      container.innerHTML = `<div class="pk-thread-empty">Nenhum Pokeet ainda.<br>Seja o primeiro a tweetar! 🐦</div>`;
       return;
     }
 
@@ -7082,8 +7082,8 @@ async function renderPokeets() {
     pkLoadTrends(pokeets);
 
   } catch(e) {
-    console.error('Pokéets error:', e);
-    container.innerHTML = `<div class="pk-thread-empty">Erro ao carregar Pokéets.<br>${e.message || ''}</div>`;
+    console.error('Pokeets error:', e);
+    container.innerHTML = `<div class="pk-thread-empty">Erro ao carregar Pokeets.<br>${e.message || ''}</div>`;
   }
 }
 
@@ -7103,7 +7103,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   const isPinned = !!p.pinned;
   const isOwn    = p.user_id === currentUser.id;
 
-  let pinnedLabel = isPinned ? `<div class="pk-pinned-label">📌 Pokéet fixado</div>` : '';
+  let pinnedLabel = isPinned ? `<div class="pk-pinned-label">📌 Pokeet fixado</div>` : '';
   let repostLabel = isRepost ? `<div class="pk-card-repost-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>${esc(u.username)} repostou</div>` : '';
 
   let quoteHtml = '';
@@ -7128,8 +7128,8 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   const menuHtml = isOwn ? `<div class="pk-menu" style="margin-left:auto;flex-shrink:0">
     <button class="pk-menu-btn" onclick="event.stopPropagation();pkToggleMenu('${p.id}')" title="Opções">···</button>
     <div class="pk-dropdown" id="pkdrop-${p.id}">
-      <div class="pk-dd-item" onclick="pkTogglePin('${p.id}',${isPinned})">${isPinned ? '📌 Desafixar' : '📌 Fixar'} Pokéet</div>
-      <div class="pk-dd-item danger" onclick="pkDelete('${p.id}')">🗑 Apagar Pokéet</div>
+      <div class="pk-dd-item" onclick="pkTogglePin('${p.id}',${isPinned})">${isPinned ? '📌 Desafixar' : '📌 Fixar'} Pokeet</div>
+      <div class="pk-dd-item danger" onclick="pkDelete('${p.id}')">🗑 Apagar Pokeet</div>
     </div>
   </div>` : '';
 
@@ -7163,7 +7163,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   </div>`;
 }
 
-// ── Submit Pokéet ─────────────────────────────────────────
+// ── Submit Pokeet ─────────────────────────────────────────
 async function submitPokeet() {
   if (!currentUser) return;
   const input = document.getElementById('pokeet-text');
@@ -7172,13 +7172,13 @@ async function submitPokeet() {
   const btn = document.getElementById('pokeet-btn-post');
   btn.disabled = true; btn.textContent = 'Publicando...';
   const { error } = await db.from('pokeets').insert({ user_id: currentUser.id, text });
-  btn.textContent = 'Pokéet';
+  btn.textContent = 'Pokeet';
   if (error) { toast('Erro ao publicar: ' + error.message); btn.disabled = false; return; }
   input.value = '';
   input.style.height = 'auto';
   pkCharRing('pkc-ring-fill', 'pkc-char-count', 0, 280);
   btn.disabled = true;
-  toast('Pokéet publicado! 🐦');
+  toast('Pokeet publicado! 🐦');
   await renderPokeets();
 }
 
@@ -7224,7 +7224,7 @@ async function pkOpenThread(pokeetId) {
   try {
     // Busca pokéet raiz (sem join para evitar conflito de múltiplas FKs)
     const { data: root } = await db.from('pokeets').select('*').eq('id', pokeetId).maybeSingle();
-    if (!root) { content.innerHTML = '<div class="pk-thread-empty">Pokéet não encontrado.</div>'; return; }
+    if (!root) { content.innerHTML = '<div class="pk-thread-empty">Pokeet não encontrado.</div>'; return; }
 
     // Busca usuário do root
     const { data: rootUser } = await db.from('users').select('id, username, name, color, avatar_url').eq('id', root.user_id).maybeSingle();
@@ -7260,7 +7260,7 @@ async function pkOpenThread(pokeetId) {
     const likedSet = new Set((myLikes || []).map(l => l.pokeet_id));
     const likeMap  = {};  (likeCounts || []).forEach(l => { likeMap[l.pokeet_id] = (likeMap[l.pokeet_id]||0)+1; });
 
-    if (title) title.textContent = root.users?.username ? `@${root.users.username}` : 'Pokéet';
+    if (title) title.textContent = root.users?.username ? `@${root.users.username}` : 'Pokeet';
 
     content.innerHTML = `
       <div class="pk-thread-root">
@@ -7382,7 +7382,7 @@ async function submitPokeetQuote() {
   btn.textContent = 'Citar'; btn.disabled = false;
   if (error) { toast('Erro ao citar: ' + error.message); return; }
   closeModal('modal-pokeet-repost');
-  toast('Pokéet citado! ✏️');
+  toast('Pokeet citado! ✏️');
   await renderPokeets();
 }
 
@@ -7409,17 +7409,17 @@ async function pkTogglePin(pokeetId, isPinned) {
   }
   const { error } = await db.from('pokeets').update({ pinned: !isPinned }).eq('id', pokeetId);
   if (error) { toast('Erro ao ' + (isPinned ? 'desafixar' : 'fixar') + '.'); return; }
-  toast(isPinned ? 'Pokéet desafixado.' : 'Pokéet fixado! 📌');
+  toast(isPinned ? 'Pokeet desafixado.' : 'Pokeet fixado! 📌');
   await renderPokeets();
 }
 
 async function pkDelete(pokeetId) {
   document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
-  if (!confirm('Apagar este Pokéet?')) return;
+  if (!confirm('Apagar este Pokeet?')) return;
   const { error } = await db.from('pokeets').delete().eq('id', pokeetId);
   if (error) { toast('Erro ao apagar.'); return; }
   document.getElementById('pkcard-' + pokeetId)?.remove();
-  toast('Pokéet apagado.');
+  toast('Pokeet apagado.');
 }
 
 // ── Tabs ──────────────────────────────────────────────────
@@ -7451,7 +7451,7 @@ function pkLoadTrends(pokeets) {
     <div class="pk-trend-item" onclick="pkSearchHashtag('${esc(tag)}')">
       <div class="pk-trend-cat">Pokémon · Tendência</div>
       <div class="pk-trend-tag">#${esc(tag)}</div>
-      <div class="pk-trend-count">${count} Pokéet${count>1?'s':''}</div>
+      <div class="pk-trend-count">${count} Pokeet${count>1?'s':''}</div>
     </div>`).join('');
 }
 
