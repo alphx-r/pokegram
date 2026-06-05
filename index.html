@@ -7007,17 +7007,16 @@ async function renderPokeets() {
   pkRenderComposerAvatar();
 
   try {
-    // Busca IDs de usuários conforme a aba selecionada
+    // Busca pokéets sem join (evita conflito de múltiplas FKs para users)
     let pokeetsQuery = db
       .from('pokeets')
-      .select('*, users!user_id(id, username, name, color, avatar_url, rpg)')
+      .select('*')
       .is('reply_to_id', null)
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(40);
 
     if (_pk.tab === 'following') {
-      // Seguindo
       const { data: follows } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id);
       const userIds = (follows || []).map(f => f.following_id);
       if (!userIds.length) {
@@ -7026,26 +7025,35 @@ async function renderPokeets() {
       }
       pokeetsQuery = pokeetsQuery.in('user_id', userIds);
     }
-    // aba "for-you": sem filtro, mostra todos os pokeets
 
     const { data: pokeets, error } = await pokeetsQuery;
     if (error) throw error;
 
-    // Busca pokéets citados separadamente (self-join não suportado no Supabase)
-    const quoteIds = (pokeets || []).map(p => p.quote_id).filter(Boolean);
-    let quotedMap = {};
-    if (quoteIds.length) {
-      const { data: quotedRows } = await db
-        .from('pokeets')
-        .select('id, text, created_at, users!user_id(id, username, name, color, avatar_url)')
-        .in('id', quoteIds);
-      (quotedRows || []).forEach(q => { quotedMap[q.id] = q; });
-    }
-    (pokeets || []).forEach(p => { if (p.quote_id) p.quoted = quotedMap[p.quote_id] || null; });
-
     if (!pokeets || !pokeets.length) {
       container.innerHTML = `<div class="pk-thread-empty">Nenhum Pokéet ainda.<br>Seja o primeiro a tweetar! 🐦</div>`;
       return;
+    }
+
+    // Busca dados dos usuários separadamente
+    const authorIds = [...new Set(pokeets.map(p => p.user_id).filter(Boolean))];
+    const { data: usersData } = await db.from('users').select('id, username, name, color, avatar_url, rpg').in('id', authorIds);
+    const usersMap = {};
+    (usersData || []).forEach(u => { usersMap[u.id] = u; });
+    pokeets.forEach(p => { p.users = usersMap[p.user_id] || null; });
+
+    // Busca pokéets citados separadamente
+    const quoteIds = pokeets.map(p => p.quote_id).filter(Boolean);
+    if (quoteIds.length) {
+      const { data: quotedRows } = await db.from('pokeets').select('id, text, created_at, user_id').in('id', quoteIds);
+      const quotedAuthorIds = [...new Set((quotedRows || []).map(q => q.user_id).filter(Boolean))];
+      let quotedUsersMap = {};
+      if (quotedAuthorIds.length) {
+        const { data: qUsers } = await db.from('users').select('id, username, name, color, avatar_url').in('id', quotedAuthorIds);
+        (qUsers || []).forEach(u => { quotedUsersMap[u.id] = u; });
+      }
+      const quotedMap = {};
+      (quotedRows || []).forEach(q => { q.users = quotedUsersMap[q.user_id] || null; quotedMap[q.id] = q; });
+      pokeets.forEach(p => { if (p.quote_id) p.quoted = quotedMap[p.quote_id] || null; });
     }
 
     _pk.feed = pokeets;
@@ -7214,23 +7222,34 @@ async function pkOpenThread(pokeetId) {
   pkRenderComposerAvatar();
 
   try {
-    // Busca pokéet raiz
-    const { data: root } = await db.from('pokeets').select(
-      '*, users!user_id(id, username, name, color, avatar_url)'
-    ).eq('id', pokeetId).maybeSingle();
-
-    // Busca pokéet citado separadamente (self-join não suportado)
-    if (root && root.quote_id) {
-      const { data: quotedRow } = await db.from('pokeets')
-        .select('id, text, created_at, users!user_id(id, username, name, color, avatar_url)')
-        .eq('id', root.quote_id).maybeSingle();
-      root.quoted = quotedRow || null;
-    }
-
+    // Busca pokéet raiz (sem join para evitar conflito de múltiplas FKs)
+    const { data: root } = await db.from('pokeets').select('*').eq('id', pokeetId).maybeSingle();
     if (!root) { content.innerHTML = '<div class="pk-thread-empty">Pokéet não encontrado.</div>'; return; }
 
+    // Busca usuário do root
+    const { data: rootUser } = await db.from('users').select('id, username, name, color, avatar_url').eq('id', root.user_id).maybeSingle();
+    root.users = rootUser || null;
+
+    // Busca pokéet citado separadamente
+    if (root.quote_id) {
+      const { data: quotedRow } = await db.from('pokeets').select('id, text, created_at, user_id').eq('id', root.quote_id).maybeSingle();
+      if (quotedRow) {
+        const { data: qUser } = await db.from('users').select('id, username, name, color, avatar_url').eq('id', quotedRow.user_id).maybeSingle();
+        quotedRow.users = qUser || null;
+        root.quoted = quotedRow;
+      }
+    }
+
     // Busca respostas
-    const { data: replies } = await db.from('pokeets').select('*, users!user_id(id, username, name, color, avatar_url)').eq('reply_to_id', pokeetId).order('created_at', { ascending: true });
+    const { data: replies } = await db.from('pokeets').select('*').eq('reply_to_id', pokeetId).order('created_at', { ascending: true });
+    // Busca usuários das respostas
+    const replyAuthorIds = [...new Set((replies || []).map(r => r.user_id).filter(Boolean))];
+    if (replyAuthorIds.length) {
+      const { data: replyUsers } = await db.from('users').select('id, username, name, color, avatar_url').in('id', replyAuthorIds);
+      const ruMap = {};
+      (replyUsers || []).forEach(u => { ruMap[u.id] = u; });
+      (replies || []).forEach(r => { r.users = ruMap[r.user_id] || null; });
+    }
 
     // Curtidas do usuário
     const allIds = [root.id, ...(replies||[]).map(r=>r.id)];
