@@ -3530,7 +3530,7 @@ async function automacaoInit() {
         </label>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
         <div class="adm-field" style="margin:0">
           <label>Tipo</label>
           <select id="auto-tipo-${npc.id}" style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
@@ -3548,6 +3548,12 @@ async function automacaoInit() {
             <option value="misterioso" ${tom==='misterioso'?'selected':''}>Misterioso</option>
             <option value="formal" ${tom==='formal'?'selected':''}>Formal</option>
             <option value="comico" ${tom==='comico'?'selected':''}>Cômico</option>
+          </select>
+        </div>
+        <div class="adm-field" style="margin:0">
+          <label>Posts por dia</label>
+          <select id="auto-ppd-${npc.id}" style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;background:var(--surface)">
+            ${[1,2,3,4,5].map(n=>`<option value="${n}" ${ppd===n?'selected':''}>${n}x por dia</option>`).join('')}
           </select>
         </div>
       </div>
@@ -3587,20 +3593,17 @@ async function autoSalvar(npcId) {
   const tipo     = document.getElementById(`auto-tipo-${npcId}`).value;
   const tom      = document.getElementById(`auto-tom-${npcId}`).value;
   const contexto = document.getElementById(`auto-contexto-${npcId}`).value.trim();
-  const horariosRaw = document.getElementById(`auto-horarios-${npcId}`).value;
-  const horarios = horariosRaw.split(',').map(h => h.trim()).filter(h => /^\d{2}:\d{2}$/.test(h));
+  const ppd      = parseInt(document.getElementById(`auto-ppd-${npcId}`).value) || 2;
 
-  if (!horarios.length) {
-    alert('Informe ao menos um horário válido no formato HH:MM.');
-    return;
-  }
+  // Gera horários aleatórios distribuídos entre 8h e 23h
+  const horarios = autoGerarHorarios(ppd);
 
   const btn = document.querySelector(`#auto-card-${npcId} .adm-btn-primary`);
   btn.disabled = true; btn.textContent = '⏳';
 
   const { error } = await db.from('npc_autoposts').upsert({
     npc_id: npcId, ativo, tipo, tom,
-    posts_por_dia: horarios.length,
+    posts_por_dia: ppd,
     horarios,
     contexto_fixo: contexto || null,
   }, { onConflict: 'npc_id' });
@@ -3612,6 +3615,27 @@ async function autoSalvar(npcId) {
   const status = document.getElementById(`auto-save-status-${npcId}`);
   status.style.display = '';
   setTimeout(() => status.style.display = 'none', 2000);
+}
+
+function autoGerarHorarios(qtd) {
+  // Distribui aleatoriamente entre 8h e 23h com intervalo mínimo de 2h
+  const slots = [];
+  const inicio = 8 * 60;  // 8:00
+  const fim    = 23 * 60; // 23:00
+  const minInterval = 120; // 2h mínimo entre posts
+  let tentativas = 0;
+  while (slots.length < qtd && tentativas < 200) {
+    tentativas++;
+    const min = Math.floor(Math.random() * (fim - inicio)) + inicio;
+    const ok = slots.every(s => Math.abs(s - min) >= minInterval);
+    if (ok) slots.push(min);
+  }
+  slots.sort((a, b) => a - b);
+  return slots.map(m => {
+    const h = Math.floor(m / 60).toString().padStart(2, '0');
+    const mm = (m % 60).toString().padStart(2, '0');
+    return `${h}:${mm}`;
+  });
 }
 
 // ── Usuários ──────────────────────────────────────────────
