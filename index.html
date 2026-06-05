@@ -477,141 +477,6 @@
   #chat-panel { width: 100vw; right: -100vw; }
 }
 
-/* ══ TOPNAV DESKTOP FIX ═══════════════════════════════════ */
-nav.topnav {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  height: 60px;
-  padding: 0 20px;
-  background: var(--surface, #fff);
-  border-bottom: 1px solid var(--border, #dbdbdb);
-  box-sizing: border-box;
-}
-
-.topnav-logo {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  min-width: 120px;
-}
-
-.topnav-search {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  padding: 0 24px;
-  max-width: 480px;
-  margin: 0 auto;
-}
-
-.topnav-search-inner {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  background: var(--hover, #fafafa);
-  border: 1px solid var(--border, #dbdbdb);
-  border-radius: 8px;
-  padding: 0 12px;
-  height: 36px;
-  gap: 8px;
-}
-
-.topnav-search-inner svg {
-  width: 16px;
-  height: 16px;
-  stroke: var(--muted, #8e8e8e);
-  fill: none;
-  stroke-width: 2;
-  flex-shrink: 0;
-}
-
-.topnav-search-inner input {
-  border: none;
-  background: transparent;
-  outline: none;
-  font-family: 'Nunito', sans-serif;
-  font-size: 14px;
-  color: var(--text, #262626);
-  width: 100%;
-}
-
-.topnav-search-inner input::placeholder {
-  color: var(--muted, #8e8e8e);
-}
-
-.topnav-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  min-width: 120px;
-  justify-content: flex-end;
-}
-
-.tn-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 8px;
-  color: var(--text, #262626);
-  position: relative;
-  transition: background .15s;
-}
-
-.tn-btn:hover {
-  background: var(--hover, #f5f5f5);
-}
-
-.tn-btn svg {
-  width: 22px;
-  height: 22px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.tn-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--muted, #8e8e8e);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  font-family: 'Nunito', sans-serif;
-}
-
-.tn-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-.brand-logo-placeholder {
-  font-family: 'Pacifico', cursive;
-  font-size: 22px;
-  color: var(--text, #262626);
-  line-height: 1;
-}
-
 /* ══ BOTTOM TAB BAR (mobile) ══════════════════════════════ */
 #bottom-tab-bar {
   display: none;
@@ -715,6 +580,137 @@ nav.topnav {
   overflow: hidden; font-family: 'Nunito', sans-serif;
 }
 .pokeet-composer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Pokeet Profile Modal ───────────────────────────────── */
+#modal-pk-profile .modal-box {
+  max-width: 400px;
+  padding: 0;
+  overflow: hidden;
+}
+.pk-profile-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border, #dbdbdb);
+}
+.pk-profile-modal-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text, #262626);
+  font-family: 'Nunito', sans-serif;
+}
+.pk-profile-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pk-profile-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.pk-profile-avatar-preview {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 800; color: #fff;
+  overflow: hidden; font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  position: relative;
+  transition: opacity .15s;
+  border: 3px solid var(--border, #dbdbdb);
+}
+.pk-profile-avatar-preview:hover { opacity: .85; }
+.pk-profile-avatar-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.pk-profile-avatar-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.45);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .15s;
+  pointer-events: none;
+}
+.pk-profile-avatar-preview:hover .pk-profile-avatar-overlay { opacity: 1; }
+.pk-profile-avatar-overlay svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2; }
+.pk-profile-avatar-hint {
+  font-size: 12px;
+  color: var(--muted, #8e8e8e);
+  font-family: 'Nunito', sans-serif;
+  text-align: center;
+}
+.pk-profile-field { display: flex; flex-direction: column; gap: 5px; }
+.pk-profile-field label {
+  font-size: 11px; font-weight: 700; color: var(--muted, #8e8e8e);
+  text-transform: uppercase; letter-spacing: .6px;
+  font-family: 'Nunito', sans-serif;
+}
+.pk-profile-field input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border, #dbdbdb);
+  background: var(--surface, #fff);
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px; color: var(--text, #262626);
+  transition: border .2s; width: 100%; box-sizing: border-box;
+}
+.pk-profile-field input:focus { outline: none; border-color: #e53935; }
+.pk-profile-input-wrap { position: relative; }
+.pk-profile-at {
+  position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px; color: var(--muted, #8e8e8e);
+  font-family: 'Nunito', sans-serif; font-weight: 700;
+  pointer-events: none;
+}
+.pk-profile-at + input { padding-left: 24px; }
+.pk-profile-color-row {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+}
+.pk-profile-color-dot {
+  width: 26px; height: 26px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: transform .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.pk-profile-color-dot:hover { transform: scale(1.2); }
+.pk-profile-color-dot.selected { border-color: #333; transform: scale(1.15); }
+.pk-profile-modal-footer {
+  display: flex; gap: 10px; padding: 0 20px 20px;
+  justify-content: flex-end;
+}
+.pk-profile-btn-cancel {
+  padding: 9px 20px; border-radius: 20px;
+  border: 1.5px solid var(--border, #dbdbdb);
+  background: transparent; color: var(--text, #262626);
+  font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background .15s;
+}
+.pk-profile-btn-cancel:hover { background: var(--hover, #f5f5f5); }
+.pk-profile-btn-save {
+  padding: 9px 22px; border-radius: 20px; border: none;
+  background: #e53935; color: #fff;
+  font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800;
+  cursor: pointer; transition: background .15s;
+}
+.pk-profile-btn-save:hover { background: #c62828; }
+.pkc-avatar-btn {
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+.pkc-avatar-btn::after {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: border-color .18s;
+  pointer-events: none;
+}
+.pkc-avatar-btn:hover::after { border-color: #e53935; }
 .pokeet-composer-body { flex: 1; min-width: 0; }
 .pokeet-composer-input {
   width: 100%; border: none; outline: none; resize: none;
@@ -1195,7 +1191,7 @@ nav.topnav {
           <div class="pokeets-center">
             <!-- Composer -->
             <div class="pokeet-composer" id="pokeet-composer">
-              <div class="pokeet-composer-avatar" id="pkc-avatar"></div>
+              <div class="pokeet-composer-avatar pkc-avatar-btn" id="pkc-avatar" onclick="pkOpenProfileModal()" title="Editar perfil Pokeet"></div>
               <div class="pokeet-composer-body">
                 <textarea
                   id="pokeet-text"
@@ -7950,6 +7946,13 @@ async function renderPokeets() {
       pokeets.forEach(p => { if (p.quote_id) p.quoted = quotedMap[p.quote_id] || null; });
     }
 
+    // Busca perfis Pokeet de todos os autores (inclui citados)
+    const allAuthorIds = [...new Set([
+      ...authorIds,
+      ...pokeets.map(p => p.quoted?.user_id).filter(Boolean)
+    ])];
+    if (typeof pkFetchProfiles === 'function') await pkFetchProfiles(allAuthorIds);
+
     _pk.feed = pokeets;
 
     // Buscar likes e contagens em paralelo
@@ -8393,7 +8396,300 @@ CREATE POLICY "pokeet_likes_select" ON pokeet_likes FOR SELECT USING (true);
 CREATE POLICY "pokeet_likes_insert" ON pokeet_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid() = user_id);
 */
-</script>
+<!-- MODAL PERFIL POKEET -->
+<div id="modal-pk-profile" class="modal hidden">
+  <div class="modal-backdrop" onclick="pkCloseProfileModal()"></div>
+  <div class="modal-box" style="max-width:400px;padding:0;overflow:hidden;border-radius:16px">
+    <div class="pk-profile-modal-header">
+      <span class="pk-profile-modal-title">🐦 Perfil Pokeet</span>
+      <button class="modal-x" onclick="pkCloseProfileModal()" style="position:static;transform:none">✕</button>
+    </div>
+    <div class="pk-profile-modal-body">
+      <!-- Avatar -->
+      <div class="pk-profile-avatar-section">
+        <div class="pk-profile-avatar-preview" id="pk-prof-avatar-preview" onclick="document.getElementById('pk-prof-img-input').click()">
+          <div class="pk-profile-avatar-overlay">
+            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+        </div>
+        <input type="file" id="pk-prof-img-input" accept="image/*" style="display:none" onchange="pkHandleAvatarImg(this)">
+        <p class="pk-profile-avatar-hint">Clique para trocar a foto<br><span style="font-size:11px;opacity:.7">Exclusiva para o Pokeet</span></p>
+      </div>
+      <!-- Nome -->
+      <div class="pk-profile-field">
+        <label>Nome de exibição</label>
+        <input type="text" id="pk-prof-name" placeholder="Seu nome no Pokeet" maxlength="50" oninput="pkProfilePreview()">
+      </div>
+      <!-- Handle -->
+      <div class="pk-profile-field">
+        <label>Usuário (handle)</label>
+        <div class="pk-profile-input-wrap">
+          <span class="pk-profile-at">@</span>
+          <input type="text" id="pk-prof-handle" placeholder="seunick" maxlength="30"
+            oninput="this.value=this.value.replace(/[^a-zA-Z0-9_.]/g,'');pkProfilePreview()">
+        </div>
+      </div>
+      <!-- Cor do avatar -->
+      <div class="pk-profile-field">
+        <label>Cor do avatar</label>
+        <div class="pk-profile-color-row" id="pk-prof-colors"></div>
+      </div>
+    </div>
+    <div class="pk-profile-modal-footer">
+      <button class="pk-profile-btn-cancel" onclick="pkCloseProfileModal()">Cancelar</button>
+      <button class="pk-profile-btn-save" onclick="pkSaveProfile()">Salvar</button>
+    </div>
+  </div>
+</div>
 
-</body>
-</html>
+<script>
+// ══════════════════════════════════════════════════════════
+//  POKEET PROFILES — Supabase + localStorage cache
+// ══════════════════════════════════════════════════════════
+const PK_PROFILE_KEY  = 'pg_pokeet_profile';
+const PK_PROFILE_CACHE_KEY = 'pg_pokeet_profiles_cache';
+const PK_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#039be5','#00897b','#43a047','#f4511e','#6d4c41','#546e7a','#f59e0b','#10b981'];
+
+let _pkProfTemp   = {};   // estado temporário do modal
+let _pkProfilesMap = {};  // cache em memória: user_id → pokeet_profile
+
+// ── Cache helpers ─────────────────────────────────────────
+function pkCacheGet()    { try { return JSON.parse(localStorage.getItem(PK_PROFILE_KEY)) || {}; } catch(e) { return {}; } }
+function pkCacheSet(d)   { localStorage.setItem(PK_PROFILE_KEY, JSON.stringify(d)); }
+function pkCacheClear()  { localStorage.removeItem(PK_PROFILE_KEY); }
+
+// Cache global de perfis (para evitar re-fetch em cada card)
+function pkProfilesMapSet(map) {
+  _pkProfilesMap = map;
+  try { localStorage.setItem(PK_PROFILE_CACHE_KEY, JSON.stringify(map)); } catch(e) {}
+}
+function pkProfilesMapLoad() {
+  try { _pkProfilesMap = JSON.parse(localStorage.getItem(PK_PROFILE_CACHE_KEY)) || {}; } catch(e) { _pkProfilesMap = {}; }
+}
+
+// ── Buscar perfis do Supabase para uma lista de user_ids ──
+async function pkFetchProfiles(userIds) {
+  if (!userIds || !userIds.length) return;
+  try {
+    const { data } = await db.from('pokeet_profiles').select('*').in('user_id', userIds);
+    if (data) {
+      data.forEach(p => { _pkProfilesMap[p.user_id] = p; });
+      // Persiste cache
+      try { localStorage.setItem(PK_PROFILE_CACHE_KEY, JSON.stringify(_pkProfilesMap)); } catch(e) {}
+    }
+  } catch(e) { console.warn('pkFetchProfiles:', e); }
+}
+
+// ── Perfil efetivo do usuário atual (Supabase > localStorage > currentUser) ──
+function pkEffectiveUser() {
+  if (!currentUser) return null;
+  // Prioridade: perfil do Supabase (em memória) > cache local
+  const remote = _pkProfilesMap[currentUser.id];
+  const local  = pkCacheGet();
+  const prof   = remote || local;
+  return {
+    ...currentUser,
+    name:         prof.name       || currentUser.name     || currentUser.username,
+    username:     prof.handle     || currentUser.username,
+    avatar_url:   (prof && 'avatar_url' in prof) ? prof.avatar_url : currentUser.avatar_url,
+    avatar_color: prof.color      || currentUser.avatar_color || currentUser.color || '#e53935',
+  };
+}
+
+// ── Mescla perfil Pokeet num objeto user genérico ─────────
+function pkApplyProfile(userObj) {
+  if (!userObj) return userObj;
+  const prof = _pkProfilesMap[userObj.id];
+  if (!prof) return userObj;
+  return {
+    ...userObj,
+    name:         prof.name       || userObj.name     || userObj.username,
+    username:     prof.handle     || userObj.username,
+    avatar_url:   'avatar_url' in prof ? prof.avatar_url : userObj.avatar_url,
+    avatar_color: prof.color      || userObj.avatar_color || userObj.color || '#e53935',
+    color:        prof.color      || userObj.color || '#e53935',
+  };
+}
+
+// ── Override pkRenderComposerAvatar ───────────────────────
+pkRenderComposerAvatar = function() {
+  const u = pkEffectiveUser();
+  if (!u) return;
+  const ids = ['pkc-avatar', 'pk-reply-avatar', 'pk-quote-avatar'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const color = u.avatar_color || '#e53935';
+    el.style.background = color;
+    if (u.avatar_url) {
+      el.innerHTML = `<img src="${esc(u.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    } else {
+      el.textContent = initials(u.username || '?');
+    }
+  });
+};
+
+// ── Override pkRenderCard — aplica perfil Pokeet em todos os autores ──
+const _origPkRenderCard = pkRenderCard;
+pkRenderCard = function(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
+  if (!p) return '';
+  if (p.users) p = { ...p, users: pkApplyProfile(p.users) };
+  if (p.quoted && p.quoted.users) p = { ...p, quoted: { ...p.quoted, users: pkApplyProfile(p.quoted.users) } };
+  return _origPkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread);
+};
+
+// ── Override renderPokeets — garante cache de perfis atualizado ──
+const _origRenderPokeets = renderPokeets;
+renderPokeets = async function() {
+  pkProfilesMapLoad();
+  await _origRenderPokeets();
+};
+
+// ── Modal: abrir ─────────────────────────────────────────
+async function pkOpenProfileModal() {
+  if (!currentUser) return;
+
+  // Busca perfil atual do Supabase (fresh)
+  try {
+    const { data } = await db.from('pokeet_profiles').select('*').eq('user_id', currentUser.id).maybeSingle();
+    if (data) {
+      _pkProfilesMap[currentUser.id] = data;
+      pkCacheSet(data); // sincroniza cache local
+    }
+  } catch(e) {}
+
+  const prof = pkEffectiveUser();
+
+  _pkProfTemp = {
+    name:       prof.name       || '',
+    handle:     prof.username   || '',
+    color:      prof.avatar_color || '#e53935',
+    avatar_url: prof.avatar_url || null,
+    avatar_b64: null,
+  };
+
+  document.getElementById('pk-prof-name').value   = _pkProfTemp.name;
+  document.getElementById('pk-prof-handle').value = _pkProfTemp.handle;
+
+  const row = document.getElementById('pk-prof-colors');
+  row.innerHTML = PK_COLORS.map(c =>
+    `<div class="pk-profile-color-dot${c===_pkProfTemp.color?' selected':''}" style="background:${c}" data-color="${c}" onclick="pkPickColor('${c}')"></div>`
+  ).join('');
+
+  pkProfilePreview();
+  openModal('modal-pk-profile');
+}
+
+function pkCloseProfileModal() {
+  closeModal('modal-pk-profile');
+}
+
+function pkPickColor(c) {
+  _pkProfTemp.color = c;
+  document.querySelectorAll('.pk-profile-color-dot').forEach(d =>
+    d.classList.toggle('selected', d.dataset.color === c)
+  );
+  pkProfilePreview();
+}
+
+function pkProfilePreview() {
+  _pkProfTemp.name   = document.getElementById('pk-prof-name').value.trim();
+  _pkProfTemp.handle = document.getElementById('pk-prof-handle').value.trim();
+
+  const prev    = document.getElementById('pk-prof-avatar-preview');
+  const overlay = prev.querySelector('.pk-profile-avatar-overlay');
+
+  prev.style.background = _pkProfTemp.color;
+
+  // Limpa filhos exceto overlay
+  [...prev.childNodes].forEach(n => { if (n !== overlay) n.remove(); });
+
+  if (_pkProfTemp.avatar_b64 || _pkProfTemp.avatar_url) {
+    const img = document.createElement('img');
+    img.src = _pkProfTemp.avatar_b64 || _pkProfTemp.avatar_url;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;position:absolute;inset:0';
+    prev.insertBefore(img, overlay || null);
+  } else {
+    const txt = document.createTextNode(
+      initials(_pkProfTemp.handle || _pkProfTemp.name || currentUser?.username || '?')
+    );
+    prev.insertBefore(txt, overlay || null);
+  }
+}
+
+function pkHandleAvatarImg(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { toast('Imagem muito grande. Máx 3MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    _pkProfTemp.avatar_b64 = e.target.result;
+    _pkProfTemp.avatar_url = null;
+    pkProfilePreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Salvar no Supabase ────────────────────────────────────
+async function pkSaveProfile() {
+  if (!currentUser) return;
+
+  const name   = document.getElementById('pk-prof-name').value.trim();
+  const handle = document.getElementById('pk-prof-handle').value.trim();
+
+  if (!handle) { toast('Escolha um @usuário para o Pokeet.'); return; }
+
+  const btn = document.querySelector('.pk-profile-btn-save');
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  // Verifica handle duplicado (exceto o próprio)
+  try {
+    const { data: existing } = await db
+      .from('pokeet_profiles')
+      .select('user_id')
+      .ilike('handle', handle)
+      .neq('user_id', currentUser.id)
+      .maybeSingle();
+
+    if (existing) {
+      toast('Este @' + handle + ' já está em uso. Escolha outro.');
+      btn.disabled = false; btn.textContent = orig;
+      return;
+    }
+  } catch(e) {}
+
+  const payload = {
+    user_id:    currentUser.id,
+    name,
+    handle,
+    color:      _pkProfTemp.color,
+    avatar_url: _pkProfTemp.avatar_b64 || _pkProfTemp.avatar_url || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await db
+    .from('pokeet_profiles')
+    .upsert(payload, { onConflict: 'user_id' });
+
+  btn.disabled = false; btn.textContent = orig;
+
+  if (error) {
+    toast('Erro ao salvar: ' + error.message);
+    return;
+  }
+
+  // Atualiza cache em memória e localStorage
+  _pkProfilesMap[currentUser.id] = payload;
+  pkCacheSet(payload);
+
+  pkCloseProfileModal();
+  pkRenderComposerAvatar();
+  toast('Perfil Pokeet salvo! 🐦');
+  await renderPokeets();
+}
+
+// ── Inicialização: carrega perfis ao abrir a view Pokeets ──
+pkProfilesMapLoad();
+</script>
