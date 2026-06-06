@@ -8869,7 +8869,12 @@ function pkEffectiveUser() {
 // ── Mescla perfil ativo de outro usuário num card ─────────
 function pkApplyProfile(userObj) {
   if (!userObj) return userObj;
-  const prof = _pkProfilesMap[userObj.id];
+  // Lookup somente por "user_id:username" — nunca por user_id puro
+  // para evitar que o perfil de um usuario vaze no avatar de outro
+  const key = userObj.id && userObj.username
+    ? userObj.id + ':' + userObj.username.toLowerCase()
+    : null;
+  const prof = key ? _pkProfilesMap[key] : null;
   if (!prof) return userObj;
   return {
     ...userObj,
@@ -8906,17 +8911,18 @@ async function pkFetchProfiles(userIds) {
     // Busca TODOS os perfis de cada user (não só o mais recente)
     const { data } = await db.from('pokeet_profiles').select('*').in('user_id', userIds);
     if (data) {
-      // Indexa por "user_id:handle" para lookup exato pelo snapshot
+      // Remove entradas antigas dos user_ids que vamos repopular
+      // para evitar que perfis obsoletos vazem entre renders
+      userIds.forEach(uid => {
+        Object.keys(_pkProfilesMap).forEach(k => {
+          if (k === uid || k.startsWith(uid + ':')) delete _pkProfilesMap[k];
+        });
+      });
+      // Indexa SOMENTE por "user_id:handle" — nunca por user_id puro,
+      // pois isso causaria vazamento de avatar entre usuarios diferentes
       data.forEach(p => {
         if (p.handle) _pkProfilesMap[p.user_id + ':' + p.handle.toLowerCase()] = p;
       });
-      // Também mantém user_id → perfil mais recente como fallback
-      const byUser = {};
-      data.forEach(p => {
-        if (!byUser[p.user_id] || p.updated_at > byUser[p.user_id].updated_at) byUser[p.user_id] = p;
-      });
-      Object.assign(_pkProfilesMap, byUser);
-      try { localStorage.setItem('pg_pokeet_profiles_cache', JSON.stringify(_pkProfilesMap)); } catch(e){}
     }
   } catch(e) { console.warn('pkFetchProfiles:', e); }
 }
