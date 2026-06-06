@@ -8638,12 +8638,14 @@ function pkEffectiveUser() {
     ...currentUser,
     name:         prof.name       || currentUser.name     || currentUser.username,
     username:     prof.handle     || currentUser.username,
-    avatar_url:   (prof && 'avatar_url' in prof) ? prof.avatar_url : currentUser.avatar_url,
+    avatar_url:   (prof && prof.avatar_url) ? prof.avatar_url : currentUser.avatar_url,
     avatar_color: prof.color      || currentUser.avatar_color || currentUser.color || '#e53935',
   };
 }
 
 // ── Mescla perfil Pokeet num objeto user genérico ─────────
+// Aplica nome de exibição, avatar e cor do Pokeet, mas preserva o username
+// original da conta (handle histórico dos posts não é reescrito)
 function pkApplyProfile(userObj) {
   if (!userObj) return userObj;
   const prof = _pkProfilesMap[userObj.id];
@@ -8651,8 +8653,9 @@ function pkApplyProfile(userObj) {
   return {
     ...userObj,
     name:         prof.name       || userObj.name     || userObj.username,
-    username:     prof.handle     || userObj.username,
-    avatar_url:   'avatar_url' in prof ? prof.avatar_url : userObj.avatar_url,
+    // username mantido do registro original — handle do Pokeet fica no nome de exibição
+    username:     userObj.username,
+    avatar_url:   prof.avatar_url ? prof.avatar_url : userObj.avatar_url,
     avatar_color: prof.color      || userObj.avatar_color || userObj.color || '#e53935',
     color:        prof.color      || userObj.color || '#e53935',
   };
