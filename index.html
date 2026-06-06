@@ -8136,17 +8136,23 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   // Se o pokeet tem snapshot do autor, usa ele; caso contrário aplica perfil atual
   let u;
   if (p.author_handle) {
-    // Snapshot preserva nome/handle/cor — avatar sempre ao vivo do perfil atual
-    // Busca pelo handle exato do snapshot primeiro (evita pegar perfil errado do mesmo user)
+    // Nome/handle/cor: snapshot fixo do momento da publicação
+    // Avatar: ao vivo do perfil exato pelo handle — mas nunca vaza para outro perfil
     const _snapHandle = (p.author_handle || '').toLowerCase();
-    const liveProf = (p.user_id === currentUser?.id && _snapHandle)
-      // próprio usuário: busca pelo handle ativo nos perfis carregados
-      ? (_pkMyProfiles.find(x => x.handle?.toLowerCase() === _snapHandle) || pkActiveProfile())
-      // outro usuário: busca pelo índice user_id:handle, fallback para user_id genérico
-      : (_pkProfilesMap[p.user_id + ':' + _snapHandle] || _pkProfilesMap[p.user_id] || null);
-    const liveAvatar = liveProf
-      ? (liveProf.avatar_url || null)   // perfil Pokeet existe → usa a foto dele (null = iniciais)
-      : (p.users.avatar_url || null);   // sem perfil Pokeet → foto da conta
+    let liveAvatar;
+    if (p.user_id === currentUser?.id) {
+      // Próprio usuário: busca pelo handle exato em _pkMyProfiles
+      const matchProf = _pkMyProfiles.find(x => x.handle?.toLowerCase() === _snapHandle);
+      if (matchProf) {
+        liveAvatar = matchProf.avatar_url || null;      // perfil Pokeet encontrado
+      } else {
+        liveAvatar = p.users.avatar_url || null;        // publicado com perfil principal
+      }
+    } else {
+      // Outro usuário: busca pelo índice user_id:handle
+      const matchProf = _pkProfilesMap[p.user_id + ':' + _snapHandle];
+      liveAvatar = matchProf ? (matchProf.avatar_url || null) : (p.users.avatar_url || null);
+    }
     u = {
       ...p.users,
       name:         p.author_name   || p.users.name     || p.users.username,
@@ -8350,16 +8356,19 @@ async function pkOpenThread(pokeetId) {
         ${(replies || []).length === 0
           ? '<div class="pk-thread-empty">Nenhuma resposta ainda. Seja o primeiro!</div>'
           : (replies || []).map(r => {
+            // Avatar ao vivo pelo handle exato — nome/cor/handle fixos do snapshot
             const _rHandle = (r.author_handle || r.users?.username || '').toLowerCase();
-            const rLiveProf = (r.user_id === currentUser?.id && _rHandle)
-              ? (_pkMyProfiles.find(x => x.handle?.toLowerCase() === _rHandle) || pkActiveProfile())
-              : (_pkProfilesMap[r.user_id + ':' + _rHandle] || _pkProfilesMap[r.user_id] || null);
-            const rLiveAvatar = rLiveProf
-              ? (rLiveProf.avatar_url || null)
-              : (r.users?.avatar_url || null);
-            const rColor = (rLiveProf?.color) || r.users?.color || '#e53935';
-            const rName  = (rLiveProf ? (rLiveProf.name || rLiveProf.handle) : null) || r.users?.name || r.users?.username || '';
-            const rHandle= (rLiveProf?.handle) || r.users?.username || '';
+            let rLiveAvatar;
+            if (r.user_id === currentUser?.id) {
+              const rMatchProf = _pkMyProfiles.find(x => x.handle?.toLowerCase() === _rHandle);
+              rLiveAvatar = rMatchProf ? (rMatchProf.avatar_url || null) : (r.users?.avatar_url || null);
+            } else {
+              const rMatchProf = _pkProfilesMap[r.user_id + ':' + _rHandle];
+              rLiveAvatar = rMatchProf ? (rMatchProf.avatar_url || null) : (r.users?.avatar_url || null);
+            }
+            const rColor  = r.author_color  || r.users?.color || '#e53935';
+            const rName   = r.author_name   || r.users?.name  || r.users?.username || '';
+            const rHandle = r.author_handle || r.users?.username || '';
             return `
             <div class="pk-thread-reply">
               ${rLiveAvatar
@@ -8724,7 +8733,7 @@ let _pkActiveProfileId = null; // UUID do perfil ativo
 function pkSaveMyProfilesCache()   { try { localStorage.setItem(PK_PROFILES_KEY, JSON.stringify(_pkMyProfiles)); } catch(e){} }
 function pkLoadMyProfilesCache()   { try { _pkMyProfiles = JSON.parse(localStorage.getItem(PK_PROFILES_KEY)) || []; } catch(e){ _pkMyProfiles = []; } }
 function pkSaveActiveId(id)        { _pkActiveProfileId = id; try { localStorage.setItem(PK_ACTIVE_KEY, id || ''); } catch(e){} }
-function pkLoadActiveId()          { try { _pkActiveProfileId = localStorage.getItem(PK_ACTIVE_KEY) || null; } catch(e){ _pkActiveProfileId = null; } }
+function pkLoadActiveId()          { try { _pkActiveProfileId = localStorage.getItem(PK_ACTIVE_KEY) || '__main__'; } catch(e){ _pkActiveProfileId = '__main__'; } }
 
 // ── Perfil ativo do usuário atual ────────────────────────
 function pkActiveProfile() {
@@ -8790,12 +8799,12 @@ async function pkFetchMyProfiles() {
     const { data } = await db.from('pokeet_profiles').select('*').eq('user_id', currentUser.id).order('updated_at', { ascending: true });
     _pkMyProfiles = data || [];
     pkSaveMyProfilesCache();
-    // Garante que o id ativo existe na lista
-    if (_pkActiveProfileId && !_pkMyProfiles.find(p => p.id === _pkActiveProfileId)) {
-      pkSaveActiveId(_pkMyProfiles[0]?.id || null);
-    }
-    if (!_pkActiveProfileId && _pkMyProfiles.length) {
-      pkSaveActiveId(_pkMyProfiles[0].id);
+    // Garante que o id ativo existe na lista — mas nunca sobrescreve '__main__' nem null
+    const _isMainOrNull = !_pkActiveProfileId || _pkActiveProfileId === '__main__';
+    const _activeExists = _pkMyProfiles.some(p => p.id === _pkActiveProfileId);
+    if (!_isMainOrNull && !_activeExists) {
+      // id salvo não existe mais (perfil deletado) → volta para principal
+      pkSaveActiveId('__main__');
     }
   } catch(e) { console.warn('pkFetchMyProfiles:', e); }
 }
