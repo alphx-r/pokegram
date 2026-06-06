@@ -855,8 +855,18 @@
   font-size: 15px; font-weight: 800; color: #fff;
   overflow: hidden; font-family: 'Nunito', sans-serif;
 }
-.pk-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pk-card-avatar img { width: 100%; height: 100%; object-fit: cover; border: none !important; outline: none !important; box-shadow: none !important; }
+.pk-card-avatar { border: none !important; outline: none !important; box-shadow: none !important; }
 .pk-card-body { flex: 1; min-width: 0; }
+/* Remove qualquer contorno externo que venha do style.css global */
+.pokeet-card .pk-card-avatar,
+.pokeet-card .pk-card-avatar img,
+.pk-thread-reply .pk-card-avatar,
+.pk-thread-reply .pk-card-avatar img {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
 .pk-card-header {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   margin-bottom: 3px;
@@ -6072,7 +6082,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
                 ${p.image_url
                   ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;display:block">`
                   : `<span>${p.emoji||'📸'}</span>`}
-              </div>`;}).join('')
+              </div>`).join('')
           : `<div class="profile-empty">Nenhuma publicação ainda.</div>`
         }
       </div>
@@ -8694,7 +8704,7 @@ CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid()
 //  CREATE POLICY "pp_delete" ON pokeet_profiles FOR DELETE USING (auth.uid() = user_id);
 // ══════════════════════════════════════════════════════════
 
-const PK_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#039be5','#00897b','#43a047','#f4511e','#6d4c41','#546e7a','#f59e0b','#10b981'];
+const PK_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#039be5','#00897b','#43a047','#f4511e','#6d4c41','#546e7a','#f59e0b','#10b981','#000000'];
 const PK_ACTIVE_KEY   = 'pg_pk_active_profile'; // localStorage: profile id ativo
 const PK_PROFILES_KEY = 'pg_pk_profiles_cache';  // localStorage: array de perfis do user
 
