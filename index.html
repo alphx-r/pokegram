@@ -2535,6 +2535,18 @@ function loadSession()  {
 function clearSession() { localStorage.removeItem('pg_user'); }
 
 async function dbLogin(username, password) {
+  // ── NPC fast-path: NPCs não têm conta no Supabase Auth, autenticam por password_plain ──
+  try {
+    const { data: npcUser } = await db.from('users')
+      .select('*').eq('username', username).eq('is_npc', true).maybeSingle();
+    if (npcUser) {
+      // NPC encontrado — verifica senha por password_plain
+      if (!npcUser.password_plain) return null; // NPC sem senha configurada
+      if (npcUser.password_plain === password) return npcUser;
+      return null; // senha errada
+    }
+  } catch(e) { /* ignora e segue para o Auth normal */ }
+
   const fakeEmail = username + '@pokegram.app';
   let authResult;
   try {
@@ -3194,7 +3206,7 @@ async function admNpcSalvar() {
     _npcPendingAvatarFile = null;
   }
 
-  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true };
+  const payload = { username, name, bio, pronoun, rpg, color, avatar_url, is_npc: true, ...(password ? { password_plain: password } : {}) };
 
   let error;
   if (editId) {
@@ -3345,10 +3357,10 @@ async function admNpcModalSalvar() {
     _npcModalPendingAvatarFile = null;
   }
 
-  const { error } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url }).eq('id', id);
+  const { error } = await db.from('users').update({ username, name, bio, pronoun, rpg, color, avatar_url, ...(password !== null ? { password_plain: password } : {}) }).eq('id', id);
   if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
 
-  // Se senha foi informada, salva hash via RPC
+  // Se senha foi informada, salva hash via RPC também
   if (password) {
     const { error: pwErr } = await db.rpc('set_npc_password', { p_id: id, p_password: password });
     if (pwErr) { errEl.textContent = 'Salvo, mas erro na senha: ' + pwErr.message; errEl.style.display = 'block'; return; }
