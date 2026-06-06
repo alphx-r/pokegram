@@ -8181,7 +8181,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
     <button class="pk-menu-btn" onclick="event.stopPropagation();pkToggleMenu('${p.id}')" title="Opções">···</button>
     <div class="pk-dropdown" id="pkdrop-${p.id}">
       <div class="pk-dd-item" onclick="pkTogglePin('${p.id}',${isPinned})">${isPinned ? '📌 Desafixar' : '📌 Fixar'} Pokeet</div>
-      <div class="pk-dd-item danger" onclick="pkDelete('${p.id}')">🗑 Apagar Pokeet</div>
+      <div class="pk-dd-item danger" onclick="pkDelete('${p.id}',event)">🗑 Apagar Pokeet</div>
     </div>
   </div>` : '';
 
@@ -8498,7 +8498,8 @@ async function pkTogglePin(pokeetId, isPinned) {
   await renderPokeets();
 }
 
-async function pkDelete(pokeetId) {
+async function pkDelete(pokeetId, evt) {
+  if (evt) { evt.stopPropagation(); evt.preventDefault(); }
   document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
   if (!confirm('Apagar este Pokeet?')) return;
   const { error } = await db.from('pokeets').delete().eq('id', pokeetId);
@@ -8697,10 +8698,24 @@ function pkLoadActiveId()          { try { _pkActiveProfileId = localStorage.get
 // ── Perfil ativo do usuário atual ────────────────────────
 function pkActiveProfile() {
   if (!currentUser) return null;
-  // Tenta o id salvo; se não existir, pega o primeiro da lista
+  if (_pkActiveProfileId === '__main__') return null; // usa currentUser direto
   let prof = _pkMyProfiles.find(p => p.id === _pkActiveProfileId);
-  if (!prof) prof = _pkMyProfiles[0] || null;
-  return prof;
+  if (!prof && _pkMyProfiles.length) prof = _pkMyProfiles[0];
+  return prof || null;
+}
+
+// ── Voltar para o perfil principal ───────────────────────
+function pkSwitchToMain() {
+  pkSaveActiveId('__main__');
+  document.querySelectorAll('.pk-switcher-item').forEach(el => el.classList.remove('active'));
+  const first = document.querySelector('.pk-switcher-item');
+  if (first) first.classList.add('active');
+  pkShowProfileForm();
+  pkHideProfileForm(); // só atualiza o avatar sem abrir form
+  pkRenderComposerAvatar();
+  if (currentUser?.avatar_color || currentUser?.color) applyUserColor(currentUser.avatar_color || currentUser.color);
+  pkCloseProfileModal();
+  toast('Perfil principal ativado!');
 }
 
 // ── Perfil efetivo para o composer / snapshot ─────────────
@@ -8775,6 +8790,19 @@ async function pkRenderSwitcher() {
   const strip = document.getElementById('pk-profile-switcher');
   if (!strip) return;
 
+  // Item do perfil principal (conta real)
+  const mainIsActive = _pkActiveProfileId === '__main__' || (!_pkActiveProfileId && !_pkMyProfiles.length);
+  const mainColor = currentUser?.avatar_color || currentUser?.color || '#e53935';
+  const mainAvatarContent = currentUser?.avatar_url
+    ? `<img src="${currentUser.avatar_url}" alt="">`
+    : initials(currentUser?.username || currentUser?.name || '?');
+  const mainAvatarStyle = currentUser?.avatar_url ? '' : `background:${mainColor}`;
+  const mainItem = `
+    <div class="pk-switcher-item${mainIsActive ? ' active' : ''}" onclick="pkSwitchToMain()">
+      <div class="pk-switcher-avatar" style="${mainAvatarStyle}">${mainAvatarContent}</div>
+      <span class="pk-switcher-label">@${currentUser?.username || 'principal'}</span>
+    </div>`;
+
   const items = _pkMyProfiles.map(p => {
     const isActive = p.id === _pkActiveProfileId;
     const avatarStyle = p.avatar_url ? '' : `background:${p.color || '#e53935'}`;
@@ -8788,7 +8816,7 @@ async function pkRenderSwitcher() {
       </div>`;
   }).join('');
 
-  strip.innerHTML = items + `
+  strip.innerHTML = mainItem + items + `
     <div class="pk-switcher-new" onclick="pkNewProfile()">
       <div class="pk-switcher-new-btn">+</div>
       <span class="pk-switcher-new-label">Novo</span>
@@ -8867,6 +8895,47 @@ function pkPickColor(c) {
     d.classList.toggle('selected', d.dataset.color === c)
   );
   pkProfilePreview();
+}
+
+// ── Preview do avatar no modal ────────────────────────────
+function pkProfilePreview() {
+  const preview = document.getElementById('pk-prof-avatar-preview');
+  if (!preview) return;
+  const color = _pkProfTemp.color || '#e53935';
+  const url   = _pkProfTemp.avatar_b64 || _pkProfTemp.avatar_url || null;
+  const name  = document.getElementById('pk-prof-name')?.value.trim() ||
+                document.getElementById('pk-prof-handle')?.value.trim() || '?';
+  // Remove img/text anterior, mantém overlay
+  const overlay = preview.querySelector('.pk-profile-avatar-overlay');
+  preview.innerHTML = '';
+  if (overlay) preview.appendChild(overlay);
+  preview.style.background = url ? 'transparent' : color;
+  if (url) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;position:absolute;inset:0;';
+    preview.insertBefore(img, preview.firstChild);
+  } else {
+    const txt = document.createElement('span');
+    txt.style.cssText = 'font-size:28px;font-weight:800;color:#fff;font-family:Nunito,sans-serif;z-index:1;position:relative;';
+    txt.textContent = initials(name);
+    preview.insertBefore(txt, preview.firstChild);
+  }
+}
+
+// ── Upload de imagem do perfil Pokeet ─────────────────────
+function pkHandleAvatarImg(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _pkProfTemp.avatar_b64  = e.target.result; // base64 data URL
+    _pkProfTemp.avatar_url  = null;            // descarta URL antiga
+    pkProfilePreview();
+  };
+  reader.readAsDataURL(file);
+  // Limpa o input para permitir reselecionar o mesmo arquivo
+  input.value = '';
 }
 
 // ── Salvar perfil (insert ou update) ─────────────────────
