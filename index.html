@@ -6,7 +6,7 @@
 <title>Pokégram</title>
 <link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -7954,7 +7954,6 @@ async function renderPokeets() {
       ...authorIds,
       ...pokeets.map(p => p.quoted?.user_id).filter(Boolean)
     ])];
-    // IMPORTANTE: await obrigatório — os perfis precisam estar no mapa antes de pkRenderCard
     if (typeof pkFetchProfiles === 'function') await pkFetchProfiles(allAuthorIds);
 
     _pk.feed = pokeets;
@@ -7990,9 +7989,7 @@ async function renderPokeets() {
 
 // ── Render card ───────────────────────────────────────────
 function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
-  if (!p) return '';
-  // Garante objeto users mesmo se o lookup falhou (usuário sem cadastro na tabela users)
-  if (!p.users) p = { ...p, users: { id: p.user_id, username: 'usuario', name: 'Usuário', color: '#e53935', avatar_url: null } };
+  if (!p || !p.users) return '';
   // Aplica perfil Pokeet do autor (visível para todos)
   if (typeof pkApplyProfile === 'function') {
     p = { ...p, users: pkApplyProfile(p.users) };
@@ -8509,7 +8506,7 @@ function pkEffectiveUser() {
 
 // ── Mescla perfil Pokeet num objeto user genérico ─────────
 function pkApplyProfile(userObj) {
-  if (!userObj || !userObj.id) return userObj;
+  if (!userObj) return userObj;
   const prof = _pkProfilesMap[userObj.id];
   if (!prof) return userObj;
   return {
