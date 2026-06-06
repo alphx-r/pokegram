@@ -8137,8 +8137,13 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   let u;
   if (p.author_handle) {
     // Snapshot preserva nome/handle/cor — avatar sempre ao vivo do perfil atual
-    const liveProf = _pkProfilesMap[p.user_id]
-      || (currentUser && p.user_id === currentUser.id ? pkActiveProfile() : null);
+    // Busca pelo handle exato do snapshot primeiro (evita pegar perfil errado do mesmo user)
+    const _snapHandle = (p.author_handle || '').toLowerCase();
+    const liveProf = (p.user_id === currentUser?.id && _snapHandle)
+      // próprio usuário: busca pelo handle ativo nos perfis carregados
+      ? (_pkMyProfiles.find(x => x.handle?.toLowerCase() === _snapHandle) || pkActiveProfile())
+      // outro usuário: busca pelo índice user_id:handle, fallback para user_id genérico
+      : (_pkProfilesMap[p.user_id + ':' + _snapHandle] || _pkProfilesMap[p.user_id] || null);
     const liveAvatar = liveProf
       ? (liveProf.avatar_url || null)   // perfil Pokeet existe → usa a foto dele (null = iniciais)
       : (p.users.avatar_url || null);   // sem perfil Pokeet → foto da conta
@@ -8345,8 +8350,10 @@ async function pkOpenThread(pokeetId) {
         ${(replies || []).length === 0
           ? '<div class="pk-thread-empty">Nenhuma resposta ainda. Seja o primeiro!</div>'
           : (replies || []).map(r => {
-            const rLiveProf = _pkProfilesMap[r.user_id]
-              || (currentUser && r.user_id === currentUser.id ? pkActiveProfile() : null);
+            const _rHandle = (r.author_handle || r.users?.username || '').toLowerCase();
+            const rLiveProf = (r.user_id === currentUser?.id && _rHandle)
+              ? (_pkMyProfiles.find(x => x.handle?.toLowerCase() === _rHandle) || pkActiveProfile())
+              : (_pkProfilesMap[r.user_id + ':' + _rHandle] || _pkProfilesMap[r.user_id] || null);
             const rLiveAvatar = rLiveProf
               ? (rLiveProf.avatar_url || null)
               : (r.users?.avatar_url || null);
@@ -8723,9 +8730,8 @@ function pkLoadActiveId()          { try { _pkActiveProfileId = localStorage.get
 function pkActiveProfile() {
   if (!currentUser) return null;
   if (_pkActiveProfileId === '__main__') return null; // usa currentUser direto
-  let prof = _pkMyProfiles.find(p => p.id === _pkActiveProfileId);
-  if (!prof && _pkMyProfiles.length) prof = _pkMyProfiles[0];
-  return prof || null;
+  // Só retorna um perfil se o id ativo bate exatamente — nunca faz fallback para [0]
+  return _pkMyProfiles.find(p => p.id === _pkActiveProfileId) || null;
 }
 
 // ── Voltar para o perfil principal ───────────────────────
@@ -8798,11 +8804,19 @@ async function pkFetchMyProfiles() {
 async function pkFetchProfiles(userIds) {
   if (!userIds || !userIds.length) return;
   try {
-    // Pega o perfil mais recente de cada user (updated_at DESC)
-    const { data } = await db.from('pokeet_profiles').select('*').in('user_id', userIds).order('updated_at', { ascending: false });
+    // Busca TODOS os perfis de cada user (não só o mais recente)
+    const { data } = await db.from('pokeet_profiles').select('*').in('user_id', userIds);
     if (data) {
-      // Primeiro encontrado por user_id = o mais recente
-      data.forEach(p => { if (!_pkProfilesMap[p.user_id]) _pkProfilesMap[p.user_id] = p; });
+      // Indexa por "user_id:handle" para lookup exato pelo snapshot
+      data.forEach(p => {
+        if (p.handle) _pkProfilesMap[p.user_id + ':' + p.handle.toLowerCase()] = p;
+      });
+      // Também mantém user_id → perfil mais recente como fallback
+      const byUser = {};
+      data.forEach(p => {
+        if (!byUser[p.user_id] || p.updated_at > byUser[p.user_id].updated_at) byUser[p.user_id] = p;
+      });
+      Object.assign(_pkProfilesMap, byUser);
       try { localStorage.setItem('pg_pokeet_profiles_cache', JSON.stringify(_pkProfilesMap)); } catch(e){}
     }
   } catch(e) { console.warn('pkFetchProfiles:', e); }
@@ -8822,7 +8836,9 @@ async function pkRenderSwitcher() {
   if (!strip) return;
 
   // Item do perfil principal (conta real)
-  const mainIsActive = _pkActiveProfileId === '__main__' || (!_pkActiveProfileId && !_pkMyProfiles.length);
+  // Principal está ativo se: é '__main__', ou se o id ativo não corresponde a nenhum perfil Pokeet
+  const _activeMatchesProfile = _pkMyProfiles.some(p => p.id === _pkActiveProfileId);
+  const mainIsActive = _pkActiveProfileId === '__main__' || !_activeMatchesProfile;
   const mainColor = currentUser?.avatar_color || currentUser?.color || '#e53935';
   const mainAvatarContent = currentUser?.avatar_url
     ? `<img src="${currentUser.avatar_url}" alt="">`
