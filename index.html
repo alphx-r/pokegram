@@ -8122,12 +8122,27 @@ async function renderPokeets() {
 // ── Render card ───────────────────────────────────────────
 function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
   if (!p || !p.users) return '';
-  // Aplica perfil Pokeet do autor (visível para todos)
-  if (typeof pkApplyProfile === 'function') {
-    p = { ...p, users: pkApplyProfile(p.users) };
-    if (p.quoted && p.quoted.users) p = { ...p, quoted: { ...p.quoted, users: pkApplyProfile(p.quoted.users) } };
+
+  // Se o pokeet tem snapshot do autor, usa ele; caso contrário aplica perfil atual
+  let u;
+  if (p.author_handle) {
+    // Snapshot salvo no momento da publicação — identidade histórica preservada
+    u = {
+      ...p.users,
+      name:         p.author_name   || p.users.name     || p.users.username,
+      username:     p.author_handle || p.users.username,
+      avatar_color: p.author_color  || p.users.avatar_color || p.users.color || '#e53935',
+      color:        p.author_color  || p.users.color || '#e53935',
+      avatar_url:   p.author_avatar || p.users.avatar_url || null,
+    };
+  } else {
+    // Post antigo sem snapshot — aplica perfil atual (comportamento legado)
+    if (typeof pkApplyProfile === 'function') {
+      p = { ...p, users: pkApplyProfile(p.users) };
+      if (p.quoted && p.quoted.users) p = { ...p, quoted: { ...p.quoted, users: pkApplyProfile(p.quoted.users) } };
+    }
+    u = p.users;
   }
-  const u = p.users;
   const liked    = likedSet   ? likedSet.has(p.id)   : false;
   const reposted = repostedSet? repostedSet.has(p.id) : false;
   const likes    = likeMap    ? (likeMap[p.id]    || 0) : (p._likes    || 0);
@@ -8208,7 +8223,15 @@ async function submitPokeet() {
   if (!text) return;
   const btn = document.getElementById('pokeet-btn-post');
   btn.disabled = true; btn.textContent = 'Publicando...';
-  const { error } = await db.from('pokeets').insert({ user_id: currentUser.id, text });
+
+  const _au = (typeof pkEffectiveUser === 'function') ? pkEffectiveUser() : currentUser;
+  const _authorSnap = {
+    author_name:   _au.name     || _au.username || '',
+    author_handle: _au.username || '',
+    author_color:  _au.avatar_color || _au.color || '#e53935',
+    author_avatar: _au.avatar_url || null,
+  };
+  const { error } = await db.from('pokeets').insert({ user_id: currentUser.id, text, ..._authorSnap });
   btn.textContent = 'Pokeet';
   if (error) { toast('Erro ao publicar: ' + error.message); btn.disabled = false; return; }
   input.value = '';
@@ -8341,8 +8364,16 @@ async function submitPokeetReply() {
   if (!text) return;
   const btn = document.getElementById('pk-reply-btn');
   btn.disabled = true; btn.textContent = 'Enviando...';
+
+  const _au = (typeof pkEffectiveUser === 'function') ? pkEffectiveUser() : currentUser;
+  const _authorSnap = {
+    author_name:   _au.name     || _au.username || '',
+    author_handle: _au.username || '',
+    author_color:  _au.avatar_color || _au.color || '#e53935',
+    author_avatar: _au.avatar_url || null,
+  };
   const { error } = await db.from('pokeets').insert({
-    user_id: currentUser.id, text, reply_to_id: _pk.threadTarget
+    user_id: currentUser.id, text, reply_to_id: _pk.threadTarget, ..._authorSnap
   });
   btn.textContent = 'Responder'; btn.disabled = false;
   if (error) { toast('Erro ao responder: ' + error.message); return; }
@@ -8374,7 +8405,15 @@ async function pkRepostSimple() {
     await db.from('pokeets').delete().eq('id', existing.id);
     toast('Repost removido.');
   } else {
-    const { error } = await db.from('pokeets').insert({ user_id: currentUser.id, repost_of_id: _pk.repostTarget, text: '' });
+
+  const _au = (typeof pkEffectiveUser === 'function') ? pkEffectiveUser() : currentUser;
+  const _authorSnap = {
+    author_name:   _au.name     || _au.username || '',
+    author_handle: _au.username || '',
+    author_color:  _au.avatar_color || _au.color || '#e53935',
+    author_avatar: _au.avatar_url || null,
+  };
+    const { error } = await db.from('pokeets').insert({ user_id: currentUser.id, repost_of_id: _pk.repostTarget, text: '', ..._authorSnap });
     if (error) { toast('Erro ao repostar.'); btn.disabled = false; return; }
     toast('Repostado! 🔁');
   }
@@ -8410,11 +8449,20 @@ async function submitPokeetQuote() {
   const text  = input.value.trim();
   const btn   = document.getElementById('pk-quote-btn');
   btn.disabled = true; btn.textContent = 'Publicando...';
+
+  const _au = (typeof pkEffectiveUser === 'function') ? pkEffectiveUser() : currentUser;
+  const _authorSnap = {
+    author_name:   _au.name     || _au.username || '',
+    author_handle: _au.username || '',
+    author_color:  _au.avatar_color || _au.color || '#e53935',
+    author_avatar: _au.avatar_url || null,
+  };
   const { error } = await db.from('pokeets').insert({
     user_id: currentUser.id,
     text,
     repost_of_id: _pk.repostTarget,
-    quote_id: _pk.repostTarget
+    quote_id: _pk.repostTarget,
+    ..._authorSnap
   });
   btn.textContent = 'Citar'; btn.disabled = false;
   if (error) { toast('Erro ao citar: ' + error.message); return; }
@@ -8500,15 +8548,26 @@ function pkSearchHashtag(tag) {
 // Execute isso no SQL Editor do Supabase:
 /*
 CREATE TABLE IF NOT EXISTS pokeets (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  text         TEXT NOT NULL DEFAULT '',
-  reply_to_id  UUID REFERENCES pokeets(id) ON DELETE CASCADE,
-  repost_of_id UUID REFERENCES pokeets(id) ON DELETE SET NULL,
-  quote_id     UUID REFERENCES pokeets(id) ON DELETE SET NULL,
-  pinned       BOOLEAN DEFAULT FALSE,
-  created_at   TIMESTAMPTZ DEFAULT NOW()
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text           TEXT NOT NULL DEFAULT '',
+  reply_to_id    UUID REFERENCES pokeets(id) ON DELETE CASCADE,
+  repost_of_id   UUID REFERENCES pokeets(id) ON DELETE SET NULL,
+  quote_id       UUID REFERENCES pokeets(id) ON DELETE SET NULL,
+  pinned         BOOLEAN DEFAULT FALSE,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  -- Snapshot do autor no momento da publicação
+  author_name    TEXT,
+  author_handle  TEXT,
+  author_color   TEXT,
+  author_avatar  TEXT
 );
+
+-- Para tabelas já existentes, rode:
+-- ALTER TABLE pokeets ADD COLUMN IF NOT EXISTS author_name   TEXT;
+-- ALTER TABLE pokeets ADD COLUMN IF NOT EXISTS author_handle TEXT;
+-- ALTER TABLE pokeets ADD COLUMN IF NOT EXISTS author_color  TEXT;
+-- ALTER TABLE pokeets ADD COLUMN IF NOT EXISTS author_avatar TEXT;
 
 CREATE TABLE IF NOT EXISTS pokeet_likes (
   user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -8551,40 +8610,43 @@ CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid()
       <!-- preenchido por pkRenderSwitcher() -->
     </div>
 
-    <div class="pk-profile-modal-body">
-      <!-- Avatar -->
-      <div class="pk-profile-avatar-section">
-        <div class="pk-profile-avatar-preview" id="pk-prof-avatar-preview" onclick="document.getElementById('pk-prof-img-input').click()">
-          <div class="pk-profile-avatar-overlay">
-            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    <!-- Formulário — oculto até clicar em um perfil ou "Novo" -->
+    <div id="pk-profile-form-area" style="display:none">
+      <div class="pk-profile-modal-body">
+        <!-- Avatar -->
+        <div class="pk-profile-avatar-section">
+          <div class="pk-profile-avatar-preview" id="pk-prof-avatar-preview" onclick="document.getElementById('pk-prof-img-input').click()">
+            <div class="pk-profile-avatar-overlay">
+              <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+          </div>
+          <input type="file" id="pk-prof-img-input" accept="image/*" style="display:none" onchange="pkHandleAvatarImg(this)">
+          <p class="pk-profile-avatar-hint">Clique para trocar a foto<br><span style="font-size:11px;opacity:.7">Exclusiva para o Pokeet</span></p>
+        </div>
+        <!-- Nome -->
+        <div class="pk-profile-field">
+          <label>Nome de exibição</label>
+          <input type="text" id="pk-prof-name" placeholder="Seu nome no Pokeet" maxlength="50" oninput="pkProfilePreview()">
+        </div>
+        <!-- Handle -->
+        <div class="pk-profile-field">
+          <label>Usuário (handle)</label>
+          <div class="pk-profile-input-wrap">
+            <span class="pk-profile-at">@</span>
+            <input type="text" id="pk-prof-handle" placeholder="seunick" maxlength="30"
+              oninput="this.value=this.value.replace(/[^a-zA-Z0-9_.]/g,'');pkProfilePreview()">
           </div>
         </div>
-        <input type="file" id="pk-prof-img-input" accept="image/*" style="display:none" onchange="pkHandleAvatarImg(this)">
-        <p class="pk-profile-avatar-hint">Clique para trocar a foto<br><span style="font-size:11px;opacity:.7">Exclusiva para o Pokeet</span></p>
-      </div>
-      <!-- Nome -->
-      <div class="pk-profile-field">
-        <label>Nome de exibição</label>
-        <input type="text" id="pk-prof-name" placeholder="Seu nome no Pokeet" maxlength="50" oninput="pkProfilePreview()">
-      </div>
-      <!-- Handle -->
-      <div class="pk-profile-field">
-        <label>Usuário (handle)</label>
-        <div class="pk-profile-input-wrap">
-          <span class="pk-profile-at">@</span>
-          <input type="text" id="pk-prof-handle" placeholder="seunick" maxlength="30"
-            oninput="this.value=this.value.replace(/[^a-zA-Z0-9_.]/g,'');pkProfilePreview()">
+        <!-- Cor do avatar -->
+        <div class="pk-profile-field">
+          <label>Cor do avatar</label>
+          <div class="pk-profile-color-row" id="pk-prof-colors"></div>
         </div>
       </div>
-      <!-- Cor do avatar -->
-      <div class="pk-profile-field">
-        <label>Cor do avatar</label>
-        <div class="pk-profile-color-row" id="pk-prof-colors"></div>
+      <div class="pk-profile-modal-footer">
+        <button class="pk-profile-btn-cancel" onclick="pkHideProfileForm()">Cancelar</button>
+        <button class="pk-profile-btn-save" onclick="pkSaveProfile()">Salvar</button>
       </div>
-    </div>
-    <div class="pk-profile-modal-footer">
-      <button class="pk-profile-btn-cancel" onclick="pkCloseProfileModal()">Cancelar</button>
-      <button class="pk-profile-btn-save" onclick="pkSaveProfile()">Salvar</button>
     </div>
   </div>
 </div>
@@ -8700,6 +8762,7 @@ function pkSwitchProfile(userId) {
     const onclick = el.getAttribute('onclick') || '';
     el.classList.toggle('active', onclick.includes(`'${userId}'`));
   });
+  pkShowProfileForm();
   const prof = _pkProfilesMap[userId];
   if (!prof) return;
   _pkProfTemp = {
@@ -8722,6 +8785,7 @@ function pkSwitchProfile(userId) {
 // ── Criar novo perfil (limpa o formulário) ────────────────
 function pkNewProfile() {
   _pkProfTemp = { name: '', handle: '', color: '#e53935', avatar_url: null, avatar_b64: null, _isNew: true };
+  pkShowProfileForm();
   document.getElementById('pk-prof-name').value   = '';
   document.getElementById('pk-prof-handle').value = '';
   const row = document.getElementById('pk-prof-colors');
@@ -8764,13 +8828,26 @@ async function pkOpenProfileModal() {
     `<div class="pk-profile-color-dot${c===_pkProfTemp.color?' selected':''}" style="background:${c}" data-color="${c}" onclick="pkPickColor('${c}')"></div>`
   ).join('');
 
-  pkProfilePreview();
   await pkRenderSwitcher(currentUser.id);
   openModal('modal-pk-profile');
+  // Formulário oculto até o usuário clicar em um perfil ou "Novo"
 }
 
 function pkCloseProfileModal() {
+  pkHideProfileForm();
   closeModal('modal-pk-profile');
+}
+
+function pkShowProfileForm() {
+  const el = document.getElementById('pk-profile-form-area');
+  if (el) el.style.display = 'block';
+}
+
+function pkHideProfileForm() {
+  const el = document.getElementById('pk-profile-form-area');
+  if (el) el.style.display = 'none';
+  // Remove active state from switcher
+  document.querySelectorAll('.pk-switcher-item').forEach(el => el.classList.remove('active'));
 }
 
 function pkPickColor(c) {
