@@ -8404,6 +8404,7 @@ CREATE POLICY "pokeet_likes_select" ON pokeet_likes FOR SELECT USING (true);
 CREATE POLICY "pokeet_likes_insert" ON pokeet_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid() = user_id);
 */
+</script>
 <!-- MODAL PERFIL POKEET -->
 <div id="modal-pk-profile" class="modal hidden">
   <div class="modal-backdrop" onclick="pkCloseProfileModal()"></div>
