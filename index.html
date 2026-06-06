@@ -8990,7 +8990,8 @@ function pkSwitchProfile(profileId) {
     handle:     prof.handle     || '',
     color:      prof.color      || '#e53935',
     avatar_url: prof.avatar_url || null,
-    avatar_b64: null,
+    _avatarFile: null,
+    _avatarPreviewUrl: null,
     _isNew:     false,
   };
   document.getElementById('pk-prof-name').value   = _pkProfTemp.name;
@@ -9004,7 +9005,7 @@ function pkSwitchProfile(profileId) {
 
 // ── Novo perfil ───────────────────────────────────────────
 function pkNewProfile() {
-  _pkProfTemp = { id: null, name: '', handle: '', color: '#e53935', avatar_url: null, avatar_b64: null, _isNew: true };
+  _pkProfTemp = { id: null, name: '', handle: '', color: '#e53935', avatar_url: null, _avatarFile: null, _avatarPreviewUrl: null, _isNew: true };
   pkShowProfileForm();
   document.getElementById('pk-prof-name').value   = '';
   document.getElementById('pk-prof-handle').value = '';
@@ -9054,7 +9055,7 @@ function pkProfilePreview() {
   const preview = document.getElementById('pk-prof-avatar-preview');
   if (!preview) return;
   const color = _pkProfTemp.color || '#e53935';
-  const url   = _pkProfTemp.avatar_b64 || _pkProfTemp.avatar_url || null;
+  const url   = _pkProfTemp._avatarPreviewUrl || _pkProfTemp.avatar_url || null;
   const name  = document.getElementById('pk-prof-name')?.value.trim() ||
                 document.getElementById('pk-prof-handle')?.value.trim() || '?';
   // Remove img/text anterior, mantém overlay
@@ -9079,14 +9080,13 @@ function pkProfilePreview() {
 function pkHandleAvatarImg(input) {
   const file = input.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    _pkProfTemp.avatar_b64  = e.target.result; // base64 data URL
-    _pkProfTemp.avatar_url  = null;            // descarta URL antiga
-    pkProfilePreview();
-  };
-  reader.readAsDataURL(file);
-  // Limpa o input para permitir reselecionar o mesmo arquivo
+  // Guarda o File para upload no momento de salvar (nao converte para base64)
+  _pkProfTemp._avatarFile = file;
+  _pkProfTemp.avatar_url  = null; // descarta URL antiga
+  // Preview local via object URL — leve, nao persiste no banco
+  if (_pkProfTemp._avatarPreviewUrl) URL.revokeObjectURL(_pkProfTemp._avatarPreviewUrl);
+  _pkProfTemp._avatarPreviewUrl = URL.createObjectURL(file);
+  pkProfilePreview();
   input.value = '';
 }
 
@@ -9115,12 +9115,44 @@ async function pkSaveProfile() {
     }
   } catch(e) {}
 
+  // Upload do avatar para o Supabase Storage (se houver arquivo novo)
+  let finalAvatarUrl = _pkProfTemp.avatar_url || null;
+  if (_pkProfTemp._avatarFile) {
+    try {
+      btn.textContent = 'Enviando foto...';
+      const file = _pkProfTemp._avatarFile;
+      const ext  = file.name.split('.').pop() || 'jpg';
+      // Caminho: pokeet-avatars/<user_id>/<profile_id_ou_temp>.<ext>
+      const profileKey = _pkProfTemp.id || ('new_' + Date.now());
+      const path = `pokeet-avatars/${currentUser.id}/${profileKey}.${ext}`;
+      const { error: upErr } = await db.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
+      // Cache-buster para o browser nao usar versao antiga
+      finalAvatarUrl = urlData.publicUrl + '?t=' + Date.now();
+      // Libera o object URL de preview
+      if (_pkProfTemp._avatarPreviewUrl) {
+        URL.revokeObjectURL(_pkProfTemp._avatarPreviewUrl);
+        _pkProfTemp._avatarPreviewUrl = null;
+      }
+      _pkProfTemp._avatarFile = null;
+    } catch(e) {
+      toast('Erro ao enviar foto: ' + (e.message || e));
+      btn.disabled = false; btn.textContent = orig;
+      return;
+    }
+  }
+
+  btn.textContent = 'Salvando...';
+
   const payload = {
     user_id:    currentUser.id,
     name,
     handle,
     color:      _pkProfTemp.color,
-    avatar_url: _pkProfTemp.avatar_b64 || _pkProfTemp.avatar_url || null,
+    avatar_url: finalAvatarUrl,
     updated_at: new Date().toISOString(),
   };
 
