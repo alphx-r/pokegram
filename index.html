@@ -8030,7 +8030,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
     ? `<div class="pk-card-avatar" style="background:${color};overflow:hidden"><img src="${esc(u.avatar_url)}" alt=""></div>`
     : `<div class="pk-card-avatar" style="background:${color};font-size:15px">${initials(u.username||'?')}</div>`;
 
-  const menuHtml = isOwn ? `<div class="pk-menu" style="margin-left:auto;flex-shrink:0">
+  const menuHtml = isOwn ? `<div class="pk-menu" style="flex-shrink:0;margin-left:auto">
     <button class="pk-menu-btn" onclick="event.stopPropagation();pkToggleMenu('${p.id}')" title="Opções">···</button>
     <div class="pk-dropdown" id="pkdrop-${p.id}">
       <div class="pk-dd-item" onclick="pkTogglePin('${p.id}',${isPinned})">${isPinned ? '📌 Desafixar' : '📌 Fixar'} Pokeet</div>
@@ -8046,7 +8046,6 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
         <span class="pk-card-name" onclick="event.stopPropagation();showUserProfile('${esc(u.username)}')">${esc(u.name || u.username)}</span>
         <span class="pk-card-user">@${esc(u.username)}</span>
         <span class="pk-card-time">${pkTimeAgo(p.created_at)}</span>
-        ${menuHtml}
       </div>
       <div class="pk-card-text">${pkFormatText(p.text)}</div>
       ${quoteHtml}
@@ -8063,6 +8062,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
           <svg width="16" height="16" viewBox="0 0 24 24" fill="${liked?'#e53935':'none'}" stroke="${liked?'#e53935':'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
           ${likes > 0 ? likes : ''}
         </button>
+        ${menuHtml}
       </div>
     </div>
   </div>`;
