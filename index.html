@@ -8016,7 +8016,7 @@ async function renderPokeets() {
   if (!container) return;
 
   // Carrega cache de perfis Pokeet (para exibição imediata)
-  if (typeof pkProfilesMapLoad === 'function') pkProfilesMapLoad();
+  pkLoadMyProfilesCache(); pkLoadActiveId();
 
   // skeleton
   container.innerHTML = `<div class="pk-loading">${[1,2,3].map(()=>`
@@ -8653,61 +8653,70 @@ CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid()
 
 <script>
 // ══════════════════════════════════════════════════════════
-//  POKEET PROFILES — Supabase + localStorage cache
+//  POKEET PROFILES — multi-perfil por conta
+//  Cada perfil tem seu próprio UUID (id).
+//  O perfil ativo é rastreado em _pkActiveProfileId (localStorage).
+//
+//  SQL necessário (rode no Supabase):
+//  ─────────────────────────────────
+//  -- Recria a tabela com suporte a múltiplos perfis por usuário
+//  DROP TABLE IF EXISTS pokeet_profiles;
+//  CREATE TABLE pokeet_profiles (
+//    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+//    name       TEXT,
+//    handle     TEXT,
+//    color      TEXT DEFAULT '#e53935',
+//    avatar_url TEXT,
+//    updated_at TIMESTAMPTZ DEFAULT NOW()
+//  );
+//  CREATE UNIQUE INDEX uq_pokeet_handle ON pokeet_profiles(lower(handle));
+//  CREATE INDEX idx_pokeet_profiles_user ON pokeet_profiles(user_id);
+//  ALTER TABLE pokeet_profiles ENABLE ROW LEVEL SECURITY;
+//  CREATE POLICY "pp_select" ON pokeet_profiles FOR SELECT USING (true);
+//  CREATE POLICY "pp_insert" ON pokeet_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
+//  CREATE POLICY "pp_update" ON pokeet_profiles FOR UPDATE USING (auth.uid() = user_id);
+//  CREATE POLICY "pp_delete" ON pokeet_profiles FOR DELETE USING (auth.uid() = user_id);
 // ══════════════════════════════════════════════════════════
-const PK_PROFILE_KEY  = 'pg_pokeet_profile';
-const PK_PROFILE_CACHE_KEY = 'pg_pokeet_profiles_cache';
+
 const PK_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#039be5','#00897b','#43a047','#f4511e','#6d4c41','#546e7a','#f59e0b','#10b981'];
+const PK_ACTIVE_KEY   = 'pg_pk_active_profile'; // localStorage: profile id ativo
+const PK_PROFILES_KEY = 'pg_pk_profiles_cache';  // localStorage: array de perfis do user
 
-let _pkProfTemp   = {};   // estado temporário do modal
-let _pkProfilesMap = {};  // cache em memória: user_id → pokeet_profile
+let _pkProfTemp      = {};  // estado temporário do modal
+let _pkMyProfiles    = [];  // array de perfis do usuário logado
+let _pkProfilesMap   = {};  // user_id → perfil ativo (para render de cards alheios)
+let _pkActiveProfileId = null; // UUID do perfil ativo
 
-// ── Cache helpers ─────────────────────────────────────────
-function pkCacheGet()    { try { return JSON.parse(localStorage.getItem(PK_PROFILE_KEY)) || {}; } catch(e) { return {}; } }
-function pkCacheSet(d)   { localStorage.setItem(PK_PROFILE_KEY, JSON.stringify(d)); }
-function pkCacheClear()  { localStorage.removeItem(PK_PROFILE_KEY); }
+// ── Helpers de localStorage ───────────────────────────────
+function pkSaveMyProfilesCache()   { try { localStorage.setItem(PK_PROFILES_KEY, JSON.stringify(_pkMyProfiles)); } catch(e){} }
+function pkLoadMyProfilesCache()   { try { _pkMyProfiles = JSON.parse(localStorage.getItem(PK_PROFILES_KEY)) || []; } catch(e){ _pkMyProfiles = []; } }
+function pkSaveActiveId(id)        { _pkActiveProfileId = id; try { localStorage.setItem(PK_ACTIVE_KEY, id || ''); } catch(e){} }
+function pkLoadActiveId()          { try { _pkActiveProfileId = localStorage.getItem(PK_ACTIVE_KEY) || null; } catch(e){ _pkActiveProfileId = null; } }
 
-// Cache global de perfis (para evitar re-fetch em cada card)
-function pkProfilesMapSet(map) {
-  _pkProfilesMap = map;
-  try { localStorage.setItem(PK_PROFILE_CACHE_KEY, JSON.stringify(map)); } catch(e) {}
-}
-function pkProfilesMapLoad() {
-  try { _pkProfilesMap = JSON.parse(localStorage.getItem(PK_PROFILE_CACHE_KEY)) || {}; } catch(e) { _pkProfilesMap = {}; }
-}
-
-// ── Buscar perfis do Supabase para uma lista de user_ids ──
-async function pkFetchProfiles(userIds) {
-  if (!userIds || !userIds.length) return;
-  try {
-    const { data } = await db.from('pokeet_profiles').select('*').in('user_id', userIds);
-    if (data) {
-      data.forEach(p => { _pkProfilesMap[p.user_id] = p; });
-      // Persiste cache
-      try { localStorage.setItem(PK_PROFILE_CACHE_KEY, JSON.stringify(_pkProfilesMap)); } catch(e) {}
-    }
-  } catch(e) { console.warn('pkFetchProfiles:', e); }
+// ── Perfil ativo do usuário atual ────────────────────────
+function pkActiveProfile() {
+  if (!currentUser) return null;
+  // Tenta o id salvo; se não existir, pega o primeiro da lista
+  let prof = _pkMyProfiles.find(p => p.id === _pkActiveProfileId);
+  if (!prof) prof = _pkMyProfiles[0] || null;
+  return prof;
 }
 
-// ── Perfil efetivo do usuário atual (Supabase > localStorage > currentUser) ──
+// ── Perfil efetivo para o composer / snapshot ─────────────
 function pkEffectiveUser() {
   if (!currentUser) return null;
-  // Prioridade: perfil do Supabase (em memória) > cache local
-  const remote = _pkProfilesMap[currentUser.id];
-  const local  = pkCacheGet();
-  const prof   = remote || local;
+  const prof = pkActiveProfile();
   return {
     ...currentUser,
-    name:         prof.name       || currentUser.name     || currentUser.username,
-    username:     prof.handle     || currentUser.username,
-    avatar_url:   (prof && prof.avatar_url) ? prof.avatar_url : currentUser.avatar_url,
-    avatar_color: prof.color      || currentUser.avatar_color || currentUser.color || '#e53935',
+    name:         (prof && prof.name)       || currentUser.name     || currentUser.username,
+    username:     (prof && prof.handle)     || currentUser.username,
+    avatar_url:   (prof && prof.avatar_url) || currentUser.avatar_url || null,
+    avatar_color: (prof && prof.color)      || currentUser.avatar_color || currentUser.color || '#e53935',
   };
 }
 
-// ── Mescla perfil Pokeet num objeto user genérico ─────────
-// Aplica nome de exibição, avatar e cor do Pokeet, mas preserva o username
-// original da conta (handle histórico dos posts não é reescrito)
+// ── Mescla perfil ativo de outro usuário num card ─────────
 function pkApplyProfile(userObj) {
   if (!userObj) return userObj;
   const prof = _pkProfilesMap[userObj.id];
@@ -8715,35 +8724,65 @@ function pkApplyProfile(userObj) {
   return {
     ...userObj,
     name:         prof.name       || userObj.name     || userObj.username,
-    // username mantido do registro original — handle do Pokeet fica no nome de exibição
-    username:     userObj.username,
-    avatar_url:   prof.avatar_url ? prof.avatar_url : userObj.avatar_url,
+    username:     prof.handle     || userObj.username,
+    avatar_url:   prof.avatar_url || userObj.avatar_url || null,
     avatar_color: prof.color      || userObj.avatar_color || userObj.color || '#e53935',
     color:        prof.color      || userObj.color || '#e53935',
   };
 }
 
-// ── Renderizar switcher de perfis ────────────────────────
-async function pkRenderSwitcher(activeUserId) {
+// ── Buscar perfis do usuário logado do Supabase ───────────
+async function pkFetchMyProfiles() {
+  if (!currentUser) return;
+  try {
+    const { data } = await db.from('pokeet_profiles').select('*').eq('user_id', currentUser.id).order('updated_at', { ascending: true });
+    _pkMyProfiles = data || [];
+    pkSaveMyProfilesCache();
+    // Garante que o id ativo existe na lista
+    if (_pkActiveProfileId && !_pkMyProfiles.find(p => p.id === _pkActiveProfileId)) {
+      pkSaveActiveId(_pkMyProfiles[0]?.id || null);
+    }
+    if (!_pkActiveProfileId && _pkMyProfiles.length) {
+      pkSaveActiveId(_pkMyProfiles[0].id);
+    }
+  } catch(e) { console.warn('pkFetchMyProfiles:', e); }
+}
+
+// ── Buscar perfis ativos de outros usuários (para cards) ──
+async function pkFetchProfiles(userIds) {
+  if (!userIds || !userIds.length) return;
+  try {
+    // Pega o perfil mais recente de cada user (updated_at DESC)
+    const { data } = await db.from('pokeet_profiles').select('*').in('user_id', userIds).order('updated_at', { ascending: false });
+    if (data) {
+      // Primeiro encontrado por user_id = o mais recente
+      data.forEach(p => { if (!_pkProfilesMap[p.user_id]) _pkProfilesMap[p.user_id] = p; });
+      try { localStorage.setItem('pg_pokeet_profiles_cache', JSON.stringify(_pkProfilesMap)); } catch(e){}
+    }
+  } catch(e) { console.warn('pkFetchProfiles:', e); }
+}
+
+// ── Ativar um perfil da lista ─────────────────────────────
+function pkActivateProfile(profileId) {
+  pkSaveActiveId(profileId);
+  pkRenderComposerAvatar();
+  const prof = pkActiveProfile();
+  if (prof) applyUserColor(prof.color);
+}
+
+// ── Renderizar switcher ───────────────────────────────────
+async function pkRenderSwitcher() {
   const strip = document.getElementById('pk-profile-switcher');
   if (!strip) return;
 
-  // Coleta os perfis que estão no cache de memória
-  const uid = activeUserId || currentUser.id;
-  const allProfs = Object.values(_pkProfilesMap);
-
-  // Se nenhum na memória, inclui ao menos o perfil do usuário atual
-  const profiles = allProfs.length > 0 ? allProfs : [_pkProfilesMap[currentUser.id]].filter(Boolean);
-
-  const items = profiles.map(p => {
-    if (!p) return '';
-    const isActive = p.user_id === uid;
+  const items = _pkMyProfiles.map(p => {
+    const isActive = p.id === _pkActiveProfileId;
     const avatarStyle = p.avatar_url ? '' : `background:${p.color || '#e53935'}`;
     const avatarContent = p.avatar_url
       ? `<img src="${p.avatar_url}" alt="">`
       : initials(p.handle || p.name || '?');
     return `
-      <div class="pk-switcher-item${isActive ? ' active' : ''}" onclick="pkSwitchProfile('${p.user_id}')">
+      <div class="pk-switcher-item${isActive ? ' active' : ''}" onclick="pkSwitchProfile('${p.id}')">
         <div class="pk-switcher-avatar" style="${avatarStyle}">${avatarContent}</div>
         <span class="pk-switcher-label">@${p.handle || p.name || '?'}</span>
       </div>`;
@@ -8756,22 +8795,23 @@ async function pkRenderSwitcher(activeUserId) {
     </div>`;
 }
 
-// ── Trocar perfil ativo no switcher ──────────────────────
-function pkSwitchProfile(userId) {
+// ── Clicar em um perfil no switcher ──────────────────────
+function pkSwitchProfile(profileId) {
   document.querySelectorAll('.pk-switcher-item').forEach(el => {
     const onclick = el.getAttribute('onclick') || '';
-    el.classList.toggle('active', onclick.includes(`'${userId}'`));
+    el.classList.toggle('active', onclick.includes(`'${profileId}'`));
   });
   pkShowProfileForm();
-  const prof = _pkProfilesMap[userId];
+  const prof = _pkMyProfiles.find(p => p.id === profileId);
   if (!prof) return;
   _pkProfTemp = {
+    id:         prof.id,
     name:       prof.name       || '',
     handle:     prof.handle     || '',
     color:      prof.color      || '#e53935',
     avatar_url: prof.avatar_url || null,
     avatar_b64: null,
-    _editingUserId: userId,
+    _isNew:     false,
   };
   document.getElementById('pk-prof-name').value   = _pkProfTemp.name;
   document.getElementById('pk-prof-handle').value = _pkProfTemp.handle;
@@ -8782,9 +8822,9 @@ function pkSwitchProfile(userId) {
   pkProfilePreview();
 }
 
-// ── Criar novo perfil (limpa o formulário) ────────────────
+// ── Novo perfil ───────────────────────────────────────────
 function pkNewProfile() {
-  _pkProfTemp = { name: '', handle: '', color: '#e53935', avatar_url: null, avatar_b64: null, _isNew: true };
+  _pkProfTemp = { id: null, name: '', handle: '', color: '#e53935', avatar_url: null, avatar_b64: null, _isNew: true };
   pkShowProfileForm();
   document.getElementById('pk-prof-name').value   = '';
   document.getElementById('pk-prof-handle').value = '';
@@ -8794,41 +8834,13 @@ function pkNewProfile() {
   ).join('');
   document.querySelectorAll('.pk-switcher-item').forEach(el => el.classList.remove('active'));
   pkProfilePreview();
-  toast('Preencha os dados do novo perfil e salve. 💭');
 }
 
 // ── Modal: abrir ─────────────────────────────────────────
 async function pkOpenProfileModal() {
   if (!currentUser) return;
-
-  // Busca perfil atual do Supabase (fresh)
-  try {
-    const { data } = await db.from('pokeet_profiles').select('*').eq('user_id', currentUser.id).maybeSingle();
-    if (data) {
-      _pkProfilesMap[currentUser.id] = data;
-      pkCacheSet(data); // sincroniza cache local
-    }
-  } catch(e) {}
-
-  const prof = pkEffectiveUser();
-
-  _pkProfTemp = {
-    name:       prof.name       || '',
-    handle:     prof.username   || '',
-    color:      prof.avatar_color || '#e53935',
-    avatar_url: prof.avatar_url || null,
-    avatar_b64: null,
-  };
-
-  document.getElementById('pk-prof-name').value   = _pkProfTemp.name;
-  document.getElementById('pk-prof-handle').value = _pkProfTemp.handle;
-
-  const row = document.getElementById('pk-prof-colors');
-  row.innerHTML = PK_COLORS.map(c =>
-    `<div class="pk-profile-color-dot${c===_pkProfTemp.color?' selected':''}" style="background:${c}" data-color="${c}" onclick="pkPickColor('${c}')"></div>`
-  ).join('');
-
-  await pkRenderSwitcher(currentUser.id);
+  await pkFetchMyProfiles();
+  await pkRenderSwitcher();
   openModal('modal-pk-profile');
   // Formulário oculto até o usuário clicar em um perfil ou "Novo"
 }
@@ -8846,7 +8858,6 @@ function pkShowProfileForm() {
 function pkHideProfileForm() {
   const el = document.getElementById('pk-profile-form-area');
   if (el) el.style.display = 'none';
-  // Remove active state from switcher
   document.querySelectorAll('.pk-switcher-item').forEach(el => el.classList.remove('active'));
 }
 
@@ -8858,45 +8869,7 @@ function pkPickColor(c) {
   pkProfilePreview();
 }
 
-function pkProfilePreview() {
-  _pkProfTemp.name   = document.getElementById('pk-prof-name').value.trim();
-  _pkProfTemp.handle = document.getElementById('pk-prof-handle').value.trim();
-
-  const prev    = document.getElementById('pk-prof-avatar-preview');
-  const overlay = prev.querySelector('.pk-profile-avatar-overlay');
-
-  prev.style.background = _pkProfTemp.color;
-
-  // Limpa filhos exceto overlay
-  [...prev.childNodes].forEach(n => { if (n !== overlay) n.remove(); });
-
-  if (_pkProfTemp.avatar_b64 || _pkProfTemp.avatar_url) {
-    const img = document.createElement('img');
-    img.src = _pkProfTemp.avatar_b64 || _pkProfTemp.avatar_url;
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;position:absolute;inset:0';
-    prev.insertBefore(img, overlay || null);
-  } else {
-    const txt = document.createTextNode(
-      initials(_pkProfTemp.handle || _pkProfTemp.name || currentUser?.username || '?')
-    );
-    prev.insertBefore(txt, overlay || null);
-  }
-}
-
-function pkHandleAvatarImg(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 3 * 1024 * 1024) { toast('Imagem muito grande. Máx 3MB.'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    _pkProfTemp.avatar_b64 = e.target.result;
-    _pkProfTemp.avatar_url = null;
-    pkProfilePreview();
-  };
-  reader.readAsDataURL(file);
-}
-
-// ── Salvar no Supabase ────────────────────────────────────
+// ── Salvar perfil (insert ou update) ─────────────────────
 async function pkSaveProfile() {
   if (!currentUser) return;
 
@@ -8907,18 +8880,13 @@ async function pkSaveProfile() {
 
   const btn = document.querySelector('.pk-profile-btn-save');
   const orig = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Salvando...';
+  btn.disabled = true; btn.textContent = 'Salvando...';
 
-  // Verifica handle duplicado (exceto o próprio)
+  // Verifica handle duplicado (exceto o próprio perfil)
   try {
-    const { data: existing } = await db
-      .from('pokeet_profiles')
-      .select('user_id')
-      .ilike('handle', handle)
-      .neq('user_id', currentUser.id)
-      .maybeSingle();
-
+    let query = db.from('pokeet_profiles').select('id').ilike('handle', handle);
+    if (_pkProfTemp.id) query = query.neq('id', _pkProfTemp.id);
+    const { data: existing } = await query.maybeSingle();
     if (existing) {
       toast('Este @' + handle + ' já está em uso. Escolha outro.');
       btn.disabled = false; btn.textContent = orig;
@@ -8935,28 +8903,36 @@ async function pkSaveProfile() {
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await db
-    .from('pokeet_profiles')
-    .upsert(payload, { onConflict: 'user_id' });
+  let savedId = _pkProfTemp.id;
+  let error;
+
+  if (_pkProfTemp._isNew || !savedId) {
+    // INSERT — novo perfil
+    const { data, error: err } = await db.from('pokeet_profiles').insert(payload).select().single();
+    error = err;
+    if (data) savedId = data.id;
+  } else {
+    // UPDATE — perfil existente
+    const { error: err } = await db.from('pokeet_profiles').update(payload).eq('id', savedId).eq('user_id', currentUser.id);
+    error = err;
+  }
 
   btn.disabled = false; btn.textContent = orig;
 
-  if (error) {
-    toast('Erro ao salvar: ' + error.message);
-    return;
-  }
+  if (error) { toast('Erro ao salvar: ' + error.message); return; }
 
-  // Atualiza cache em memória e localStorage
-  _pkProfilesMap[currentUser.id] = payload;
-  pkCacheSet(payload);
+  // Atualiza cache local e ativa o perfil salvo
+  await pkFetchMyProfiles();
+  pkActivateProfile(savedId);
+  await pkRenderSwitcher();
 
   pkCloseProfileModal();
   pkRenderComposerAvatar();
-  applyUserColor(payload.color);   // aplica paleta da nova cor escolhida
-  toast('Perfil Pokeet salvo! 💭');
+  toast('Perfil salvo! 💭');
   await renderPokeets();
 }
 
 // ── Inicialização ─────────────────────────────────────────
-pkProfilesMapLoad();
+pkLoadMyProfilesCache();
+pkLoadActiveId();
 </script>
