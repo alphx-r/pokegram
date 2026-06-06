@@ -8098,7 +8098,8 @@ function pkCharRing(circleId, countId, val, max) {
   const circumference = 88;
   const offset = circumference * (1 - pct);
   fill.style.strokeDashoffset = offset;
-  fill.style.stroke = pct > 0.9 ? '#c62828' : pct > 0.7 ? '#ffa726' : '#e53935';
+  const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--pk-accent').trim() || '#e53935';
+  fill.style.stroke = pct > 0.9 ? '#c62828' : pct > 0.7 ? '#ffa726' : accentColor;
   count.textContent = remaining;
   count.style.color = pct > 0.9 ? '#c62828' : pct > 0.7 ? '#ffa726' : '';
 }
