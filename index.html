@@ -6072,7 +6072,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
                 ${p.image_url
                   ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;display:block">`
                   : `<span>${p.emoji||'📸'}</span>`}
-              </div>`).join('')
+              </div>`;}).join('')
           : `<div class="profile-empty">Nenhuma publicação ainda.</div>`
         }
       </div>
@@ -8126,14 +8126,19 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   // Se o pokeet tem snapshot do autor, usa ele; caso contrário aplica perfil atual
   let u;
   if (p.author_handle) {
-    // Snapshot salvo no momento da publicação — identidade histórica preservada
+    // Snapshot preserva nome/handle/cor — avatar sempre ao vivo do perfil atual
+    const liveProf = _pkProfilesMap[p.user_id]
+      || (currentUser && p.user_id === currentUser.id ? pkActiveProfile() : null);
+    const liveAvatar = liveProf
+      ? (liveProf.avatar_url || null)   // perfil Pokeet existe → usa a foto dele (null = iniciais)
+      : (p.users.avatar_url || null);   // sem perfil Pokeet → foto da conta
     u = {
       ...p.users,
       name:         p.author_name   || p.users.name     || p.users.username,
       username:     p.author_handle || p.users.username,
       avatar_color: p.author_color  || p.users.avatar_color || p.users.color || '#e53935',
       color:        p.author_color  || p.users.color || '#e53935',
-      avatar_url:   p.author_avatar || p.users.avatar_url || null,
+      avatar_url:   liveAvatar,
     };
   } else {
     // Post antigo sem snapshot — aplica perfil atual (comportamento legado)
@@ -8329,16 +8334,25 @@ async function pkOpenThread(pokeetId) {
       <div class="pk-thread-replies">
         ${(replies || []).length === 0
           ? '<div class="pk-thread-empty">Nenhuma resposta ainda. Seja o primeiro!</div>'
-          : (replies || []).map(r => `
+          : (replies || []).map(r => {
+            const rLiveProf = _pkProfilesMap[r.user_id]
+              || (currentUser && r.user_id === currentUser.id ? pkActiveProfile() : null);
+            const rLiveAvatar = rLiveProf
+              ? (rLiveProf.avatar_url || null)
+              : (r.users?.avatar_url || null);
+            const rColor = (rLiveProf?.color) || r.users?.color || '#e53935';
+            const rName  = (rLiveProf ? (rLiveProf.name || rLiveProf.handle) : null) || r.users?.name || r.users?.username || '';
+            const rHandle= (rLiveProf?.handle) || r.users?.username || '';
+            return `
             <div class="pk-thread-reply">
-              ${r.users?.avatar_url
-                ? `<div class="pk-card-avatar" style="width:36px;height:36px;background:${r.users.color||'#e53935'};flex-shrink:0;overflow:hidden"><img src="${esc(r.users.avatar_url)}" alt=""></div>`
-                : `<div class="pk-card-avatar" style="width:36px;height:36px;background:${r.users?.color||'#e53935'};font-size:12px;flex-shrink:0">${initials(r.users?.username||'?')}</div>`
+              ${rLiveAvatar
+                ? `<div class="pk-card-avatar" style="width:36px;height:36px;background:${rColor};flex-shrink:0;overflow:hidden"><img src="${esc(rLiveAvatar)}" alt=""></div>`
+                : `<div class="pk-card-avatar" style="width:36px;height:36px;background:${rColor};font-size:12px;flex-shrink:0">${initials(rHandle||'?')}</div>`
               }
               <div class="pk-card-body">
                 <div class="pk-card-header">
-                  <span class="pk-card-name">${esc(r.users?.name || r.users?.username || '')}</span>
-                  <span class="pk-card-user">@${esc(r.users?.username||'')}</span>
+                  <span class="pk-card-name">${esc(rName)}</span>
+                  <span class="pk-card-user">@${esc(rHandle||'')}</span>
                   <span class="pk-card-time">${pkTimeAgo(r.created_at)}</span>
                 </div>
                 <div class="pk-card-text">${pkFormatText(r.text)}</div>
@@ -8349,7 +8363,7 @@ async function pkOpenThread(pokeetId) {
                   </button>
                 </div>
               </div>
-            </div>`).join('')
+            </div>`;}).join('')
         }
       </div>`;
   } catch(e) {
@@ -8722,12 +8736,18 @@ function pkSwitchToMain() {
 function pkEffectiveUser() {
   if (!currentUser) return null;
   const prof = pkActiveProfile();
+  if (!prof) {
+    // Perfil principal (__main__ ou sem perfil Pokeet)
+    return { ...currentUser };
+  }
   return {
     ...currentUser,
-    name:         (prof && prof.name)       || currentUser.name     || currentUser.username,
-    username:     (prof && prof.handle)     || currentUser.username,
-    avatar_url:   (prof && prof.avatar_url) || currentUser.avatar_url || null,
-    avatar_color: (prof && prof.color)      || currentUser.avatar_color || currentUser.color || '#e53935',
+    name:         prof.name   || currentUser.name   || currentUser.username,
+    username:     prof.handle || currentUser.username,
+    // Se o perfil Pokeet existe, usa SOMENTE sua foto (null = sem foto = iniciais)
+    // Nunca herda a foto da conta principal
+    avatar_url:   prof.avatar_url || null,
+    avatar_color: prof.color || currentUser.avatar_color || currentUser.color || '#e53935',
   };
 }
 
@@ -8738,11 +8758,12 @@ function pkApplyProfile(userObj) {
   if (!prof) return userObj;
   return {
     ...userObj,
-    name:         prof.name       || userObj.name     || userObj.username,
-    username:     prof.handle     || userObj.username,
-    avatar_url:   prof.avatar_url || userObj.avatar_url || null,
-    avatar_color: prof.color      || userObj.avatar_color || userObj.color || '#e53935',
-    color:        prof.color      || userObj.color || '#e53935',
+    name:         prof.name   || userObj.name   || userObj.username,
+    username:     prof.handle || userObj.username,
+    // Perfil Pokeet existe → usa SOMENTE sua foto; null = iniciais (sem herdar foto da conta)
+    avatar_url:   prof.avatar_url || null,
+    avatar_color: prof.color || userObj.avatar_color || userObj.color || '#e53935',
+    color:        prof.color || userObj.color || '#e53935',
   };
 }
 
