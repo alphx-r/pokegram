@@ -2537,15 +2537,20 @@ function clearSession() { localStorage.removeItem('pg_user'); }
 async function dbLogin(username, password) {
   // ── NPC fast-path: NPCs não têm conta no Supabase Auth, autenticam por password_plain ──
   try {
-    const { data: npcUser } = await db.from('users')
+    const { data: npcUser, error: npcErr } = await db.from('users')
       .select('*').eq('username', username).eq('is_npc', true).maybeSingle();
+    console.log('[NPC login debug]', { username, npcUser, npcErr, password_plain: npcUser?.password_plain, campos: npcUser ? Object.keys(npcUser) : null });
     if (npcUser) {
       // NPC encontrado — verifica senha por password_plain
-      if (!npcUser.password_plain) return null; // NPC sem senha configurada
+      if (!npcUser.password_plain) {
+        console.warn('[NPC login] password_plain vazio. Campos disponíveis:', Object.keys(npcUser));
+        return null;
+      }
       if (npcUser.password_plain === password) return npcUser;
+      console.warn('[NPC login] senha não bate. password_plain:', npcUser.password_plain, '| digitada:', password);
       return null; // senha errada
     }
-  } catch(e) { /* ignora e segue para o Auth normal */ }
+  } catch(e) { console.error('[NPC login error]', e); /* ignora e segue para o Auth normal */ }
 
   const fakeEmail = username + '@pokegram.app';
   let authResult;
