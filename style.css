@@ -2019,12 +2019,12 @@ input, select, textarea { font-family: var(--font); }
 .pk-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .pk-card-body { flex: 1; min-width: 0; }
 .pk-card-header {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-bottom: 3px;
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 3px; flex-wrap: nowrap; min-width: 0;
 }
-.pk-card-name  { font-size: 14px; font-weight: 800; color: var(--text, #262626); font-family: 'Nunito', sans-serif; }
-.pk-card-user  { font-size: 13px; color: #8e8e8e; font-family: 'Nunito', sans-serif; }
-.pk-card-time  { font-size: 12px; color: #aaa; font-family: 'Nunito', sans-serif; margin-left: auto; }
+.pk-card-name  { font-size: 14px; font-weight: 800; color: var(--text, #262626); font-family: 'Nunito', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.pk-card-user  { font-size: 13px; color: #8e8e8e; font-family: 'Nunito', sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.pk-card-time  { font-size: 12px; color: #aaa; font-family: 'Nunito', sans-serif; margin-left: auto; flex-shrink: 0; white-space: nowrap; }
 .pk-card-text  {
   font-size: 15px; color: var(--text, #262626); line-height: 1.55;
   font-family: 'Nunito', sans-serif; word-break: break-word; white-space: pre-wrap;
@@ -2062,9 +2062,10 @@ input, select, textarea { font-family: var(--font); }
 
 /* Actions */
 .pk-actions {
-  display: flex; gap: 0; margin-top: 10px;
+  display: flex; align-items: center; gap: 0; margin-top: 10px;
   margin-left: -6px;
 }
+.pk-actions .pk-menu { margin-left: auto; }
 .pk-action-btn {
   display: flex; align-items: center; gap: 5px;
   padding: 5px 8px; border: none; background: none; cursor: pointer;
