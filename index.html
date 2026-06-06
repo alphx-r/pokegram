@@ -1034,6 +1034,18 @@
   .pokeets-aside  { display: none; }
 }
 
+/* Tendências inline (aba mobile) */
+#pokeets-trends-mobile {
+  padding: 12px 0;
+}
+#pokeets-trends-mobile .pk-trend-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border, #efefef);
+  cursor: pointer;
+}
+#pokeets-trends-mobile .pk-trend-item:last-child { border-bottom: none; }
+#pokeets-trends-mobile .pk-trend-item:hover .pk-trend-tag { color: var(--pk-accent, #e53935); }
+
 </style>
 </head>
 <body>
@@ -1307,11 +1319,14 @@
             <div class="pokeets-divider"></div>
             <!-- Tabs -->
             <div class="pokeets-tabs" id="pokeets-tabs">
-              <button class="pkTab active" onclick="pkSwitchTab(this,'for-you')">Para você</button>
+              <button class="pkTab active" onclick="pkSwitchTab(this,'for-you')">Feed</button>
               <button class="pkTab" onclick="pkSwitchTab(this,'following')">Seguindo</button>
+              <button class="pkTab" onclick="pkSwitchTab(this,'trends')">Tendências</button>
             </div>
             <!-- Feed -->
             <div id="pokeets-feed"></div>
+            <!-- Tendências mobile (aba) -->
+            <div id="pokeets-trends-mobile" style="display:none"></div>
           </div>
           <!-- Sidebar -->
           <aside class="pokeets-aside">
@@ -8587,7 +8602,24 @@ function pkSwitchTab(btn, tab) {
   document.querySelectorAll('.pkTab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _pk.tab = tab;
-  renderPokeets();
+
+  const feedEl   = document.getElementById('pokeets-feed');
+  const trendsEl = document.getElementById('pokeets-trends-mobile');
+
+  if (tab === 'trends') {
+    // Mostra painel de tendências inline (mobile)
+    if (feedEl)   feedEl.style.display   = 'none';
+    if (trendsEl) {
+      trendsEl.style.display = 'block';
+      // Sincroniza conteúdo do painel aside para o painel mobile
+      const src = document.getElementById('pokeets-trends');
+      if (src) trendsEl.innerHTML = src.innerHTML;
+    }
+  } else {
+    if (feedEl)   feedEl.style.display   = '';
+    if (trendsEl) trendsEl.style.display = 'none';
+    renderPokeets();
+  }
 }
 
 // ── Trends ────────────────────────────────────────────────
@@ -8605,14 +8637,19 @@ function pkLoadTrends(pokeets) {
   const sorted = Object.entries(tagCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
   if (!sorted.length) {
     container.innerHTML = '<div style="font-size:13px;color:#aaa;font-family:\'Nunito\',sans-serif">Nenhuma hashtag ainda.</div>';
-    return;
-  }
-  container.innerHTML = sorted.map(([tag, count]) => `
+  } else {
+    container.innerHTML = sorted.map(([tag, count]) => `
     <div class="pk-trend-item" onclick="pkSearchHashtag('${esc(tag)}')">
       <div class="pk-trend-cat">Pokémon · Tendência</div>
       <div class="pk-trend-tag">#${esc(tag)}</div>
       <div class="pk-trend-count">${count} Pokeet${count>1?'s':''}</div>
     </div>`).join('');
+  }
+  // Sincroniza com o painel mobile (aba Tendências) se estiver visível
+  const mobile = document.getElementById('pokeets-trends-mobile');
+  if (mobile && mobile.style.display !== 'none') {
+    mobile.innerHTML = container.innerHTML;
+  }
 }
 
 function pkSearchHashtag(tag) {
