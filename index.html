@@ -8981,6 +8981,8 @@ function pkSwitchProfile(profileId) {
     const onclick = el.getAttribute('onclick') || '';
     el.classList.toggle('active', onclick.includes(`'${profileId}'`));
   });
+  // Ativa o perfil imediatamente — nao espera clicar em Salvar
+  pkActivateProfile(profileId);
   pkShowProfileForm();
   const prof = _pkMyProfiles.find(p => p.id === profileId);
   if (!prof) return;
@@ -9080,14 +9082,15 @@ function pkProfilePreview() {
 function pkHandleAvatarImg(input) {
   const file = input.files?.[0];
   if (!file) return;
-  // Guarda o File para upload no momento de salvar (nao converte para base64)
-  _pkProfTemp._avatarFile = file;
-  _pkProfTemp.avatar_url  = null; // descarta URL antiga
-  // Preview local via object URL — leve, nao persiste no banco
-  if (_pkProfTemp._avatarPreviewUrl) URL.revokeObjectURL(_pkProfTemp._avatarPreviewUrl);
-  _pkProfTemp._avatarPreviewUrl = URL.createObjectURL(file);
-  pkProfilePreview();
   input.value = '';
+  // Abre o modal de crop circular — mesmo fluxo dos avatares principais
+  openCropper(file, 'circle', croppedFile => {
+    _pkProfTemp._avatarFile = croppedFile;
+    _pkProfTemp.avatar_url  = null;
+    if (_pkProfTemp._avatarPreviewUrl) URL.revokeObjectURL(_pkProfTemp._avatarPreviewUrl);
+    _pkProfTemp._avatarPreviewUrl = URL.createObjectURL(croppedFile);
+    pkProfilePreview();
+  });
 }
 
 // ── Salvar perfil (insert ou update) ─────────────────────
