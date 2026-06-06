@@ -3714,7 +3714,7 @@ Responda exatamente neste formato JSON:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: fullPrompt }] }],
-          generationConfig: { temperature: 0.9, maxOutputTokens: 1024 },
+          generationConfig: { temperature: 0.9, maxOutputTokens: 1024, responseMimeType: 'application/json' },
         })
       }
     );
@@ -3724,8 +3724,25 @@ Responda exatamente neste formato JSON:
     }
     const data = await resp.json();
     const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
+    // Remove markdown fences e tenta extrair o bloco JSON mesmo se houver texto extra
+    let clean = raw.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+    // Extrai apenas o objeto JSON (do primeiro { ao último })
+    const jsonStart = clean.indexOf('{');
+    const jsonEnd   = clean.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1) clean = clean.slice(jsonStart, jsonEnd + 1);
+    // Tenta parse direto; se falhar, tenta corrigir quebras de linha dentro de strings
+    let parsed;
+    try {
+      parsed = JSON.parse(clean);
+    } catch(e1) {
+      try {
+        // Remove quebras de linha dentro de valores string (causa mais comum do erro)
+        const fixed = clean.replace(/("(?:[^"\\]|\\.)*")/g, m => m.replace(/\n/g, ' ').replace(/\r/g, ''));
+        parsed = JSON.parse(fixed);
+      } catch(e2) {
+        throw new Error('JSON inválido retornado pela IA. Tente novamente.');
+      }
+    }
     const sugestoes = parsed.sugestoes || [];
     geradorRenderCards(sugestoes, tipo, npc);
   } catch(err) {
