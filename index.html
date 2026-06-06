@@ -2535,22 +2535,22 @@ function loadSession()  {
 function clearSession() { localStorage.removeItem('pg_user'); }
 
 async function dbLogin(username, password) {
-  // ── NPC fast-path: NPCs não têm conta no Supabase Auth, autenticam por password_plain ──
+  // ── NPC fast-path: NPCs não têm conta no Supabase Auth ──
   try {
-    const { data: npcUser, error: npcErr } = await db.from('users')
+    const { data: npcUser } = await db.from('users')
       .select('*').eq('username', username).eq('is_npc', true).maybeSingle();
-    console.log('[NPC login debug]', { username, npcUser, npcErr, password_plain: npcUser?.password_plain, campos: npcUser ? Object.keys(npcUser) : null });
     if (npcUser) {
-      // NPC encontrado — verifica senha por password_plain
-      if (!npcUser.password_plain) {
-        console.warn('[NPC login] password_plain vazio. Campos disponíveis:', Object.keys(npcUser));
-        return null;
+      // Tenta password_plain primeiro (texto limpo)
+      if (npcUser.password_plain && npcUser.password_plain === password) return npcUser;
+      // Tenta verificar o password_hash via RPC (hash bcrypt do set_npc_password)
+      if (npcUser.password_hash) {
+        const { data: ok } = await db.rpc('check_npc_password', { p_id: npcUser.id, p_password: password });
+        if (ok) return npcUser;
       }
-      if (npcUser.password_plain === password) return npcUser;
-      console.warn('[NPC login] senha não bate. password_plain:', npcUser.password_plain, '| digitada:', password);
-      return null; // senha errada
+      // NPC existe mas nenhuma senha bate (ou não tem senha configurada)
+      return null;
     }
-  } catch(e) { console.error('[NPC login error]', e); /* ignora e segue para o Auth normal */ }
+  } catch(e) { /* ignora e segue para o Auth normal */ }
 
   const fakeEmail = username + '@pokegram.app';
   let authResult;
