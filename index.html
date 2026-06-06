@@ -1210,7 +1210,7 @@
           <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         </button>
         <button class="tn-btn" id="btn-pokeets" onclick="showView('pokeets')" title="Pokeets">
-          <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L9 15"/><path d="M21 3L14 21l-5-8-8-5 21-7z"/></svg>
+          <svg class="tn-default-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L9 15"/><path d="M21 3L14 21l-5-8-8-5 21-7z"/></svg>
         </button>
         <button class="tn-btn" id="btn-notif" onclick="toggleNotifPanel()" title="Notificações" style="position:relative">
           <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
@@ -4866,6 +4866,7 @@ async function applyTopnavSprites() {
       if (def.key === 'nav_explore') return document.getElementById('btn-explore');
       if (def.key === 'nav_create')  return document.querySelector('.tn-btn[onclick="showNewPost()"]');
       if (def.key === 'nav_logout')  return document.querySelector('.tn-btn[onclick="doLogout()"]');
+      if (def.key === 'nav_pokeets') return document.getElementById('btn-pokeets');
       if (def.key === 'nav_notif')   return document.getElementById('btn-notif');
       if (def.key === 'nav_chat')    return document.getElementById('btn-chat');
       if (def.key === 'nav_profile') return document.getElementById('btn-profile');
