@@ -2770,7 +2770,18 @@ function enterApp(user) {
   initPushNotifications(user);
 }
 
-async function doLogout() { await db.auth.signOut(); clearSession(); currentUser = null; location.reload(); }
+async function doLogout() {
+  await db.auth.signOut();
+  clearSession();
+  // Limpa cache Pokeet para não vazar entre contas
+  try {
+    localStorage.removeItem('pg_pk_active_profile');
+    localStorage.removeItem('pg_pk_profiles_cache');
+    localStorage.removeItem('pg_pokeet_profiles_cache');
+  } catch(e) {}
+  currentUser = null;
+  location.reload();
+}
 
 // ── Manutenção ────────────────────────────────────────────
 async function checkManutencao() {
@@ -4876,6 +4887,14 @@ let currentViewHistory   = ['feed'];
 // ── Init ──────────────────────────────────────────────────
 async function initApp(user) {
   currentUser = user;
+
+  // Limpa cache Pokeet da sessão anterior para não vazar entre contas
+  _pkMyProfiles      = [];
+  _pkProfilesMap     = {};
+  _pkActiveProfileId = null;
+  pkLoadActiveId();
+  await pkFetchMyProfiles();
+
   document.documentElement.style.setProperty('--user-color', user.color || '#e53935');
   renderSidebarAvatar();
 
