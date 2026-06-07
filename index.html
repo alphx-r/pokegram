@@ -1470,7 +1470,7 @@
           </div>
           <div class="post-caption-side">
             <div id="post-author-row" class="post-author-row"></div>
-            <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" maxlength="200"></textarea>
+            <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!"></textarea>
             <div class="post-fields">
               <div class="pf-row">
                 <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -5417,7 +5417,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
     </div>
   </div>
 
-  <div class="post-image" style="background:${p.image_url ? '#000' : (p.bg||'#f0f0f0')};cursor:pointer" onclick="openComments('${p.id}')">
+  <div class="post-image" style="background:${p.image_url ? '#000' : (p.bg||'#f0f0f0')};cursor:pointer" onclick="openComments('${p.id}')" ondblclick="event.stopPropagation();_doubleTapLike('${p.id}',event)" ontouchend="_handlePostTouchEnd('${p.id}',event)">
     ${p.image_url
       ? `<img src="${p.image_url}" alt="post" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none">`
       : `<span>${p.emoji||'📸'}</span>`}
@@ -5460,6 +5460,47 @@ function formatCaption(cap) {
 }
 
 // ── Likes ─────────────────────────────────────────────────
+
+// Duplo toque em mobile
+const _tapTimers = {};
+function _handlePostTouchEnd(postId, e) {
+  if (e.touches && e.touches.length > 0) return; // ainda tem dedo na tela
+  const now = Date.now();
+  if (_tapTimers[postId] && now - _tapTimers[postId] < 350) {
+    // segundo toque rápido = double tap
+    clearTimeout(_tapTimers[postId + '_t']);
+    delete _tapTimers[postId];
+    e.preventDefault();
+    e.stopPropagation();
+    _doubleTapLike(postId, e);
+  } else {
+    _tapTimers[postId] = now;
+    // cancela o timer para não abrir modal por engano
+    _tapTimers[postId + '_t'] = setTimeout(() => { delete _tapTimers[postId]; }, 400);
+  }
+}
+
+function _doubleTapLike(postId, e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const btn = document.querySelector(`#post-${postId} .post-action-btn`);
+  if (!btn) return;
+  if (btn.classList.contains('liked')) return; // já curtiu, não faz nada
+  // Animação de coração no centro da foto
+  const img = document.querySelector(`#post-${postId} .post-image`);
+  if (img) {
+    const heart = document.createElement('div');
+    const _hc = currentUser.color || '#e53935';
+    heart.innerHTML = `<svg viewBox="0 0 24 24" width="80" height="80" fill="${_hc}" stroke="${_hc}"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`;
+    heart.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);z-index:10;pointer-events:none;transition:transform .2s ease,opacity .4s ease .3s;opacity:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3));';
+    img.style.position = 'relative';
+    img.appendChild(heart);
+    requestAnimationFrame(() => { heart.style.transform = 'translate(-50%,-50%) scale(1)'; });
+    setTimeout(() => { heart.style.opacity = '0'; setTimeout(() => heart.remove(), 400); }, 600);
+  }
+  toggleLike(postId, btn);
+}
+
 async function toggleLike(postId, btn) {
   const liked = btn.classList.contains('liked');
   btn.classList.toggle('liked', !liked);
