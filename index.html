@@ -5417,7 +5417,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
     </div>
   </div>
 
-  <div class="post-image" style="background:${p.image_url ? '#000' : (p.bg||'#f0f0f0')};cursor:pointer" onclick="openComments('${p.id}')" ondblclick="event.stopPropagation();_doubleTapLike('${p.id}',event)" ontouchend="_handlePostTouchEnd('${p.id}',event)">
+  <div class="post-image" style="background:${p.image_url ? '#000' : (p.bg||'#f0f0f0')};cursor:pointer" onclick="_postImageClick('${p.id}',event)" ondblclick="_doubleTapLike('${p.id}',event)" ontouchend="_handlePostTouchEnd('${p.id}',event)">
     ${p.image_url
       ? `<img src="${p.image_url}" alt="post" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none">`
       : `<span>${p.emoji||'📸'}</span>`}
@@ -5480,7 +5480,22 @@ function _handlePostTouchEnd(postId, e) {
   }
 }
 
+// Clique simples com proteção contra duplo clique
+const _clickTimers = {};
+function _postImageClick(postId, e) {
+  if (_clickTimers[postId]) return; // duplo clique em andamento, ignora
+  _clickTimers[postId] = setTimeout(() => {
+    delete _clickTimers[postId];
+    openComments(postId);
+  }, 250);
+}
+
 function _doubleTapLike(postId, e) {
+  // Cancela o clique simples pendente
+  if (_clickTimers[postId]) {
+    clearTimeout(_clickTimers[postId]);
+    delete _clickTimers[postId];
+  }
   e.preventDefault();
   e.stopPropagation();
   const btn = document.querySelector(`#post-${postId} .post-action-btn`);
