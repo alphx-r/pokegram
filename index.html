@@ -1485,33 +1485,167 @@
   </div>
 
   <!-- MODAL NOVO STORY (exclusivo 9:16) -->
+  <!-- MODAL CRIAR STORY (editor completo) -->
   <div id="modal-story-new" class="modal hidden">
     <div class="modal-backdrop" onclick="closeModal('modal-story-new')"></div>
-    <div class="modal-box" style="max-width:420px">
-      <div class="modal-header">
+    <div class="modal-box" style="max-width:520px;max-height:96vh;display:flex;flex-direction:column;overflow:hidden">
+      <div class="modal-header" style="flex-shrink:0">
         <button class="modal-x" onclick="closeModal('modal-story-new')">✕</button>
         <h3>Novo story</h3>
-        <button class="btn-share-modal" onclick="submitStory()">Publicar story</button>
+        <button class="btn-share-modal" onclick="submitStory()">Publicar</button>
       </div>
-      <div style="padding:20px;display:flex;flex-direction:column;align-items:center;gap:16px">
-        <!-- preview 9:16 -->
-        <label for="story-img-file" id="story-new-preview-wrap" style="width:180px;aspect-ratio:9/16;background:#111;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
-          <img id="story-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
-          <div id="story-upload-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#888">
-            <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-            <span style="font-size:13px;font-weight:600;text-align:center;line-height:1.4">Selecionar foto<br><small style="color:#666;font-weight:400">1080 × 1920 (9:16)</small></span>
+
+      <div style="display:flex;flex:1;min-height:0;overflow:hidden">
+
+        <!-- Preview 9:16 -->
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;background:#0a0a0a;flex-shrink:0">
+          <div id="story-editor-wrap" style="position:relative;width:160px;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#111;box-shadow:0 4px 24px rgba(0,0,0,.5)">
+            <!-- Canvas de composição -->
+            <canvas id="story-canvas" width="1080" height="1920" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></canvas>
+            <!-- Placeholder quando sem imagem -->
+            <label for="story-img-file" id="story-upload-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#888;cursor:pointer">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span style="font-size:11px;font-weight:600;text-align:center;line-height:1.4">Toque para<br>adicionar foto</span>
+            </label>
+            <!-- Texto overlay no preview -->
+            <div id="story-text-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;padding:10px"></div>
           </div>
-        </label>
-        <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
-        <div style="font-size:12px;color:#8e8e8e;text-align:center;line-height:1.6;background:#f8f8f8;border-radius:8px;padding:10px 14px;width:100%">
-          📸 Stories ficam disponíveis por <strong>24 horas</strong><br>e não aparecem no feed principal.
+          <!-- Botão trocar foto (aparece depois de selecionar) -->
+          <label for="story-img-file" id="story-change-photo-btn" style="display:none;margin-top:10px;font-size:11px;color:#aaa;cursor:pointer;text-decoration:underline">Trocar foto</label>
+        </div>
+
+        <!-- Painel de edição -->
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0;overflow-y:auto;padding:16px;gap:14px">
+
+          <!-- Seção texto -->
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">✏️ Texto</div>
+            <textarea id="story-text-input" maxlength="120" placeholder="Escreva algo no story..." rows="3"
+              oninput="storyEditorUpdate()"
+              style="width:100%;resize:none;border:1.5px solid #dbdbdb;border-radius:10px;padding:10px 12px;font-family:'Nunito',sans-serif;font-size:14px;line-height:1.45;color:#262626;background:#fafafa;outline:none;box-sizing:border-box"></textarea>
+            <div style="text-align:right;font-size:10px;color:#aaa;margin-top:3px"><span id="story-char-count">0</span>/120</div>
+          </div>
+
+          <!-- Estilo do texto -->
+          <div id="story-text-options" style="display:none;flex-direction:column;gap:10px">
+
+            <!-- Fonte -->
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Fonte</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button onclick="storySetFont('Nunito')" class="sty-font-btn active" data-font="Nunito" style="font-family:'Nunito',sans-serif">Nunito</button>
+                <button onclick="storySetFont('Pacifico')" class="sty-font-btn" data-font="Pacifico" style="font-family:'Pacifico',cursive">Pacifico</button>
+                <button onclick="storySetFont('Cinzel')" class="sty-font-btn" data-font="Cinzel" style="font-family:'Cinzel',serif">Cinzel</button>
+                <button onclick="storySetFont('serif')" class="sty-font-btn" data-font="serif" style="font-family:serif">Serif</button>
+                <button onclick="storySetFont('monospace')" class="sty-font-btn" data-font="monospace" style="font-family:monospace">Mono</button>
+              </div>
+            </div>
+
+            <!-- Tamanho -->
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px">Tamanho</div>
+                <span id="story-size-label" style="font-size:11px;color:#888">72px</span>
+              </div>
+              <input type="range" id="story-font-size" min="40" max="160" value="72" oninput="storyEditorUpdate();document.getElementById('story-size-label').textContent=this.value+'px'" style="width:100%;accent-color:#e53935">
+            </div>
+
+            <!-- Alinhamento -->
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Alinhamento</div>
+              <div style="display:flex;gap:6px">
+                <button onclick="storySetAlign('left')"   class="sty-align-btn active" data-align="left"   title="Esquerda">&#9664;&#9135;</button>
+                <button onclick="storySetAlign('center')" class="sty-align-btn"        data-align="center" title="Centro">&#9135;&#9646;&#9135;</button>
+                <button onclick="storySetAlign('right')"  class="sty-align-btn"        data-align="right"  title="Direita">&#9135;&#9654;</button>
+              </div>
+            </div>
+
+            <!-- Posição vertical -->
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Posição</div>
+              <div style="display:flex;gap:6px">
+                <button onclick="storySetVPos('top')"    class="sty-vpos-btn" data-vpos="top"    title="Topo">▲ Topo</button>
+                <button onclick="storySetVPos('center')" class="sty-vpos-btn active" data-vpos="center" title="Centro">● Centro</button>
+                <button onclick="storySetVPos('bottom')" class="sty-vpos-btn" data-vpos="bottom" title="Base">▼ Base</button>
+              </div>
+            </div>
+
+            <!-- Cor do texto -->
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Cor do texto</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <div onclick="storySetTextColor('#ffffff')" class="sty-color-dot active" data-tc="#ffffff" style="background:#fff;border:2px solid #ccc"></div>
+                <div onclick="storySetTextColor('#000000')" class="sty-color-dot" data-tc="#000000" style="background:#000"></div>
+                <div onclick="storySetTextColor('#e53935')" class="sty-color-dot" data-tc="#e53935" style="background:#e53935"></div>
+                <div onclick="storySetTextColor('#fdd835')" class="sty-color-dot" data-tc="#fdd835" style="background:#fdd835"></div>
+                <div onclick="storySetTextColor('#43a047')" class="sty-color-dot" data-tc="#43a047" style="background:#43a047"></div>
+                <div onclick="storySetTextColor('#1e88e5')" class="sty-color-dot" data-tc="#1e88e5" style="background:#1e88e5"></div>
+                <div onclick="storySetTextColor('#fb8c00')" class="sty-color-dot" data-tc="#fb8c00" style="background:#fb8c00"></div>
+                <input type="color" id="story-custom-color" value="#ffffff" oninput="storySetTextColor(this.value)" title="Cor personalizada" style="width:28px;height:28px;border-radius:50%;border:2px solid #ddd;cursor:pointer;padding:1px;box-sizing:border-box">
+              </div>
+            </div>
+
+            <!-- Fundo do texto -->
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Fundo</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button onclick="storySetBg('none')"       class="sty-bg-btn active" data-bg="none">Nenhum</button>
+                <button onclick="storySetBg('semi')"       class="sty-bg-btn" data-bg="semi">Escuro</button>
+                <button onclick="storySetBg('white')"      class="sty-bg-btn" data-bg="white">Branco</button>
+                <button onclick="storySetBg('solid')"      class="sty-bg-btn" data-bg="solid">Sólido</button>
+              </div>
+            </div>
+
+            <!-- Sombra -->
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px">Sombra no texto</div>
+              <label style="position:relative;display:inline-block;width:38px;height:20px">
+                <input type="checkbox" id="story-shadow" onchange="storyEditorUpdate()" style="opacity:0;width:0;height:0">
+                <span onclick="document.getElementById('story-shadow').click();storyEditorUpdate()" style="position:absolute;inset:0;background:#ddd;border-radius:20px;cursor:pointer;transition:.2s" id="story-shadow-track"></span>
+                <span id="story-shadow-thumb" style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s"></span>
+              </label>
+            </div>
+
+          </div><!-- /story-text-options -->
+
+          <!-- Cor de fundo (só quando sem foto) -->
+          <div id="story-bg-color-section">
+            <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🎨 Fundo (sem foto)</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <div onclick="storySetBgColor('#111111')" class="sty-bgc-dot active" data-bgc="#111111" style="background:#111"></div>
+              <div onclick="storySetBgColor('#1a237e')" class="sty-bgc-dot" data-bgc="#1a237e" style="background:#1a237e"></div>
+              <div onclick="storySetBgColor('#b71c1c')" class="sty-bgc-dot" data-bgc="#b71c1c" style="background:#b71c1c"></div>
+              <div onclick="storySetBgColor('#1b5e20')" class="sty-bgc-dot" data-bgc="#1b5e20" style="background:#1b5e20"></div>
+              <div onclick="storySetBgColor('#4a148c')" class="sty-bgc-dot" data-bgc="#4a148c" style="background:#4a148c"></div>
+              <div onclick="storySetBgColor('#e65100')" class="sty-bgc-dot" data-bgc="#e65100" style="background:#e65100"></div>
+              <div onclick="storySetBgColor('#ffffff')" class="sty-bgc-dot" data-bgc="#ffffff" style="background:#fff;border:2px solid #ddd"></div>
+              <input type="color" id="story-custom-bgc" value="#111111" oninput="storySetBgColor(this.value)" title="Cor personalizada" style="width:28px;height:28px;border-radius:50%;border:2px solid #ddd;cursor:pointer;padding:1px;box-sizing:border-box">
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:#aaa;text-align:center;padding-top:4px">📸 Stories ficam disponíveis por <strong>24h</strong></div>
         </div>
       </div>
     </div>
   </div>
+
+  <style>
+  .sty-font-btn,.sty-align-btn,.sty-vpos-btn,.sty-bg-btn{
+    padding:5px 10px;border-radius:8px;border:1.5px solid #dbdbdb;background:#fafafa;font-size:12px;font-weight:700;color:#444;cursor:pointer;transition:all .15s;font-family:'Nunito',sans-serif;
+  }
+  .sty-font-btn.active,.sty-align-btn.active,.sty-vpos-btn.active,.sty-bg-btn.active{
+    background:#262626;color:#fff;border-color:#262626;
+  }
+  .sty-color-dot,.sty-bgc-dot{
+    width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;flex-shrink:0;
+  }
+  .sty-color-dot.active,.sty-bgc-dot.active{ border-color:#262626;transform:scale(1.18); }
+  #story-shadow-track{ background:#ddd; }
+  #story-shadow:checked ~ #story-shadow-track,
+  .story-shadow-on #story-shadow-track{ background:#e53935 !important; }
+  #story-shadow:checked ~ #story-shadow-thumb,
+  .story-shadow-on #story-shadow-thumb{ left:20px !important; }
+  </style>
 
   <div id="modal-comments" class="modal hidden">
     <div class="modal-backdrop" onclick="closeModal('modal-comments')"></div>
@@ -1573,8 +1707,19 @@
           </div>
         </div>
 
-        <!-- Botão X redondo à direita -->
-        <button onclick="closeStoryViewer()" style="margin-left:auto;flex-shrink:0;width:40px;height:40px;background:rgba(0,0,0,0.5);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:sans-serif">✕</button>
+        <!-- Botões à direita: ... e X -->
+        <div style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:8px;position:relative">
+          <!-- Botão ... (só dono) -->
+          <div id="sv-more-wrap" style="display:none;position:relative">
+            <button id="sv-more-btn" onclick="svToggleMenu(event)" style="width:40px;height:40px;background:rgba(0,0,0,0.5);border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:sans-serif;letter-spacing:1px">⋯</button>
+            <!-- Dropdown -->
+            <div id="sv-menu-drop" style="display:none;position:absolute;top:48px;right:0;background:rgba(30,30,30,0.97);border-radius:12px;min-width:170px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:20;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
+              <button onclick="svMenuDelete()" style="width:100%;background:none;border:none;color:#ff4d4d;font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left">🗑 Apagar story</button>
+            </div>
+          </div>
+          <!-- Botão X -->
+          <button onclick="closeStoryViewer()" style="width:40px;height:40px;background:rgba(0,0,0,0.5);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:sans-serif">✕</button>
+        </div>
       </div>
 
       <!-- Navegação tap (esquerda / direita) -->
@@ -1583,8 +1728,7 @@
         <div style="flex:1;cursor:pointer" onclick="storyNav(1)"></div>
       </div>
 
-      <!-- Botão apagar (só dono) -->
-      <button id="sv-delete-btn" style="display:none;position:absolute;bottom:80px;right:16px;z-index:10;background:rgba(229,57,53,0.88);color:#fff;border:none;border-radius:24px;padding:11px 22px;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)" onclick="deleteCurrentStory()">🗑 Apagar story</button>
+      <!-- (delete btn removido daqui — agora fica no dropdown) -->
 
       <!-- Barra de comentário (só para stories de outros) -->
       <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.55))">
@@ -6670,17 +6814,6 @@ function openStoryOrViewer() {
   }
 }
 
-function showNewStory() {
-  _storyPendingFile = null;
-  const img = document.getElementById('story-preview-img');
-  const ph  = document.getElementById('story-upload-placeholder');
-  const fileInput = document.getElementById('story-img-file');
-  if (img) { img.src = ''; img.style.display = 'none'; }
-  if (ph)  ph.style.display = 'flex';
-  if (fileInput) fileInput.value = '';
-  openModal('modal-story-new');
-}
-
 // ── New Post ─────────────────────────────────────────────
 let _postPendingImageFile = null;
 
@@ -6755,44 +6888,272 @@ let _storyViewIdx     = 0;
 let _storyTimer       = null;
 let _storyViewOwnerId = null;
 
+// ── Editor state ──────────────────────────────────────────
+const _storyEd = {
+  font:      'Nunito',
+  size:      72,
+  align:     'left',
+  vpos:      'center',
+  textColor: '#ffffff',
+  bg:        'none',
+  shadow:    false,
+  bgColor:   '#111111',
+  imgBitmap: null,
+};
+
+function showNewStory() {
+  _storyPendingFile = null;
+  _storyEd.imgBitmap = null;
+  Object.assign(_storyEd, { font:'Nunito', size:72, align:'left', vpos:'center', textColor:'#ffffff', bg:'none', shadow:false, bgColor:'#111111' });
+
+  const ph = document.getElementById('story-upload-placeholder');
+  const cb = document.getElementById('story-change-photo-btn');
+  if (ph) ph.style.display = 'flex';
+  if (cb) cb.style.display = 'none';
+
+  const ta = document.getElementById('story-text-input');
+  if (ta) ta.value = '';
+  const cc = document.getElementById('story-char-count');
+  if (cc) cc.textContent = '0';
+
+  // reset UI buttons
+  document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'Nunito'));
+  document.querySelectorAll('.sty-align-btn').forEach(b => b.classList.toggle('active', b.dataset.align === 'left'));
+  document.querySelectorAll('.sty-vpos-btn').forEach(b => b.classList.toggle('active', b.dataset.vpos === 'center'));
+  document.querySelectorAll('.sty-bg-btn').forEach(b => b.classList.toggle('active', b.dataset.bg === 'none'));
+  document.querySelectorAll('.sty-color-dot').forEach(b => b.classList.toggle('active', b.dataset.tc === '#ffffff'));
+  document.querySelectorAll('.sty-bgc-dot').forEach(b => b.classList.toggle('active', b.dataset.bgc === '#111111'));
+
+  const sz = document.getElementById('story-font-size');
+  const sl = document.getElementById('story-size-label');
+  if (sz) sz.value = 72;
+  if (sl) sl.textContent = '72px';
+
+  const shadowCb = document.getElementById('story-shadow');
+  if (shadowCb) shadowCb.checked = false;
+  _storyShadowTrackUpdate();
+
+  document.getElementById('story-text-options').style.display = 'none';
+  storyDrawCanvas();
+  openModal('modal-story-new');
+}
+
+function _storyShadowTrackUpdate() {
+  const cb = document.getElementById('story-shadow');
+  const track = document.getElementById('story-shadow-track');
+  const thumb = document.getElementById('story-shadow-thumb');
+  if (!cb || !track || !thumb) return;
+  const on = cb.checked;
+  track.style.background = on ? '#e53935' : '#ddd';
+  thumb.style.left = on ? '20px' : '2px';
+  _storyEd.shadow = on;
+}
+
+function storySetFont(f) {
+  _storyEd.font = f;
+  document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === f));
+  storyDrawCanvas();
+}
+function storySetAlign(a) {
+  _storyEd.align = a;
+  document.querySelectorAll('.sty-align-btn').forEach(b => b.classList.toggle('active', b.dataset.align === a));
+  storyDrawCanvas();
+}
+function storySetVPos(v) {
+  _storyEd.vpos = v;
+  document.querySelectorAll('.sty-vpos-btn').forEach(b => b.classList.toggle('active', b.dataset.vpos === v));
+  storyDrawCanvas();
+}
+function storySetTextColor(c) {
+  _storyEd.textColor = c;
+  document.querySelectorAll('.sty-color-dot').forEach(b => b.classList.toggle('active', b.dataset.tc === c));
+  storyDrawCanvas();
+}
+function storySetBg(b) {
+  _storyEd.bg = b;
+  document.querySelectorAll('.sty-bg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.bg === b));
+  storyDrawCanvas();
+}
+function storySetBgColor(c) {
+  _storyEd.bgColor = c;
+  document.querySelectorAll('.sty-bgc-dot').forEach(b => b.classList.toggle('active', b.dataset.bgc === c));
+  storyDrawCanvas();
+}
+
+function storyEditorUpdate() {
+  const ta  = document.getElementById('story-text-input');
+  const cc  = document.getElementById('story-char-count');
+  const opts = document.getElementById('story-text-options');
+  const sz  = document.getElementById('story-font-size');
+  const shadowCb = document.getElementById('story-shadow');
+
+  if (cc)  cc.textContent = (ta?.value || '').length;
+  if (opts) opts.style.display = (ta?.value || '').trim() ? 'flex' : 'none';
+  if (sz)  _storyEd.size = parseInt(sz.value) || 72;
+  if (shadowCb) _storyShadowTrackUpdate();
+
+  storyDrawCanvas();
+}
+
+function storyDrawCanvas() {
+  const canvas = document.getElementById('story-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = 1080, H = 1920;
+
+  // Fundo
+  if (_storyEd.imgBitmap) {
+    // cover fit
+    const iw = _storyEd.imgBitmap.width, ih = _storyEd.imgBitmap.height;
+    const scale = Math.max(W / iw, H / ih);
+    const dw = iw * scale, dh = ih * scale;
+    ctx.drawImage(_storyEd.imgBitmap, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  } else {
+    ctx.fillStyle = _storyEd.bgColor;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Texto
+  const text = (document.getElementById('story-text-input')?.value || '').trim();
+  if (!text) return;
+
+  const fontSize = _storyEd.size;
+  const fontMap = {
+    'Nunito': 'Nunito, sans-serif',
+    'Pacifico': 'Pacifico, cursive',
+    'Cinzel': 'Cinzel, serif',
+    'serif': 'Georgia, serif',
+    'monospace': 'monospace',
+  };
+  const fontFamily = fontMap[_storyEd.font] || 'Nunito, sans-serif';
+  ctx.font = `800 ${fontSize}px ${fontFamily}`;
+  ctx.textAlign = _storyEd.align === 'left' ? 'left' : _storyEd.align === 'right' ? 'right' : 'center';
+
+  const pad = 80; // padding lateral
+  const maxW = W - pad * 2;
+
+  // Wrap text
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const test = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+
+  const lineH = fontSize * 1.3;
+  const totalH = lines.length * lineH;
+
+  // Vertical position
+  let startY;
+  if (_storyEd.vpos === 'top')    startY = 200;
+  else if (_storyEd.vpos === 'bottom') startY = H - 250 - totalH;
+  else startY = (H - totalH) / 2;
+
+  const xBase = _storyEd.align === 'left' ? pad : _storyEd.align === 'right' ? W - pad : W / 2;
+
+  // Draw background pill per line
+  if (_storyEd.bg !== 'none') {
+    const bgColors = { semi: 'rgba(0,0,0,0.55)', white: 'rgba(255,255,255,0.85)', solid: 'rgba(0,0,0,0.9)' };
+    const bgC = bgColors[_storyEd.bg] || 'transparent';
+    ctx.fillStyle = bgC;
+    lines.forEach((line, i) => {
+      const tw = ctx.measureText(line).width;
+      const lpad = 24, vpad = 10;
+      let rx;
+      if (_storyEd.align === 'center') rx = W / 2 - tw / 2 - lpad;
+      else if (_storyEd.align === 'right') rx = W - pad - tw - lpad;
+      else rx = pad - lpad;
+      const ry = startY + i * lineH - fontSize - vpad;
+      const rw = tw + lpad * 2;
+      const rh = fontSize + vpad * 2;
+      const r = 12;
+      ctx.beginPath();
+      ctx.moveTo(rx + r, ry); ctx.lineTo(rx + rw - r, ry);
+      ctx.arcTo(rx + rw, ry, rx + rw, ry + r, r);
+      ctx.lineTo(rx + rw, ry + rh - r);
+      ctx.arcTo(rx + rw, ry + rh, rx + rw - r, ry + rh, r);
+      ctx.lineTo(rx + r, ry + rh);
+      ctx.arcTo(rx, ry + rh, rx, ry + rh - r, r);
+      ctx.lineTo(rx, ry + r);
+      ctx.arcTo(rx, ry, rx + r, ry, r);
+      ctx.closePath();
+      ctx.fill();
+    });
+  }
+
+  // Shadow
+  if (_storyEd.shadow) {
+    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur  = 8;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 3;
+  } else {
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur  = 0;
+  }
+
+  ctx.fillStyle = _storyEd.textColor;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, xBase, startY + i * lineH);
+  });
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur  = 0;
+}
+
 function previewStoryImage(input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 20 * 1024 * 1024) { toast('Imagem muito grande. Máximo 20MB.'); return; }
   openCropper(file, 'story', croppedFile => {
     _storyPendingFile = croppedFile;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img  = document.getElementById('story-preview-img');
-      const ph   = document.getElementById('story-upload-placeholder');
-      if (img) { img.src = e.target.result; img.style.display = 'block'; }
-      if (ph)  ph.style.display = 'none';
-    };
-    reader.readAsDataURL(croppedFile);
+    createImageBitmap(croppedFile).then(bmp => {
+      _storyEd.imgBitmap = bmp;
+      const ph = document.getElementById('story-upload-placeholder');
+      const cb = document.getElementById('story-change-photo-btn');
+      const bgSec = document.getElementById('story-bg-color-section');
+      if (ph) ph.style.display = 'none';
+      if (cb) cb.style.display = 'block';
+      if (bgSec) bgSec.style.display = 'none';
+      storyDrawCanvas();
+    });
   });
   input.value = '';
 }
 
 async function submitStory() {
-  if (!_storyPendingFile) { toast('Selecione uma foto para o story!'); return; }
+  const text = (document.getElementById('story-text-input')?.value || '').trim();
+  if (!_storyPendingFile && !text) { toast('Adicione uma foto ou escreva um texto!'); return; }
+
   const btn = document.querySelector('#modal-story-new .btn-share-modal');
   if (btn) { btn.textContent = 'Publicando...'; btn.disabled = true; }
 
+  // Render canvas final
+  storyDrawCanvas();
+  const canvas = document.getElementById('story-canvas');
+
+  // Se não tiver foto mas tiver texto: canvas já tem o fundo colorido
+  // Se tiver foto: canvas já tem a imagem + texto
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+
   const path = `${currentUser.id}_${Date.now()}.png`;
-  const { error: upErr } = await db.storage.from('stories').upload(path, _storyPendingFile, { upsert: false, contentType: 'image/png' });
+  const { error: upErr } = await db.storage.from('stories').upload(path, blob, { upsert: false, contentType: 'image/png' });
   if (upErr) {
     toast('Erro ao enviar story: ' + upErr.message);
-    if (btn) { btn.textContent = 'Publicar story'; btn.disabled = false; }
+    if (btn) { btn.textContent = 'Publicar'; btn.disabled = false; }
     return;
   }
   const { data: urlData } = db.storage.from('stories').getPublicUrl(path);
   const image_url = urlData.publicUrl;
 
   const { error } = await db.from('stories').insert({ user_id: currentUser.id, image_url });
-  if (btn) { btn.textContent = 'Publicar story'; btn.disabled = false; }
+  if (btn) { btn.textContent = 'Publicar'; btn.disabled = false; }
   if (error) { toast('Erro ao publicar story: ' + error.message); return; }
 
   _storyPendingFile = null;
+  _storyEd.imgBitmap = null;
   closeModal('modal-story-new');
   await renderStories();
   toast('Story publicado! Disponível por 24h 🕐');
@@ -6839,12 +7200,14 @@ function showStory(idx) {
   document.getElementById('sv-username').textContent = u.username || '?';
   document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás';
 
-  // botão apagar (só dono)
-  const delBtn = document.getElementById('sv-delete-btn');
+  // botão ... (só dono)
   const isOwn = u.id === currentUser.id;
-  delBtn.style.display = isOwn ? 'block' : 'none';
-  delBtn.dataset.storyId = story.id;
-  delBtn.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
+  const moreWrap = document.getElementById('sv-more-wrap');
+  if (moreWrap) {
+    moreWrap.style.display = isOwn ? 'flex' : 'none';
+    moreWrap.dataset.storyId = story.id;
+    moreWrap.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
+  }
 
   // barra de comentário (só para stories de outros)
   const commentBar = document.getElementById('sv-comment-bar');
@@ -6905,6 +7268,8 @@ async function storyNav(dir) {
 function closeStoryViewer() {
   clearTimeout(_storyTimer);
   _storyPaused = false;
+  const drop = document.getElementById('sv-menu-drop');
+  if (drop) drop.style.display = 'none';
   document.getElementById('modal-story').style.display = 'none';
   document.body.style.overflow = '';
   // restaura URL anterior se estava em /usuario/stories
@@ -6913,10 +7278,33 @@ function closeStoryViewer() {
   }
 }
 
+function svToggleMenu(e) {
+  e.stopPropagation();
+  const drop = document.getElementById('sv-menu-drop');
+  if (!drop) return;
+  const isOpen = drop.style.display === 'block';
+  drop.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    // fecha ao clicar fora
+    const handler = (ev) => {
+      if (!drop.contains(ev.target) && ev.target.id !== 'sv-more-btn') {
+        drop.style.display = 'none';
+      }
+      document.removeEventListener('click', handler);
+    };
+    setTimeout(() => document.addEventListener('click', handler), 0);
+  }
+}
+
+async function svMenuDelete() {
+  document.getElementById('sv-menu-drop').style.display = 'none';
+  await deleteCurrentStory();
+}
+
 async function deleteCurrentStory() {
-  const btn    = document.getElementById('sv-delete-btn');
-  const id     = btn.dataset.storyId;
-  const path   = btn.dataset.storyPath;
+  const wrap = document.getElementById('sv-more-wrap');
+  const id   = wrap.dataset.storyId;
+  const path = wrap.dataset.storyPath;
   if (!confirm('Apagar este story?')) return;
   if (path) await db.storage.from('stories').remove([path]);
   await db.from('stories').delete().eq('id', id);
