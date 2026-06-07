@@ -1283,7 +1283,6 @@
             <input type="text" id="search-input" placeholder="Buscar treinadores, #tags..." oninput="doSearch(this.value)">
           </div>
         </div>
-        <div id="explore-hashtags" style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px 4px;border-bottom:1px solid #efefef"></div>
         <div style="position:relative">
           <div id="explore-profiles" style="display:none;position:absolute;top:0;left:0;right:0;z-index:50;background:#fff;border-bottom:1px solid #efefef;box-shadow:0 4px 16px rgba(0,0,0,.08);flex-direction:column;gap:0"></div>
           <div id="explore-grid" class="explore-grid"></div>
@@ -6160,27 +6159,6 @@ let _exploreLoading = false;  // evita requisições duplas
 let _exploreEnd     = false;  // não há mais resultados
 let _exploreSentinel = null;  // elemento IntersectionObserver
 
-async function _exploreLoadHashtags() {
-  const container = document.getElementById('explore-hashtags');
-  if (!container) return;
-  // Busca as legendas mais recentes para extrair hashtags populares
-  const { data: posts } = await db.from('posts').select('caption').not('caption', 'is', null).order('created_at', { ascending: false }).limit(200);
-  const tagCount = {};
-  (posts || []).forEach(p => {
-    const matches = (p.caption || '').match(/#(\w+)/g) || [];
-    matches.forEach(t => {
-      const tag = t.toLowerCase();
-      tagCount[tag] = (tagCount[tag] || 0) + 1;
-    });
-  });
-  const sorted = Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 12);
-  if (!sorted.length) { container.style.display = 'none'; return; }
-  container.style.display = 'flex';
-  container.innerHTML = sorted.map(([tag, count]) =>
-    `<button onclick="doSearch('${tag.replace('#','')}')" style="background:#f0f0f0;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;color:#262626;white-space:nowrap;transition:background .15s" onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='#f0f0f0'">${tag} <span style="color:#8e8e8e;font-weight:400">${count}</span></button>`
-  ).join('');
-}
-
 async function renderExplore(query) {
   // nova busca: zera estado
   _exploreQuery   = query || '';
@@ -6192,9 +6170,6 @@ async function renderExplore(query) {
   const grid = document.getElementById('explore-grid');
   if (!grid) return;
   grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#8e8e8e">Carregando...</div>';
-
-  // Carrega hashtags populares (só na primeira vez sem query)
-  if (!query) _exploreLoadHashtags();
 
   // Busca e renderiza perfis quando há query
   await _exploreSearchProfiles(_exploreQuery);
