@@ -1286,6 +1286,28 @@
         <div style="position:relative">
           <div id="explore-profiles" style="display:none;position:absolute;top:0;left:0;right:0;z-index:50;background:#fff;border-bottom:1px solid #efefef;box-shadow:0 4px 16px rgba(0,0,0,.08);flex-direction:column;gap:0"></div>
           <div id="explore-grid" class="explore-grid"></div>
+<style>
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+.explore-thumb {
+  aspect-ratio: 1;
+  overflow: hidden;
+  cursor: pointer;
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.explore-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+</style>
         </div>
       </div>
 
@@ -6219,29 +6241,28 @@ async function _exploreLoadMore(reset) {
   const from = isFirst ? 0 : EXPLORE_FIRST_SIZE + (_explorePage - 1) * EXPLORE_PAGE_SIZE;
   const to   = from + pageSize - 1;
 
-  const { data: posts } = await db.from('posts')
-    .select('id,emoji,bg,caption,location,image_url,users(username)')
-    .range(from, to);
-  // embaralha com Fisher-Yates usando seed baseada na sessão para consistência por página
+  let query = db.from('posts').select('id,emoji,bg,caption,location,image_url,users(username)');
+
+  // se há busca, filtra no servidor por caption ou location (hashtag ou palavra-chave)
+  if (_exploreQuery && _exploreQuery.trim()) {
+    const q = _exploreQuery.trim().replace(/^#/, ''); // remove # se digitado
+    query = query.or(`caption.ilike.%${q}%,location.ilike.%${q}%`);
+  }
+
+  query = query.order('created_at', { ascending: false }).range(from, to);
+
+  const { data: posts } = await query;
   const results = (posts || []).slice();
-  if (isFirst) {
-    // embaralha apenas no primeiro carregamento para manter coerência no infinite scroll
+
+  // embaralha apenas na primeira página sem busca
+  if (isFirst && !_exploreQuery) {
     for (let i = results.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [results[i], results[j]] = [results[j], results[i]];
     }
   }
 
-  // filtra no cliente quando há query
   let filtered = results;
-  if (_exploreQuery && _exploreQuery.trim()) {
-    const ql = _exploreQuery.toLowerCase();
-    filtered = results.filter(p =>
-      p.users?.username?.toLowerCase().includes(ql) ||
-      p.caption?.toLowerCase().includes(ql) ||
-      p.location?.toLowerCase().includes(ql)
-    );
-  }
 
   if (reset) grid.innerHTML = '';
 
@@ -6252,7 +6273,9 @@ async function _exploreLoadMore(reset) {
     return;
   }
 
-  filtered.forEach(p => {
+  const existingCount = grid.querySelectorAll('.explore-thumb').length;
+  const trimmed = filtered.slice(0, filtered.length - ((existingCount + filtered.length) % 3));
+  trimmed.forEach(p => {
     const div = document.createElement('div');
     div.className = 'explore-thumb';
     div.style.background = p.bg || '#eee';
