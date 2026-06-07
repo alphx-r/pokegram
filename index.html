@@ -6693,6 +6693,12 @@ async function submitEditProfile() {
   if (saveBtn) { saveBtn.textContent = 'Salvar'; saveBtn.disabled = false; }
   if (textErr) { errEl.textContent = 'Erro ao salvar: ' + textErr.message; errEl.style.display = 'block'; return; }
 
+  // 2b — se o username mudou, atualiza o email no Supabase Auth também
+  if (username !== currentUser.username) {
+    const newEmail = username + '@pokegram.app';
+    await db.auth.updateUser({ email: newEmail }).catch(() => {});
+  }
+
   // 3 — atualiza estado local
   Object.assign(currentUser, { username, name, bio, rpg, pronoun, color, avatar_url });
   saveSession(currentUser);
