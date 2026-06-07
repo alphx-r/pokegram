@@ -2698,7 +2698,7 @@ async function dbLogin(username, password) {
     if (isCredentialError) {
       // FALLBACK: tenta senha em password_plain (usuários migrados)
       const { data: legacyUser } = await db.from('users')
-        .select('*').eq('username', username).eq('password_plain', password).maybeSingle();
+        .select('*').ilike('username', username).eq('password_plain', password).maybeSingle();
       if (legacyUser) {
         // Cria no Supabase Auth para que nas próximas vezes já funcione normalmente
         try {
@@ -2711,7 +2711,7 @@ async function dbLogin(username, password) {
     throw authError;
   }
   // busca dados completos do usuário na tabela users
-  const { data: user } = await db.from('users').select('*').eq('username', username).maybeSingle();
+  const { data: user } = await db.from('users').select('*').ilike('username', username).maybeSingle();
   // Usuário existe no Auth mas não na tabela users (cadastro incompleto anterior)
   if (!user && authData?.user?.id) {
     // Faz logout para não deixar sessão Auth sem perfil correspondente
@@ -2773,7 +2773,7 @@ async function dbRegister(username, password, rpg, emoji, pronoun) {
   return newUser || null;
 }
 async function dbCheckUserExists(username) {
-  const { data } = await db.from('users').select('id').eq('username', username).maybeSingle();
+  const { data } = await db.from('users').select('id').ilike('username', username).maybeSingle();
   return !!data;
 }
 
@@ -2819,6 +2819,19 @@ async function doAuth() {
   const btn      = document.getElementById('auth-btn');
   if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
   btn.disabled = true; btn.textContent = 'Aguarde...';
+
+  // Reconfirma o modo real antes de agir (evita falso "register" por timeout ou digitação rápida)
+  try {
+    const exists = await dbCheckUserExists(username);
+    if (exists && isRegisterMode) setAuthMode('login');
+    if (!exists && !isRegisterMode) {
+      setAuthMode('register');
+      showAuthError('Usuário não encontrado. Complete o cadastro abaixo.');
+      btn.disabled = false; btn.textContent = 'Cadastrar';
+      return;
+    }
+  } catch(e) { /* ignora erro de rede na revalidação e continua */ }
+
   try {
     if (isRegisterMode) {
       const confirm = document.getElementById('login-confirm').value;
