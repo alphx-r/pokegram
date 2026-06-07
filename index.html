@@ -5438,7 +5438,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   </div>
 
   <div class="post-likes" id="likes-${p.id}">${fmtNum(likeCount)} curtida${likeCount !== 1 ? 's' : ''}</div>
-  <div class="post-caption-text" style="white-space:pre-wrap">
+  <div class="post-caption-text">
     <span class="cap-user" onclick="showUserProfile('${author.username}')" style="cursor:pointer;color:${currentUser.color||'#262626'}">${author.username}</span>${formatCaption(p.caption||'')}
   </div>
   ${commentCount > 1 ? `<div class="post-view-comments" onclick="openComments('${p.id}')">Ver todos os ${commentCount} comentários</div>` : ''}
