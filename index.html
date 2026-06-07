@@ -5231,6 +5231,10 @@ function bottomTab(name) {
 }
 
 async function showView(name) {
+  // Fecha modal de comentários ao navegar
+  const mc = document.getElementById('modal-comments');
+  if (mc && !mc.classList.contains('hidden')) mc.classList.add('hidden');
+
   // Sync bottom tab bar
   document.querySelectorAll('.btab').forEach(b => b.classList.remove('active'));
   const bt = document.getElementById('btab-' + name) || (name === 'feed' ? document.getElementById('btab-feed') : null);
