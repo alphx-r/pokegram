@@ -1623,20 +1623,16 @@
   <style>
 /* Modal de comentários — responsivo */
 @media (max-width: 768px) {
-  #modal-comments {
-    align-items: flex-end !important;
-  }
   .comments-modal-box {
     position: fixed !important;
-    left: 0 !important; right: 0 !important;
-    bottom: 56px !important; /* acima da bottom nav */
-    top: auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 92vw !important;
+    max-width: 92vw !important;
     height: 80dvh !important;
-    max-height: calc(100dvh - 56px) !important;
-    border-radius: 20px 20px 0 0 !important;
-    transform: none !important;
+    max-height: calc(100dvh - 72px) !important;
+    border-radius: 16px !important;
     margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
