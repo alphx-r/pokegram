@@ -1046,6 +1046,14 @@
 #pokeets-trends-mobile .pk-trend-item:last-child { border-bottom: none; }
 #pokeets-trends-mobile .pk-trend-item:hover .pk-trend-tag { color: var(--pk-accent, #e53935); }
 
+/* ── Profile Pokeets Tab ─────────────────────────────────── */
+.prof-pokeets-panel { padding: 0; }
+.prof-pokeets-list .pokeet-card {
+  border-bottom: 1px solid var(--border, #efefef);
+  border-radius: 0;
+}
+.prof-pokeets-list .pokeet-card:last-child { border-bottom: none; }
+
 </style>
 </head>
 <body>
@@ -6196,13 +6204,17 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
       </div>
 
       <div class="profile-tabs">
-        <button class="tab-btn active">
+        <button class="tab-btn active" id="prof-tab-posts-${u.id}" onclick="profileSwitchTab('${u.id}','posts')">
           <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           Publicações
         </button>
+        <button class="tab-btn" id="prof-tab-pokeets-${u.id}" onclick="profileSwitchTab('${u.id}','pokeets')">
+          <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Pokeets
+        </button>
       </div>
 
-      <div class="profile-grid">
+      <div id="prof-panel-posts-${u.id}" class="profile-grid">
         ${postCount
           ? userPosts.map(p => `
               <div class="profile-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
@@ -6213,7 +6225,112 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
           : `<div class="profile-empty">Nenhuma publicação ainda.</div>`
         }
       </div>
+
+      <div id="prof-panel-pokeets-${u.id}" class="prof-pokeets-panel" style="display:none">
+        <div class="prof-pokeets-list" id="prof-pokeets-list-${u.id}">
+          <div class="pk-thread-empty" style="padding:32px 0">Carregando Pokeets...</div>
+        </div>
+      </div>
     </div>`;
+}
+
+// ── Profile Tab Switch ────────────────────────────────────
+function profileSwitchTab(userId, tab) {
+  const postsBtn  = document.getElementById(`prof-tab-posts-${userId}`);
+  const pokeetsBtn= document.getElementById(`prof-tab-pokeets-${userId}`);
+  const postsPanel  = document.getElementById(`prof-panel-posts-${userId}`);
+  const pokeetsPanel= document.getElementById(`prof-panel-pokeets-${userId}`);
+  if (!postsBtn || !pokeetsBtn || !postsPanel || !pokeetsPanel) return;
+
+  if (tab === 'pokeets') {
+    postsBtn.classList.remove('active');
+    pokeetsBtn.classList.add('active');
+    postsPanel.style.display  = 'none';
+    pokeetsPanel.style.display = '';
+    loadProfilePokeets(userId);
+  } else {
+    pokeetsBtn.classList.remove('active');
+    postsBtn.classList.add('active');
+    pokeetsPanel.style.display = 'none';
+    postsPanel.style.display   = '';
+  }
+}
+
+// ── Load Profile Pokeets ──────────────────────────────────
+async function loadProfilePokeets(userId) {
+  const container = document.getElementById(`prof-pokeets-list-${userId}`);
+  if (!container) return;
+  // Avoid double-loading (marker set after first load)
+  if (container.dataset.loaded === userId) return;
+
+  container.innerHTML = `<div class="pk-thread-empty" style="padding:32px 0">Carregando Pokeets...</div>`;
+
+  try {
+    // Fetch pokeets by this user (excluding pure replies)
+    const { data: pokeets, error } = await db
+      .from('pokeets')
+      .select('*')
+      .eq('user_id', userId)
+      .is('reply_to_id', null)
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error) throw error;
+
+    if (!pokeets || !pokeets.length) {
+      container.innerHTML = `<div class="pk-thread-empty" style="padding:32px 0">Nenhum Pokeet ainda.</div>`;
+      container.dataset.loaded = userId;
+      return;
+    }
+
+    // Fetch user data
+    const { data: userData } = await db.from('users').select('id, username, name, color, avatar_url, rpg').eq('id', userId).maybeSingle();
+    pokeets.forEach(p => { p.users = userData || null; });
+
+    // Fetch quoted pokeets
+    const quoteIds = pokeets.map(p => p.quote_id).filter(Boolean);
+    if (quoteIds.length) {
+      const { data: quotedRows } = await db.from('pokeets').select('id, text, created_at, user_id').in('id', quoteIds);
+      const quotedAuthorIds = [...new Set((quotedRows || []).map(q => q.user_id).filter(Boolean))];
+      let quotedUsersMap = {};
+      if (quotedAuthorIds.length) {
+        const { data: qUsers } = await db.from('users').select('id, username, name, color, avatar_url').in('id', quotedAuthorIds);
+        (qUsers || []).forEach(u => { quotedUsersMap[u.id] = u; });
+      }
+      const quotedMap = {};
+      (quotedRows || []).forEach(q => { q.users = quotedUsersMap[q.user_id] || null; quotedMap[q.id] = q; });
+      pokeets.forEach(p => { if (p.quote_id) p.quoted = quotedMap[p.quote_id] || null; });
+    }
+
+    // Fetch profiles for author snapshots
+    const allAuthorIds = [userId, ...pokeets.map(p => p.quoted?.user_id).filter(Boolean)];
+    if (typeof pkFetchProfiles === 'function') await pkFetchProfiles([...new Set(allAuthorIds)]);
+
+    // Counts & likes
+    const ids = pokeets.map(p => p.id);
+    const [{ data: myLikes }, { data: likeCounts }, { data: replyCounts }, { data: repostCounts }] = await Promise.all([
+      db.from('pokeet_likes').select('pokeet_id').eq('user_id', currentUser.id).in('pokeet_id', ids),
+      db.from('pokeet_likes').select('pokeet_id').in('pokeet_id', ids),
+      db.from('pokeets').select('reply_to_id').in('reply_to_id', ids),
+      db.from('pokeets').select('repost_of_id').in('repost_of_id', ids).is('quote_id', null),
+    ]);
+
+    const likedSet  = new Set((myLikes     || []).map(l => l.pokeet_id));
+    const likeMap   = {}; (likeCounts  || []).forEach(l => { likeMap[l.pokeet_id]    = (likeMap[l.pokeet_id]    || 0) + 1; });
+    const replyMap  = {}; (replyCounts || []).forEach(r => { replyMap[r.reply_to_id] = (replyMap[r.reply_to_id] || 0) + 1; });
+    const repostMap = {}; (repostCounts|| []).forEach(r => { repostMap[r.repost_of_id]= (repostMap[r.repost_of_id]|| 0) + 1; });
+
+    const { data: myReposts } = await db.from('pokeets').select('repost_of_id').eq('user_id', currentUser.id).in('repost_of_id', ids).is('quote_id', null);
+    const repostedSet = new Set((myReposts || []).map(r => r.repost_of_id));
+
+    container.innerHTML = pokeets.map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
+    container.dataset.loaded = userId;
+
+  } catch(e) {
+    console.error('loadProfilePokeets error:', e);
+    container.innerHTML = `<div class="pk-thread-empty" style="padding:32px 0">Erro ao carregar Pokeets.</div>`;
+  }
 }
 
 // ── Load user data helper ─────────────────────────────────
