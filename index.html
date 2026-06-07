@@ -1620,6 +1620,78 @@
   .sty-color-dot.active,.sty-bgc-dot.active{ transform:scale(1.25);border-color:#fff !important; }
   </style>
 
+  <style>
+/* Modal de comentários — responsivo mobile */
+.comments-modal-box {
+  display: flex;
+  flex-direction: column;
+  max-height: 92dvh !important;
+  height: 92dvh !important;
+  overflow: hidden !important;
+  border-radius: 16px 16px 0 0 !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+.comments-split {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.comments-post-side {
+  flex-shrink: 0;
+  max-height: 35dvh;
+  overflow-y: auto;
+}
+.comments-right-side {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.comments-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+.comments-footer {
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+  background: var(--bg, #fff);
+  border-top: 1px solid #efefef;
+}
+@media (min-width: 640px) {
+  .comments-modal-box {
+    position: relative !important;
+    bottom: auto !important;
+    border-radius: 12px !important;
+    height: 85vh !important;
+    max-height: 85vh !important;
+    max-width: 900px !important;
+    width: 90vw !important;
+    margin: auto !important;
+  }
+  .comments-split {
+    flex-direction: row;
+  }
+  .comments-post-side {
+    max-height: none;
+    width: 50%;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+}
+</style>
   <div id="modal-comments" class="modal hidden">
     <div class="modal-backdrop" onclick="closeModal('modal-comments')"></div>
     <div class="modal-box comments-modal-box">
