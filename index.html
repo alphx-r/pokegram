@@ -922,7 +922,6 @@
 }
 .pk-action-btn:hover { background: var(--pk-accent-bg, rgba(229,57,53,.08)); color: var(--pk-accent, #e53935); }
 .pk-action-btn.liked  { color: var(--pk-accent, #e53935); }
-.pk-action-btn.liked svg { fill: var(--pk-accent, #e53935); }
 .pk-action-btn.reposted  { color: #1a9a1a; }
 .pk-action-btn.reposted svg { stroke: #1a9a1a; }
 .pk-action-btn svg { flex-shrink: 0; }
@@ -5425,7 +5424,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 
   <div class="post-actions">
     <button class="post-action-btn ${liked?'liked':''}" onclick="toggleLike('${p.id}',this)" style="${likeColor}">
-      <svg viewBox="0 0 24 24" style="${likeFill};stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      <svg viewBox="0 0 24 24" style="${likeFill};stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:${liked?(_lc):'currentColor'}"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
     </button>
     <button class="post-action-btn" onclick="openComments('${p.id}')">
       <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -5661,7 +5660,7 @@ async function openComments(postId) {
         <button id="modal-like-btn-${postId}" onclick="modalToggleLike('${postId}',this)"
           style="background:none;border:none;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:8px"
           title="Curtir">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="${liked?'#e53935':'none'}" stroke="${liked?'#e53935':'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="${liked?(currentUser.color||'#e53935'):'none'}" stroke="${liked?(currentUser.color||'#e53935'):'currentColor'}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
         </button>
         <button onclick="document.getElementById('new-comment').focus()"
           style="background:none;border:none;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:8px"
@@ -5742,6 +5741,7 @@ async function modalToggleLike(postId, btn) {
     const _mc = currentUser.color || '#e53935';
     btn.querySelector('svg').setAttribute('fill', _mc);
     btn.querySelector('svg').setAttribute('stroke', _mc);
+    btn.querySelector('svg').style.stroke = _mc;
     if (countEl) {
       const n = (parseInt(countEl.textContent) || 0) + 1;
       countEl.textContent = n === 1 ? '1 curtida' : `${n} curtidas`;
@@ -6472,8 +6472,23 @@ async function loadProfilePokeets(userId) {
       pokeets.forEach(p => { if (p.quote_id) p.quoted = quotedMap[p.quote_id] || null; });
     }
 
+    // Fetch pokéets originais dos reposts simples
+    const repostOrigIds2 = pokeets.filter(p => p.repost_of_id && !p.quote_id).map(p => p.repost_of_id);
+    if (repostOrigIds2.length) {
+      const { data: origRows2 } = await db.from('pokeets').select('id, text, created_at, user_id, author_name, author_handle, author_color').in('id', repostOrigIds2);
+      const origAuthorIds2 = [...new Set((origRows2 || []).map(q => q.user_id).filter(Boolean))];
+      let origUsersMap2 = {};
+      if (origAuthorIds2.length) {
+        const { data: oUsers2 } = await db.from('users').select('id, username, name, color, avatar_url').in('id', origAuthorIds2);
+        (oUsers2 || []).forEach(u => { origUsersMap2[u.id] = u; });
+      }
+      const origMap2 = {};
+      (origRows2 || []).forEach(q => { q.users = origUsersMap2[q.user_id] || null; origMap2[q.id] = q; });
+      pokeets.forEach(p => { if (p.repost_of_id && !p.quote_id) p._original = origMap2[p.repost_of_id] || null; });
+    }
+
     // Fetch profiles for author snapshots
-    const allAuthorIds = [userId, ...pokeets.map(p => p.quoted?.user_id).filter(Boolean)];
+    const allAuthorIds = [userId, ...pokeets.map(p => p.quoted?.user_id).filter(Boolean), ...pokeets.map(p => p._original?.user_id).filter(Boolean)];
     if (typeof pkFetchProfiles === 'function') await pkFetchProfiles([...new Set(allAuthorIds)]);
 
     // Counts & likes
@@ -8831,10 +8846,26 @@ async function renderPokeets() {
       pokeets.forEach(p => { if (p.quote_id) p.quoted = quotedMap[p.quote_id] || null; });
     }
 
+    // Busca pokéets originais dos reposts simples
+    const repostOrigIds = pokeets.filter(p => p.repost_of_id && !p.quote_id).map(p => p.repost_of_id);
+    if (repostOrigIds.length) {
+      const { data: origRows } = await db.from('pokeets').select('id, text, created_at, user_id, author_name, author_handle, author_color').in('id', repostOrigIds);
+      const origAuthorIds = [...new Set((origRows || []).map(q => q.user_id).filter(Boolean))];
+      let origUsersMap = {};
+      if (origAuthorIds.length) {
+        const { data: oUsers } = await db.from('users').select('id, username, name, color, avatar_url').in('id', origAuthorIds);
+        (oUsers || []).forEach(u => { origUsersMap[u.id] = u; });
+      }
+      const origMap = {};
+      (origRows || []).forEach(q => { q.users = origUsersMap[q.user_id] || null; origMap[q.id] = q; });
+      pokeets.forEach(p => { if (p.repost_of_id && !p.quote_id) p._original = origMap[p.repost_of_id] || null; });
+    }
+
     // Busca perfis Pokeet de todos os autores (inclui citados)
     const allAuthorIds = [...new Set([
       ...authorIds,
-      ...pokeets.map(p => p.quoted?.user_id).filter(Boolean)
+      ...pokeets.map(p => p.quoted?.user_id).filter(Boolean),
+      ...pokeets.map(p => p._original?.user_id).filter(Boolean)
     ])];
     if (typeof pkFetchProfiles === 'function') await pkFetchProfiles(allAuthorIds);
 
@@ -8921,8 +8952,26 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   const isPinned = !!p.pinned;
   const isOwn    = p.user_id === currentUser.id;
 
+  // Para reposts simples: repostador é 'u', autor original vem de p._original
+  let reposterName = u.name || u.username || '';
+  if (isRepost && p._original) {
+    // Substitui 'u' pelo autor original para renderizar o card
+    const orig = p._original;
+    const origU = orig.users || {};
+    u = {
+      ...origU,
+      name:         orig.author_name   || origU.name     || origU.username || '?',
+      username:     orig.author_handle || origU.username || '?',
+      avatar_color: orig.author_color  || origU.color || '#e53935',
+      color:        orig.author_color  || origU.color || '#e53935',
+      avatar_url:   origU.avatar_url || null,
+    };
+    // Texto e id do pokeet original (para likes/replies/ações)
+    p = { ...p, text: orig.text, id: orig.id, created_at: orig.created_at, _repostCard: true, _reposterId: p.user_id };
+  }
+
   let pinnedLabel = isPinned ? `<div class="pk-pinned-label">📌 Pokeet fixado</div>` : '';
-  let repostLabel = isRepost ? `<div class="pk-card-repost-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>${esc(u.username)} repostou</div>` : '';
+  let repostLabel = isRepost ? `<div class="pk-card-repost-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>${esc(reposterName)} repostou</div>` : '';
 
   let quoteHtml = '';
   if (isQuote && p.quoted) {
