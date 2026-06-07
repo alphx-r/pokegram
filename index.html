@@ -1485,166 +1485,118 @@
   </div>
 
   <!-- MODAL NOVO STORY (exclusivo 9:16) -->
-  <!-- MODAL CRIAR STORY (editor completo) -->
-  <div id="modal-story-new" class="modal hidden">
-    <div class="modal-backdrop" onclick="closeModal('modal-story-new')"></div>
-    <div class="modal-box" style="max-width:520px;max-height:96vh;display:flex;flex-direction:column;overflow:hidden">
-      <div class="modal-header" style="flex-shrink:0">
-        <button class="modal-x" onclick="closeModal('modal-story-new')">✕</button>
-        <h3>Novo story</h3>
-        <button class="btn-share-modal" onclick="submitStory()">Publicar</button>
+  <!-- MODAL CRIAR STORY — editor fullscreen -->
+  <div id="modal-story-new" style="display:none;position:fixed;inset:0;z-index:9000;background:#000;flex-direction:column">
+
+    <!-- Canvas fullscreen (fundo + imagem) -->
+    <canvas id="story-canvas" width="1080" height="1920"
+      style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;touch-action:none"></canvas>
+
+    <!-- Placeholder sem foto -->
+    <label for="story-img-file" id="story-upload-placeholder"
+      style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#aaa;cursor:pointer;z-index:2">
+      <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.2">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <span style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700">Toque para adicionar foto</span>
+      <span style="font-family:'Nunito',sans-serif;font-size:12px;color:#666">Ou escreva um texto abaixo</span>
+    </label>
+
+    <!-- Texto arrastável sobreposto ao canvas -->
+    <div id="story-drag-text"
+      style="display:none;position:absolute;z-index:5;touch-action:none;cursor:grab;user-select:none;left:50%;top:50%;transform:translate(-50%,-50%);max-width:90%;text-align:center;padding:6px 12px;border-radius:8px;word-break:break-word">
+    </div>
+
+    <!-- Barra superior -->
+    <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(rgba(0,0,0,.55),transparent)">
+      <button onclick="closeModal('modal-story-new')" style="width:36px;height:36px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
+      <label for="story-img-file" id="story-change-photo-btn" style="display:none;background:rgba(255,255,255,.18);border:none;border-radius:20px;color:#fff;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">📷 Trocar foto</label>
+      <button onclick="submitStory()" id="story-publish-btn" style="background:#e53935;border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:8px 18px;cursor:pointer">Publicar</button>
+    </div>
+
+    <!-- Barra de ferramentas inferior -->
+    <div style="position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.7))">
+
+      <!-- Input de texto -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <input id="story-text-input" type="text" maxlength="80" placeholder="Escreva algo..."
+          oninput="storyEditorUpdate()"
+          style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:9px 16px;min-width:0;backdrop-filter:blur(4px)"
+        />
       </div>
 
-      <div style="display:flex;flex:1;min-height:0;overflow:hidden">
+      <!-- Linha de opções -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
 
-        <!-- Preview 9:16 -->
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;background:#0a0a0a;flex-shrink:0">
-          <div id="story-editor-wrap" style="position:relative;width:160px;aspect-ratio:9/16;border-radius:12px;overflow:hidden;background:#111;box-shadow:0 4px 24px rgba(0,0,0,.5)">
-            <!-- Canvas de composição -->
-            <canvas id="story-canvas" width="1080" height="1920" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></canvas>
-            <!-- Placeholder quando sem imagem -->
-            <label for="story-img-file" id="story-upload-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#888;cursor:pointer">
-              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              <span style="font-size:11px;font-weight:600;text-align:center;line-height:1.4">Toque para<br>adicionar foto</span>
-            </label>
-            <!-- Texto overlay no preview -->
-            <div id="story-text-overlay" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;padding:10px"></div>
-          </div>
-          <!-- Botão trocar foto (aparece depois de selecionar) -->
-          <label for="story-img-file" id="story-change-photo-btn" style="display:none;margin-top:10px;font-size:11px;color:#aaa;cursor:pointer;text-decoration:underline">Trocar foto</label>
+        <!-- Fontes -->
+        <div style="display:flex;gap:4px">
+          <button onclick="storySetFont('Nunito')"    class="sty-font-btn active" data-font="Nunito"    style="font-family:'Nunito',sans-serif">Aa</button>
+          <button onclick="storySetFont('Pacifico')"  class="sty-font-btn"        data-font="Pacifico"  style="font-family:'Pacifico',cursive;font-size:11px">Pp</button>
+          <button onclick="storySetFont('Cinzel')"    class="sty-font-btn"        data-font="Cinzel"    style="font-family:'Cinzel',serif">Cc</button>
+          <button onclick="storySetFont('monospace')" class="sty-font-btn"        data-font="monospace" style="font-family:monospace">Mo</button>
         </div>
 
-        <!-- Painel de edição -->
-        <div style="flex:1;display:flex;flex-direction:column;min-width:0;overflow-y:auto;padding:16px;gap:14px">
+        <!-- Tamanho -->
+        <input type="range" id="story-font-size" min="20" max="72" value="36"
+          oninput="storyEditorUpdate()"
+          style="width:70px;accent-color:#e53935;flex-shrink:0">
 
-          <!-- Seção texto -->
-          <div>
-            <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">✏️ Texto</div>
-            <textarea id="story-text-input" maxlength="120" placeholder="Escreva algo no story..." rows="3"
-              oninput="storyEditorUpdate()"
-              style="width:100%;resize:none;border:1.5px solid #dbdbdb;border-radius:10px;padding:10px 12px;font-family:'Nunito',sans-serif;font-size:14px;line-height:1.45;color:#262626;background:#fafafa;outline:none;box-sizing:border-box"></textarea>
-            <div style="text-align:right;font-size:10px;color:#aaa;margin-top:3px"><span id="story-char-count">0</span>/120</div>
-          </div>
-
-          <!-- Estilo do texto -->
-          <div id="story-text-options" style="display:none;flex-direction:column;gap:10px">
-
-            <!-- Fonte -->
-            <div>
-              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Fonte</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <button onclick="storySetFont('Nunito')" class="sty-font-btn active" data-font="Nunito" style="font-family:'Nunito',sans-serif">Nunito</button>
-                <button onclick="storySetFont('Pacifico')" class="sty-font-btn" data-font="Pacifico" style="font-family:'Pacifico',cursive">Pacifico</button>
-                <button onclick="storySetFont('Cinzel')" class="sty-font-btn" data-font="Cinzel" style="font-family:'Cinzel',serif">Cinzel</button>
-                <button onclick="storySetFont('serif')" class="sty-font-btn" data-font="serif" style="font-family:serif">Serif</button>
-                <button onclick="storySetFont('monospace')" class="sty-font-btn" data-font="monospace" style="font-family:monospace">Mono</button>
-              </div>
-            </div>
-
-            <!-- Tamanho -->
-            <div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px">Tamanho</div>
-                <span id="story-size-label" style="font-size:11px;color:#888">72px</span>
-              </div>
-              <input type="range" id="story-font-size" min="40" max="160" value="72" oninput="storyEditorUpdate();document.getElementById('story-size-label').textContent=this.value+'px'" style="width:100%;accent-color:#e53935">
-            </div>
-
-            <!-- Alinhamento -->
-            <div>
-              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Alinhamento</div>
-              <div style="display:flex;gap:6px">
-                <button onclick="storySetAlign('left')"   class="sty-align-btn active" data-align="left"   title="Esquerda">&#9664;&#9135;</button>
-                <button onclick="storySetAlign('center')" class="sty-align-btn"        data-align="center" title="Centro">&#9135;&#9646;&#9135;</button>
-                <button onclick="storySetAlign('right')"  class="sty-align-btn"        data-align="right"  title="Direita">&#9135;&#9654;</button>
-              </div>
-            </div>
-
-            <!-- Posição vertical -->
-            <div>
-              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Posição</div>
-              <div style="display:flex;gap:6px">
-                <button onclick="storySetVPos('top')"    class="sty-vpos-btn" data-vpos="top"    title="Topo">▲ Topo</button>
-                <button onclick="storySetVPos('center')" class="sty-vpos-btn active" data-vpos="center" title="Centro">● Centro</button>
-                <button onclick="storySetVPos('bottom')" class="sty-vpos-btn" data-vpos="bottom" title="Base">▼ Base</button>
-              </div>
-            </div>
-
-            <!-- Cor do texto -->
-            <div>
-              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Cor do texto</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                <div onclick="storySetTextColor('#ffffff')" class="sty-color-dot active" data-tc="#ffffff" style="background:#fff;border:2px solid #ccc"></div>
-                <div onclick="storySetTextColor('#000000')" class="sty-color-dot" data-tc="#000000" style="background:#000"></div>
-                <div onclick="storySetTextColor('#e53935')" class="sty-color-dot" data-tc="#e53935" style="background:#e53935"></div>
-                <div onclick="storySetTextColor('#fdd835')" class="sty-color-dot" data-tc="#fdd835" style="background:#fdd835"></div>
-                <div onclick="storySetTextColor('#43a047')" class="sty-color-dot" data-tc="#43a047" style="background:#43a047"></div>
-                <div onclick="storySetTextColor('#1e88e5')" class="sty-color-dot" data-tc="#1e88e5" style="background:#1e88e5"></div>
-                <div onclick="storySetTextColor('#fb8c00')" class="sty-color-dot" data-tc="#fb8c00" style="background:#fb8c00"></div>
-                <input type="color" id="story-custom-color" value="#ffffff" oninput="storySetTextColor(this.value)" title="Cor personalizada" style="width:28px;height:28px;border-radius:50%;border:2px solid #ddd;cursor:pointer;padding:1px;box-sizing:border-box">
-              </div>
-            </div>
-
-            <!-- Fundo do texto -->
-            <div>
-              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Fundo</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <button onclick="storySetBg('none')"       class="sty-bg-btn active" data-bg="none">Nenhum</button>
-                <button onclick="storySetBg('semi')"       class="sty-bg-btn" data-bg="semi">Escuro</button>
-                <button onclick="storySetBg('white')"      class="sty-bg-btn" data-bg="white">Branco</button>
-                <button onclick="storySetBg('solid')"      class="sty-bg-btn" data-bg="solid">Sólido</button>
-              </div>
-            </div>
-
-            <!-- Sombra -->
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px">Sombra no texto</div>
-              <label style="position:relative;display:inline-block;width:38px;height:20px">
-                <input type="checkbox" id="story-shadow" onchange="storyEditorUpdate()" style="opacity:0;width:0;height:0">
-                <span onclick="document.getElementById('story-shadow').click();storyEditorUpdate()" style="position:absolute;inset:0;background:#ddd;border-radius:20px;cursor:pointer;transition:.2s" id="story-shadow-track"></span>
-                <span id="story-shadow-thumb" style="position:absolute;left:2px;top:2px;width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:.2s"></span>
-              </label>
-            </div>
-
-          </div><!-- /story-text-options -->
-
-          <!-- Cor de fundo (só quando sem foto) -->
-          <div id="story-bg-color-section">
-            <div style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🎨 Fundo (sem foto)</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <div onclick="storySetBgColor('#111111')" class="sty-bgc-dot active" data-bgc="#111111" style="background:#111"></div>
-              <div onclick="storySetBgColor('#1a237e')" class="sty-bgc-dot" data-bgc="#1a237e" style="background:#1a237e"></div>
-              <div onclick="storySetBgColor('#b71c1c')" class="sty-bgc-dot" data-bgc="#b71c1c" style="background:#b71c1c"></div>
-              <div onclick="storySetBgColor('#1b5e20')" class="sty-bgc-dot" data-bgc="#1b5e20" style="background:#1b5e20"></div>
-              <div onclick="storySetBgColor('#4a148c')" class="sty-bgc-dot" data-bgc="#4a148c" style="background:#4a148c"></div>
-              <div onclick="storySetBgColor('#e65100')" class="sty-bgc-dot" data-bgc="#e65100" style="background:#e65100"></div>
-              <div onclick="storySetBgColor('#ffffff')" class="sty-bgc-dot" data-bgc="#ffffff" style="background:#fff;border:2px solid #ddd"></div>
-              <input type="color" id="story-custom-bgc" value="#111111" oninput="storySetBgColor(this.value)" title="Cor personalizada" style="width:28px;height:28px;border-radius:50%;border:2px solid #ddd;cursor:pointer;padding:1px;box-sizing:border-box">
-            </div>
-          </div>
-
-          <div style="font-size:11px;color:#aaa;text-align:center;padding-top:4px">📸 Stories ficam disponíveis por <strong>24h</strong></div>
+        <!-- Cores do texto -->
+        <div style="display:flex;gap:5px;align-items:center">
+          <div onclick="storySetTextColor('#ffffff')" class="sty-color-dot active" data-tc="#ffffff" style="background:#fff;border:2px solid rgba(255,255,255,.5)"></div>
+          <div onclick="storySetTextColor('#000000')" class="sty-color-dot" data-tc="#000000" style="background:#000;border:2px solid transparent"></div>
+          <div onclick="storySetTextColor('#e53935')" class="sty-color-dot" data-tc="#e53935" style="background:#e53935;border:2px solid transparent"></div>
+          <div onclick="storySetTextColor('#fdd835')" class="sty-color-dot" data-tc="#fdd835" style="background:#fdd835;border:2px solid transparent"></div>
+          <div onclick="storySetTextColor('#43a047')" class="sty-color-dot" data-tc="#43a047" style="background:#43a047;border:2px solid transparent"></div>
+          <div onclick="storySetTextColor('#1e88e5')" class="sty-color-dot" data-tc="#1e88e5" style="background:#1e88e5;border:2px solid transparent"></div>
+          <input type="color" id="story-custom-color" value="#ffffff" oninput="storySetTextColor(this.value)"
+            style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.4);cursor:pointer;padding:1px;box-sizing:border-box;background:none">
         </div>
+
+        <!-- Fundo do texto -->
+        <div style="display:flex;gap:4px">
+          <button onclick="storySetBg('none')"  class="sty-bg-btn active" data-bg="none"  title="Sem fundo">—</button>
+          <button onclick="storySetBg('semi')"  class="sty-bg-btn"        data-bg="semi"  title="Escuro">▪</button>
+          <button onclick="storySetBg('white')" class="sty-bg-btn"        data-bg="white" title="Branco">□</button>
+        </div>
+
+        <!-- Cor de fundo (sem foto) -->
+        <div id="story-bg-color-section" style="display:flex;gap:5px;align-items:center">
+          <div onclick="storySetBgColor('#111111')" class="sty-bgc-dot active" data-bgc="#111111" style="background:#111;border:2px solid rgba(255,255,255,.5)"></div>
+          <div onclick="storySetBgColor('#1a237e')" class="sty-bgc-dot" data-bgc="#1a237e" style="background:#1a237e;border:2px solid transparent"></div>
+          <div onclick="storySetBgColor('#b71c1c')" class="sty-bgc-dot" data-bgc="#b71c1c" style="background:#b71c1c;border:2px solid transparent"></div>
+          <div onclick="storySetBgColor('#4a148c')" class="sty-bgc-dot" data-bgc="#4a148c" style="background:#4a148c;border:2px solid transparent"></div>
+          <div onclick="storySetBgColor('#1b5e20')" class="sty-bgc-dot" data-bgc="#1b5e20" style="background:#1b5e20;border:2px solid transparent"></div>
+          <input type="color" id="story-custom-bgc" value="#111111" oninput="storySetBgColor(this.value)"
+            style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.4);cursor:pointer;padding:1px;box-sizing:border-box;background:none">
+        </div>
+
+      </div>
+
+      <div style="font-size:10px;color:rgba(255,255,255,.4);text-align:center;margin-top:8px;font-family:'Nunito',sans-serif">
+        Arraste o texto para reposicioná-lo • Stories somem em 24h
       </div>
     </div>
+
+    <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
   </div>
 
   <style>
-  .sty-font-btn,.sty-align-btn,.sty-vpos-btn,.sty-bg-btn{
-    padding:5px 10px;border-radius:8px;border:1.5px solid #dbdbdb;background:#fafafa;font-size:12px;font-weight:700;color:#444;cursor:pointer;transition:all .15s;font-family:'Nunito',sans-serif;
+  .sty-font-btn{
+    padding:4px 8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);
+    font-size:12px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;min-width:32px;
   }
-  .sty-font-btn.active,.sty-align-btn.active,.sty-vpos-btn.active,.sty-bg-btn.active{
-    background:#262626;color:#fff;border-color:#262626;
+  .sty-font-btn.active{ background:rgba(255,255,255,.35);border-color:#fff; }
+  .sty-bg-btn{
+    padding:4px 8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);
+    font-size:14px;color:#fff;cursor:pointer;transition:all .15s;min-width:32px;
   }
+  .sty-bg-btn.active{ background:rgba(255,255,255,.35);border-color:#fff; }
   .sty-color-dot,.sty-bgc-dot{
-    width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;flex-shrink:0;
+    width:24px;height:24px;border-radius:50%;cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0;
   }
-  .sty-color-dot.active,.sty-bgc-dot.active{ border-color:#262626;transform:scale(1.18); }
-  #story-shadow-track{ background:#ddd; }
-  #story-shadow:checked ~ #story-shadow-track,
-  .story-shadow-on #story-shadow-track{ background:#e53935 !important; }
-  #story-shadow:checked ~ #story-shadow-thumb,
-  .story-shadow-on #story-shadow-thumb{ left:20px !important; }
+  .sty-color-dot.active,.sty-bgc-dot.active{ transform:scale(1.25);border-color:#fff !important; }
   </style>
 
   <div id="modal-comments" class="modal hidden">
@@ -6891,88 +6843,118 @@ let _storyViewOwnerId = null;
 // ── Editor state ──────────────────────────────────────────
 const _storyEd = {
   font:      'Nunito',
-  size:      72,
-  align:     'left',
-  vpos:      'center',
+  size:      36,
   textColor: '#ffffff',
   bg:        'none',
-  shadow:    false,
   bgColor:   '#111111',
-  imgBitmap: null,
+  // posição do texto em % da tela (0–100)
+  textX: 50,
+  textY: 50,
+  // imagem original (HTMLImageElement com src ObjectURL)
+  img: null,
 };
 
 function showNewStory() {
   _storyPendingFile = null;
-  _storyEd.imgBitmap = null;
-  Object.assign(_storyEd, { font:'Nunito', size:72, align:'left', vpos:'center', textColor:'#ffffff', bg:'none', shadow:false, bgColor:'#111111' });
+  if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
+  _storyEd.img = null;
+  Object.assign(_storyEd, { font:'Nunito', size:36, textColor:'#ffffff', bg:'none', bgColor:'#111111', textX:50, textY:50 });
 
+  // Reset UI
   const ph = document.getElementById('story-upload-placeholder');
   const cb = document.getElementById('story-change-photo-btn');
+  const bgSec = document.getElementById('story-bg-color-section');
+  const ti = document.getElementById('story-text-input');
+  const sz = document.getElementById('story-font-size');
   if (ph) ph.style.display = 'flex';
   if (cb) cb.style.display = 'none';
+  if (bgSec) bgSec.style.display = 'flex';
+  if (ti) ti.value = '';
+  if (sz) sz.value = 36;
 
-  const ta = document.getElementById('story-text-input');
-  if (ta) ta.value = '';
-  const cc = document.getElementById('story-char-count');
-  if (cc) cc.textContent = '0';
-
-  // reset UI buttons
   document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'Nunito'));
-  document.querySelectorAll('.sty-align-btn').forEach(b => b.classList.toggle('active', b.dataset.align === 'left'));
-  document.querySelectorAll('.sty-vpos-btn').forEach(b => b.classList.toggle('active', b.dataset.vpos === 'center'));
   document.querySelectorAll('.sty-bg-btn').forEach(b => b.classList.toggle('active', b.dataset.bg === 'none'));
   document.querySelectorAll('.sty-color-dot').forEach(b => b.classList.toggle('active', b.dataset.tc === '#ffffff'));
   document.querySelectorAll('.sty-bgc-dot').forEach(b => b.classList.toggle('active', b.dataset.bgc === '#111111'));
 
-  const sz = document.getElementById('story-font-size');
-  const sl = document.getElementById('story-size-label');
-  if (sz) sz.value = 72;
-  if (sl) sl.textContent = '72px';
+  // Posiciona texto arrastável no centro
+  const dt = document.getElementById('story-drag-text');
+  if (dt) { dt.style.left = '50%'; dt.style.top = '50%'; dt.style.transform = 'translate(-50%,-50%)'; dt.style.display = 'none'; }
 
-  const shadowCb = document.getElementById('story-shadow');
-  if (shadowCb) shadowCb.checked = false;
-  _storyShadowTrackUpdate();
-
-  document.getElementById('story-text-options').style.display = 'none';
   storyDrawCanvas();
   openModal('modal-story-new');
+  _storyInitDrag();
 }
 
-function _storyShadowTrackUpdate() {
-  const cb = document.getElementById('story-shadow');
-  const track = document.getElementById('story-shadow-track');
-  const thumb = document.getElementById('story-shadow-thumb');
-  if (!cb || !track || !thumb) return;
-  const on = cb.checked;
-  track.style.background = on ? '#e53935' : '#ddd';
-  thumb.style.left = on ? '20px' : '2px';
-  _storyEd.shadow = on;
+// ── Drag do texto ─────────────────────────────────────────
+function _storyInitDrag() {
+  const dt = document.getElementById('story-drag-text');
+  const modal = document.getElementById('modal-story-new');
+  if (!dt || !modal) return;
+
+  let dragging = false, startX, startY, origLeft, origTop;
+
+  function getPos(e) {
+    return e.touches ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+                     : { x: e.clientX, y: e.clientY };
+  }
+
+  function onStart(e) {
+    if (e.target !== dt && !dt.contains(e.target)) return;
+    e.preventDefault();
+    dragging = true;
+    const p = getPos(e);
+    startX = p.x; startY = p.y;
+    origLeft = dt.offsetLeft;
+    origTop  = dt.offsetTop;
+    dt.style.cursor = 'grabbing';
+    dt.style.transform = 'none'; // remove translate após primeiro drag
+  }
+
+  function onMove(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const p = getPos(e);
+    const dx = p.x - startX;
+    const dy = p.y - startY;
+    const mw = modal.offsetWidth, mh = modal.offsetHeight;
+    const dw = dt.offsetWidth,   dh = dt.offsetHeight;
+    let newL = Math.max(0, Math.min(mw - dw, origLeft + dx));
+    let newT = Math.max(0, Math.min(mh - dh, origTop  + dy));
+    dt.style.left = newL + 'px';
+    dt.style.top  = newT + 'px';
+    // salva posição relativa (%) para o canvas
+    _storyEd.textX = (newL + dw / 2) / mw * 100;
+    _storyEd.textY = (newT + dh / 2) / mh * 100;
+  }
+
+  function onEnd() {
+    dragging = false;
+    if (dt) dt.style.cursor = 'grab';
+  }
+
+  modal.addEventListener('mousedown',  onStart, { passive: false });
+  modal.addEventListener('touchstart', onStart, { passive: false });
+  window.addEventListener('mousemove',  onMove, { passive: false });
+  window.addEventListener('touchmove',  onMove, { passive: false });
+  window.addEventListener('mouseup',   onEnd);
+  window.addEventListener('touchend',  onEnd);
 }
 
 function storySetFont(f) {
   _storyEd.font = f;
   document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === f));
-  storyDrawCanvas();
-}
-function storySetAlign(a) {
-  _storyEd.align = a;
-  document.querySelectorAll('.sty-align-btn').forEach(b => b.classList.toggle('active', b.dataset.align === a));
-  storyDrawCanvas();
-}
-function storySetVPos(v) {
-  _storyEd.vpos = v;
-  document.querySelectorAll('.sty-vpos-btn').forEach(b => b.classList.toggle('active', b.dataset.vpos === v));
-  storyDrawCanvas();
+  storyUpdateDragText();
 }
 function storySetTextColor(c) {
   _storyEd.textColor = c;
   document.querySelectorAll('.sty-color-dot').forEach(b => b.classList.toggle('active', b.dataset.tc === c));
-  storyDrawCanvas();
+  storyUpdateDragText();
 }
 function storySetBg(b) {
   _storyEd.bg = b;
   document.querySelectorAll('.sty-bg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.bg === b));
-  storyDrawCanvas();
+  storyUpdateDragText();
 }
 function storySetBgColor(c) {
   _storyEd.bgColor = c;
@@ -6981,20 +6963,48 @@ function storySetBgColor(c) {
 }
 
 function storyEditorUpdate() {
-  const ta  = document.getElementById('story-text-input');
-  const cc  = document.getElementById('story-char-count');
-  const opts = document.getElementById('story-text-options');
-  const sz  = document.getElementById('story-font-size');
-  const shadowCb = document.getElementById('story-shadow');
-
-  if (cc)  cc.textContent = (ta?.value || '').length;
-  if (opts) opts.style.display = (ta?.value || '').trim() ? 'flex' : 'none';
-  if (sz)  _storyEd.size = parseInt(sz.value) || 72;
-  if (shadowCb) _storyShadowTrackUpdate();
-
-  storyDrawCanvas();
+  const ti = document.getElementById('story-text-input');
+  const sz = document.getElementById('story-font-size');
+  if (sz) _storyEd.size = parseInt(sz.value) || 36;
+  storyUpdateDragText();
 }
 
+// Atualiza o div arrastável (preview visual sobre a tela)
+function storyUpdateDragText() {
+  const dt   = document.getElementById('story-drag-text');
+  const ti   = document.getElementById('story-text-input');
+  if (!dt) return;
+  const text = (ti?.value || '').trim();
+  if (!text) { dt.style.display = 'none'; return; }
+
+  dt.style.display = 'block';
+
+  const fontMap = {
+    'Nunito': "'Nunito',sans-serif", 'Pacifico': "'Pacifico',cursive",
+    'Cinzel': "'Cinzel',serif", 'monospace': 'monospace',
+  };
+  dt.style.fontFamily  = fontMap[_storyEd.font] || "'Nunito',sans-serif";
+  dt.style.fontSize    = _storyEd.size + 'px';
+  dt.style.fontWeight  = '800';
+  dt.style.color       = _storyEd.textColor;
+  dt.style.lineHeight  = '1.3';
+  dt.style.textShadow  = 'none';
+  dt.innerHTML         = text.replace(/\n/g, '<br>');
+
+  const bgStyles = {
+    none:  'transparent',
+    semi:  'rgba(0,0,0,0.55)',
+    white: 'rgba(255,255,255,0.85)',
+  };
+  dt.style.background   = bgStyles[_storyEd.bg] || 'transparent';
+  dt.style.padding      = _storyEd.bg !== 'none' ? '6px 14px' : '0';
+  dt.style.borderRadius = _storyEd.bg !== 'none' ? '10px' : '0';
+  // força color legível no fundo branco
+  if (_storyEd.bg === 'white' && _storyEd.textColor === '#ffffff') dt.style.color = '#111';
+  else dt.style.color = _storyEd.textColor;
+}
+
+// Canvas para exportação — renderiza em 1080×1920
 function storyDrawCanvas() {
   const canvas = document.getElementById('story-canvas');
   if (!canvas) return;
@@ -7002,105 +7012,93 @@ function storyDrawCanvas() {
   const W = 1080, H = 1920;
 
   // Fundo
-  if (_storyEd.imgBitmap) {
-    // cover fit
-    const iw = _storyEd.imgBitmap.width, ih = _storyEd.imgBitmap.height;
+  if (_storyEd.img) {
+    const iw = _storyEd.img.naturalWidth || _storyEd.img.width;
+    const ih = _storyEd.img.naturalHeight || _storyEd.img.height;
     const scale = Math.max(W / iw, H / ih);
     const dw = iw * scale, dh = ih * scale;
-    ctx.drawImage(_storyEd.imgBitmap, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    ctx.drawImage(_storyEd.img, (W - dw) / 2, (H - dh) / 2, dw, dh);
   } else {
     ctx.fillStyle = _storyEd.bgColor;
     ctx.fillRect(0, 0, W, H);
   }
+}
 
-  // Texto
-  const text = (document.getElementById('story-text-input')?.value || '').trim();
-  if (!text) return;
+// Renderização final antes do upload — combina canvas + texto na posição atual
+async function storyRenderFinal() {
+  const canvas = document.getElementById('story-canvas');
+  const modal  = document.getElementById('modal-story-new');
+  const dt     = document.getElementById('story-drag-text');
+  const ti     = document.getElementById('story-text-input');
+  if (!canvas) return canvas;
 
-  const fontSize = _storyEd.size;
-  const fontMap = {
-    'Nunito': 'Nunito, sans-serif',
-    'Pacifico': 'Pacifico, cursive',
-    'Cinzel': 'Cinzel, serif',
-    'serif': 'Georgia, serif',
-    'monospace': 'monospace',
+  const ctx = canvas.getContext('2d');
+  const W = 1080, H = 1920;
+
+  // Redesenha fundo
+  storyDrawCanvas();
+
+  const text = (ti?.value || '').trim();
+  if (!text || !dt || dt.style.display === 'none') return canvas;
+
+  // Converte posição da tela para coordenadas do canvas
+  const mw = modal.offsetWidth, mh = modal.offsetHeight;
+  const cx = (_storyEd.textX / 100) * W;
+  const cy = (_storyEd.textY / 100) * H;
+
+  const fontSize = Math.round(_storyEd.size * (H / mh));
+  const fontMap  = {
+    'Nunito': '800 {sz}px Nunito,sans-serif',
+    'Pacifico': '400 {sz}px Pacifico,cursive',
+    'Cinzel': '700 {sz}px Cinzel,serif',
+    'monospace': '700 {sz}px monospace',
   };
-  const fontFamily = fontMap[_storyEd.font] || 'Nunito, sans-serif';
-  ctx.font = `800 ${fontSize}px ${fontFamily}`;
-  ctx.textAlign = _storyEd.align === 'left' ? 'left' : _storyEd.align === 'right' ? 'right' : 'center';
+  ctx.font = (fontMap[_storyEd.font] || '800 {sz}px Nunito,sans-serif').replace('{sz}', fontSize);
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
 
-  const pad = 80; // padding lateral
-  const maxW = W - pad * 2;
-
-  // Wrap text
+  const maxW = W * 0.85;
+  // wrap
   const words = text.split(' ');
-  const lines = [];
-  let cur = '';
+  const lines = []; let cur = '';
   for (const w of words) {
-    const test = cur ? cur + ' ' + w : w;
-    if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
-    else cur = test;
+    const t = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; }
+    else cur = t;
   }
   if (cur) lines.push(cur);
 
   const lineH = fontSize * 1.3;
   const totalH = lines.length * lineH;
+  const startY = cy - totalH / 2 + lineH / 2;
 
-  // Vertical position
-  let startY;
-  if (_storyEd.vpos === 'top')    startY = 200;
-  else if (_storyEd.vpos === 'bottom') startY = H - 250 - totalH;
-  else startY = (H - totalH) / 2;
-
-  const xBase = _storyEd.align === 'left' ? pad : _storyEd.align === 'right' ? W - pad : W / 2;
-
-  // Draw background pill per line
+  // Fundo do texto
   if (_storyEd.bg !== 'none') {
-    const bgColors = { semi: 'rgba(0,0,0,0.55)', white: 'rgba(255,255,255,0.85)', solid: 'rgba(0,0,0,0.9)' };
-    const bgC = bgColors[_storyEd.bg] || 'transparent';
+    const bgC = _storyEd.bg === 'white' ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)';
     ctx.fillStyle = bgC;
+    const pad = fontSize * 0.3;
     lines.forEach((line, i) => {
       const tw = ctx.measureText(line).width;
-      const lpad = 24, vpad = 10;
-      let rx;
-      if (_storyEd.align === 'center') rx = W / 2 - tw / 2 - lpad;
-      else if (_storyEd.align === 'right') rx = W - pad - tw - lpad;
-      else rx = pad - lpad;
-      const ry = startY + i * lineH - fontSize - vpad;
-      const rw = tw + lpad * 2;
-      const rh = fontSize + vpad * 2;
-      const r = 12;
+      const rx = cx - tw / 2 - pad;
+      const ry = startY + i * lineH - lineH / 2 - pad * 0.5;
+      const rw = tw + pad * 2;
+      const rh = lineH + pad;
+      const r  = 12;
       ctx.beginPath();
-      ctx.moveTo(rx + r, ry); ctx.lineTo(rx + rw - r, ry);
-      ctx.arcTo(rx + rw, ry, rx + rw, ry + r, r);
-      ctx.lineTo(rx + rw, ry + rh - r);
-      ctx.arcTo(rx + rw, ry + rh, rx + rw - r, ry + rh, r);
-      ctx.lineTo(rx + r, ry + rh);
-      ctx.arcTo(rx, ry + rh, rx, ry + rh - r, r);
-      ctx.lineTo(rx, ry + r);
-      ctx.arcTo(rx, ry, rx + r, ry, r);
-      ctx.closePath();
+      ctx.moveTo(rx+r,ry); ctx.lineTo(rx+rw-r,ry); ctx.arcTo(rx+rw,ry,rx+rw,ry+r,r);
+      ctx.lineTo(rx+rw,ry+rh-r); ctx.arcTo(rx+rw,ry+rh,rx+rw-r,ry+rh,r);
+      ctx.lineTo(rx+r,ry+rh); ctx.arcTo(rx,ry+rh,rx,ry+rh-r,r);
+      ctx.lineTo(rx,ry+r); ctx.arcTo(rx,ry,rx+r,ry,r); ctx.closePath();
       ctx.fill();
     });
   }
 
-  // Shadow
-  if (_storyEd.shadow) {
-    ctx.shadowColor = 'rgba(0,0,0,0.7)';
-    ctx.shadowBlur  = 8;
-    ctx.shadowOffsetX = 3;
-    ctx.shadowOffsetY = 3;
-  } else {
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur  = 0;
-  }
+  ctx.fillStyle = (_storyEd.bg === 'white' && _storyEd.textColor === '#ffffff') ? '#111' : _storyEd.textColor;
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6;
+  lines.forEach((line, i) => ctx.fillText(line, cx, startY + i * lineH));
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
 
-  ctx.fillStyle = _storyEd.textColor;
-  lines.forEach((line, i) => {
-    ctx.fillText(line, xBase, startY + i * lineH);
-  });
-  ctx.shadowColor = 'transparent';
-  ctx.shadowBlur  = 0;
+  return canvas;
 }
 
 function previewStoryImage(input) {
@@ -7109,54 +7107,57 @@ function previewStoryImage(input) {
   if (file.size > 20 * 1024 * 1024) { toast('Imagem muito grande. Máximo 20MB.'); return; }
   openCropper(file, 'story', croppedFile => {
     _storyPendingFile = croppedFile;
-    createImageBitmap(croppedFile).then(bmp => {
-      _storyEd.imgBitmap = bmp;
-      const ph = document.getElementById('story-upload-placeholder');
-      const cb = document.getElementById('story-change-photo-btn');
+    const url = URL.createObjectURL(croppedFile);
+    const img = new Image();
+    img.onload = () => {
+      if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
+      _storyEd.img = img;
+      const ph    = document.getElementById('story-upload-placeholder');
+      const cb    = document.getElementById('story-change-photo-btn');
       const bgSec = document.getElementById('story-bg-color-section');
-      if (ph) ph.style.display = 'none';
-      if (cb) cb.style.display = 'block';
+      if (ph)    ph.style.display = 'none';
+      if (cb)    cb.style.display = 'block';
       if (bgSec) bgSec.style.display = 'none';
       storyDrawCanvas();
-    });
+    };
+    img.src = url;
   });
   input.value = '';
 }
 
 async function submitStory() {
   const text = (document.getElementById('story-text-input')?.value || '').trim();
-  if (!_storyPendingFile && !text) { toast('Adicione uma foto ou escreva um texto!'); return; }
+  if (!_storyPendingFile && !text) { toast('Adicione uma foto ou escreva algo!'); return; }
 
-  const btn = document.querySelector('#modal-story-new .btn-share-modal');
+  const btn = document.getElementById('story-publish-btn');
   if (btn) { btn.textContent = 'Publicando...'; btn.disabled = true; }
 
-  // Render canvas final
-  storyDrawCanvas();
-  const canvas = document.getElementById('story-canvas');
+  try {
+    const canvas = await storyRenderFinal();
 
-  // Se não tiver foto mas tiver texto: canvas já tem o fundo colorido
-  // Se tiver foto: canvas já tem a imagem + texto
-  const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    const blob = await new Promise((res, rej) => {
+      canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob falhou')), 'image/jpeg', 0.92);
+    });
 
-  const path = `${currentUser.id}_${Date.now()}.png`;
-  const { error: upErr } = await db.storage.from('stories').upload(path, blob, { upsert: false, contentType: 'image/png' });
-  if (upErr) {
-    toast('Erro ao enviar story: ' + upErr.message);
+    const path = `${currentUser.id}_${Date.now()}.jpg`;
+    const { error: upErr } = await db.storage.from('stories').upload(path, blob, { upsert: false, contentType: 'image/jpeg' });
+    if (upErr) throw upErr;
+
+    const { data: urlData } = db.storage.from('stories').getPublicUrl(path);
+    const { error } = await db.from('stories').insert({ user_id: currentUser.id, image_url: urlData.publicUrl });
+    if (error) throw error;
+
+    _storyPendingFile = null;
+    if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
+    _storyEd.img = null;
+    closeModal('modal-story-new');
+    await renderStories();
+    toast('Story publicado! Disponível por 24h 🕐');
+  } catch(e) {
+    toast('Erro ao publicar: ' + (e.message || e));
+  } finally {
     if (btn) { btn.textContent = 'Publicar'; btn.disabled = false; }
-    return;
   }
-  const { data: urlData } = db.storage.from('stories').getPublicUrl(path);
-  const image_url = urlData.publicUrl;
-
-  const { error } = await db.from('stories').insert({ user_id: currentUser.id, image_url });
-  if (btn) { btn.textContent = 'Publicar'; btn.disabled = false; }
-  if (error) { toast('Erro ao publicar story: ' + error.message); return; }
-
-  _storyPendingFile = null;
-  _storyEd.imgBitmap = null;
-  closeModal('modal-story-new');
-  await renderStories();
-  toast('Story publicado! Disponível por 24h 🕐');
 }
 
 // ── Story Viewer ──────────────────────────────────────────
@@ -7525,9 +7526,18 @@ async function submitPost() {
 }
 
 // ── Modal Helpers ─────────────────────────────────────────
-function openModal(id)  { document.getElementById(id)?.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }
+function openModal(id)  {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (id === 'modal-story-new') { el.style.display = 'flex'; }
+  else el.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
 function closeModal(id) {
-  document.getElementById(id)?.classList.add('hidden');
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (id === 'modal-story-new') { el.style.display = 'none'; }
+  else el.classList.add('hidden');
   document.body.style.overflow = '';
   // Ao fechar o modal de comentários, restaura a URL anterior
   if (id === 'modal-comments') {
