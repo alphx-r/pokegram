@@ -1516,7 +1516,7 @@
     </div>
 
     <!-- Barra de ferramentas inferior -->
-    <div style="position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.7))">
+    <div id="story-toolbar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.7))">
 
       <!-- Input de texto -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -2889,6 +2889,7 @@ function enterApp(user) {
 }
 
 async function doLogout() {
+  if (!confirm('Tem certeza que deseja sair?')) return;
   await db.auth.signOut();
   clearSession();
   // Limpa cache Pokeet para não vazar entre contas
@@ -5380,8 +5381,9 @@ async function renderPosts() {
 
 function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   const author    = p.users || { username: '?', color: '#999' };
-  const likeColor = liked ? 'color:#e53935' : '';
-  const likeFill  = liked ? 'fill:#e53935;stroke:#e53935' : 'fill:none';
+  const _lc = (liked && p.likerColor) ? p.likerColor : (liked ? (currentUser.color || '#e53935') : '#e53935');
+  const likeColor = liked ? `color:${_lc}` : '';
+  const likeFill  = liked ? `fill:${_lc};stroke:${_lc}` : 'fill:none';
 
   const commentPreview = lastComment
     ? `<div class="post-comment-preview">
@@ -5462,8 +5464,9 @@ async function toggleLike(postId, btn) {
   const liked = btn.classList.contains('liked');
   btn.classList.toggle('liked', !liked);
   const svg = btn.querySelector('svg');
-  if (svg) svg.style.cssText = !liked ? 'fill:#e53935;stroke:#e53935;stroke-width:2' : 'fill:none;stroke-width:2';
-  btn.style.color = !liked ? '#e53935' : '';
+  const _uc = currentUser.color || '#e53935';
+  if (svg) svg.style.cssText = !liked ? `fill:${_uc};stroke:${_uc};stroke-width:2` : 'fill:none;stroke-width:2';
+  btn.style.color = !liked ? _uc : '';
 
   const countEl = document.getElementById('likes-' + postId);
   if (countEl) {
@@ -5680,8 +5683,9 @@ async function modalToggleLike(postId, btn) {
     }
   } else {
     await db.from('likes').insert({ post_id: postId, user_id: currentUser.id });
-    btn.querySelector('svg').setAttribute('fill', '#e53935');
-    btn.querySelector('svg').setAttribute('stroke', '#e53935');
+    const _mc = currentUser.color || '#e53935';
+    btn.querySelector('svg').setAttribute('fill', _mc);
+    btn.querySelector('svg').setAttribute('stroke', _mc);
     if (countEl) {
       const n = (parseInt(countEl.textContent) || 0) + 1;
       countEl.textContent = n === 1 ? '1 curtida' : `${n} curtidas`;
@@ -6900,9 +6904,27 @@ function showNewStory() {
   const dt = document.getElementById('story-drag-text');
   if (dt) { dt.style.left = '50%'; dt.style.top = '50%'; dt.style.transform = 'translate(-50%,-50%)'; dt.style.display = 'none'; }
 
+  // Oculta toolbar até o usuário tocar na tela
+  const tb = document.getElementById('story-toolbar');
+  if (tb) tb.style.display = 'none';
+
   storyDrawCanvas();
   openModal('modal-story-new');
   _storyInitDrag();
+
+  // Mostra toolbar ao primeiro toque/clique na tela
+  const canvas = document.getElementById('story-canvas');
+  const ph2 = document.getElementById('story-upload-placeholder');
+  function _storyShowToolbar() {
+    const tb2 = document.getElementById('story-toolbar');
+    if (tb2) tb2.style.display = 'block';
+    canvas?.removeEventListener('click', _storyShowToolbar);
+    canvas?.removeEventListener('touchstart', _storyShowToolbar);
+    ph2?.removeEventListener('click', _storyShowToolbar);
+  }
+  canvas?.addEventListener('click', _storyShowToolbar);
+  canvas?.addEventListener('touchstart', _storyShowToolbar);
+  ph2?.addEventListener('click', _storyShowToolbar);
 }
 
 // ── Drag do texto ─────────────────────────────────────────
