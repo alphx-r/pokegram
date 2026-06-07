@@ -1444,12 +1444,12 @@
           <h3>Nova publicação</h3>
           <span></span>
         </div>
-        <div id="post-drop-area" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:340px;gap:14px;cursor:pointer;padding:40px 20px" onclick="document.getElementById('post-img-file').click()">
+        <label for="post-img-file" id="post-drop-area" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:340px;gap:14px;cursor:pointer;padding:40px 20px">
           <svg viewBox="0 0 24 24" width="52" height="52" stroke="#8e8e8e" fill="none" stroke-width="1.3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
           <span style="color:#262626;font-size:18px;font-weight:600">Arraste e solte uma foto aqui</span>
           <span style="color:#8e8e8e;font-size:14px">ou clique para selecionar</span>
           <span style="background:#0095f6;color:#fff;font-weight:700;font-size:14px;padding:8px 20px;border-radius:8px;pointer-events:none">Selecionar do computador</span>
-        </div>
+        </label>
         <input type="file" id="post-img-file" accept="image/*" style="display:none" onchange="previewPostImage(this)">
       </div>
 
@@ -1462,10 +1462,10 @@
         </div>
         <div class="post-modal-body">
           <div class="post-img-area" id="post-image-area">
-            <div id="post-photo-area" style="width:100%;height:100%;background:#000;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden" onclick="document.getElementById('post-img-file-change').click()">
+            <label for="post-img-file-change" id="post-photo-area" style="width:100%;height:100%;background:#000;position:relative;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden">
               <img id="post-preview-img" style="width:100%;height:100%;object-fit:cover;display:none">
               <div id="post-change-hint" style="display:none;position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px">Alterar foto</div>
-            </div>
+            </label>
             <input type="file" id="post-img-file-change" accept="image/*" style="display:none" onchange="previewPostImage(this)">
           </div>
           <div class="post-caption-side">
@@ -1495,7 +1495,7 @@
       </div>
       <div style="padding:20px;display:flex;flex-direction:column;align-items:center;gap:16px">
         <!-- preview 9:16 -->
-        <div id="story-new-preview-wrap" style="width:180px;aspect-ratio:9/16;background:#111;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3)" onclick="document.getElementById('story-img-file').click()">
+        <label for="story-img-file" id="story-new-preview-wrap" style="width:180px;aspect-ratio:9/16;background:#111;border-radius:12px;overflow:hidden;position:relative;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
           <img id="story-preview-img" style="display:none;width:100%;height:100%;object-fit:cover">
           <div id="story-upload-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#888">
             <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -1504,7 +1504,7 @@
             </svg>
             <span style="font-size:13px;font-weight:600;text-align:center;line-height:1.4">Selecionar foto<br><small style="color:#666;font-weight:400">1080 × 1920 (9:16)</small></span>
           </div>
-        </div>
+        </label>
         <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
         <div style="font-size:12px;color:#8e8e8e;text-align:center;line-height:1.6;background:#f8f8f8;border-radius:8px;padding:10px 14px;width:100%">
           📸 Stories ficam disponíveis por <strong>24 horas</strong><br>e não aparecem no feed principal.
