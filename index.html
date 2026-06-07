@@ -1620,36 +1620,91 @@
   .sty-color-dot.active,.sty-bgc-dot.active{ transform:scale(1.25);border-color:#fff !important; }
   </style>
 
+  <style>
+/* Modal de comentários — responsivo */
+@media (max-width: 768px) {
+  #modal-comments {
+    align-items: flex-end !important;
+  }
+  .comments-modal-box {
+    position: fixed !important;
+    left: 0 !important; right: 0 !important;
+    bottom: 56px !important; /* acima da bottom nav */
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 80dvh !important;
+    max-height: calc(100dvh - 56px) !important;
+    border-radius: 20px 20px 0 0 !important;
+    transform: none !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    z-index: 1500 !important;
+  }
+  /* scroll único */
+  .comments-modal-box { display: flex; flex-direction: column; }
+  .comments-scroll-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .comments-list { overflow: visible !important; }
+  .comments-footer {
+    flex-shrink: 0;
+    background: var(--bg, #fff);
+    border-top: 1px solid #efefef;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+@media (min-width: 769px) {
+  .comments-modal-box {
+    display: flex;
+    flex-direction: column;
+    height: 85vh;
+    max-height: 85vh;
+    overflow: hidden;
+  }
+  .comments-scroll-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .comments-list { overflow: visible !important; }
+  .comments-footer {
+    flex-shrink: 0;
+    border-top: 1px solid #efefef;
+    background: var(--bg, #fff);
+  }
+}
+</style>
   <div id="modal-comments" class="modal hidden">
-    <div class="modal-backdrop" onclick="closeModal('modal-comments')"></div>
+    <div class="modal-backdrop" onclick="closeModal('modal-comments')" style="background:rgba(0,0,0,0.5)"></div>
     <div class="modal-box comments-modal-box">
-      <!-- Split layout: post à esq, comentários à dir -->
-      <div class="comments-split">
-        <!-- Lado esquerdo: post visual -->
+      <div class="modal-header" style="flex-shrink:0">
+        <button class="modal-x" onclick="closeModal('modal-comments')">✕</button>
+        <h3>Comentários</h3>
+        <span></span>
+      </div>
+      <!-- Scroll único: post + comentários rolam juntos -->
+      <div class="comments-scroll-body">
+        <!-- Post visual -->
         <div class="comments-post-side" id="comments-post-side">
           <div class="comments-post-image" id="comments-post-image"></div>
           <div class="comments-post-caption" id="comments-post-caption"></div>
         </div>
-        <!-- Lado direito: comentários -->
-        <div class="comments-right-side">
-          <div class="modal-header">
-            <button class="modal-x" onclick="closeModal('modal-comments')">✕</button>
-            <h3>Comentários</h3>
-            <span></span>
-          </div>
-          <div id="comments-list" class="comments-list"></div>
-
-          <!-- Footer fixo: ações + input -->
-          <div class="comments-footer">
-            <!-- Barra de ações: like, comentar, share, salvar -->
-            <div class="comment-actions-bar" id="comments-actions-bar"></div>
-            <!-- Input de comentário -->
-            <div class="comment-input-bar">
-              <div class="comment-avatar-sm" id="my-comment-avatar"></div>
-              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
-              <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
-            </div>
-          </div>
+        <!-- Lista de comentários -->
+        <div id="comments-list" class="comments-list"></div>
+      </div>
+      <!-- Footer fixo: ações + input -->
+      <div class="comments-footer">
+        <div class="comment-actions-bar" id="comments-actions-bar"></div>
+        <div class="comment-input-bar">
+          <div class="comment-avatar-sm" id="my-comment-avatar"></div>
+          <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
+          <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
         </div>
       </div>
     </div>
