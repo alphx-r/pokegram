@@ -163,6 +163,7 @@
   position: fixed;
   top: 0; right: -380px;
   width: 360px;
+  height: 100vh;
   height: 100dvh;
   background: var(--bg, #fff);
   border-left: 1px solid var(--border, #dbdbdb);
@@ -1831,7 +1832,9 @@
     transform: translate(-50%, -50%) !important;
     width: 92vw !important;
     max-width: 92vw !important;
+    height: 80vh !important;
     height: 80dvh !important;
+    max-height: calc(100vh - 72px) !important;
     max-height: calc(100dvh - 72px) !important;
     border-radius: 16px !important;
     margin: 0 !important;
@@ -2955,7 +2958,7 @@ function loadSession()  {
     // corrige sessão antiga que foi salva como array
     if (Array.isArray(val)) return val[0] || null;
     return val;
-  } catch { return null; }
+  } catch (e) { return null; }
 }
 function clearSession() { localStorage.removeItem('pg_user'); }
 
@@ -3433,13 +3436,17 @@ function urlBase64ToUint8Array(base64String) {
 
 async function initPushNotifications(user) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  // Brave bloqueia Notification.requestPermission em sites sem interação do usuário
+  // e pode retornar 'denied' silenciosamente — verificamos antes de pedir
+  if ('Notification' in window && Notification.permission === 'denied') return;
   try {
     const reg = await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
 
     // pede permissão com um pequeno delay para não assustar
     setTimeout(async () => {
-      const perm = await Notification.requestPermission();
+      let perm;
+      try { perm = await Notification.requestPermission(); } catch (e) { return; }
       if (perm !== 'granted') return;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -3538,7 +3545,7 @@ let allUsers   = [];
 let allPosts   = [];
 
 function admSaveSession(a) { sessionStorage.setItem('pg_adm', JSON.stringify(a)); }
-function admLoadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_adm')); } catch { return null; } }
+function admLoadSession()  { try { return JSON.parse(sessionStorage.getItem('pg_adm')); } catch (e) { return null; } }
 function admClearSession() { sessionStorage.removeItem('pg_adm'); }
 
 async function initAdm() {
@@ -6096,8 +6103,10 @@ function modalSharePost(postId) {
   const url = `${window.location.origin}/post/${postId}`;
   if (navigator.share) {
     navigator.share({ url }).catch(() => {});
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => toast('Link copiado!')).catch(() => toast('Link: ' + url));
   } else {
-    navigator.clipboard?.writeText(url).then(() => toast('Link copiado!')).catch(() => toast('Link: ' + url));
+    toast('Link: ' + url);
   }
 }
 
@@ -7315,8 +7324,8 @@ function showNewStory() {
   const tb = document.getElementById('story-toolbar');
   if (tb) tb.style.display = 'none';
 
-  storyDrawCanvas();
   openModal('modal-story-new');
+  storyDrawCanvas(); // chamado após o modal abrir para garantir contexto 2d válido
   _storyInitDrag();
 
   // Mostra toolbar ao primeiro toque/clique na tela
@@ -7384,7 +7393,7 @@ function _storyInitDrag() {
   modal.addEventListener('mousedown',  onStart, { passive: false });
   modal.addEventListener('touchstart', onStart, { passive: false });
   window.addEventListener('mousemove',  onMove, { passive: false });
-  window.addEventListener('touchmove',  onMove, { passive: false });
+  modal.addEventListener('touchmove',  onMove, { passive: false });
   window.addEventListener('mouseup',   onEnd);
   window.addEventListener('touchend',  onEnd);
 }
@@ -7457,6 +7466,7 @@ function storyDrawCanvas() {
   const canvas = document.getElementById('story-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
+  if (!ctx) return; // canvas em parent display:none pode retornar null em alguns browsers
   const W = 1080, H = 1920;
 
   // Fundo
@@ -7474,6 +7484,11 @@ function storyDrawCanvas() {
 
 // Renderização final antes do upload — combina canvas + texto na posição atual
 async function storyRenderFinal() {
+  // Garante que web fonts (Nunito, Pacifico, Cinzel) estejam carregadas
+  // antes de desenhar no canvas — evita texto com fonte de fallback
+  if (document.fonts && document.fonts.ready) {
+    await document.fonts.ready;
+  }
   const canvas = document.getElementById('story-canvas');
   const modal  = document.getElementById('modal-story-new');
   const dt     = document.getElementById('story-drag-text');
@@ -7481,6 +7496,7 @@ async function storyRenderFinal() {
   if (!canvas) return canvas;
 
   const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas; // guard: canvas em parent display:none pode retornar null
   const W = 1080, H = 1920;
 
   // Redesenha fundo
@@ -7584,7 +7600,21 @@ async function submitStory() {
     const canvas = await storyRenderFinal();
 
     const blob = await new Promise((res, rej) => {
-      canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob falhou')), 'image/jpeg', 0.92);
+      try {
+        canvas.toBlob(b => {
+          if (b) { res(b); return; }
+          // Brave com Shields ativo pode retornar null em toBlob — fallback via toDataURL
+          try {
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const arr = dataUrl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8 = new Uint8Array(n);
+            while (n--) u8[n] = bstr.charCodeAt(n);
+            res(new Blob([u8], { type: mime }));
+          } catch (fe) { rej(new Error('toBlob e toDataURL falharam: ' + fe.message)); }
+        }, 'image/jpeg', 0.92);
+      } catch (e) { rej(e); }
     });
 
     const path = `${currentUser.id}_${Date.now()}.jpg`;
@@ -7592,7 +7622,8 @@ async function submitStory() {
     if (upErr) throw upErr;
 
     const { data: urlData } = db.storage.from('stories').getPublicUrl(path);
-    const { error } = await db.from('stories').insert({ user_id: currentUser.id, image_url: urlData.publicUrl });
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await db.from('stories').insert({ user_id: currentUser.id, image_url: urlData.publicUrl, expires_at: expiresAt });
     if (error) throw error;
 
     _storyPendingFile = null;
@@ -7952,7 +7983,7 @@ async function deletePost(postId) {
       const url  = new URL(post.image_url);
       const path = url.pathname.split('/posts/')[1]?.split('?')[0];
       if (path) await db.storage.from('posts').remove([path]);
-    } catch {}
+    } catch (e) {}
   }
   // apaga likes e comentários primeiro
   await db.from('likes').delete().eq('post_id', postId);
@@ -7997,9 +8028,13 @@ async function submitPost() {
   if (inserted?.id) {
     const postUrl = `${window.location.origin}/${currentUser.username}/post/${inserted.id}`;
     try {
-      await navigator.clipboard.writeText(postUrl);
-      toast('✅ Publicado! Link copiado para a área de transferência');
-    } catch {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(postUrl);
+        toast('✅ Publicado! Link copiado para a área de transferência');
+      } else {
+        toast('✅ Publicado! ' + postUrl);
+      }
+    } catch (e) {
       toast('✅ Publicado! ' + postUrl);
     }
   } else {
@@ -8497,7 +8532,25 @@ function confirmarCrop() {
     finalCanvas = off;
   }
 
-  finalCanvas.toBlob(blob => {
+  // Brave com Shields ativo pode retornar null em toBlob — fallback via toDataURL
+  function _canvasToBlob(cvs, mimeType, quality, callback) {
+    try {
+      cvs.toBlob(blob => {
+        if (blob) { callback(blob); return; }
+        try {
+          const dataUrl = cvs.toDataURL(mimeType, quality);
+          const arr = dataUrl.split(','), mime = arr[0].match(/:(.*?);/)[1];
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8 = new Uint8Array(n);
+          while (n--) u8[n] = bstr.charCodeAt(n);
+          callback(new Blob([u8], { type: mime }));
+        } catch (e) { console.error('canvas export failed:', e); callback(null); }
+      }, mimeType, quality);
+    } catch (e) { console.error('toBlob failed:', e); callback(null); }
+  }
+
+  _canvasToBlob(finalCanvas, 'image/png', undefined, blob => {
     const file = new File([blob], 'image.png', { type: 'image/png' });
     fecharCrop();
     _cropCallback = null; // limpa só depois de usar
