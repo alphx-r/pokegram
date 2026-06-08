@@ -3860,7 +3860,7 @@ async function geradorInit() {
     sel.innerHTML = '<option value="">— Carregando... —</option>';
     const [{ data: npcs }, { data: keyRow }] = await Promise.all([
       db.from('users').select('id,username,name,bio,rpg,color,avatar_url').eq('is_npc', true).order('username'),
-      db.from('settings').select('value').eq('key', 'anthropic_api_key').maybeSingle(),
+      db.from('settings').select('value').eq('key', 'gemini_api_key').maybeSingle(),
     ]);
     _geradorNpcs = npcs || [];
     _geradorApiKey = keyRow?.value || '';
@@ -3879,7 +3879,7 @@ async function geradorSalvarChave() {
   const key = document.getElementById('gerador-api-key-input').value.trim();
   const btn = document.getElementById('gerador-key-save-btn');
   btn.disabled = true; btn.textContent = '⏳ Salvando...';
-  const { error } = await db.from('settings').upsert({ key: 'anthropic_api_key', value: key }, { onConflict: 'key' });
+  const { error } = await db.from('settings').upsert({ key: 'gemini_api_key', value: key }, { onConflict: 'key' });
   if (error) { alert('Erro ao salvar: ' + error.message); }
   else {
     _geradorApiKey = key;
@@ -4187,7 +4187,17 @@ async function geradorPublicarPokeet(cardId, npcId) {
   btn.disabled = true;
   btn.textContent = '⏳ Publicando...';
 
-  const { error } = await db.from('pokeets').insert({ user_id: npcId, text });
+  // Busca dados do NPC para snapshot do autor
+  const npc = (_geradorNpcs||[]).find(n => n.id === npcId) || (_autoNpcs||[]).find(n => n.id === npcId) || {};
+  const authorSnap = {
+    author_name:   npc.name     || npc.username || '',
+    author_handle: npc.username || '',
+    author_color:  npc.color    || '#e53935',
+    author_avatar: npc.avatar_url || null,
+  };
+
+
+  const { error } = await db.from('pokeets').insert({ user_id: npcId, text, ...authorSnap });
 
   if (error) {
     btn.disabled = false;
