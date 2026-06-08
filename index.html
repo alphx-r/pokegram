@@ -1034,6 +1034,37 @@
 }
 
 /* Tendências inline (aba mobile) */
+/* Feed de hashtag (aba Tendências) */
+.pk-hashtag-feed-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--border, #efefef);
+  position: sticky;
+  top: 0;
+  background: var(--bg, #fff);
+  z-index: 5;
+}
+.pk-hashtag-back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text, #262626);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  transition: background .15s;
+}
+.pk-hashtag-back-btn:hover { background: var(--hover, #f5f5f5); }
+.pk-hashtag-feed-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text, #262626);
+}
+
 #pokeets-trends-mobile {
   padding: 12px 0;
 }
@@ -9418,7 +9449,7 @@ async function pkDelete(pokeetId, evt) {
 }
 
 // ── Tabs ──────────────────────────────────────────────────
-function pkSwitchTab(btn, tab) {
+function pkSwitchTab(btn, tab, skipSync) {
   document.querySelectorAll('.pkTab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _pk.tab = tab;
@@ -9427,13 +9458,19 @@ function pkSwitchTab(btn, tab) {
   const trendsEl = document.getElementById('pokeets-trends-mobile');
 
   if (tab === 'trends') {
-    // Mostra painel de tendências inline (mobile)
     if (feedEl)   feedEl.style.display   = 'none';
     if (trendsEl) {
       trendsEl.style.display = 'block';
-      // Sincroniza conteúdo do painel aside para o painel mobile
-      const src = document.getElementById('pokeets-trends');
-      if (src) trendsEl.innerHTML = src.innerHTML;
+      // skipSync=true quando pkSearchHashtag vai preencher o conteúdo logo em seguida
+      if (!skipSync) {
+        const src = document.getElementById('pokeets-trends');
+        if (src && src.innerHTML.trim()) {
+          trendsEl.innerHTML = src.innerHTML;
+        } else if (_pk.feed && _pk.feed.length) {
+          // Fallback: reconstrói tendências a partir do feed em memória
+          pkLoadTrends(_pk.feed);
+        }
+      }
     }
   } else {
     if (feedEl)   feedEl.style.display   = '';
@@ -9472,8 +9509,101 @@ function pkLoadTrends(pokeets) {
   }
 }
 
-function pkSearchHashtag(tag) {
-  toast('#' + tag + ' — Busca por hashtag em breve!');
+async function pkSearchHashtag(tag) {
+  // Normaliza a tag (sem #, minúsculo)
+  const cleanTag = tag.replace(/^#/, '').toLowerCase();
+
+  // Se estiver no Feed (não na aba Tendências), muda para Tendências primeiro
+  if (_pk.tab !== 'trends') {
+    const trendsBtn = document.querySelector('.pkTab[onclick*="trends"]');
+    if (trendsBtn) pkSwitchTab(trendsBtn, 'trends', true);
+  }
+
+  // Exibe o feed de hashtag no painel de Tendências mobile
+  const mobileEl = document.getElementById('pokeets-trends-mobile');
+  if (!mobileEl) return;
+
+  // Header com botão de voltar + título da tag
+  mobileEl.innerHTML = `
+    <div class="pk-hashtag-feed-header">
+      <button class="pk-hashtag-back-btn" onclick="pkHashtagBack()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="pk-hashtag-feed-title">#${esc(cleanTag)}</div>
+    </div>
+    <div id="pk-hashtag-feed-list"><div class="pk-loading">${[1,2,3].map(() => `
+      <div class="pk-skeleton">
+        <div class="pk-skel-avatar"></div>
+        <div class="pk-skel-body">
+          <div class="pk-skel-line" style="width:40%"></div>
+          <div class="pk-skel-line" style="width:90%"></div>
+          <div class="pk-skel-line" style="width:60%"></div>
+        </div>
+      </div>`).join('')}</div></div>`;
+
+  try {
+    // Busca pokeets que contenham a hashtag (case-insensitive, sem replies)
+    const { data: pokeets, error } = await db
+      .from('pokeets')
+      .select('*')
+      .ilike('text', `%#${cleanTag}%`)
+      .is('reply_to_id', null)
+      .order('created_at', { ascending: false })
+      .limit(40);
+
+    if (error) throw error;
+
+    const listEl = document.getElementById('pk-hashtag-feed-list');
+    if (!listEl) return;
+
+    if (!pokeets || !pokeets.length) {
+      listEl.innerHTML = `<div class="pk-thread-empty">Nenhum Pokeet com #${esc(cleanTag)} ainda.</div>`;
+      return;
+    }
+
+    // Busca autores
+    const authorIds = [...new Set(pokeets.map(p => p.user_id).filter(Boolean))];
+    const { data: usersData } = await db.from('users').select('id, username, name, color, avatar_url, rpg').in('id', authorIds);
+    const usersMap = {};
+    (usersData || []).forEach(u => { usersMap[u.id] = u; });
+    pokeets.forEach(p => { p.users = usersMap[p.user_id] || null; });
+
+    // Busca perfis Pokeet
+    if (typeof pkFetchProfiles === 'function') await pkFetchProfiles(authorIds);
+
+    // Likes e contagens
+    const ids = pokeets.map(p => p.id);
+    const [{ data: myLikes }, { data: likeCounts }, { data: replyCounts }, { data: repostCounts }] = await Promise.all([
+      db.from('pokeet_likes').select('pokeet_id').eq('user_id', currentUser.id).in('pokeet_id', ids),
+      db.from('pokeet_likes').select('pokeet_id').in('pokeet_id', ids),
+      db.from('pokeets').select('reply_to_id').in('reply_to_id', ids),
+      db.from('pokeets').select('repost_of_id').in('repost_of_id', ids).is('quote_id', null),
+    ]);
+
+    const likedSet  = new Set((myLikes     || []).map(l => l.pokeet_id));
+    const likeMap   = {}; (likeCounts   || []).forEach(l => { likeMap[l.pokeet_id]    = (likeMap[l.pokeet_id]    || 0) + 1; });
+    const replyMap  = {}; (replyCounts  || []).forEach(r => { replyMap[r.reply_to_id] = (replyMap[r.reply_to_id] || 0) + 1; });
+    const repostMap = {}; (repostCounts || []).forEach(r => { repostMap[r.repost_of_id] = (repostMap[r.repost_of_id] || 0) + 1; });
+
+    const { data: myReposts } = await db.from('pokeets').select('repost_of_id').eq('user_id', currentUser.id).in('repost_of_id', ids).is('quote_id', null);
+    const repostedSet = new Set((myReposts || []).map(r => r.repost_of_id));
+
+    listEl.innerHTML = pokeets
+      .filter(p => p.users)
+      .map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet))
+      .join('');
+
+  } catch(e) {
+    const listEl = document.getElementById('pk-hashtag-feed-list');
+    if (listEl) listEl.innerHTML = `<div class="pk-thread-empty">Erro ao buscar pokeets.<br>${e.message || ''}</div>`;
+  }
+}
+
+function pkHashtagBack() {
+  // Volta para a listagem de tendências
+  const mobileEl = document.getElementById('pokeets-trends-mobile');
+  const src = document.getElementById('pokeets-trends');
+  if (mobileEl && src) mobileEl.innerHTML = src.innerHTML;
 }
 
 // ── SQL para criar as tabelas (exibido no console) ────────
