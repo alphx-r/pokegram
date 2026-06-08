@@ -6695,19 +6695,20 @@ function profileSwitchTab(userId, tab) {
   const pokeetsBtn= document.getElementById(`prof-tab-pokeets-${userId}`);
   const postsPanel  = document.getElementById(`prof-panel-posts-${userId}`);
   const pokeetsPanel= document.getElementById(`prof-panel-pokeets-${userId}`);
-  if (!postsBtn || !pokeetsBtn || !postsPanel || !pokeetsPanel) return;
+  // postsBtn pode ser null em perfis secundários (is_pokeet_secondary), o que é esperado
+  if (!pokeetsBtn || !pokeetsPanel) return;
 
   if (tab === 'pokeets') {
-    postsBtn.classList.remove('active');
+    if (postsBtn) postsBtn.classList.remove('active');
     pokeetsBtn.classList.add('active');
-    postsPanel.style.display  = 'none';
+    if (postsPanel) postsPanel.style.display = 'none';
     pokeetsPanel.style.display = '';
     loadProfilePokeets(userId);
   } else {
     pokeetsBtn.classList.remove('active');
-    postsBtn.classList.add('active');
+    if (postsBtn) postsBtn.classList.add('active');
     pokeetsPanel.style.display = 'none';
-    postsPanel.style.display   = '';
+    if (postsPanel) postsPanel.style.display = '';
   }
 }
 
