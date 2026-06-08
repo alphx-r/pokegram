@@ -1087,33 +1087,28 @@
 
 /* ── Quick Reactions (story viewer) ─────────────────────── */
 .sv-react-btn {
-  background: rgba(255,255,255,.15);
-  border: 1.5px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.18);
+  border: 1.5px solid rgba(255,255,255,.28);
   border-radius: 50%;
-  width: 42px; height: 42px;
-  font-size: 20px;
+  width: 46px; height: 46px;
+  font-size: 22px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: transform .15s, background .15s;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   flex-shrink: 0;
   line-height: 1;
   padding: 0;
 }
-.sv-react-btn:hover, .sv-react-btn:active {
-  transform: scale(1.25);
-  background: rgba(255,255,255,.28);
-}
-.sv-react-btn.sv-react-sent {
-  animation: sv-react-pop .35s ease;
-}
+.sv-react-btn:hover, .sv-react-btn:active { transform: scale(1.22); background: rgba(255,255,255,.3); }
 @keyframes sv-react-pop {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.5); }
   70%  { transform: scale(.9); }
   100% { transform: scale(1); }
 }
+.sv-react-btn.sv-react-sent { animation: sv-react-pop .35s ease; }
 </style>
 </head>
 <body>
@@ -1980,19 +1975,21 @@
 
       <!-- Barra de comentário (só para stories de outros) -->
       <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 0px);background:linear-gradient(transparent,rgba(0,0,0,.65))">
-        <!-- Quick Reactions -->
-        <div id="sv-quick-reactions" style="display:flex;justify-content:center;gap:6px;padding:10px 16px 6px">
-          <button onclick="storySendReaction('😂')" class="sv-react-btn">😂</button>
-          <button onclick="storySendReaction('😮')" class="sv-react-btn">😮</button>
-          <button onclick="storySendReaction('😍')" class="sv-react-btn">😍</button>
-          <button onclick="storySendReaction('🥺')" class="sv-react-btn">🥺</button>
-          <button onclick="storySendReaction('👏')" class="sv-react-btn">👏</button>
-          <button onclick="storySendReaction('🔥')" class="sv-react-btn">🔥</button>
-          <button onclick="storySendReaction('🎉')" class="sv-react-btn">🎉</button>
-          <button onclick="storySendReaction('💯')" class="sv-react-btn">💯</button>
+        <!-- Quick Reactions — visíveis só com foco no input -->
+        <div id="sv-quick-reactions" style="display:none;padding:10px 20px 6px">
+          <div style="display:flex;justify-content:center;gap:10px;margin-bottom:8px">
+            <button onclick="storySendReaction('😂')" class="sv-react-btn">😂</button>
+            <button onclick="storySendReaction('😍')" class="sv-react-btn">😍</button>
+            <button onclick="storySendReaction('😮')" class="sv-react-btn">😮</button>
+          </div>
+          <div style="display:flex;justify-content:center;gap:10px;margin-bottom:8px">
+            <button onclick="storySendReaction('🔥')" class="sv-react-btn">🔥</button>
+            <button onclick="storySendReaction('👏')" class="sv-react-btn">👏</button>
+            <button onclick="storySendReaction('💯')" class="sv-react-btn">💯</button>
+          </div>
         </div>
         <!-- Input de comentário -->
-        <div style="display:flex;align-items:center;gap:8px;width:100%;padding:4px 16px 14px">
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 16px 14px">
           <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
             style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:8px 16px;min-width:0"
             onfocus="storyClearTimer();svCommentFocus(true)"
@@ -6737,7 +6734,6 @@ function profileSwitchTab(userId, tab) {
   const pokeetsBtn= document.getElementById(`prof-tab-pokeets-${userId}`);
   const postsPanel  = document.getElementById(`prof-panel-posts-${userId}`);
   const pokeetsPanel= document.getElementById(`prof-panel-pokeets-${userId}`);
-  // postsBtn/postsPanel podem ser null em perfis secundários (is_pokeet_secondary) — esperado
   if (!pokeetsBtn || !pokeetsPanel) return;
 
   if (tab === 'pokeets') {
@@ -6746,9 +6742,7 @@ function profileSwitchTab(userId, tab) {
     if (postsPanel) postsPanel.style.display = 'none';
     pokeetsPanel.style.display = '';
     const _listEl = document.getElementById(`prof-pokeets-list-${userId}`);
-    const _uObj = _listEl && _listEl.dataset.secondary
-      ? { is_pokeet_secondary: true, owner_user_id: _listEl.dataset.owner, username: _listEl.dataset.handle }
-      : null;
+    const _uObj = _listEl && _listEl.dataset.secondary ? { is_pokeet_secondary: true, owner_user_id: _listEl.dataset.owner, username: _listEl.dataset.handle } : null;
     loadProfilePokeets(userId, _uObj);
   } else {
     pokeetsBtn.classList.remove('active');
@@ -6762,10 +6756,7 @@ function profileSwitchTab(userId, tab) {
 async function loadProfilePokeets(userId, userObj) {
   const container = document.getElementById(`prof-pokeets-list-${userId}`);
   if (!container) return;
-  // Avoid double-loading (marker set after first load)
   if (container.dataset.loaded === userId) return;
-
-  // Se userObj não veio, tenta ler dos data-attrs do container
   if (!userObj && container.dataset.secondary) {
     userObj = { is_pokeet_secondary: true, owner_user_id: container.dataset.owner, username: container.dataset.handle };
   }
@@ -6773,14 +6764,11 @@ async function loadProfilePokeets(userId, userObj) {
   container.innerHTML = `<div class="pk-thread-empty" style="padding:32px 0">Carregando Pokeets...</div>`;
 
   try {
-    // Fetch pokeets by this user (excluding pure replies).
-    // Perfis secundários: pokeets gravados com user_id=owner_user_id + author_handle=username
     let baseQuery = db.from('pokeets').select('*')
       .is('reply_to_id', null)
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(30);
-
     const { data: pokeets, error } = await (
       (userObj && userObj.is_pokeet_secondary && userObj.owner_user_id)
         ? baseQuery.eq('user_id', userObj.owner_user_id).ilike('author_handle', userObj.username)
@@ -6885,9 +6873,7 @@ async function renderProfile(username) {
   if (!res) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Perfil não encontrado.</div>'; return; }
   const { u, userPosts, followers, following } = res;
   container.innerHTML = buildProfileHTML(u, userPosts, followers, following, true);
-  if (u.is_pokeet_secondary) {
-    loadProfilePokeets(u.id, u);
-  }
+  if (u.is_pokeet_secondary) { loadProfilePokeets(u.id, u); }
 }
 
 // ── Profile (other users) ─────────────────────────────────
@@ -7783,8 +7769,11 @@ async function deleteCurrentStory() {
 function svCommentFocus(on) {
   const inp = document.getElementById('sv-comment-input');
   if (!inp) return;
-  inp.style.background    = on ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)';
-  inp.style.borderColor   = on ? (getComputedStyle(document.documentElement).getPropertyValue('--user-color').trim() || 'rgba(255,255,255,0.7)') : 'var(--user-color, rgba(255,255,255,0.35))';
+  inp.style.background  = on ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)';
+  inp.style.borderColor = on ? (getComputedStyle(document.documentElement).getPropertyValue('--user-color').trim() || 'rgba(255,255,255,0.7)') : 'var(--user-color, rgba(255,255,255,0.35))';
+  // Mostra/esconde quick reactions
+  const qr = document.getElementById('sv-quick-reactions');
+  if (qr) qr.style.display = on ? 'block' : 'none';
 }
 
 function storyClearTimer() {
@@ -7848,13 +7837,14 @@ async function storySendReaction(emoji) {
   if (!ownerUsername || ownerUsername === currentUser.username) return;
 
   // Animação no botão clicado
-  const btns = document.querySelectorAll('.sv-react-btn');
-  btns.forEach(b => { if (b.textContent.trim() === emoji) {
-    b.classList.remove('sv-react-sent');
-    void b.offsetWidth; // força reflow
-    b.classList.add('sv-react-sent');
-    setTimeout(() => b.classList.remove('sv-react-sent'), 400);
-  }});
+  document.querySelectorAll('.sv-react-btn').forEach(b => {
+    if (b.textContent.trim() === emoji) {
+      b.classList.remove('sv-react-sent');
+      void b.offsetWidth;
+      b.classList.add('sv-react-sent');
+      setTimeout(() => b.classList.remove('sv-react-sent'), 400);
+    }
+  });
 
   const { error } = await db.from('messages').insert({
     sender_id:   currentUser.username,
