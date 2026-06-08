@@ -6682,7 +6682,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
       </div>
 
       <div id="prof-panel-pokeets-${u.id}" class="prof-pokeets-panel" style="${u.is_pokeet_secondary ? '' : 'display:none'}">
-        <div class="prof-pokeets-list" id="prof-pokeets-list-${u.id}">
+        <div class="prof-pokeets-list" id="prof-pokeets-list-${u.id}" data-owner="${u.owner_user_id||''}" data-handle="${u.username||''}" data-secondary="${u.is_pokeet_secondary?'1':''}">
           <div class="pk-thread-empty" style="padding:32px 0">Carregando Pokeets...</div>
         </div>
       </div>
@@ -6695,7 +6695,7 @@ function profileSwitchTab(userId, tab) {
   const pokeetsBtn= document.getElementById(`prof-tab-pokeets-${userId}`);
   const postsPanel  = document.getElementById(`prof-panel-posts-${userId}`);
   const pokeetsPanel= document.getElementById(`prof-panel-pokeets-${userId}`);
-  // postsBtn pode ser null em perfis secundários (is_pokeet_secondary), o que é esperado
+  // postsBtn pode ser null em perfis secundários (is_pokeet_secondary) — comportamento esperado
   if (!pokeetsBtn || !pokeetsPanel) return;
 
   if (tab === 'pokeets') {
@@ -6703,7 +6703,9 @@ function profileSwitchTab(userId, tab) {
     pokeetsBtn.classList.add('active');
     if (postsPanel) postsPanel.style.display = 'none';
     pokeetsPanel.style.display = '';
-    loadProfilePokeets(userId);
+    const _listEl = document.getElementById(`prof-pokeets-list-${userId}`);
+    const _uObj = _listEl?.dataset.secondary ? { is_pokeet_secondary: true, owner_user_id: _listEl.dataset.owner, username: _listEl.dataset.handle } : null;
+    loadProfilePokeets(userId, _uObj);
   } else {
     pokeetsBtn.classList.remove('active');
     if (postsBtn) postsBtn.classList.add('active');
@@ -6713,7 +6715,7 @@ function profileSwitchTab(userId, tab) {
 }
 
 // ── Load Profile Pokeets ──────────────────────────────────
-async function loadProfilePokeets(userId) {
+async function loadProfilePokeets(userId, userObj) {
   const container = document.getElementById(`prof-pokeets-list-${userId}`);
   if (!container) return;
   // Avoid double-loading (marker set after first load)
@@ -6722,15 +6724,20 @@ async function loadProfilePokeets(userId) {
   container.innerHTML = `<div class="pk-thread-empty" style="padding:32px 0">Carregando Pokeets...</div>`;
 
   try {
-    // Fetch pokeets by this user (excluding pure replies)
-    const { data: pokeets, error } = await db
-      .from('pokeets')
-      .select('*')
-      .eq('user_id', userId)
+    // Fetch pokeets by this user (excluding pure replies).
+    // Para perfis secundários (is_pokeet_secondary), os pokeets estão salvos com
+    // user_id = owner_user_id e author_handle = username do perfil secundário.
+    let baseQuery = db.from('pokeets').select('*')
       .is('reply_to_id', null)
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(30);
+
+    const { data: pokeets, error } = await (
+      (userObj && userObj.is_pokeet_secondary && userObj.owner_user_id)
+        ? baseQuery.eq('user_id', userObj.owner_user_id).ilike('author_handle', userObj.username)
+        : baseQuery.eq('user_id', userId)
+    );
 
     if (error) throw error;
 
@@ -6863,7 +6870,7 @@ async function showUserProfile(username) {
 
   // Para perfis secundarios do Pokeet, carrega os pokeets automaticamente
   if (u.is_pokeet_secondary) {
-    loadProfilePokeets(u.id);
+    loadProfilePokeets(u.id, u);
   }
 }
 
