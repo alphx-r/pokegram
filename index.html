@@ -6657,17 +6657,19 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
       </div>
 
       <div class="profile-tabs">
+        ${!u.is_pokeet_secondary ? `
         <button class="tab-btn active" id="prof-tab-posts-${u.id}" onclick="profileSwitchTab('${u.id}','posts')">
           <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           Publicações
         </button>
-        <button class="tab-btn" id="prof-tab-pokeets-${u.id}" onclick="profileSwitchTab('${u.id}','pokeets')">
+        ` : ''}
+        <button class="tab-btn ${u.is_pokeet_secondary ? 'active' : ''}" id="prof-tab-pokeets-${u.id}" onclick="profileSwitchTab('${u.id}','pokeets')">
           <svg viewBox="0 0 24 24" width="16" height="16" style="stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
           Pokeets
         </button>
       </div>
 
-      <div id="prof-panel-posts-${u.id}" class="profile-grid">
+      <div id="prof-panel-posts-${u.id}" class="profile-grid" style="${u.is_pokeet_secondary ? 'display:none' : ''}">
         ${postCount
           ? userPosts.map(p => `
               <div class="profile-thumb" style="background:${p.bg||'#eee'}" onclick="openComments('${p.id}')">
@@ -6679,7 +6681,7 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
         }
       </div>
 
-      <div id="prof-panel-pokeets-${u.id}" class="prof-pokeets-panel" style="display:none">
+      <div id="prof-panel-pokeets-${u.id}" class="prof-pokeets-panel" style="${u.is_pokeet_secondary ? '' : 'display:none'}">
         <div class="prof-pokeets-list" id="prof-pokeets-list-${u.id}">
           <div class="pk-thread-empty" style="padding:32px 0">Carregando Pokeets...</div>
         </div>
@@ -6857,6 +6859,11 @@ async function showUserProfile(username) {
   if (!res) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Usuário não encontrado.</div>'; return; }
   const { u, userPosts, followers, following } = res;
   container.innerHTML = buildProfileHTML(u, userPosts, followers, following, false);
+
+  // Para perfis secundarios do Pokeet, carrega os pokeets automaticamente
+  if (u.is_pokeet_secondary) {
+    loadProfilePokeets(u.id);
+  }
 }
 
 // ── Modal Seguidores / Seguindo ───────────────────────────
@@ -10267,14 +10274,49 @@ async function pkSaveProfile() {
   let error;
 
   if (_pkProfTemp._isNew || !savedId) {
-    // INSERT — novo perfil
+    // INSERT — novo perfil Pokeet
     const { data, error: err } = await db.from('pokeet_profiles').insert(payload).select().single();
     error = err;
-    if (data) savedId = data.id;
+    if (data) {
+      savedId = data.id;
+
+      // Cria automaticamente um perfil secundario na tabela users (is_pokeet_secondary = true)
+      // Perfis secundarios nao possuem aba Publicacoes, apenas Pokeets
+      try {
+        const { data: existingUser } = await db
+          .from('users')
+          .select('id')
+          .ilike('username', handle)
+          .maybeSingle();
+
+        if (!existingUser) {
+          await db.from('users').insert({
+            username:            handle,
+            name:                name || handle,
+            color:               _pkProfTemp.color || '#e53935',
+            avatar_url:          finalAvatarUrl || null,
+            is_pokeet_secondary: true,
+            pokeet_profile_id:   savedId,
+            owner_user_id:       currentUser.id,
+          });
+        }
+      } catch(e) {
+        console.warn('Aviso: nao foi possivel criar o user secundario para o Pokeet:', e);
+      }
+    }
   } else {
     // UPDATE — perfil existente
     const { error: err } = await db.from('pokeet_profiles').update(payload).eq('id', savedId).eq('user_id', currentUser.id);
     error = err;
+
+    // Atualiza tambem o user secundario se existir
+    if (!err) {
+      try {
+        await db.from('users')
+          .update({ name: name || handle, color: _pkProfTemp.color || '#e53935', avatar_url: finalAvatarUrl || null })
+          .eq('pokeet_profile_id', savedId);
+      } catch(e) {}
+    }
   }
 
   btn.disabled = false; btn.textContent = orig;
