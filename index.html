@@ -1730,7 +1730,7 @@
 }
 .comments-close-desktop:hover { background: rgba(0,0,0,0.75); }
 
-/* Imagem preenche o painel esquerdo */
+/* Imagem preenche o painel esquerdo inteiro */
 .comments-post-image {
   flex: 1;
   min-height: 0;
@@ -1748,16 +1748,16 @@
   display: block;
 }
 
-/* Legenda na parte inferior do painel esquerdo */
+/* Legenda no painel direito — entre o header e os comentários */
 .comments-post-caption {
   flex-shrink: 0;
-  padding: 10px 16px 14px;
+  padding: 10px 16px 12px;
   background: var(--bg, #fff);
-  border-top: 1px solid var(--border, #efefef);
+  border-bottom: 1px solid var(--border, #efefef);
   font-size: 13px;
   line-height: 1.45;
   color: var(--text, #262626);
-  max-height: 130px;
+  max-height: 120px;
   overflow-y: auto;
 }
 
@@ -1855,14 +1855,16 @@
     border-bottom: 1px solid var(--border, #dbdbdb) !important;
   }
 
-  /* A imagem no mobile: altura fixa para não tomar tudo */
+  /* A imagem no mobile: altura maior agora que não divide espaço com a legenda */
   .comments-post-image {
-    height: 240px !important;
+    height: 300px !important;
     flex: none !important;
   }
 
   .comments-post-caption {
-    max-height: 90px !important;
+    max-height: 80px !important;
+    border-bottom: 1px solid var(--border, #efefef) !important;
+    border-top: none !important;
   }
 
   /* Painel direito ocupa o restante */
@@ -1890,14 +1892,13 @@
       <!-- ── Layout de duas colunas ── -->
       <div class="comments-layout">
 
-        <!-- Painel esquerdo: imagem + legenda (oculto no mobile) -->
+        <!-- Painel esquerdo: só imagem, sem legenda -->
         <div class="comments-left-panel" id="comments-post-side">
           <button class="comments-close-desktop" onclick="closeModal('modal-comments')">✕</button>
           <div class="comments-post-image" id="comments-post-image"></div>
-          <div class="comments-post-caption" id="comments-post-caption"></div>
         </div>
 
-        <!-- Painel direito: cabeçalho + scroll + footer -->
+        <!-- Painel direito: cabeçalho + legenda + scroll + footer -->
         <div class="comments-right-panel">
 
           <!-- Cabeçalho -->
@@ -1906,6 +1907,9 @@
             <h3 class="comments-right-title">Comentários</h3>
             <span></span>
           </div>
+
+          <!-- Legenda do post (acima dos comentários) -->
+          <div class="comments-post-caption" id="comments-post-caption"></div>
 
           <!-- Scroll único dos comentários -->
           <div class="comments-scroll-body">
@@ -1976,21 +1980,25 @@
 
       <!-- (delete btn removido daqui — agora fica no dropdown) -->
 
+      <!-- Overlay escuro ao focar no input (30% preto) -->
+      <div id="sv-dark-overlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.30);z-index:8;pointer-events:none;transition:opacity .2s"></div>
+
+      <!-- Quick Reactions — centralizadas no meio do story, acima do input -->
+      <div id="sv-quick-reactions" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:11;flex-direction:column;align-items:center;gap:14px">
+        <div style="display:flex;justify-content:center;gap:14px">
+          <button onclick="storySendReaction('😂')" class="sv-react-btn">😂</button>
+          <button onclick="storySendReaction('😍')" class="sv-react-btn">😍</button>
+          <button onclick="storySendReaction('😮')" class="sv-react-btn">😮</button>
+        </div>
+        <div style="display:flex;justify-content:center;gap:14px">
+          <button onclick="storySendReaction('🔥')" class="sv-react-btn">🔥</button>
+          <button onclick="storySendReaction('👏')" class="sv-react-btn">👏</button>
+          <button onclick="storySendReaction('💯')" class="sv-react-btn">💯</button>
+        </div>
+      </div>
+
       <!-- Barra de comentário (só para stories de outros) -->
       <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 0px);background:linear-gradient(transparent,rgba(0,0,0,.65))">
-        <!-- Quick Reactions — visíveis só com foco no input -->
-        <div id="sv-quick-reactions" style="display:none;padding:10px 20px 6px">
-          <div style="display:flex;justify-content:center;gap:10px;margin-bottom:8px">
-            <button onclick="storySendReaction('😂')" class="sv-react-btn">😂</button>
-            <button onclick="storySendReaction('😍')" class="sv-react-btn">😍</button>
-            <button onclick="storySendReaction('😮')" class="sv-react-btn">😮</button>
-          </div>
-          <div style="display:flex;justify-content:center;gap:10px;margin-bottom:8px">
-            <button onclick="storySendReaction('🔥')" class="sv-react-btn">🔥</button>
-            <button onclick="storySendReaction('👏')" class="sv-react-btn">👏</button>
-            <button onclick="storySendReaction('💯')" class="sv-react-btn">💯</button>
-          </div>
-        </div>
         <!-- Input de comentário -->
         <div style="display:flex;align-items:center;gap:8px;padding:4px 16px 14px">
           <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
@@ -7750,6 +7758,10 @@ function closeStoryViewer() {
   _storyPaused = false;
   const drop = document.getElementById('sv-menu-drop');
   if (drop) drop.style.display = 'none';
+  const overlay = document.getElementById('sv-dark-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const qr = document.getElementById('sv-quick-reactions');
+  if (qr) qr.style.display = 'none';
   document.getElementById('modal-story').style.display = 'none';
   document.body.style.overflow = '';
   // restaura URL anterior se estava em /usuario/stories
@@ -7802,9 +7814,12 @@ function svCommentFocus(on) {
   if (!inp) return;
   inp.style.background  = on ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)';
   inp.style.borderColor = on ? (getComputedStyle(document.documentElement).getPropertyValue('--user-color').trim() || 'rgba(255,255,255,0.7)') : 'var(--user-color, rgba(255,255,255,0.35))';
-  // Mostra/esconde quick reactions
+  // Overlay escuro 30% sobre o story
+  const overlay = document.getElementById('sv-dark-overlay');
+  if (overlay) overlay.style.display = on ? 'block' : 'none';
+  // Quick reactions centralizadas
   const qr = document.getElementById('sv-quick-reactions');
-  if (qr) qr.style.display = on ? 'block' : 'none';
+  if (qr) qr.style.display = on ? 'flex' : 'none';
 }
 
 function storyClearTimer() {
