@@ -1839,23 +1839,15 @@
     border-radius: 16px !important;
     margin: 0 !important;
     z-index: 1500 !important;
-    /* O modal em si não rola — o layout interno é quem rola */
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
   }
 
-  /* Layout vira coluna única e é o ÚNICO scroll */
+  /* No mobile, layout vira coluna única */
   .comments-layout {
     flex-direction: column !important;
     overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
-    flex: 1 !important;
-    min-height: 0 !important;
   }
 
-  /* Painel esquerdo ocupa largura total */
+  /* Painel esquerdo no mobile: apenas a legenda (sem imagem de fundo) */
   .comments-left-panel {
     flex: 0 0 auto !important;
     max-width: 100% !important;
@@ -1863,49 +1855,22 @@
     border-bottom: 1px solid var(--border, #dbdbdb) !important;
   }
 
-  /* Imagem exibe por completo — sem altura fixa, sem corte */
+  /* A imagem no mobile: altura maior agora que não divide espaço com a legenda */
   .comments-post-image {
-    height: auto !important;
+    height: 300px !important;
     flex: none !important;
-    background: #000 !important;
-  }
-  .comments-post-image img,
-  .comments-post-image video {
-    width: 100% !important;
-    height: auto !important;
-    object-fit: contain !important;
-    display: block !important;
   }
 
-  /* Legenda sem scroll próprio */
   .comments-post-caption {
-    max-height: none !important;
-    overflow-y: visible !important;
+    max-height: 80px !important;
     border-bottom: 1px solid var(--border, #efefef) !important;
     border-top: none !important;
   }
 
-  /* Painel direito não rola — conteúdo flui no scroll do layout */
+  /* Painel direito ocupa o restante */
   .comments-right-panel {
-    flex: 0 0 auto !important;
-    min-height: 0 !important;
-    overflow: visible !important;
-  }
-
-  /* Scroll body não rola sozinho no mobile */
-  .comments-scroll-body {
-    flex: none !important;
-    overflow-y: visible !important;
-    max-height: none !important;
-    min-height: 0 !important;
-  }
-
-  /* Footer fica fixo na base do modal */
-  .comments-footer {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 10 !important;
-    background: var(--bg, #fff) !important;
+    flex: 1 !important;
+    min-height: 280px !important;
   }
 
   /* Botão fechar desktop oculto no mobile */
@@ -1913,6 +1878,11 @@
 
   /* Botão fechar mobile visível */
   .comments-close-mobile { display: flex !important; }
+
+  /* Scroll interno do painel direito (comentários) */
+  .comments-scroll-body {
+    max-height: 200px !important;
+  }
 }
 </style>
   <div id="modal-comments" class="modal hidden">
@@ -1951,7 +1921,7 @@
             <div class="comment-actions-bar" id="comments-actions-bar"></div>
             <div class="comment-input-bar">
               <div class="comment-avatar-sm" id="my-comment-avatar"></div>
-              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150">
+              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150" oninput="if(!this.value.startsWith('@'))clearReplyTarget()">
               <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
             </div>
           </div>
@@ -2032,7 +2002,7 @@
 
   <!-- Barra de comentário fora do sv-container → ocupa 100vw -->
   <div id="sv-comment-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:8001;padding:56px 0 calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,rgba(0,0,0,.82) 52%)">
-    <div style="display:flex;align-items:center;gap:8px;padding:0 16px 6px">
+    <div style="display:flex;align-items:center;gap:8px;padding:0 8px 6px">
       <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
         style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 18px;min-width:0"
         onfocus="storyClearTimer();svCommentFocus(true)"
@@ -6069,6 +6039,7 @@ async function openComments(postId) {
     // Não altera a URL ao abrir o modal de post
   }
 
+  _replyToCommentId = null; // limpa reply ao abrir novo modal
   openModal('modal-comments');
 }
 
@@ -6271,7 +6242,8 @@ async function renderCommentsList(postId) {
     list.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e;font-size:14px">Nenhum comentário ainda.<br>Seja o primeiro! 🎤</div>';
     return;
   }
-  // mapa username → cor para colorir @mentions corretamente
+
+  // Mapa username → cor para colorir @mentions
   const userColorMap = {};
   userColorMap[currentUser.username] = currentUser.color || '#e53935';
   comments.forEach(c => {
@@ -6279,26 +6251,36 @@ async function renderCommentsList(postId) {
     if (u.username && u.color) userColorMap[u.username] = u.color;
   });
 
-  list.innerHTML = comments.map(c => {
+  // Separa raízes e replies usando reply_to_id (com fallback para detecção por @texto)
+  const roots   = [];
+  const replyMap = {}; // parentId → [replies]
+  comments.forEach(c => {
+    const parentId = c.reply_to_id || null;
+    if (parentId) {
+      if (!replyMap[parentId]) replyMap[parentId] = [];
+      replyMap[parentId].push(c);
+    } else {
+      roots.push(c);
+    }
+  });
+
+  function renderComment(c, isReply) {
     const u = c.users || { username: '?', color: '#999' };
     const canDelete = c.user_id === currentUser.id;
     const likes = c.likes || 0;
 
-    // detecta se é resposta (começa com @username)
-    const replyMatch = c.text.match(/^@(\S+)\s*/);
-    const isReply    = !!replyMatch;
-    const replyUser  = replyMatch ? replyMatch[1] : null;
-    const replyText  = replyMatch ? c.text.slice(replyMatch[0].length) : c.text;
+    // @mention no texto (para exibição)
+    const replyMatch  = c.text.match(/^@(\S+)\s*/);
+    const mentionUser = replyMatch ? replyMatch[1] : null;
+    const bodyText    = replyMatch ? c.text.slice(replyMatch[0].length) : c.text;
+    const mentionColor = mentionUser ? (userColorMap[mentionUser] || '#43a047') : '#43a047';
+
+    const textHtml = mentionUser
+      ? `<span style="color:${mentionColor};font-weight:700;cursor:pointer" onclick="showUserProfile('${esc(mentionUser)}')">@${esc(mentionUser)}</span> ${esc(bodyText)}`
+      : esc(c.text);
 
     const avatarSize = isReply ? '28px' : '34px';
     const indent     = isReply ? 'margin-left:44px;' : '';
-
-    // usa a cor real do usuário mencionado, com fallback para verde
-    const mentionColor = replyUser ? (userColorMap[replyUser] || '#43a047') : '#43a047';
-
-    const textHtml = isReply
-      ? `<span style="color:${mentionColor};font-weight:700;cursor:pointer" onclick="showUserProfile('${esc(replyUser||'')}')">@${esc(replyUser||'')}</span> ${esc(replyText)}`
-      : esc(c.text);
 
     return `
       <div class="comment-item" id="comment-item-${c.id}" style="${indent}">
@@ -6317,21 +6299,40 @@ async function renderCommentsList(postId) {
           ${likes > 0 ? `<span class="comment-like-count">${likes}</span>` : ''}
         </button>
       </div>`;
+  }
+
+  // Renderiza cada raiz seguida de seus replies
+  list.innerHTML = roots.map(root => {
+    const children = (replyMap[root.id] || []).map(r => renderComment(r, true)).join('');
+    return renderComment(root, false) + children;
   }).join('');
 }
+
+// ID do comentário pai sendo respondido (null = comentário raiz)
+let _replyToCommentId = null;
 
 function replyToComment(username, commentId) {
   const input = document.getElementById('new-comment');
   if (!input) return;
+
+  // Salva o ID do comentário pai
+  _replyToCommentId = commentId;
+
   input.value = `@${username} `;
   input.focus();
   input.setSelectionRange(input.value.length, input.value.length);
-  // destaca o comentário brevemente
+
+  // Destaca o comentário brevemente
   const el = document.getElementById('comment-item-' + commentId);
   if (el) {
     el.style.background = 'rgba(0,149,246,.08)';
     setTimeout(() => el.style.background = '', 1200);
   }
+}
+
+// Limpa o reply target ao abrir um novo modal ou digitar do zero
+function clearReplyTarget() {
+  _replyToCommentId = null;
 }
 
 async function toggleCommentLike(commentId, btn) {
@@ -6362,8 +6363,14 @@ async function submitComment() {
   const input = document.getElementById('new-comment');
   const text  = input?.value.trim();
   if (!text) return;
-  await db.from('comments').insert({ post_id: currentCommentPostId, user_id: currentUser.id, text });
+
+  // Inclui reply_to_id se estiver respondendo a um comentário específico
+  const payload = { post_id: currentCommentPostId, user_id: currentUser.id, text };
+  if (_replyToCommentId) payload.reply_to_id = _replyToCommentId;
+
+  await db.from('comments').insert(payload);
   input.value = '';
+  _replyToCommentId = null; // limpa o reply target após envio
   await renderCommentsList(currentCommentPostId);
   toast('Comentário publicado!');
   const { data: post } = await db.from('posts').select('user_id').eq('id', currentCommentPostId).maybeSingle();
