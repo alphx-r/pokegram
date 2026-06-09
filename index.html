@@ -1998,19 +1998,19 @@
         </div>
       </div>
 
-    </div><!-- /sv-container -->
+      <!-- Barra de comentário — dentro do sv-container, sempre dentro da área do story -->
+      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:56px 0 calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,rgba(0,0,0,.82) 52%)">
+        <div style="display:flex;align-items:center;gap:8px;padding:0 10px 6px 4px">
+          <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
+            style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 18px;min-width:0"
+            onfocus="storyClearTimer();svCommentFocus(true)"
+            onblur="storyRestartTimer();svCommentFocus(false)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
+          <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:22px;line-height:1;flex-shrink:0;opacity:.9" title="Enviar">➤</button>
+        </div>
+      </div>
 
-  <!-- Barra de comentário fora do sv-container → ocupa 100vw -->
-  <div id="sv-comment-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:8001;padding:56px 0 calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,rgba(0,0,0,.82) 52%)">
-    <div style="display:flex;align-items:center;gap:8px;padding:0 10px 6px 4px">
-      <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
-        style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 18px;min-width:0"
-        onfocus="storyClearTimer();svCommentFocus(true)"
-        onblur="storyRestartTimer();svCommentFocus(false)"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
-      <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:22px;line-height:1;flex-shrink:0;opacity:.9" title="Enviar">➤</button>
-    </div>
-  </div>
+    </div><!-- /sv-container -->
 
   </div><!-- /modal-story -->
 
@@ -7943,8 +7943,28 @@ async function storySendReaction(emoji) {
     read:        false
   });
 
-  if (!error) toast('Reação enviada! ' + emoji);
-  else toast('Erro ao enviar reação.');
+  if (error) { toast('Erro ao enviar reação.'); return; }
+
+  toast('Reação enviada! ' + emoji);
+
+  // Abre o chat mostrando a conversa com o dono do story
+  try {
+    const { data: peerUser } = await db
+      .from('users')
+      .select('id, username, name, color, avatar_url')
+      .eq('username', ownerUsername)
+      .maybeSingle();
+    if (peerUser) {
+      closeStoryViewer();
+      await openChatPanel();
+      await chatOpenWindow({
+        username:     peerUser.username,
+        display_name: peerUser.name || peerUser.username,
+        avatar_url:   peerUser.avatar_url || null,
+        avatar_color: peerUser.color || '#e53935',
+      });
+    }
+  } catch(e) { console.warn('storySendReaction: não foi possível abrir o chat', e); }
 }
 async function storySendComment() {
   const inp  = document.getElementById('sv-comment-input');
@@ -7979,8 +7999,25 @@ async function storySendComment() {
   }
 
   toast('Mensagem enviada! 💬');
-  // reinicia o timer que foi pausado durante a digitação
-  storyRestartTimer();
+
+  // Abre o chat mostrando a conversa com o dono do story
+  try {
+    const { data: peerUser } = await db
+      .from('users')
+      .select('id, username, name, color, avatar_url')
+      .eq('username', ownerUsername)
+      .maybeSingle();
+    if (peerUser) {
+      closeStoryViewer();
+      await openChatPanel();
+      await chatOpenWindow({
+        username:     peerUser.username,
+        display_name: peerUser.name || peerUser.username,
+        avatar_url:   peerUser.avatar_url || null,
+        avatar_color: peerUser.color || '#e53935',
+      });
+    }
+  } catch(e) { console.warn('storySendComment: não foi possível abrir o chat', e); }
 }
 
 function expiresIn(isoStr) {
