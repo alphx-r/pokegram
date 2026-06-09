@@ -1441,6 +1441,8 @@ input, select, textarea { font-family: var(--font); }
    ============================ */
 #sv-comment-input {
   border-color: var(--user-color, rgba(255,255,255,.35)) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 #sv-comment-bar button[onclick="storySendComment()"] {
   color: var(--user-color, #fff) !important;
