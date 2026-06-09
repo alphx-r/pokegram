@@ -1638,8 +1638,7 @@
     </div>
   </div>
 
-  <!-- MODAL NOVO STORY (exclusivo 9:16) -->
-  <!-- MODAL CRIAR STORY — editor fullscreen -->
+  <!-- MODAL CRIAR STORY — editor fullscreen estilo Instagram -->
   <div id="modal-story-new" style="display:none;position:fixed;inset:0;z-index:9000;background:#000;flex-direction:column">
 
     <!-- Canvas fullscreen (fundo + imagem) -->
@@ -1654,7 +1653,6 @@
         <circle cx="12" cy="13" r="4"/>
       </svg>
       <span style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700">Toque para adicionar foto</span>
-      <span style="font-family:'Nunito',sans-serif;font-size:12px;color:#666">Ou escreva um texto abaixo</span>
     </label>
 
     <!-- Texto arrastável sobreposto ao canvas -->
@@ -1662,101 +1660,113 @@
       style="display:none;position:absolute;z-index:5;touch-action:none;cursor:grab;user-select:none;left:50%;top:50%;transform:translate(-50%,-50%);max-width:90%;text-align:center;padding:6px 12px;border-radius:8px;word-break:break-word">
     </div>
 
-    <!-- Barra superior -->
-    <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(rgba(0,0,0,.55),transparent)">
-      <button onclick="closeModal('modal-story-new')" style="width:36px;height:36px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
-      <label for="story-img-file" id="story-change-photo-btn" style="display:none;background:rgba(255,255,255,.18);border:none;border-radius:20px;color:#fff;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">📷 Trocar foto</label>
-      <button onclick="submitStory()" id="story-publish-btn" style="background:#e53935;border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:8px 18px;cursor:pointer">Publicar</button>
-    </div>
+    <!-- ══ MODO NORMAL (sem edição de texto) ══ -->
+    <div id="story-mode-normal">
+      <!-- Barra superior: X  |  Trocar foto  |  Publicar -->
+      <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(rgba(0,0,0,.55),transparent)">
+        <button onclick="closeModal('modal-story-new')" style="width:36px;height:36px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
+        <label for="story-img-file" id="story-change-photo-btn" style="display:none;background:rgba(255,255,255,.18);border:none;border-radius:20px;color:#fff;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">📷 Trocar foto</label>
+        <button onclick="submitStory()" id="story-publish-btn" style="background:#e53935;border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:8px 18px;cursor:pointer">Publicar</button>
+      </div>
 
-    <!-- Botão "Aa" flutuante — só visível após foto adicionada, abre a toolbar -->
-    <button id="story-text-fab" onclick="storyOpenTextToolbar()"
-      style="display:none;position:absolute;top:62px;right:16px;z-index:10;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.5);color:#fff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;backdrop-filter:blur(4px);transition:background .15s"
-      title="Adicionar texto">Aa</button>
+      <!-- Barra lateral direita (só após foto): Aa + paleta cor de fundo -->
+      <div id="story-side-tools" style="display:none;position:absolute;top:50%;right:14px;transform:translateY(-50%);z-index:10;display:none;flex-direction:column;align-items:center;gap:14px">
+        <!-- Botão Aa -->
+        <button onclick="storyOpenTextMode()" style="width:44px;height:44px;border-radius:50%;background:rgba(30,30,30,.7);border:2px solid rgba(255,255,255,.6);color:#fff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">Aa</button>
+      </div>
 
-    <!-- Barra de ferramentas de texto — oculta por padrão, abre ao clicar na imagem ou no botão Aa -->
-    <div id="story-toolbar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.8))">
+      <!-- Barra inferior: só cores de fundo (sem foto) -->
+      <div id="story-bg-bar" style="position:absolute;bottom:0;left:0;right:0;z-index:10;padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 14px);background:linear-gradient(transparent,rgba(0,0,0,.6));display:flex;justify-content:center;gap:10px;align-items:center">
+        <div onclick="storySetBgColor('#111111')" class="sty-bgc-dot active" data-bgc="#111111" style="background:#111;border:2px solid rgba(255,255,255,.5)"></div>
+        <div onclick="storySetBgColor('#1a237e')" class="sty-bgc-dot" data-bgc="#1a237e" style="background:#1a237e;border:2px solid transparent"></div>
+        <div onclick="storySetBgColor('#b71c1c')" class="sty-bgc-dot" data-bgc="#b71c1c" style="background:#b71c1c;border:2px solid transparent"></div>
+        <div onclick="storySetBgColor('#4a148c')" class="sty-bgc-dot" data-bgc="#4a148c" style="background:#4a148c;border:2px solid transparent"></div>
+        <div onclick="storySetBgColor('#1b5e20')" class="sty-bgc-dot" data-bgc="#1b5e20" style="background:#1b5e20;border:2px solid transparent"></div>
+        <input type="color" id="story-custom-bgc" value="#111111" oninput="storySetBgColor(this.value)"
+          style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.4);cursor:pointer;padding:2px;box-sizing:border-box;background:none">
+      </div>
+    </div><!-- /mode-normal -->
 
-      <!-- Linha topo: input + fechar toolbar -->
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <input id="story-text-input" type="text" maxlength="80" placeholder="Escreva algo..."
+    <!-- ══ MODO EDIÇÃO DE TEXTO (estilo Instagram) ══ -->
+    <div id="story-mode-text" style="display:none;position:absolute;inset:0;z-index:20">
+
+      <!-- Overlay escuro atrás do texto -->
+      <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)"></div>
+
+      <!-- Topo: Done -->
+      <div style="position:absolute;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;justify-content:flex-end;padding:14px 18px;background:linear-gradient(rgba(0,0,0,.4),transparent)">
+        <button onclick="storyConfirmText()" style="background:none;border:none;color:#fff;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.3px;padding:4px 8px">Pronto</button>
+      </div>
+
+      <!-- Textarea centralizada na tela -->
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:25;pointer-events:none">
+        <textarea id="story-text-input"
+          maxlength="150"
+          placeholder="Escreva algo..."
           oninput="storyEditorUpdate()"
-          style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:9px 16px;min-width:0;backdrop-filter:blur(4px)"
-        />
-        <button onclick="storyCloseTextToolbar()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Fechar">✕</button>
+          style="pointer-events:all;background:transparent;border:none;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:32px;font-weight:800;text-align:center;resize:none;width:88%;max-height:60vh;line-height:1.3;caret-color:#fff;padding:0;overflow:hidden"
+          rows="1"
+        ></textarea>
       </div>
 
-      <!-- Linha de opções -->
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <!-- Barra inferior de ferramentas -->
+      <div style="position:absolute;bottom:0;left:0;right:0;z-index:30;padding:10px 14px calc(env(safe-area-inset-bottom,0px) + 10px);background:linear-gradient(transparent,rgba(0,0,0,.75))">
 
-        <!-- Fontes -->
-        <div style="display:flex;gap:4px">
-          <button onclick="storySetFont('Nunito')"    class="sty-font-btn active" data-font="Nunito"    style="font-family:'Nunito',sans-serif">Aa</button>
-          <button onclick="storySetFont('Pacifico')"  class="sty-font-btn"        data-font="Pacifico"  style="font-family:'Pacifico',cursive;font-size:11px">Pp</button>
-          <button onclick="storySetFont('Cinzel')"    class="sty-font-btn"        data-font="Cinzel"    style="font-family:'Cinzel',serif">Cc</button>
-          <button onclick="storySetFont('monospace')" class="sty-font-btn"        data-font="monospace" style="font-family:monospace">Mo</button>
+        <!-- Linha 1: fontes -->
+        <div id="sty-font-row" style="display:flex;justify-content:center;gap:6px;margin-bottom:10px">
+          <button onclick="storySetFont('Nunito')"    class="sty-font-btn active" data-font="Nunito"    style="font-family:'Nunito',sans-serif">Clássico</button>
+          <button onclick="storySetFont('Pacifico')"  class="sty-font-btn"        data-font="Pacifico"  style="font-family:'Pacifico',cursive;font-size:11px">Cursivo</button>
+          <button onclick="storySetFont('Cinzel')"    class="sty-font-btn"        data-font="Cinzel"    style="font-family:'Cinzel',serif">Elegante</button>
+          <button onclick="storySetFont('monospace')" class="sty-font-btn"        data-font="monospace" style="font-family:monospace">Código</button>
         </div>
 
-        <!-- Tamanho -->
-        <input type="range" id="story-font-size" min="20" max="72" value="36"
-          oninput="storyEditorUpdate()"
-          style="width:70px;accent-color:#e53935;flex-shrink:0">
+        <!-- Linha 2: ícones de controle (Aa cor | tamanho | fundo | alinhamento) -->
+        <div style="display:flex;align-items:center;justify-content:space-around;margin-bottom:10px">
 
-        <!-- Cores do texto -->
-        <div style="display:flex;gap:5px;align-items:center">
-          <div onclick="storySetTextColor('#ffffff')" class="sty-color-dot active" data-tc="#ffffff" style="background:#fff;border:2px solid rgba(255,255,255,.5)"></div>
-          <div onclick="storySetTextColor('#000000')" class="sty-color-dot" data-tc="#000000" style="background:#000;border:2px solid transparent"></div>
-          <div onclick="storySetTextColor('#e53935')" class="sty-color-dot" data-tc="#e53935" style="background:#e53935;border:2px solid transparent"></div>
-          <div onclick="storySetTextColor('#fdd835')" class="sty-color-dot" data-tc="#fdd835" style="background:#fdd835;border:2px solid transparent"></div>
-          <div onclick="storySetTextColor('#43a047')" class="sty-color-dot" data-tc="#43a047" style="background:#43a047;border:2px solid transparent"></div>
-          <div onclick="storySetTextColor('#1e88e5')" class="sty-color-dot" data-tc="#1e88e5" style="background:#1e88e5;border:2px solid transparent"></div>
-          <input type="color" id="story-custom-color" value="#ffffff" oninput="storySetTextColor(this.value)"
-            style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.4);cursor:pointer;padding:1px;box-sizing:border-box;background:none">
-        </div>
+          <!-- Seletor de cor do texto (bolinha multicolor) -->
+          <div style="position:relative;width:36px;height:36px;cursor:pointer" onclick="storyTextColorCycle()" title="Cor do texto">
+            <svg width="36" height="36" viewBox="0 0 36 36"><defs><linearGradient id="ig-color-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f00"/><stop offset="25%" stop-color="#ff0"/><stop offset="50%" stop-color="#0f0"/><stop offset="75%" stop-color="#0ff"/><stop offset="100%" stop-color="#00f"/></linearGradient></defs><circle cx="18" cy="18" r="16" fill="url(#ig-color-grad)" stroke="rgba(255,255,255,.5)" stroke-width="2"/></svg>
+            <div id="sty-color-indicator" style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;border:2px solid #fff;background:#fff"></div>
+          </div>
 
-        <!-- Fundo do texto -->
-        <div style="display:flex;gap:4px">
-          <button onclick="storySetBg('none')"  class="sty-bg-btn active" data-bg="none"  title="Sem fundo">—</button>
-          <button onclick="storySetBg('semi')"  class="sty-bg-btn"        data-bg="semi"  title="Escuro">▪</button>
-          <button onclick="storySetBg('white')" class="sty-bg-btn"        data-bg="white" title="Branco">□</button>
-        </div>
+          <!-- Tamanho via slider vertical (toque e arraste) -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+            <input type="range" id="story-font-size" min="18" max="72" value="32"
+              oninput="storyEditorUpdate()"
+              style="writing-mode:vertical-lr;direction:rtl;width:32px;height:80px;accent-color:#fff;cursor:pointer;flex-shrink:0">
+          </div>
 
-        <!-- Cor de fundo (sem foto) — oculto quando há imagem -->
-        <div id="story-bg-color-section" style="display:flex;gap:5px;align-items:center">
-          <div onclick="storySetBgColor('#111111')" class="sty-bgc-dot active" data-bgc="#111111" style="background:#111;border:2px solid rgba(255,255,255,.5)"></div>
-          <div onclick="storySetBgColor('#1a237e')" class="sty-bgc-dot" data-bgc="#1a237e" style="background:#1a237e;border:2px solid transparent"></div>
-          <div onclick="storySetBgColor('#b71c1c')" class="sty-bgc-dot" data-bgc="#b71c1c" style="background:#b71c1c;border:2px solid transparent"></div>
-          <div onclick="storySetBgColor('#4a148c')" class="sty-bgc-dot" data-bgc="#4a148c" style="background:#4a148c;border:2px solid transparent"></div>
-          <div onclick="storySetBgColor('#1b5e20')" class="sty-bgc-dot" data-bgc="#1b5e20" style="background:#1b5e20;border:2px solid transparent"></div>
-          <input type="color" id="story-custom-bgc" value="#111111" oninput="storySetBgColor(this.value)"
-            style="width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,.4);cursor:pointer;padding:1px;box-sizing:border-box;background:none">
+          <!-- Ciclo de fundo (nenhum → semi → branco) -->
+          <button onclick="storyBgCycle()" id="sty-bg-cycle-btn"
+            style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.5);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center"
+            title="Fundo do texto">A</button>
+
+          <!-- Alinhamento (cicla entre esquerda/centro/direita) -->
+          <button onclick="storyAlignCycle()" id="sty-align-btn"
+            style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.5);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center"
+            title="Alinhamento">≡</button>
         </div>
 
       </div>
-
-      <div style="font-size:10px;color:rgba(255,255,255,.4);text-align:center;margin-top:8px;font-family:'Nunito',sans-serif">
-        Arraste o texto para reposicioná-lo • Stories somem em 24h
-      </div>
-    </div>
+    </div><!-- /mode-text -->
 
     <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
   </div>
 
   <style>
   .sty-font-btn{
-    padding:4px 8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);
-    font-size:12px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;min-width:32px;
+    padding:6px 12px;border-radius:20px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);
+    font-size:13px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;white-space:nowrap;
   }
-  .sty-font-btn.active{ background:rgba(255,255,255,.35);border-color:#fff; }
-  .sty-bg-btn{
-    padding:4px 8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);
-    font-size:14px;color:#fff;cursor:pointer;transition:all .15s;min-width:32px;
+  .sty-font-btn.active{ background:rgba(255,255,255,.32);border-color:#fff; }
+  .sty-bgc-dot{
+    width:28px;height:28px;border-radius:50%;cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0;
   }
-  .sty-bg-btn.active{ background:rgba(255,255,255,.35);border-color:#fff; }
-  .sty-color-dot,.sty-bgc-dot{
-    width:24px;height:24px;border-radius:50%;cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0;
-  }
-  .sty-color-dot.active,.sty-bgc-dot.active{ transform:scale(1.25);border-color:#fff !important; }
+  .sty-bgc-dot.active{ transform:scale(1.28);border-color:#fff !important; }
+  /* texto de preview no modo edição — atualizado via JS */
+  #story-text-input::placeholder{ color:rgba(255,255,255,.5); }
+  /* auto-resize textarea */
+  #story-text-input{ overflow:hidden; }
   </style>
 
   <style>
@@ -7429,10 +7439,11 @@ let _storyViewOwnerId = null;
 // ── Editor state ──────────────────────────────────────────
 const _storyEd = {
   font:      'Nunito',
-  size:      36,
+  size:      32,
   textColor: '#ffffff',
   bg:        'none',
   bgColor:   '#111111',
+  align:     'center',
   // posição do texto em % da tela (0–100)
   textX: 50,
   textY: 50,
@@ -7444,66 +7455,138 @@ function showNewStory() {
   _storyPendingFile = null;
   if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
   _storyEd.img = null;
-  Object.assign(_storyEd, { font:'Nunito', size:36, textColor:'#ffffff', bg:'none', bgColor:'#111111', textX:50, textY:50 });
+  Object.assign(_storyEd, { font:'Nunito', size:32, textColor:'#ffffff', bg:'none', bgColor:'#111111', textX:50, textY:50, align:'center' });
 
   // Reset UI
-  const ph = document.getElementById('story-upload-placeholder');
-  const cb = document.getElementById('story-change-photo-btn');
-  const bgSec = document.getElementById('story-bg-color-section');
-  const ti = document.getElementById('story-text-input');
-  const sz = document.getElementById('story-font-size');
-  if (ph) ph.style.display = 'flex';
-  if (cb) cb.style.display = 'none';
-  if (bgSec) bgSec.style.display = 'flex';
-  if (ti) ti.value = '';
-  if (sz) sz.value = 36;
+  const ph  = document.getElementById('story-upload-placeholder');
+  const cb  = document.getElementById('story-change-photo-btn');
+  const ti  = document.getElementById('story-text-input');
+  const sz  = document.getElementById('story-font-size');
+  const bgBar  = document.getElementById('story-bg-bar');
+  const sideTools = document.getElementById('story-side-tools');
+  if (ph)  ph.style.display = 'flex';
+  if (cb)  cb.style.display = 'none';
+  if (ti)  { ti.value = ''; ti.style.fontFamily = "'Nunito',sans-serif"; ti.style.fontSize = '32px'; ti.style.textAlign = 'center'; }
+  if (sz)  sz.value = 32;
+  if (bgBar) bgBar.style.display = 'flex';
+  if (sideTools) sideTools.style.display = 'none';
 
-  // Remove listener de clique no canvas (limpeza)
-  const canvasReset = document.getElementById('story-canvas');
-  if (canvasReset?._storyTextClick) {
-    canvasReset.removeEventListener('click', canvasReset._storyTextClick);
-    canvasReset._storyTextClick = null;
-  }
+  // Remove listener de clique no canvas
+  const cv = document.getElementById('story-canvas');
+  if (cv?._storyTextClick) { cv.removeEventListener('click', cv._storyTextClick); cv._storyTextClick = null; }
 
   document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'Nunito'));
-  document.querySelectorAll('.sty-bg-btn').forEach(b => b.classList.toggle('active', b.dataset.bg === 'none'));
-  document.querySelectorAll('.sty-color-dot').forEach(b => b.classList.toggle('active', b.dataset.tc === '#ffffff'));
   document.querySelectorAll('.sty-bgc-dot').forEach(b => b.classList.toggle('active', b.dataset.bgc === '#111111'));
 
   // Posiciona texto arrastável no centro
   const dt = document.getElementById('story-drag-text');
   if (dt) { dt.style.left = '50%'; dt.style.top = '50%'; dt.style.transform = 'translate(-50%,-50%)'; dt.style.display = 'none'; }
 
-  // Oculta toolbar e botão Aa até a foto ser adicionada
-  const tb = document.getElementById('story-toolbar');
-  if (tb) tb.style.display = 'none';
-  const fab = document.getElementById('story-text-fab');
-  if (fab) fab.style.display = 'none';
+  // Garante modo normal visível e modo texto escondido
+  const modeNormal = document.getElementById('story-mode-normal');
+  const modeText   = document.getElementById('story-mode-text');
+  if (modeNormal) modeNormal.style.display = 'block';
+  if (modeText)   modeText.style.display   = 'none';
 
   openModal('modal-story-new');
-  storyDrawCanvas(); // chamado após o modal abrir para garantir contexto 2d válido
+  storyDrawCanvas();
   _storyInitDrag();
 }
 
-// ── Toolbar de texto: abre ao clicar na imagem ───────────
-function storyOpenTextToolbar() {
-  const tb  = document.getElementById('story-toolbar');
-  const fab = document.getElementById('story-text-fab');
-  if (tb)  tb.style.display  = 'block';
-  if (fab) fab.style.display = 'none';
-  // Foca o input automaticamente
+// ── Modos ─────────────────────────────────────────────────
+function storyOpenTextMode() {
+  const modeNormal = document.getElementById('story-mode-normal');
+  const modeText   = document.getElementById('story-mode-text');
+  if (modeNormal) modeNormal.style.display = 'none';
+  if (modeText)   modeText.style.display   = 'block';
+  _storyApplyTextStyle();
   setTimeout(() => {
     const ti = document.getElementById('story-text-input');
-    if (ti) ti.focus();
-  }, 80);
+    if (ti) { ti.focus(); _storyAutoResize(ti); }
+  }, 60);
 }
 
-function storyCloseTextToolbar() {
-  const tb  = document.getElementById('story-toolbar');
-  const fab = document.getElementById('story-text-fab');
-  if (tb)  tb.style.display  = 'none';
-  // Mostra o botão Aa de volta só se houver imagem
-  if (fab && _storyEd.img) fab.style.display = 'flex';
+function storyConfirmText() {
+  // Salva o texto e volta ao modo normal
+  storyEditorUpdate(); // sincroniza drag-text com o conteúdo atual
+  const modeNormal = document.getElementById('story-mode-normal');
+  const modeText   = document.getElementById('story-mode-text');
+  if (modeNormal) modeNormal.style.display = 'block';
+  if (modeText)   modeText.style.display   = 'none';
+}
+
+// ── Ciclos de cor e fundo (estilo Instagram) ──────────────
+const _textColors = ['#ffffff','#000000','#e53935','#fdd835','#43a047','#1e88e5','#ff6f00','#ad1457','#00838f'];
+let _textColorIdx = 0;
+
+function storyTextColorCycle() {
+  _textColorIdx = (_textColorIdx + 1) % _textColors.length;
+  _storyEd.textColor = _textColors[_textColorIdx];
+  const ind = document.getElementById('sty-color-indicator');
+  if (ind) ind.style.background = _storyEd.textColor;
+  _storyApplyTextStyle();
+  storyUpdateDragText();
+}
+
+const _bgCycle = ['none','semi','white'];
+let _bgCycleIdx = 0;
+
+function storyBgCycle() {
+  _bgCycleIdx = (_bgCycleIdx + 1) % _bgCycle.length;
+  _storyEd.bg = _bgCycle[_bgCycleIdx];
+  const btn = document.getElementById('sty-bg-cycle-btn');
+  if (btn) {
+    const labels = { none:'A', semi:'A', white:'A' };
+    const bgs    = { none:'rgba(255,255,255,.15)', semi:'rgba(0,0,0,.6)', white:'rgba(255,255,255,.9)' };
+    const fgs    = { none:'#fff', semi:'#fff', white:'#111' };
+    btn.textContent   = labels[_storyEd.bg];
+    btn.style.background = bgs[_storyEd.bg];
+    btn.style.color      = fgs[_storyEd.bg];
+  }
+  _storyApplyTextStyle();
+  storyUpdateDragText();
+}
+
+const _alignCycle = ['center','left','right'];
+let _alignIdx = 0;
+
+function storyAlignCycle() {
+  _alignIdx = (_alignIdx + 1) % _alignCycle.length;
+  _storyEd.align = _alignCycle[_alignIdx];
+  const btn = document.getElementById('sty-align-btn');
+  const icons = { center:'≡', left:'☰', right:'☰' };
+  if (btn) btn.textContent = icons[_storyEd.align] || '≡';
+  _storyApplyTextStyle();
+  storyUpdateDragText();
+}
+
+function _storyApplyTextStyle() {
+  const ti = document.getElementById('story-text-input');
+  if (!ti) return;
+  const fontMap = {
+    'Nunito': "'Nunito',sans-serif", 'Pacifico': "'Pacifico',cursive",
+    'Cinzel': "'Cinzel',serif", 'monospace': 'monospace',
+  };
+  const sz = document.getElementById('story-font-size');
+  const size = sz ? (parseInt(sz.value) || 32) : _storyEd.size;
+  ti.style.fontFamily  = fontMap[_storyEd.font] || "'Nunito',sans-serif";
+  ti.style.fontSize    = size + 'px';
+  ti.style.textAlign   = _storyEd.align || 'center';
+  ti.style.fontWeight  = '800';
+  // Cor com legibilidade no fundo branco
+  const displayColor = (_storyEd.bg === 'white' && _storyEd.textColor === '#ffffff') ? '#111' : _storyEd.textColor;
+  ti.style.color = displayColor;
+  // Fundo da textarea para preview
+  const bgStyles = { none:'transparent', semi:'rgba(0,0,0,0.55)', white:'rgba(255,255,255,0.85)' };
+  ti.style.background   = bgStyles[_storyEd.bg] || 'transparent';
+  ti.style.borderRadius = _storyEd.bg !== 'none' ? '10px' : '0';
+  ti.style.padding      = _storyEd.bg !== 'none' ? '8px 16px' : '0';
+  ti.style.textShadow   = _storyEd.bg === 'none' ? '0 1px 6px rgba(0,0,0,.7)' : 'none';
+}
+
+function _storyAutoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, window.innerHeight * 0.55) + 'px';
 }
 
 // ── Drag do texto ─────────────────────────────────────────
@@ -7564,16 +7647,17 @@ function _storyInitDrag() {
 function storySetFont(f) {
   _storyEd.font = f;
   document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === f));
+  _storyApplyTextStyle();
   storyUpdateDragText();
 }
 function storySetTextColor(c) {
   _storyEd.textColor = c;
-  document.querySelectorAll('.sty-color-dot').forEach(b => b.classList.toggle('active', b.dataset.tc === c));
+  _storyApplyTextStyle();
   storyUpdateDragText();
 }
 function storySetBg(b) {
   _storyEd.bg = b;
-  document.querySelectorAll('.sty-bg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.bg === b));
+  _storyApplyTextStyle();
   storyUpdateDragText();
 }
 function storySetBgColor(c) {
@@ -7585,7 +7669,9 @@ function storySetBgColor(c) {
 function storyEditorUpdate() {
   const ti = document.getElementById('story-text-input');
   const sz = document.getElementById('story-font-size');
-  if (sz) _storyEd.size = parseInt(sz.value) || 36;
+  if (sz) _storyEd.size = parseInt(sz.value) || 32;
+  if (ti) _storyAutoResize(ti);
+  _storyApplyTextStyle();
   storyUpdateDragText();
 }
 
@@ -7681,7 +7767,7 @@ async function storyRenderFinal() {
     'monospace': '700 {sz}px monospace',
   };
   ctx.font = (fontMap[_storyEd.font] || '800 {sz}px Nunito,sans-serif').replace('{sz}', fontSize);
-  ctx.textAlign   = 'center';
+  ctx.textAlign   = _storyEd.align === 'left' ? 'left' : _storyEd.align === 'right' ? 'right' : 'center';
   ctx.textBaseline = 'middle';
 
   const maxW = W * 0.85;
@@ -7741,24 +7827,25 @@ function previewStoryImage(input) {
       _storyEd.img = img;
       const ph    = document.getElementById('story-upload-placeholder');
       const cb    = document.getElementById('story-change-photo-btn');
-      const bgSec = document.getElementById('story-bg-color-section');
       if (ph)    ph.style.display = 'none';
       if (cb)    cb.style.display = 'block';
-      if (bgSec) bgSec.style.display = 'none';
 
-      // Mostra botão "Aa" e registra clique no canvas para abrir toolbar de texto
-      const fab = document.getElementById('story-text-fab');
-      if (fab) fab.style.display = 'flex';
+      // Esconde barra de cor de fundo (não faz sentido com foto)
+      const bgBar = document.getElementById('story-bg-bar');
+      if (bgBar) bgBar.style.display = 'none';
 
-      const canvas2 = document.getElementById('story-canvas');
-      // remove listener anterior para não acumular
-      if (canvas2._storyTextClick) canvas2.removeEventListener('click', canvas2._storyTextClick);
-      canvas2._storyTextClick = (e) => {
-        // Não abre toolbar se o clique foi num botão da interface (barra superior etc)
-        if (e.target.closest('#story-toolbar, #story-text-fab, [id^=story-change], .sty-')) return;
-        storyOpenTextToolbar();
+      // Mostra ferramentas laterais (botão Aa)
+      const sideTools = document.getElementById('story-side-tools');
+      if (sideTools) sideTools.style.display = 'flex';
+
+      // Clique na imagem abre modo texto
+      const cv = document.getElementById('story-canvas');
+      if (cv?._storyTextClick) cv.removeEventListener('click', cv._storyTextClick);
+      cv._storyTextClick = (e) => {
+        if (e.target.closest('#story-mode-normal [style*="position:absolute;top:0"]')) return;
+        storyOpenTextMode();
       };
-      canvas2.addEventListener('click', canvas2._storyTextClick);
+      cv.addEventListener('click', cv._storyTextClick);
 
       storyDrawCanvas();
     };
