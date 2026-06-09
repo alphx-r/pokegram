@@ -1999,14 +1999,14 @@
       </div>
 
       <!-- Barra de comentário — dentro do sv-container, sempre dentro da área do story -->
-      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:56px 0 calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,rgba(0,0,0,.82) 52%)">
-        <div style="display:flex;align-items:center;gap:8px;padding:0 5px 6px 5px">
+      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:40px 5px calc(env(safe-area-inset-bottom,0px) + 10px);background:linear-gradient(transparent,rgba(0,0,0,.75) 50%)">
+        <div style="position:relative;width:100%">
           <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
-            style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 18px;min-width:250"
+            style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 44px 10px 18px"
             onfocus="storyClearTimer();svCommentFocus(true)"
             onblur="storyRestartTimer();svCommentFocus(false)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
-          <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:22px;line-height:1;flex-shrink:0;opacity:.9" title="Enviar">➤</button>
+          <button onclick="storySendComment()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:20px;line-height:1;opacity:.9" title="Enviar">➤</button>
         </div>
       </div>
 
