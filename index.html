@@ -1643,7 +1643,7 @@
 
     <!-- Canvas fullscreen (fundo + imagem) -->
     <canvas id="story-canvas" width="1080" height="1920"
-      style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;touch-action:none"></canvas>
+      style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;touch-action:none"></canvas>
 
     <!-- Placeholder sem foto -->
     <label for="story-img-file" id="story-upload-placeholder"
@@ -1667,8 +1667,7 @@
 
       <!-- Faixa de texto estilo Snapchat (arrastável verticalmente) -->
       <div id="snap-text-bar"
-        style="display:none;position:absolute;left:0;right:0;z-index:8;background:rgba(0,0,0,0.6);padding:10px 16px;touch-action:none;cursor:grab;user-select:none;pointer-events:all"
-        onclick="snapTextEdit()">
+        style="display:none;position:absolute;left:0;right:0;z-index:8;background:rgba(0,0,0,0.6);padding:10px 16px;touch-action:none;cursor:grab;user-select:none;pointer-events:all">
         <div id="snap-text-display"
           style="color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;word-break:break-word;white-space:pre-wrap;line-height:1.4"></div>
       </div>
@@ -1692,6 +1691,11 @@
 
 
   <style>
+/* Story canvas: cover apenas em mobile */
+@media (max-width: 600px) {
+  #story-canvas { object-fit: cover !important; }
+}
+
 /* ══════════════════════════════════════════════════════
    Modal de comentários — dois painéis no desktop
 ══════════════════════════════════════════════════════ */
@@ -7536,7 +7540,7 @@ function _snapInitDrag() {
   const modal = document.getElementById('modal-story-new');
   if (!bar || !modal) return;
 
-  // Remove listeners anteriores se existirem
+  // Remove listeners anteriores
   if (bar._snapDragDown)  bar.removeEventListener('mousedown',  bar._snapDragDown);
   if (bar._snapDragTouch) bar.removeEventListener('touchstart', bar._snapDragTouch);
 
@@ -7545,40 +7549,41 @@ function _snapInitDrag() {
   function getY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
 
   function onStart(e) {
-    // Não inicia drag se o alvo for a textarea (modo edição)
-    if (e.target.tagName === 'TEXTAREA') return;
     dragging = true; moved = false;
     startY   = getY(e);
     origTop  = parseInt(bar.style.top) || 0;
     bar.style.cursor = 'grabbing';
-    e.preventDefault();
+    // NÃO faz preventDefault aqui — deixa o click disparar normalmente se não mover
   }
 
   function onMove(e) {
     if (!dragging) return;
-    const dy   = getY(e) - startY;
-    if (Math.abs(dy) > 3) moved = true;
-    const mh   = modal.offsetHeight || window.innerHeight;
-    const bh   = bar.offsetHeight || 44;
-    const newT = Math.max(0, Math.min(mh - bh, origTop + dy));
-    bar.style.top = newT + 'px';
-    // Sincroniza editor
-    const ed = document.getElementById('snap-text-editor');
-    if (ed) ed.style.top = newT + 'px';
-    e.preventDefault();
+    const dy = getY(e) - startY;
+    if (Math.abs(dy) > 5) {
+      moved = true;
+      const mh   = modal.offsetHeight || window.innerHeight;
+      const bh   = bar.offsetHeight || 44;
+      const newT = Math.max(0, Math.min(mh - bh, origTop + dy));
+      bar.style.top = newT + 'px';
+      const ed = document.getElementById('snap-text-editor');
+      if (ed) ed.style.top = newT + 'px';
+      e.preventDefault();
+    }
   }
 
-  function onEnd() {
+  function onEnd(e) {
+    if (!dragging) return;
     dragging = false;
     bar.style.cursor = 'grab';
-    // Se não houve movimento real, o click handler já cuidou do edit
+    // Se não moveu, abre editor (simula click)
+    if (!moved) snapTextEdit();
   }
 
   bar._snapDragDown  = onStart;
   bar._snapDragTouch = onStart;
 
-  bar.addEventListener('mousedown',  onStart, { passive: false });
-  bar.addEventListener('touchstart', onStart, { passive: false });
+  bar.addEventListener('mousedown',  onStart);
+  bar.addEventListener('touchstart', onStart, { passive: true });
   window.addEventListener('mousemove',  onMove, { passive: false });
   modal.addEventListener('touchmove',   onMove, { passive: false });
   window.addEventListener('mouseup',    onEnd);
