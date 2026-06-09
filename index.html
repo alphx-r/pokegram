@@ -1830,72 +1830,59 @@
     left: 50% !important;
     top: calc(50% - 15px) !important;
     transform: translate(-50%, -50%) !important;
-    width: 96vw !important;
-    max-width: 96vw !important;
-    height: 88dvh !important;
-    max-height: 88dvh !important;
+    width: 92vw !important;
+    max-width: 92vw !important;
+    height: 80vh !important;
+    height: 80dvh !important;
+    max-height: calc(100vh - 72px) !important;
+    max-height: calc(100dvh - 72px) !important;
     border-radius: 16px !important;
     margin: 0 !important;
     z-index: 1500 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
   }
 
+  /* No mobile, layout vira coluna única */
   .comments-layout {
     flex-direction: column !important;
-    flex: 1 !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-  }
-
-  /* Painel esquerdo fica oculto — imagem vai dentro do scroll único */
-  .comments-left-panel {
-    display: none !important;
-  }
-
-  .comments-right-panel {
-    flex: 1 !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-  }
-
-  /* Scroll único: imagem + legenda + comentários */
-  .comments-scroll-body {
-    flex: 1 !important;
-    min-height: 0 !important;
     overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    max-height: none !important;
   }
 
-  /* Wrapper da imagem dentro do scroll */
-  .comments-mobile-image {
-    display: block;
-    width: 100%;
-    background: #fafafa;
-    border-bottom: 1px solid var(--border, #efefef);
-  }
-  .comments-mobile-image img,
-  .comments-mobile-image video {
-    width: 100%;
-    height: auto;
-    display: block;
-    object-fit: contain;
+  /* Painel esquerdo no mobile: apenas a legenda (sem imagem de fundo) */
+  .comments-left-panel {
+    flex: 0 0 auto !important;
+    max-width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border, #dbdbdb) !important;
   }
 
-  /* Legenda sem restrição de altura no mobile */
+  /* A imagem no mobile: altura maior agora que não divide espaço com a legenda */
+  .comments-post-image {
+    height: 300px !important;
+    flex: none !important;
+  }
+
   .comments-post-caption {
-    max-height: none !important;
-    overflow: visible !important;
+    max-height: 80px !important;
     border-bottom: 1px solid var(--border, #efefef) !important;
     border-top: none !important;
   }
 
+  /* Painel direito ocupa o restante */
+  .comments-right-panel {
+    flex: 1 !important;
+    min-height: 280px !important;
+  }
+
+  /* Botão fechar desktop oculto no mobile */
   .comments-close-desktop { display: none !important; }
-  .comments-close-mobile  { display: flex !important; }
+
+  /* Botão fechar mobile visível */
+  .comments-close-mobile { display: flex !important; }
+
+  /* Scroll interno do painel direito (comentários) */
+  .comments-scroll-body {
+    max-height: 200px !important;
+  }
 }
 </style>
   <div id="modal-comments" class="modal hidden">
@@ -1925,7 +1912,7 @@
           <div class="comments-post-caption" id="comments-post-caption"></div>
 
           <!-- Scroll único dos comentários -->
-          <div class="comments-scroll-body" id="comments-scroll-body-id">
+          <div class="comments-scroll-body">
             <div id="comments-list" class="comments-list"></div>
           </div>
 
@@ -1994,7 +1981,7 @@
       <!-- (delete btn removido daqui — agora fica no dropdown) -->
 
       <!-- Overlay escuro ao focar no input (30% preto) -->
-      <div id="sv-dark-overlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.30);z-index:8;pointer-events:none;transition:opacity .2s"></div>
+      <div id="sv-dark-overlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.75);z-index:8;pointer-events:none;transition:opacity .2s"></div>
 
       <!-- Quick Reactions — centralizadas no meio do story, acima do input -->
       <div id="sv-quick-reactions" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:11;flex-direction:column;align-items:center;gap:14px">
@@ -2011,7 +1998,7 @@
       </div>
 
       <!-- Barra de comentário (só para stories de outros) -->
-      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 0px);background:linear-gradient(transparent,rgba(0,0,0,.65))">
+      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:60px 0 calc(env(safe-area-inset-bottom,0px) + 0px);background:linear-gradient(transparent,rgba(0,0,0,.75) 60%)">
         <!-- Input de comentário -->
         <div style="display:flex;align-items:center;gap:8px;padding:4px 16px 14px">
           <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
@@ -5983,38 +5970,6 @@ async function openComments(postId) {
       </div>
       ${post.caption ? `<div class="cpc-text"><span style="font-weight:700">${u.username || ''}</span> ${formatCaption(post.caption)}</div>` : ''}
     `;
-  }
-
-  // ── No mobile: injeta imagem + move legenda para dentro do scroll único ─
-  const isMobile = window.innerWidth <= 768;
-  const scrollBody = document.getElementById('comments-scroll-body-id');
-  const capEl2 = document.getElementById('comments-post-caption');
-  // limpa injeções anteriores
-  document.getElementById('comments-mobile-image-wrap')?.remove();
-  document.getElementById('comments-mobile-caption-wrap')?.remove();
-  if (isMobile && scrollBody) {
-    // 1) imagem no topo
-    const mobileImg = document.createElement('div');
-    mobileImg.id = 'comments-mobile-image-wrap';
-    mobileImg.className = 'comments-mobile-image';
-    if (post.image_url) {
-      mobileImg.innerHTML = `<img src="${post.image_url}" alt="post">`;
-    } else {
-      mobileImg.style.cssText = `background:${post.bg||'#f0f0f0'};display:flex;align-items:center;justify-content:center;padding:40px 0`;
-      mobileImg.innerHTML = `<span style="font-size:80px">${post.emoji||'📸'}</span>`;
-    }
-    scrollBody.insertBefore(mobileImg, scrollBody.firstChild);
-    // 2) legenda logo abaixo da imagem (move o capEl para dentro do scroll)
-    if (capEl2) {
-      capEl2.style.display = 'none'; // oculta o original
-      const mobileCap = document.createElement('div');
-      mobileCap.id = 'comments-mobile-caption-wrap';
-      mobileCap.className = 'comments-post-caption';
-      mobileCap.innerHTML = capEl2.innerHTML;
-      scrollBody.insertBefore(mobileCap, mobileImg.nextSibling);
-    }
-  } else if (capEl2) {
-    capEl2.style.display = ''; // garante visível no desktop
   }
 
   // ── Lista de comentários ─────────────────────────────────
