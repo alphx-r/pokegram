@@ -1980,11 +1980,12 @@
 
       <!-- (delete btn removido daqui — agora fica no dropdown) -->
 
-      <!-- Overlay escuro ao focar no input (30% preto) -->
+      <!-- Overlay escuro ao focar no input (75% preto) -->
       <div id="sv-dark-overlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.75);z-index:8;pointer-events:none;transition:opacity .2s"></div>
 
-      <!-- Quick Reactions — centralizadas no meio do story, acima do input -->
-      <div id="sv-quick-reactions" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:11;flex-direction:column;align-items:center;gap:14px">
+      <!-- Quick Reactions — ancoradas acima da barra de input (fixed para cobrir tela toda) -->
+      <div id="sv-quick-reactions" style="display:none;position:fixed;bottom:80px;left:0;right:0;z-index:8002;flex-direction:column;align-items:center;gap:12px">
+        <div style="color:#fff;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;opacity:.9;letter-spacing:.3px;text-shadow:0 1px 4px rgba(0,0,0,.6);margin-bottom:2px">Reações Rápidas</div>
         <div style="display:flex;justify-content:center;gap:14px">
           <button onclick="storySendReaction('😂')" class="sv-react-btn">😂</button>
           <button onclick="storySendReaction('😍')" class="sv-react-btn">😍</button>
@@ -1997,20 +1998,21 @@
         </div>
       </div>
 
-      <!-- Barra de comentário (só para stories de outros) -->
-      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:60px 0 calc(env(safe-area-inset-bottom,0px) + 0px);background:linear-gradient(transparent,rgba(0,0,0,.75) 60%)">
-        <!-- Input de comentário -->
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 16px 14px">
-          <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
-            style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:8px 16px;min-width:0"
-            onfocus="storyClearTimer();svCommentFocus(true)"
-            onblur="storyRestartTimer();svCommentFocus(false)"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
-          <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:22px;line-height:1;flex-shrink:0;opacity:.9" title="Enviar">➤</button>
-        </div>
-      </div>
+    </div><!-- /sv-container -->
+
+  <!-- Barra de comentário FORA do sv-container: ocupa 100vw -->
+  <div id="sv-comment-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:8001;padding:56px 0 calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,rgba(0,0,0,.82) 52%)">
+    <div style="display:flex;align-items:center;gap:8px;padding:0 16px 6px">
+      <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
+        style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 18px;min-width:0"
+        onfocus="storyClearTimer();svCommentFocus(true)"
+        onblur="storyRestartTimer();svCommentFocus(false)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
+      <button onclick="storySendComment()" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:22px;line-height:1;flex-shrink:0;opacity:.9" title="Enviar">➤</button>
     </div>
   </div>
+
+  </div><!-- /modal-story -->
 
   <!-- MODAL SEGUIDORES / SEGUINDO -->
   <div id="modal-follow-list" class="modal hidden">
