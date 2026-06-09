@@ -2076,8 +2076,8 @@ input, select, textarea { font-family: var(--font); }
   border-radius: 20px; transition: all .12s;
 }
 .pk-action-btn:hover { background: rgba(229,57,53,.08); color: #e53935; }
-.pk-action-btn.liked  { color: #e53935; }
-.pk-action-btn.liked svg { fill: #e53935; }
+.pk-action-btn.liked  { /* cor aplicada inline via JS — não sobrescrever aqui */ }
+.pk-action-btn.liked svg { /* fill aplicado inline via JS — não sobrescrever aqui */ }
 .pk-action-btn.reposted  { color: #1a9a1a; }
 .pk-action-btn.reposted svg { stroke: #1a9a1a; }
 .pk-action-btn svg { flex-shrink: 0; }
