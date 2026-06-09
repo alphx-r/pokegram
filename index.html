@@ -1999,14 +1999,20 @@
       </div>
 
       <!-- Barra de comentário — dentro do sv-container, sempre dentro da área do story -->
-      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:40px 5px calc(env(safe-area-inset-bottom,0px) + 10px);background:linear-gradient(transparent,rgba(0,0,0,.75) 50%)">
-        <div style="position:relative;width:100%">
-          <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
-            style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 44px 10px 18px"
-            onfocus="storyClearTimer();svCommentFocus(true)"
-            onblur="storyRestartTimer();svCommentFocus(false)"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
-          <button onclick="storySendComment()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:20px;line-height:1;opacity:.9" title="Enviar">➤</button>
+      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:40px 5px calc(env(safe-area-inset-bottom,0px) + 10px) 5px;background:linear-gradient(transparent,rgba(0,0,0,.75) 50%);flex-direction:column">
+        <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box">
+          <div style="position:relative;flex:1;min-width:0">
+            <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
+              style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 44px 10px 18px"
+              onfocus="storyClearTimer();svCommentFocus(true)"
+              onblur="storyRestartTimer();svCommentFocus(false)"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
+            <button onclick="storySendComment()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--user-color,#fff);font-size:20px;line-height:1;opacity:.9" title="Enviar">➤</button>
+          </div>
+          <!-- Botão curtir story -->
+          <button id="sv-like-btn" onclick="storyToggleLike()" style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:6px;display:flex;align-items:center;justify-content:center;transition:transform .15s" title="Curtir story">
+            <svg id="sv-like-icon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));transition:all .2s"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </button>
         </div>
       </div>
 
@@ -7757,6 +7763,27 @@ function showStory(idx) {
   const inp = document.getElementById('sv-comment-input');
   if (inp) inp.value = '';
 
+  // reseta o botão de curtir
+  const likeBtn  = document.getElementById('sv-like-btn');
+  const likeIcon = document.getElementById('sv-like-icon');
+  if (likeBtn && likeIcon) {
+    likeBtn.dataset.liked = 'false';
+    likeIcon.setAttribute('fill', 'none');
+    likeIcon.setAttribute('stroke', '#fff');
+    // verifica se já curtiu esse story
+    if (!isOwn && story.id) {
+      db.from('story_likes').select('id').eq('story_id', story.id).eq('user_id', currentUser.id).maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            likeBtn.dataset.liked = 'true';
+            const lc = currentUser.color || '#e53935';
+            likeIcon.setAttribute('fill', lc);
+            likeIcon.setAttribute('stroke', lc);
+          }
+        });
+    }
+  }
+
   // barras de progresso — uma por story do usuário
   const barWrap = document.getElementById('story-progress-bar');
   barWrap.innerHTML = _storyViewList.map((_, i) => `
@@ -7966,6 +7993,66 @@ async function storySendReaction(emoji) {
     }
   } catch(e) { console.warn('storySendReaction: não foi possível abrir o chat', e); }
 }
+async function storyToggleLike() {
+  const bar = document.getElementById('sv-comment-bar');
+  const btn = document.getElementById('sv-like-btn');
+  const icon = document.getElementById('sv-like-icon');
+  if (!bar || !btn || !icon) return;
+
+  const ownerUsername = bar.dataset.storyOwner;
+  const storyId       = bar.dataset.storyId;
+  if (!ownerUsername || ownerUsername === currentUser.username) return;
+
+  const isLiked = btn.dataset.liked === 'true';
+
+  // Animação
+  btn.style.transform = 'scale(1.35)';
+  setTimeout(() => btn.style.transform = 'scale(1)', 200);
+
+  if (isLiked) {
+    // Descurtir
+    btn.dataset.liked = 'false';
+    icon.setAttribute('fill', 'none');
+    icon.setAttribute('stroke', '#fff');
+    await db.from('story_likes')
+      .delete()
+      .eq('story_id', storyId)
+      .eq('user_id', currentUser.id);
+  } else {
+    // Curtir
+    btn.dataset.liked = 'true';
+    const likeColor = currentUser.color || '#e53935';
+    icon.setAttribute('fill', likeColor);
+    icon.setAttribute('stroke', likeColor);
+
+    // Evita duplicata
+    const { data: existing } = await db.from('story_likes')
+      .select('id').eq('story_id', storyId).eq('user_id', currentUser.id).maybeSingle();
+    if (!existing) {
+      await db.from('story_likes').insert({ story_id: storyId, user_id: currentUser.id });
+    }
+
+    // Busca o user_id do dono para notificação
+    const { data: ownerUser } = await db.from('users').select('id').eq('username', ownerUsername).maybeSingle();
+    if (ownerUser) {
+      // Evita notificação duplicada
+      const { data: existingNotif } = await db.from('notifications')
+        .select('id').eq('type', 'story_like').eq('actor_id', currentUser.id)
+        .eq('user_id', ownerUser.id).eq('post_id', storyId).maybeSingle();
+      if (!existingNotif) {
+        await db.from('notifications').insert({
+          user_id:  ownerUser.id,
+          actor_id: currentUser.id,
+          type:     'story_like',
+          post_id:  storyId,
+          read:     false
+        });
+      }
+    }
+    toast('❤️ Story curtido!');
+  }
+}
+
 async function storySendComment() {
   const inp  = document.getElementById('sv-comment-input');
   const bar  = document.getElementById('sv-comment-bar');
@@ -8267,6 +8354,8 @@ async function renderNotifList() {
       : '';
     const msg = n.type === 'like'
       ? `<span style="font-weight:700">${esc(actor.username)}</span> curtiu sua publicação.`
+      : n.type === 'story_like'
+      ? `<span style="font-weight:700">${esc(actor.username)}</span> curtiu seu story. ❤️`
       : n.type === 'follow'
       ? `<span style="font-weight:700">${esc(actor.username)}</span> começou a seguir você.`
       : `<span style="font-weight:700">${esc(actor.username)}</span> comentou: <span style="color:#555">${esc(n.comment_text || '')}</span>`;
