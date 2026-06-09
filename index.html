@@ -7706,7 +7706,7 @@ async function openStoryViewer(userId) {
   document.body.style.overflow = 'hidden';
   // atualiza URL para /usuario/stories
   const storyUsername = stories[0]?.users?.username;
-  if (storyUsername) history.pushState({ storyUserId: userId }, '', '/' + storyUsername + '/stories');
+  if (storyUsername) history.replaceState({ storyUserId: userId }, '', '/' + storyUsername + '/stories');
 }
 
 function showStory(idx) {
@@ -7804,8 +7804,10 @@ function closeStoryViewer() {
   document.getElementById('modal-story').style.display = 'none';
   document.body.style.overflow = '';
   // restaura URL anterior se estava em /usuario/stories
+  // usa replaceState para não criar nova entrada no histórico
+  // (pushState causava popstate ao reabrir o story, fechando-o imediatamente)
   if (window.location.pathname.endsWith('/stories')) {
-    history.pushState(null, '', window.location.pathname.replace('/stories','') || '/');
+    history.replaceState(null, '', '/');
   }
 }
 
