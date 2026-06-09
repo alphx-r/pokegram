@@ -1999,10 +1999,10 @@
       </div>
 
       <!-- Barra de comentário — dentro do sv-container, sempre dentro da área do story -->
-      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:156px 0 calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,rgba(0,0,0,.82) 52%)">
+      <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:56px 0 calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,rgba(0,0,0,.82) 52%)">
         <div style="display:flex;align-items:center;gap:8px;padding:0 5px 6px 5px">
           <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
-            style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 18px;min-width:0"
+            style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 18px;min-width:250"
             onfocus="storyClearTimer();svCommentFocus(true)"
             onblur="storyRestartTimer();svCommentFocus(false)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();storySendComment();}">
