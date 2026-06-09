@@ -1824,7 +1824,7 @@
   display: block;
 }
 
-/* Legenda no painel direito — entre o header e os comentários */
+/* Legenda no painel direito — dentro do scroll-body, acima dos comentários */
 .comments-post-caption {
   flex-shrink: 0;
   padding: 10px 16px 12px;
@@ -1833,8 +1833,6 @@
   font-size: 13px;
   line-height: 1.45;
   color: var(--text, #262626);
-  max-height: 120px;
-  overflow-y: auto;
 }
 
 /* ── Painel direito ── */
@@ -1873,7 +1871,7 @@
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
 }
-.comments-list { overflow: visible !important; }
+.comments-list { overflow: visible !important; flex: 1; }
 
 /* Footer */
 .comments-footer {
@@ -1942,16 +1940,19 @@
     flex: none !important;
   }
 
-  .comments-post-caption {
-    max-height: 80px !important;
-    border-bottom: 1px solid var(--border, #efefef) !important;
-    border-top: none !important;
-  }
-
-  /* Painel direito ocupa o restante */
+  /* No mobile: painel direito ocupa o restante */
   .comments-right-panel {
     flex: 1 !important;
     min-height: 0 !important;
+  }
+
+  /* Scroll interno do painel direito (legenda + comentários): deixa flex controlar a altura */
+  .comments-scroll-body {
+    max-height: none !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   /* Botão fechar desktop oculto no mobile */
@@ -1959,13 +1960,6 @@
 
   /* Botão fechar mobile visível */
   .comments-close-mobile { display: flex !important; }
-
-  /* Scroll interno do painel direito (comentários): deixa flex controlar a altura */
-  .comments-scroll-body {
-    max-height: none !important;
-    flex: 1 !important;
-    min-height: 0 !important;
-  }
 }
 </style>
   <div id="modal-comments" class="modal hidden">
@@ -1991,11 +1985,11 @@
             <span></span>
           </div>
 
-          <!-- Legenda do post (acima dos comentários) -->
-          <div class="comments-post-caption" id="comments-post-caption"></div>
-
-          <!-- Scroll único dos comentários -->
+          <!-- Scroll único: legenda + comentários -->
           <div class="comments-scroll-body">
+            <!-- Legenda do post (acima dos comentários, dentro do scroll) -->
+            <div class="comments-post-caption" id="comments-post-caption"></div>
+
             <div id="comments-list" class="comments-list"></div>
           </div>
 
@@ -9606,7 +9600,8 @@ async function renderPokeets() {
     const { data: myReposts } = await db.from('pokeets').select('repost_of_id').eq('user_id', currentUser.id).in('repost_of_id', ids).is('quote_id', null);
     const repostedSet = new Set((myReposts || []).map(r => r.repost_of_id));
 
-    container.innerHTML = pokeets.map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
+    const renderedCards = pokeets.map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
+    container.innerHTML = renderedCards || '<div class="pk-thread-empty">Nenhum Pokeet para exibir.</div>';
 
     // Carregar tendências
     pkLoadTrends(pokeets);
@@ -9619,7 +9614,15 @@ async function renderPokeets() {
 
 // ── Render card ───────────────────────────────────────────
 function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
-  if (!p || !p.users) return '';
+  if (!p) return '';
+  // Se p.users vier null (ex: RLS bloqueando users) mas há snapshot do autor, constrói objeto mínimo
+  if (!p.users) {
+    if (p.author_handle || p.author_name) {
+      p.users = { id: p.user_id, username: p.author_handle || '', name: p.author_name || '', color: p.author_color || '#e53935', avatar_url: null };
+    } else {
+      return '';
+    }
+  }
 
   // Se o pokeet tem snapshot do autor, usa ele; caso contrário aplica perfil atual
   let u;
