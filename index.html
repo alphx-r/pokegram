@@ -922,7 +922,7 @@
   border-radius: 20px; transition: all .12s;
 }
 .pk-action-btn:hover { background: var(--pk-accent-bg, rgba(229,57,53,.08)); color: var(--pk-accent, #e53935); }
-.pk-action-btn.liked  { color: var(--pk-accent, #e53935); }
+.pk-action-btn.liked  { /* cor aplicada inline via JS */ }
 .pk-action-btn.liked-pride { color: transparent; }
 .pk-action-btn.reposted  { color: #1a9a1a; }
 .pk-action-btn.reposted svg { stroke: #1a9a1a; }
@@ -9693,7 +9693,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
           ${reposts > 0 ? reposts : ''}
         </button>
-        <button class="pk-action-btn${liked?(isPride?' liked-pride':' liked'):''}" id="pkbtn-like-${p.id}" onclick="event.stopPropagation();pkToggleLike('${p.id}')" title="Curtir" data-pride="${isPride?'1':'0'}">
+        <button class="pk-action-btn${liked?(isPride?' liked-pride':' liked'):''}" id="pkbtn-like-${p.id}" onclick="event.stopPropagation();pkToggleLike('${p.id}')" title="Curtir" data-pride="${isPride?'1':'0'}"${liked&&!isPride?` style="color:${_activeProfColor}"`:''}>
           ${isPride ? `
           <span class="pk-pride-heart-wrap${liked?' popping':''}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${liked?'url(#pk-rainbow-grad)':'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
@@ -9796,12 +9796,14 @@ async function pkToggleLike(pokeetId) {
 
     if (isLiked) {
       btn.classList.remove('liked');
+      btn.style.color = '';
       btn.querySelector('svg').setAttribute('fill', 'none');
       btn.querySelector('svg').setAttribute('stroke', 'currentColor');
     } else {
       btn.classList.add('liked');
       const _activeProf = pkActiveProfile();
       const _likeColor = (_activeProf?.color) || currentUser.color || '#e53935';
+      btn.style.color = _likeColor;
       btn.querySelector('svg').setAttribute('fill', _likeColor);
       btn.querySelector('svg').setAttribute('stroke', _likeColor);
     }
@@ -9928,7 +9930,7 @@ async function pkOpenThread(pokeetId) {
                 </div>
                 <div class="pk-card-text">${pkFormatText(r.text)}</div>
                 <div class="pk-actions">
-                  ${(()=>{ const _rPride = /\#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i.test(normalizeTag(r.text||'')); const _rLiked = likedSet.has(r.id); const _rColor = pkActiveProfile()?.color||currentUser?.color||'#e53935'; return `<button class="pk-action-btn${_rLiked?(_rPride?' liked-pride':' liked'):''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')" data-pride="${_rPride?'1':'0'}">
+                  ${(()=>{ const _rPride = /\#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i.test(normalizeTag(r.text||'')); const _rLiked = likedSet.has(r.id); const _rColor = pkActiveProfile()?.color||currentUser?.color||'#e53935'; return `<button class="pk-action-btn${_rLiked?(_rPride?' liked-pride':' liked'):''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')" data-pride="${_rPride?'1':'0'}"${_rLiked&&!_rPride?` style="color:${_rColor}"`:'''}>
                     ${_rPride ? `<span class="pk-pride-heart-wrap${_rLiked?' popping':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${_rLiked?'url(#pk-rainbow-grad)':'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><span class="pk-pride-heart-fill${_rLiked?' filling':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="url(#pk-rainbow-grad)" stroke="url(#pk-rainbow-grad)" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span></span>` : `<svg width="15" height="15" viewBox="0 0 24 24" fill="${_rLiked?_rColor:'none'}" stroke="${_rLiked?_rColor:'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
                     ${(likeMap[r.id]||0) > 0 ? likeMap[r.id] : ''}
                   </button>`; })()}
