@@ -1839,15 +1839,23 @@
     border-radius: 16px !important;
     margin: 0 !important;
     z-index: 1500 !important;
+    /* O modal em si não rola — o layout interno é quem rola */
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
-  /* No mobile, layout vira coluna única */
+  /* Layout vira coluna única e é o ÚNICO scroll */
   .comments-layout {
     flex-direction: column !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex: 1 !important;
+    min-height: 0 !important;
   }
 
-  /* Painel esquerdo no mobile: apenas a legenda (sem imagem de fundo) */
+  /* Painel esquerdo ocupa largura total */
   .comments-left-panel {
     flex: 0 0 auto !important;
     max-width: 100% !important;
@@ -1855,22 +1863,49 @@
     border-bottom: 1px solid var(--border, #dbdbdb) !important;
   }
 
-  /* A imagem no mobile: altura maior agora que não divide espaço com a legenda */
+  /* Imagem exibe por completo — sem altura fixa, sem corte */
   .comments-post-image {
-    height: 300px !important;
+    height: auto !important;
     flex: none !important;
+    background: #000 !important;
+  }
+  .comments-post-image img,
+  .comments-post-image video {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    display: block !important;
   }
 
+  /* Legenda sem scroll próprio */
   .comments-post-caption {
-    max-height: 80px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
     border-bottom: 1px solid var(--border, #efefef) !important;
     border-top: none !important;
   }
 
-  /* Painel direito ocupa o restante */
+  /* Painel direito não rola — conteúdo flui no scroll do layout */
   .comments-right-panel {
-    flex: 1 !important;
-    min-height: 280px !important;
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Scroll body não rola sozinho no mobile */
+  .comments-scroll-body {
+    flex: none !important;
+    overflow-y: visible !important;
+    max-height: none !important;
+    min-height: 0 !important;
+  }
+
+  /* Footer fica fixo na base do modal */
+  .comments-footer {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 10 !important;
+    background: var(--bg, #fff) !important;
   }
 
   /* Botão fechar desktop oculto no mobile */
@@ -1878,11 +1913,6 @@
 
   /* Botão fechar mobile visível */
   .comments-close-mobile { display: flex !important; }
-
-  /* Scroll interno do painel direito (comentários) */
-  .comments-scroll-body {
-    max-height: 200px !important;
-  }
 }
 </style>
   <div id="modal-comments" class="modal hidden">
