@@ -7649,16 +7649,21 @@ async function submitStory() {
 
 // ── Story Viewer ──────────────────────────────────────────
 async function openStoryViewer(userId) {
+  if (!userId) { toast('Nenhum story disponível.'); return; }
   // busca stories do usuário (não expirados)
-  const { data: stories } = await db
+  const { data: stories, error: stErr } = await db
     .from('stories')
     .select('*, users(id, username, color, avatar_url, is_npc)')
     .eq('user_id', userId)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: true });
 
+  if (stErr) { console.warn('openStoryViewer error:', stErr); toast('Erro ao carregar story.'); return; }
   if (!stories || !stories.length) { toast('Nenhum story disponível.'); return; }
-  _storyViewList   = stories;
+  // filtra stories com image_url válida para evitar crashes no showStory
+  const validStories = stories.filter(s => s.image_url && s.image_url.startsWith('http'));
+  if (!validStories.length) { toast('Nenhum story disponível.'); return; }
+  _storyViewList   = validStories;
   _storyViewIdx    = 0;
   _storyViewOwnerId = userId;
   _storyPaused     = false;
@@ -7694,7 +7699,11 @@ function showStory(idx) {
   if (moreWrap) {
     moreWrap.style.display = isOwn ? 'flex' : 'none';
     moreWrap.dataset.storyId = story.id;
-    moreWrap.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
+    try {
+      moreWrap.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
+    } catch(_) {
+      moreWrap.dataset.storyPath = '';
+    }
   }
 
   // barra de comentário (só para stories de outros)
