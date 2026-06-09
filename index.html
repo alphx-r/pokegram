@@ -881,6 +881,16 @@
 }
 .pk-card-text .pk-mention { color: var(--pk-accent, #e53935); font-weight: 700; cursor: pointer; }
 .pk-card-text .pk-hashtag { color: #0095f6; cursor: pointer; }
+/* ── Pride rainbow hashtags ── */
+.pk-card-text .pk-hashtag-pride,
+.cap-tag-pride {
+  font-weight: 700;
+  background: linear-gradient(90deg,#FF0018 0%,#FFA52C 20%,#FFFF41 40%,#008018 60%,#0000F9 80%,#86007D 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  cursor: pointer;
+}
 .pk-card-repost-label {
   font-size: 12px; color: #8e8e8e; font-weight: 700;
   display: flex; align-items: center; gap: 4px; margin-bottom: 6px;
@@ -1144,6 +1154,7 @@
 <!-- SVG oculto com gradiente arco-íris para o coração Pride -->
 <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
   <defs>
+    <!-- Gradiente arco-íris clássico (usado no coração like) -->
     <linearGradient id="pk-rainbow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%"   stop-color="#FF0018"/>
       <stop offset="20%"  stop-color="#FFA52C"/>
@@ -1152,6 +1163,30 @@
       <stop offset="80%"  stop-color="#0000F9"/>
       <stop offset="100%" stop-color="#86007D"/>
     </linearGradient>
+    <!-- Bandeira Pride Progress (horizontal, de cima pra baixo) -->
+    <linearGradient id="pk-pride-flag-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"    stop-color="#55CDFC"/><!-- trans azul -->
+      <stop offset="14.2%" stop-color="#55CDFC"/>
+      <stop offset="14.2%" stop-color="#F7A8B8"/><!-- trans rosa -->
+      <stop offset="28.5%" stop-color="#F7A8B8"/>
+      <stop offset="28.5%" stop-color="#FF0018"/><!-- vermelho -->
+      <stop offset="42.8%" stop-color="#FF0018"/>
+      <stop offset="42.8%" stop-color="#FFA52C"/><!-- laranja -->
+      <stop offset="57.1%" stop-color="#FFA52C"/>
+      <stop offset="57.1%" stop-color="#FFFF41"/><!-- amarelo -->
+      <stop offset="71.4%" stop-color="#FFFF41"/>
+      <stop offset="71.4%" stop-color="#008018"/><!-- verde -->
+      <stop offset="85.7%" stop-color="#008018"/>
+      <stop offset="85.7%" stop-color="#0000F9"/><!-- azul -->
+      <stop offset="100%"  stop-color="#86007D"/><!-- violeta -->
+    </linearGradient>
+    <!-- Clippath coração para o coração da bandeira -->
+    <clipPath id="pk-heart-clip-sm">
+      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+    </clipPath>
+    <clipPath id="pk-heart-clip-xs">
+      <path transform="scale(0.9375)" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+    </clipPath>
   </defs>
 </svg>
 
@@ -1885,7 +1920,7 @@
   /* No mobile, layout vira coluna única */
   .comments-layout {
     flex-direction: column !important;
-    overflow-y: auto !important;
+    overflow: hidden !important;
   }
 
   /* Painel esquerdo no mobile: apenas a legenda (sem imagem de fundo) */
@@ -1911,7 +1946,7 @@
   /* Painel direito ocupa o restante */
   .comments-right-panel {
     flex: 1 !important;
-    min-height: 280px !important;
+    min-height: 0 !important;
   }
 
   /* Botão fechar desktop oculto no mobile */
@@ -1920,9 +1955,11 @@
   /* Botão fechar mobile visível */
   .comments-close-mobile { display: flex !important; }
 
-  /* Scroll interno do painel direito (comentários) */
+  /* Scroll interno do painel direito (comentários): deixa flex controlar a altura */
   .comments-scroll-body {
-    max-height: 200px !important;
+    max-height: none !important;
+    flex: 1 !important;
+    min-height: 0 !important;
   }
 }
 </style>
@@ -5838,10 +5875,16 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
 </div>`;
 }
 
+const _captionPrideRx = /^(pridemonth|mesdoorgulho|pride|lgbt\+?|lgbtq\+?|lgbtqia\+?)$/i;
 function formatCaption(cap) {
   return cap
     .replace(/\n/g, '<br>')
-    .replace(/#(\w+)/g, '<span class="cap-tag" onclick="doSearch(\'#$1\');event.stopPropagation()" style="cursor:pointer">#$1</span>');
+    .replace(/#(\w+)/g, (_, raw) => {
+      if (_captionPrideRx.test(raw)) {
+        return `<span class="cap-tag cap-tag-pride" onclick="doSearch('#${raw}');event.stopPropagation()" style="cursor:pointer">#${raw}</span>`;
+      }
+      return `<span class="cap-tag" onclick="doSearch('#${raw}');event.stopPropagation()" style="cursor:pointer">#${raw}</span>`;
+    });
 }
 
 // ── Likes ─────────────────────────────────────────────────
@@ -9369,7 +9412,9 @@ function pkFormatText(text) {
     .replace(/#([^\s#<&]+)/g, (match, raw) => {
       // Passa a tag original para pkSearchHashtag — ela mesma normaliza internamente
       const safe = raw.replace(/'/g, "\\'");
-      return `<span class="pk-hashtag" onclick="event.stopPropagation();pkSearchHashtag('${safe}')">#${raw}</span>`;
+      const isPrideTag = /^(pridemonth|mesdoorgulho|pride|lgbt\+?|lgbtq\+?|lgbtqia\+?)$/i.test(raw);
+      const cls = isPrideTag ? 'pk-hashtag pk-hashtag-pride' : 'pk-hashtag';
+      return `<span class="${cls}" onclick="event.stopPropagation();pkSearchHashtag('${safe}')">#${raw}</span>`;
     });
 }
 
@@ -9696,9 +9741,9 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
         <button class="pk-action-btn${liked?(isPride?' liked-pride':' liked'):''}" id="pkbtn-like-${p.id}" onclick="event.stopPropagation();pkToggleLike('${p.id}')" title="Curtir" data-pride="${isPride?'1':'0'}"${liked&&!isPride?` style="color:${_activeProfColor}"`:''}>
           ${isPride ? `
           <span class="pk-pride-heart-wrap${liked?' popping':''}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${liked?'url(#pk-rainbow-grad)':'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${liked?'url(#pk-pride-flag-grad)':'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
             <span class="pk-pride-heart-fill${liked?' filling':''}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="url(#pk-rainbow-grad)" stroke="url(#pk-rainbow-grad)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="url(#pk-pride-flag-grad)" stroke="url(#pk-pride-flag-grad)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
             </span>
           </span>` : `
           <svg width="16" height="16" viewBox="0 0 24 24" fill="${liked?_activeProfColor:'none'}" stroke="${liked?_activeProfColor:'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
@@ -9767,7 +9812,7 @@ async function pkToggleLike(pokeetId) {
     } else {
       // Curtir com animação arco-íris
       btn.classList.add('liked-pride');
-      if (outlineSvg){ outlineSvg.setAttribute('stroke','url(#pk-rainbow-grad)'); }
+      if (outlineSvg){ outlineSvg.setAttribute('stroke','url(#pk-pride-flag-grad)'); }
       if (wrap) {
         wrap.classList.remove('popping');
         // Força reflow para reiniciar animação
@@ -9931,7 +9976,7 @@ async function pkOpenThread(pokeetId) {
                 <div class="pk-card-text">${pkFormatText(r.text)}</div>
                 <div class="pk-actions">
                   ${(()=>{ const _rPride = /\#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i.test(normalizeTag(r.text||'')); const _rLiked = likedSet.has(r.id); const _rColor = pkActiveProfile()?.color||currentUser?.color||'#e53935'; return `<button class="pk-action-btn${_rLiked?(_rPride?' liked-pride':' liked'):''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')" data-pride="${_rPride?'1':'0'}"${_rLiked&&!_rPride?` style="color:${_rColor}"`:'''}>
-                    ${_rPride ? `<span class="pk-pride-heart-wrap${_rLiked?' popping':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${_rLiked?'url(#pk-rainbow-grad)':'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><span class="pk-pride-heart-fill${_rLiked?' filling':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="url(#pk-rainbow-grad)" stroke="url(#pk-rainbow-grad)" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span></span>` : `<svg width="15" height="15" viewBox="0 0 24 24" fill="${_rLiked?_rColor:'none'}" stroke="${_rLiked?_rColor:'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
+                    ${_rPride ? `<span class="pk-pride-heart-wrap${_rLiked?' popping':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${_rLiked?'url(#pk-pride-flag-grad)':'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><span class="pk-pride-heart-fill${_rLiked?' filling':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="url(#pk-pride-flag-grad)" stroke="url(#pk-pride-flag-grad)" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span></span>` : `<svg width="15" height="15" viewBox="0 0 24 24" fill="${_rLiked?_rColor:'none'}" stroke="${_rLiked?_rColor:'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
                     ${(likeMap[r.id]||0) > 0 ? likeMap[r.id] : ''}
                   </button>`; })()}
                 </div>
