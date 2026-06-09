@@ -1655,119 +1655,44 @@
       <span style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700">Toque para adicionar foto</span>
     </label>
 
-    <!-- Texto arrastável sobreposto ao canvas -->
-    <div id="story-drag-text"
-      style="display:none;position:absolute;z-index:5;touch-action:none;cursor:grab;user-select:none;left:50%;top:50%;transform:translate(-50%,-50%);max-width:90%;text-align:center;padding:6px 12px;border-radius:8px;word-break:break-word">
-    </div>
-
     <!-- ══ MODO NORMAL (sem edição de texto) ══ -->
     <div id="story-mode-normal">
       <!-- Barra superior: X  |  Trocar foto  |  Publicar -->
       <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(rgba(0,0,0,.55),transparent)">
         <button onclick="closeModal('modal-story-new')" style="width:36px;height:36px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
         <label for="story-img-file" id="story-change-photo-btn" style="display:none;background:rgba(255,255,255,.18);border:none;border-radius:20px;color:#fff;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">📷 Trocar foto</label>
+        <button id="snap-text-toggle-btn" onclick="snapTextToggle()" style="display:none;background:rgba(255,255,255,.15);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:900;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">Aa</button>
         <button onclick="submitStory()" id="story-publish-btn" style="background:#e53935;border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:8px 18px;cursor:pointer">Publicar</button>
       </div>
 
-      <!-- Barra lateral direita (só após foto): Aa + paleta cor de fundo -->
-      <div id="story-side-tools" style="display:none;position:absolute;top:50%;right:14px;transform:translateY(-50%);z-index:10;display:none;flex-direction:column;align-items:center;gap:14px">
-        <!-- Botão Aa -->
-        <button onclick="storyOpenTextMode()" style="width:44px;height:44px;border-radius:50%;background:rgba(30,30,30,.7);border:2px solid rgba(255,255,255,.6);color:#fff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">Aa</button>
+      <!-- Faixa de texto estilo Snapchat (arrastável verticalmente) -->
+      <div id="snap-text-bar"
+        style="display:none;position:absolute;left:0;right:0;z-index:8;background:rgba(0,0,0,0.6);padding:10px 16px;touch-action:none;cursor:grab;user-select:none"
+        ondblclick="snapTextEdit()">
+        <div id="snap-text-display"
+          style="color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;min-height:24px;word-break:break-word;white-space:pre-wrap;line-height:1.4"></div>
       </div>
 
-      <!-- Barra inferior: só cores de fundo (sem foto) -->
-      <div id="story-bg-bar" style="position:absolute;bottom:0;left:0;right:0;z-index:10;padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 14px);background:linear-gradient(transparent,rgba(0,0,0,.6));display:flex;justify-content:center;gap:10px;align-items:center">
-        <div onclick="storySetBgColor('#111111')" class="sty-bgc-dot active" data-bgc="#111111" style="background:#111;border:2px solid rgba(255,255,255,.5)"></div>
-        <div onclick="storySetBgColor('#1a237e')" class="sty-bgc-dot" data-bgc="#1a237e" style="background:#1a237e;border:2px solid transparent"></div>
-        <div onclick="storySetBgColor('#b71c1c')" class="sty-bgc-dot" data-bgc="#b71c1c" style="background:#b71c1c;border:2px solid transparent"></div>
-        <div onclick="storySetBgColor('#4a148c')" class="sty-bgc-dot" data-bgc="#4a148c" style="background:#4a148c;border:2px solid transparent"></div>
-        <div onclick="storySetBgColor('#1b5e20')" class="sty-bgc-dot" data-bgc="#1b5e20" style="background:#1b5e20;border:2px solid transparent"></div>
-        <input type="color" id="story-custom-bgc" value="#111111" oninput="storySetBgColor(this.value)"
-          style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.4);cursor:pointer;padding:2px;box-sizing:border-box;background:none">
+      <!-- Textarea oculta para edição da faixa -->
+      <div id="snap-text-editor" style="display:none;position:absolute;left:0;right:0;z-index:11;background:#000;padding:10px 16px">
+        <textarea id="snap-text-input"
+          maxlength="120"
+          placeholder="Escreva algo..."
+          style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;resize:none;caret-color:#fff;padding:0;line-height:1.4;box-sizing:border-box"
+          rows="3"
+          oninput="snapTextSync()"
+        ></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px">
+          <button onclick="snapTextConfirm()" style="background:none;border:none;color:#fff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;padding:4px 8px">Pronto</button>
+        </div>
       </div>
+
     </div><!-- /mode-normal -->
 
-    <!-- ══ MODO EDIÇÃO DE TEXTO (estilo Instagram) ══ -->
-    <div id="story-mode-text" style="display:none;position:absolute;inset:0;z-index:20">
-
-      <!-- Overlay escuro atrás do texto -->
-      <div style="position:absolute;inset:0;background:rgba(0,0,0,.35)"></div>
-
-      <!-- Topo: Done -->
-      <div style="position:absolute;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;justify-content:flex-end;padding:14px 18px;background:linear-gradient(rgba(0,0,0,.4),transparent)">
-        <button onclick="storyConfirmText()" style="background:none;border:none;color:#fff;font-family:'Nunito',sans-serif;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.3px;padding:4px 8px">Pronto</button>
-      </div>
-
-      <!-- Textarea centralizada na tela -->
-      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:25;pointer-events:none">
-        <textarea id="story-text-input"
-          maxlength="150"
-          placeholder="Escreva algo..."
-          oninput="storyEditorUpdate()"
-          style="pointer-events:all;background:transparent;border:none;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:32px;font-weight:800;text-align:center;resize:none;width:88%;max-height:60vh;line-height:1.3;caret-color:#fff;padding:0;overflow:hidden"
-          rows="1"
-        ></textarea>
-      </div>
-
-      <!-- Barra inferior de ferramentas -->
-      <div style="position:absolute;bottom:0;left:0;right:0;z-index:30;padding:10px 14px calc(env(safe-area-inset-bottom,0px) + 10px);background:linear-gradient(transparent,rgba(0,0,0,.75))">
-
-        <!-- Linha 1: fontes -->
-        <div id="sty-font-row" style="display:flex;justify-content:center;gap:6px;margin-bottom:10px">
-          <button onclick="storySetFont('Nunito')"    class="sty-font-btn active" data-font="Nunito"    style="font-family:'Nunito',sans-serif">Clássico</button>
-          <button onclick="storySetFont('Pacifico')"  class="sty-font-btn"        data-font="Pacifico"  style="font-family:'Pacifico',cursive;font-size:11px">Cursivo</button>
-          <button onclick="storySetFont('Cinzel')"    class="sty-font-btn"        data-font="Cinzel"    style="font-family:'Cinzel',serif">Elegante</button>
-          <button onclick="storySetFont('monospace')" class="sty-font-btn"        data-font="monospace" style="font-family:monospace">Código</button>
-        </div>
-
-        <!-- Linha 2: ícones de controle (Aa cor | tamanho | fundo | alinhamento) -->
-        <div style="display:flex;align-items:center;justify-content:space-around;margin-bottom:10px">
-
-          <!-- Seletor de cor do texto (bolinha multicolor) -->
-          <div style="position:relative;width:36px;height:36px;cursor:pointer" onclick="storyTextColorCycle()" title="Cor do texto">
-            <svg width="36" height="36" viewBox="0 0 36 36"><defs><linearGradient id="ig-color-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f00"/><stop offset="25%" stop-color="#ff0"/><stop offset="50%" stop-color="#0f0"/><stop offset="75%" stop-color="#0ff"/><stop offset="100%" stop-color="#00f"/></linearGradient></defs><circle cx="18" cy="18" r="16" fill="url(#ig-color-grad)" stroke="rgba(255,255,255,.5)" stroke-width="2"/></svg>
-            <div id="sty-color-indicator" style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;border:2px solid #fff;background:#fff"></div>
-          </div>
-
-          <!-- Tamanho via slider vertical (toque e arraste) -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-            <input type="range" id="story-font-size" min="18" max="72" value="32"
-              oninput="storyEditorUpdate()"
-              style="writing-mode:vertical-lr;direction:rtl;width:32px;height:80px;accent-color:#fff;cursor:pointer;flex-shrink:0">
-          </div>
-
-          <!-- Ciclo de fundo (nenhum → semi → branco) -->
-          <button onclick="storyBgCycle()" id="sty-bg-cycle-btn"
-            style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.5);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center"
-            title="Fundo do texto">A</button>
-
-          <!-- Alinhamento (cicla entre esquerda/centro/direita) -->
-          <button onclick="storyAlignCycle()" id="sty-align-btn"
-            style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.5);color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center"
-            title="Alinhamento">≡</button>
-        </div>
-
-      </div>
-    </div><!-- /mode-text -->
 
     <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
   </div>
 
-  <style>
-  .sty-font-btn{
-    padding:6px 12px;border-radius:20px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);
-    font-size:13px;font-weight:700;color:#fff;cursor:pointer;transition:all .15s;white-space:nowrap;
-  }
-  .sty-font-btn.active{ background:rgba(255,255,255,.32);border-color:#fff; }
-  .sty-bgc-dot{
-    width:28px;height:28px;border-radius:50%;cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0;
-  }
-  .sty-bgc-dot.active{ transform:scale(1.28);border-color:#fff !important; }
-  /* texto de preview no modo edição — atualizado via JS */
-  #story-text-input::placeholder{ color:rgba(255,255,255,.5); }
-  /* auto-resize textarea */
-  #story-text-input{ overflow:hidden; }
-  </style>
 
   <style>
 /* ══════════════════════════════════════════════════════
@@ -7438,15 +7363,6 @@ let _storyViewOwnerId = null;
 
 // ── Editor state ──────────────────────────────────────────
 const _storyEd = {
-  font:      'Nunito',
-  size:      32,
-  textColor: '#ffffff',
-  bg:        'none',
-  bgColor:   '#111111',
-  align:     'center',
-  // posição do texto em % da tela (0–100)
-  textX: 50,
-  textY: 50,
   // imagem original (HTMLImageElement com src ObjectURL)
   img: null,
 };
@@ -7455,270 +7371,43 @@ function showNewStory() {
   _storyPendingFile = null;
   if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
   _storyEd.img = null;
-  Object.assign(_storyEd, { font:'Nunito', size:32, textColor:'#ffffff', bg:'none', bgColor:'#111111', textX:50, textY:50, align:'center' });
 
   // Reset UI
   const ph  = document.getElementById('story-upload-placeholder');
   const cb  = document.getElementById('story-change-photo-btn');
-  const ti  = document.getElementById('story-text-input');
-  const sz  = document.getElementById('story-font-size');
-  const bgBar  = document.getElementById('story-bg-bar');
-  const sideTools = document.getElementById('story-side-tools');
   if (ph)  ph.style.display = 'flex';
   if (cb)  cb.style.display = 'none';
-  if (ti)  { ti.value = ''; ti.style.fontFamily = "'Nunito',sans-serif"; ti.style.fontSize = '32px'; ti.style.textAlign = 'center'; }
-  if (sz)  sz.value = 32;
-  if (bgBar) bgBar.style.display = 'flex';
-  if (sideTools) sideTools.style.display = 'none';
 
-  // Remove listener de clique no canvas
-  const cv = document.getElementById('story-canvas');
-  if (cv?._storyTextClick) { cv.removeEventListener('click', cv._storyTextClick); cv._storyTextClick = null; }
+  // Reset snap text bar
+  const snapBar    = document.getElementById('snap-text-bar');
+  const snapEditor = document.getElementById('snap-text-editor');
+  const snapInput  = document.getElementById('snap-text-input');
+  const snapToggle = document.getElementById('snap-text-toggle-btn');
+  const snapDisp   = document.getElementById('snap-text-display');
+  if (snapBar)    snapBar.style.display    = 'none';
+  if (snapEditor) snapEditor.style.display = 'none';
+  if (snapInput)  snapInput.value          = '';
+  if (snapDisp)   snapDisp.textContent     = '';
+  if (snapToggle) snapToggle.style.display = 'none';
 
-  document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'Nunito'));
-  document.querySelectorAll('.sty-bgc-dot').forEach(b => b.classList.toggle('active', b.dataset.bgc === '#111111'));
-
-  // Posiciona texto arrastável no centro
-  const dt = document.getElementById('story-drag-text');
-  if (dt) { dt.style.left = '50%'; dt.style.top = '50%'; dt.style.transform = 'translate(-50%,-50%)'; dt.style.display = 'none'; }
-
-  // Garante modo normal visível e modo texto escondido
+  // Garante modo normal visível
   const modeNormal = document.getElementById('story-mode-normal');
-  const modeText   = document.getElementById('story-mode-text');
   if (modeNormal) modeNormal.style.display = 'block';
-  if (modeText)   modeText.style.display   = 'none';
 
   openModal('modal-story-new');
   storyDrawCanvas();
-  _storyInitDrag();
+  _snapInitDrag();
 }
 
-// ── Modos ─────────────────────────────────────────────────
-function storyOpenTextMode() {
-  const modeNormal = document.getElementById('story-mode-normal');
-  const modeText   = document.getElementById('story-mode-text');
-  if (modeNormal) modeNormal.style.display = 'none';
-  if (modeText)   modeText.style.display   = 'block';
-  _storyApplyTextStyle();
-  setTimeout(() => {
-    const ti = document.getElementById('story-text-input');
-    if (ti) { ti.focus(); _storyAutoResize(ti); }
-  }, 60);
-}
-
-function storyConfirmText() {
-  // Salva o texto e volta ao modo normal
-  storyEditorUpdate(); // sincroniza drag-text com o conteúdo atual
-  const modeNormal = document.getElementById('story-mode-normal');
-  const modeText   = document.getElementById('story-mode-text');
-  if (modeNormal) modeNormal.style.display = 'block';
-  if (modeText)   modeText.style.display   = 'none';
-}
-
-// ── Ciclos de cor e fundo (estilo Instagram) ──────────────
-const _textColors = ['#ffffff','#000000','#e53935','#fdd835','#43a047','#1e88e5','#ff6f00','#ad1457','#00838f'];
-let _textColorIdx = 0;
-
-function storyTextColorCycle() {
-  _textColorIdx = (_textColorIdx + 1) % _textColors.length;
-  _storyEd.textColor = _textColors[_textColorIdx];
-  const ind = document.getElementById('sty-color-indicator');
-  if (ind) ind.style.background = _storyEd.textColor;
-  _storyApplyTextStyle();
-  storyUpdateDragText();
-}
-
-const _bgCycle = ['none','semi','white'];
-let _bgCycleIdx = 0;
-
-function storyBgCycle() {
-  _bgCycleIdx = (_bgCycleIdx + 1) % _bgCycle.length;
-  _storyEd.bg = _bgCycle[_bgCycleIdx];
-  const btn = document.getElementById('sty-bg-cycle-btn');
-  if (btn) {
-    const labels = { none:'A', semi:'A', white:'A' };
-    const bgs    = { none:'rgba(255,255,255,.15)', semi:'rgba(0,0,0,.6)', white:'rgba(255,255,255,.9)' };
-    const fgs    = { none:'#fff', semi:'#fff', white:'#111' };
-    btn.textContent   = labels[_storyEd.bg];
-    btn.style.background = bgs[_storyEd.bg];
-    btn.style.color      = fgs[_storyEd.bg];
-  }
-  _storyApplyTextStyle();
-  storyUpdateDragText();
-}
-
-const _alignCycle = ['center','left','right'];
-let _alignIdx = 0;
-
-function storyAlignCycle() {
-  _alignIdx = (_alignIdx + 1) % _alignCycle.length;
-  _storyEd.align = _alignCycle[_alignIdx];
-  const btn = document.getElementById('sty-align-btn');
-  const icons = { center:'≡', left:'☰', right:'☰' };
-  if (btn) btn.textContent = icons[_storyEd.align] || '≡';
-  _storyApplyTextStyle();
-  storyUpdateDragText();
-}
-
-function _storyApplyTextStyle() {
-  const ti = document.getElementById('story-text-input');
-  if (!ti) return;
-  const fontMap = {
-    'Nunito': "'Nunito',sans-serif", 'Pacifico': "'Pacifico',cursive",
-    'Cinzel': "'Cinzel',serif", 'monospace': 'monospace',
-  };
-  const sz = document.getElementById('story-font-size');
-  const size = sz ? (parseInt(sz.value) || 32) : _storyEd.size;
-  ti.style.fontFamily  = fontMap[_storyEd.font] || "'Nunito',sans-serif";
-  ti.style.fontSize    = size + 'px';
-  ti.style.textAlign   = _storyEd.align || 'center';
-  ti.style.fontWeight  = '800';
-  // Cor com legibilidade no fundo branco
-  const displayColor = (_storyEd.bg === 'white' && _storyEd.textColor === '#ffffff') ? '#111' : _storyEd.textColor;
-  ti.style.color = displayColor;
-  // Fundo da textarea para preview
-  const bgStyles = { none:'transparent', semi:'rgba(0,0,0,0.55)', white:'rgba(255,255,255,0.85)' };
-  ti.style.background   = bgStyles[_storyEd.bg] || 'transparent';
-  ti.style.borderRadius = _storyEd.bg !== 'none' ? '10px' : '0';
-  ti.style.padding      = _storyEd.bg !== 'none' ? '8px 16px' : '0';
-  ti.style.textShadow   = _storyEd.bg === 'none' ? '0 1px 6px rgba(0,0,0,.7)' : 'none';
-}
-
-function _storyAutoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, window.innerHeight * 0.55) + 'px';
-}
-
-// ── Drag do texto ─────────────────────────────────────────
-function _storyInitDrag() {
-  const dt = document.getElementById('story-drag-text');
-  const modal = document.getElementById('modal-story-new');
-  if (!dt || !modal) return;
-
-  let dragging = false, startX, startY, origLeft, origTop;
-
-  function getPos(e) {
-    return e.touches ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
-                     : { x: e.clientX, y: e.clientY };
-  }
-
-  function onStart(e) {
-    if (e.target !== dt && !dt.contains(e.target)) return;
-    e.preventDefault();
-    dragging = true;
-    const p = getPos(e);
-    startX = p.x; startY = p.y;
-    origLeft = dt.offsetLeft;
-    origTop  = dt.offsetTop;
-    dt.style.cursor = 'grabbing';
-    dt.style.transform = 'none'; // remove translate após primeiro drag
-  }
-
-  function onMove(e) {
-    if (!dragging) return;
-    e.preventDefault();
-    const p = getPos(e);
-    const dx = p.x - startX;
-    const dy = p.y - startY;
-    const mw = modal.offsetWidth, mh = modal.offsetHeight;
-    const dw = dt.offsetWidth,   dh = dt.offsetHeight;
-    let newL = Math.max(0, Math.min(mw - dw, origLeft + dx));
-    let newT = Math.max(0, Math.min(mh - dh, origTop  + dy));
-    dt.style.left = newL + 'px';
-    dt.style.top  = newT + 'px';
-    // salva posição relativa (%) para o canvas
-    _storyEd.textX = (newL + dw / 2) / mw * 100;
-    _storyEd.textY = (newT + dh / 2) / mh * 100;
-  }
-
-  function onEnd() {
-    dragging = false;
-    if (dt) dt.style.cursor = 'grab';
-  }
-
-  modal.addEventListener('mousedown',  onStart, { passive: false });
-  modal.addEventListener('touchstart', onStart, { passive: false });
-  window.addEventListener('mousemove',  onMove, { passive: false });
-  modal.addEventListener('touchmove',  onMove, { passive: false });
-  window.addEventListener('mouseup',   onEnd);
-  window.addEventListener('touchend',  onEnd);
-}
-
-function storySetFont(f) {
-  _storyEd.font = f;
-  document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === f));
-  _storyApplyTextStyle();
-  storyUpdateDragText();
-}
-function storySetTextColor(c) {
-  _storyEd.textColor = c;
-  _storyApplyTextStyle();
-  storyUpdateDragText();
-}
-function storySetBg(b) {
-  _storyEd.bg = b;
-  _storyApplyTextStyle();
-  storyUpdateDragText();
-}
-function storySetBgColor(c) {
-  _storyEd.bgColor = c;
-  document.querySelectorAll('.sty-bgc-dot').forEach(b => b.classList.toggle('active', b.dataset.bgc === c));
-  storyDrawCanvas();
-}
-
-function storyEditorUpdate() {
-  const ti = document.getElementById('story-text-input');
-  const sz = document.getElementById('story-font-size');
-  if (sz) _storyEd.size = parseInt(sz.value) || 32;
-  if (ti) _storyAutoResize(ti);
-  _storyApplyTextStyle();
-  storyUpdateDragText();
-}
-
-// Atualiza o div arrastável (preview visual sobre a tela)
-function storyUpdateDragText() {
-  const dt   = document.getElementById('story-drag-text');
-  const ti   = document.getElementById('story-text-input');
-  if (!dt) return;
-  const text = (ti?.value || '').trim();
-  if (!text) { dt.style.display = 'none'; return; }
-
-  dt.style.display = 'block';
-
-  const fontMap = {
-    'Nunito': "'Nunito',sans-serif", 'Pacifico': "'Pacifico',cursive",
-    'Cinzel': "'Cinzel',serif", 'monospace': 'monospace',
-  };
-  dt.style.fontFamily  = fontMap[_storyEd.font] || "'Nunito',sans-serif";
-  dt.style.fontSize    = _storyEd.size + 'px';
-  dt.style.fontWeight  = '800';
-  dt.style.color       = _storyEd.textColor;
-  dt.style.lineHeight  = '1.3';
-  dt.style.textShadow  = 'none';
-  dt.innerHTML         = text.replace(/\n/g, '<br>');
-
-  const bgStyles = {
-    none:  'transparent',
-    semi:  'rgba(0,0,0,0.55)',
-    white: 'rgba(255,255,255,0.85)',
-  };
-  dt.style.background   = bgStyles[_storyEd.bg] || 'transparent';
-  dt.style.padding      = _storyEd.bg !== 'none' ? '6px 14px' : '0';
-  dt.style.borderRadius = _storyEd.bg !== 'none' ? '10px' : '0';
-  // força color legível no fundo branco
-  if (_storyEd.bg === 'white' && _storyEd.textColor === '#ffffff') dt.style.color = '#111';
-  else dt.style.color = _storyEd.textColor;
-}
 
 // Canvas para exportação — renderiza em 1080×1920
 function storyDrawCanvas() {
   const canvas = document.getElementById('story-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return; // canvas em parent display:none pode retornar null em alguns browsers
+  if (!ctx) return;
   const W = 1080, H = 1920;
 
-  // Fundo
   if (_storyEd.img) {
     const iw = _storyEd.img.naturalWidth || _storyEd.img.width;
     const ih = _storyEd.img.naturalHeight || _storyEd.img.height;
@@ -7726,93 +7415,160 @@ function storyDrawCanvas() {
     const dw = iw * scale, dh = ih * scale;
     ctx.drawImage(_storyEd.img, (W - dw) / 2, (H - dh) / 2, dw, dh);
   } else {
-    ctx.fillStyle = _storyEd.bgColor;
+    ctx.fillStyle = '#111111';
     ctx.fillRect(0, 0, W, H);
   }
 }
 
-// Renderização final antes do upload — combina canvas + texto na posição atual
 async function storyRenderFinal() {
-  // Garante que web fonts (Nunito, Pacifico, Cinzel) estejam carregadas
-  // antes de desenhar no canvas — evita texto com fonte de fallback
-  if (document.fonts && document.fonts.ready) {
-    await document.fonts.ready;
-  }
   const canvas = document.getElementById('story-canvas');
-  const modal  = document.getElementById('modal-story-new');
-  const dt     = document.getElementById('story-drag-text');
-  const ti     = document.getElementById('story-text-input');
   if (!canvas) return canvas;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas; // guard: canvas em parent display:none pode retornar null
-  const W = 1080, H = 1920;
-
-  // Redesenha fundo
   storyDrawCanvas();
 
-  const text = (ti?.value || '').trim();
-  if (!text || !dt || dt.style.display === 'none') return canvas;
+  // Renderiza a faixa de texto no canvas, se houver
+  const text = (document.getElementById('snap-text-input')?.value || '').trim();
+  if (!text) return canvas;
 
-  // Converte posição da tela para coordenadas do canvas
-  const mw = modal.offsetWidth, mh = modal.offsetHeight;
-  const cx = (_storyEd.textX / 100) * W;
-  const cy = (_storyEd.textY / 100) * H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  const W = 1080, H = 1920;
 
-  const fontSize = Math.round(_storyEd.size * (H / mh));
-  const fontMap  = {
-    'Nunito': '800 {sz}px Nunito,sans-serif',
-    'Pacifico': '400 {sz}px Pacifico,cursive',
-    'Cinzel': '700 {sz}px Cinzel,serif',
-    'monospace': '700 {sz}px monospace',
-  };
-  ctx.font = (fontMap[_storyEd.font] || '800 {sz}px Nunito,sans-serif').replace('{sz}', fontSize);
-  ctx.textAlign   = _storyEd.align === 'left' ? 'left' : _storyEd.align === 'right' ? 'right' : 'center';
-  ctx.textBaseline = 'middle';
+  const modal   = document.getElementById('modal-story-new');
+  const bar     = document.getElementById('snap-text-bar');
+  const mh      = modal.offsetHeight || window.innerHeight;
+  const barTop  = parseInt(bar.style.top) || 0;
+  // Escala de px de tela → px do canvas
+  const scale   = H / mh;
 
-  const maxW = W * 0.85;
-  // wrap
-  const words = text.split(' ');
-  const lines = []; let cur = '';
-  for (const w of words) {
-    const t = cur ? cur + ' ' + w : w;
-    if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; }
-    else cur = t;
-  }
-  if (cur) lines.push(cur);
+  const fontSize = Math.round(18 * scale);
+  ctx.font      = `700 ${fontSize}px Nunito,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
 
-  const lineH = fontSize * 1.3;
-  const totalH = lines.length * lineH;
-  const startY = cy - totalH / 2 + lineH / 2;
+  const lines   = text.split('\n');
+  const lineH   = fontSize * 1.4;
+  const padV    = Math.round(10 * scale);
+  const totalH  = lines.length * lineH + padV * 2;
+  const barY    = Math.round(barTop * scale);
 
-  // Fundo do texto
-  if (_storyEd.bg !== 'none') {
-    const bgC = _storyEd.bg === 'white' ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)';
-    ctx.fillStyle = bgC;
-    const pad = fontSize * 0.3;
-    lines.forEach((line, i) => {
-      const tw = ctx.measureText(line).width;
-      const rx = cx - tw / 2 - pad;
-      const ry = startY + i * lineH - lineH / 2 - pad * 0.5;
-      const rw = tw + pad * 2;
-      const rh = lineH + pad;
-      const r  = 12;
-      ctx.beginPath();
-      ctx.moveTo(rx+r,ry); ctx.lineTo(rx+rw-r,ry); ctx.arcTo(rx+rw,ry,rx+rw,ry+r,r);
-      ctx.lineTo(rx+rw,ry+rh-r); ctx.arcTo(rx+rw,ry+rh,rx+rw-r,ry+rh,r);
-      ctx.lineTo(rx+r,ry+rh); ctx.arcTo(rx,ry+rh,rx,ry+rh-r,r);
-      ctx.lineTo(rx,ry+r); ctx.arcTo(rx,ry,rx+r,ry,r); ctx.closePath();
-      ctx.fill();
-    });
-  }
+  // Fundo preto semi-transparente
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, barY, W, totalH);
 
-  ctx.fillStyle = (_storyEd.bg === 'white' && _storyEd.textColor === '#ffffff') ? '#111' : _storyEd.textColor;
-  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6;
-  lines.forEach((line, i) => ctx.fillText(line, cx, startY + i * lineH));
-  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  // Texto branco
+  ctx.fillStyle = '#ffffff';
+  lines.forEach((line, i) => {
+    ctx.fillText(line, W / 2, barY + padV + i * lineH, W - 40);
+  });
 
   return canvas;
 }
+
+// ── Faixa de texto estilo Snapchat ────────────────────────
+let _snapDragging = false;
+
+function snapTextToggle() {
+  const bar = document.getElementById('snap-text-bar');
+  const input = document.getElementById('snap-text-input');
+  if (!bar) return;
+  if (bar.style.display === 'none') {
+    // Posição inicial: ~70% da tela
+    const modal = document.getElementById('modal-story-new');
+    const mh = modal.offsetHeight || window.innerHeight;
+    bar.style.top = Math.round(mh * 0.68) + 'px';
+    bar.style.display = 'block';
+    if (input && !input.value.trim()) snapTextEdit();
+  } else {
+    bar.style.display = 'none';
+    document.getElementById('snap-text-editor').style.display = 'none';
+    if (input) input.value = '';
+    document.getElementById('snap-text-display').textContent = '';
+  }
+}
+
+function snapTextEdit() {
+  const bar    = document.getElementById('snap-text-bar');
+  const editor = document.getElementById('snap-text-editor');
+  const input  = document.getElementById('snap-text-input');
+  if (!bar || !editor) return;
+  // Posiciona o editor na mesma posição que a barra
+  editor.style.top = bar.style.top;
+  editor.style.display = 'block';
+  bar.style.display = 'none';
+  if (input) { input.focus(); input.select(); }
+}
+
+function snapTextSync() {
+  // Atualiza display em tempo real
+  const val = document.getElementById('snap-text-input')?.value || '';
+  const disp = document.getElementById('snap-text-display');
+  if (disp) disp.textContent = val;
+}
+
+function snapTextConfirm() {
+  const editor = document.getElementById('snap-text-editor');
+  const bar    = document.getElementById('snap-text-bar');
+  const input  = document.getElementById('snap-text-input');
+  if (!editor || !bar) return;
+  const text = input?.value?.trim() || '';
+  if (!text) {
+    // Sem texto: some a barra toda
+    editor.style.display = 'none';
+    bar.style.display = 'none';
+    return;
+  }
+  // Sincroniza posição (editor pode ter sido reposicionado)
+  bar.style.top = editor.style.top;
+  document.getElementById('snap-text-display').textContent = text;
+  editor.style.display = 'none';
+  bar.style.display = 'block';
+}
+
+function _snapInitDrag() {
+  const bar   = document.getElementById('snap-text-bar');
+  const modal = document.getElementById('modal-story-new');
+  if (!bar || !modal) return;
+
+  let dragging = false, startY = 0, origTop = 0;
+
+  function getY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+
+  bar.addEventListener('mousedown', e => {
+    dragging = true; startY = getY(e); origTop = parseInt(bar.style.top) || 0;
+    bar.style.cursor = 'grabbing'; e.preventDefault();
+  });
+  bar.addEventListener('touchstart', e => {
+    dragging = true; startY = getY(e); origTop = parseInt(bar.style.top) || 0;
+    e.preventDefault();
+  }, { passive: false });
+
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const dy  = getY(e) - startY;
+    const mh  = modal.offsetHeight || window.innerHeight;
+    const bh  = bar.offsetHeight;
+    const newT = Math.max(0, Math.min(mh - bh, origTop + dy));
+    bar.style.top = newT + 'px';
+    // Sincroniza editor se estiver aberto
+    const ed = document.getElementById('snap-text-editor');
+    if (ed && ed.style.display !== 'none') ed.style.top = newT + 'px';
+  });
+  modal.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    const dy  = getY(e) - startY;
+    const mh  = modal.offsetHeight || window.innerHeight;
+    const bh  = bar.offsetHeight;
+    const newT = Math.max(0, Math.min(mh - bh, origTop + dy));
+    bar.style.top = newT + 'px';
+    const ed = document.getElementById('snap-text-editor');
+    if (ed && ed.style.display !== 'none') ed.style.top = newT + 'px';
+  }, { passive: false });
+
+  window.addEventListener('mouseup',  () => { dragging = false; bar.style.cursor = 'grab'; });
+  window.addEventListener('touchend', () => { dragging = false; });
+}
+
 
 function previewStoryImage(input) {
   const file = input.files[0];
@@ -7830,22 +7586,9 @@ function previewStoryImage(input) {
       if (ph)    ph.style.display = 'none';
       if (cb)    cb.style.display = 'block';
 
-      // Esconde barra de cor de fundo (não faz sentido com foto)
-      const bgBar = document.getElementById('story-bg-bar');
-      if (bgBar) bgBar.style.display = 'none';
-
-      // Mostra ferramentas laterais (botão Aa)
-      const sideTools = document.getElementById('story-side-tools');
-      if (sideTools) sideTools.style.display = 'flex';
-
-      // Clique na imagem abre modo texto
-      const cv = document.getElementById('story-canvas');
-      if (cv?._storyTextClick) cv.removeEventListener('click', cv._storyTextClick);
-      cv._storyTextClick = (e) => {
-        if (e.target.closest('#story-mode-normal [style*="position:absolute;top:0"]')) return;
-        storyOpenTextMode();
-      };
-      cv.addEventListener('click', cv._storyTextClick);
+      // Mostra botão Aa
+      const snapToggle = document.getElementById('snap-text-toggle-btn');
+      if (snapToggle) snapToggle.style.display = 'block';
 
       storyDrawCanvas();
     };
@@ -7855,8 +7598,7 @@ function previewStoryImage(input) {
 }
 
 async function submitStory() {
-  const text = (document.getElementById('story-text-input')?.value || '').trim();
-  if (!_storyPendingFile && !text) { toast('Adicione uma foto ou escreva algo!'); return; }
+  if (!_storyPendingFile) { toast('Adicione uma foto!'); return; }
 
   const btn = document.getElementById('story-publish-btn');
   if (btn) { btn.textContent = 'Publicando...'; btn.disabled = true; }
