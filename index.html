@@ -923,9 +923,36 @@
 }
 .pk-action-btn:hover { background: var(--pk-accent-bg, rgba(229,57,53,.08)); color: var(--pk-accent, #e53935); }
 .pk-action-btn.liked  { color: var(--pk-accent, #e53935); }
+.pk-action-btn.liked-pride { color: transparent; }
 .pk-action-btn.reposted  { color: #1a9a1a; }
 .pk-action-btn.reposted svg { stroke: #1a9a1a; }
 .pk-action-btn svg { flex-shrink: 0; }
+
+/* ── Pride rainbow heart ─────────────────────────────────── */
+@keyframes pkPridePop {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(1.5); }
+  55%  { transform: scale(0.88); }
+  75%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes pkPrideFillIn {
+  0%   { opacity: 0; clip-path: inset(100% 0 0 0); }
+  100% { opacity: 1; clip-path: inset(0% 0 0 0); }
+}
+.pk-pride-heart-wrap {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.pk-pride-heart-wrap.popping { animation: pkPridePop .5s cubic-bezier(.36,.07,.19,.97) forwards; }
+.pk-pride-heart-fill {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+}
+.pk-pride-heart-fill.filling { animation: pkPrideFillIn .4s ease forwards; }
 
 /* Pinned */
 .pk-pinned-label {
@@ -1113,6 +1140,20 @@
 </style>
 </head>
 <body>
+
+<!-- SVG oculto com gradiente arco-íris para o coração Pride -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+  <defs>
+    <linearGradient id="pk-rainbow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#FF0018"/>
+      <stop offset="20%"  stop-color="#FFA52C"/>
+      <stop offset="40%"  stop-color="#FFFF41"/>
+      <stop offset="60%"  stop-color="#008018"/>
+      <stop offset="80%"  stop-color="#0000F9"/>
+      <stop offset="100%" stop-color="#86007D"/>
+    </linearGradient>
+  </defs>
+</svg>
 
 <!-- ════════════════════════════════════════════════════════
      ROTEAMENTO: decide se é /adm ou app normal
@@ -9313,11 +9354,23 @@ function pkAvatar(user, size) {
   return `<div class="${cls}" style="width:${sz}px;height:${sz}px;background:${color};font-size:${Math.round(sz*0.36)}px">${initials(user.username||'?')}</div>`;
 }
 
+// ── Normaliza hashtag removendo acentos (para busca/agrupamento) ──
+function normalizeTag(tag) {
+  return (tag || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 function pkFormatText(text) {
   if (!text) return '';
   return esc(text)
     .replace(/@([a-zA-Z0-9_.]+)/g, '<span class="pk-mention" onclick="event.stopPropagation();showUserProfile(\'$1\')">@$1</span>')
-    .replace(/#([^\s#<&]+)/g, '<span class="pk-hashtag" onclick="event.stopPropagation();pkSearchHashtag(\'$1\')">#$1</span>');
+    .replace(/#([^\s#<&]+)/g, (match, raw) => {
+      // Passa a tag original para pkSearchHashtag — ela mesma normaliza internamente
+      const safe = raw.replace(/'/g, "\\'");
+      return `<span class="pk-hashtag" onclick="event.stopPropagation();pkSearchHashtag('${safe}')">#${raw}</span>`;
+    });
 }
 
 function pkTimeAgo(iso) {
@@ -9555,6 +9608,12 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
     u = p.users;
   }
   const liked    = likedSet   ? likedSet.has(p.id)   : false;
+  const _activeProfColor = pkActiveProfile()?.color || currentUser?.color || '#e53935';
+  const pkLikeColor = liked ? _activeProfColor : 'none';
+  // Detecta hashtags Pride no texto (normalizado para ignorar acentos)
+  const _textNorm = normalizeTag(p.text || '');
+  const _prideRx  = /#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i;
+  const isPride   = _prideRx.test(_textNorm);
   const reposted = repostedSet? repostedSet.has(p.id) : false;
   const likes    = likeMap    ? (likeMap[p.id]    || 0) : (p._likes    || 0);
   const replies  = replyMap   ? (replyMap[p.id]   || 0) : (p._replies  || 0);
@@ -9634,8 +9693,15 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
           ${reposts > 0 ? reposts : ''}
         </button>
-        <button class="pk-action-btn${liked?' liked':''}" id="pkbtn-like-${p.id}" onclick="event.stopPropagation();pkToggleLike('${p.id}')" title="Curtir">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="${liked?'#e53935':'none'}" stroke="${liked?'#e53935':'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <button class="pk-action-btn${liked?(isPride?' liked-pride':' liked'):''}" id="pkbtn-like-${p.id}" onclick="event.stopPropagation();pkToggleLike('${p.id}')" title="Curtir" data-pride="${isPride?'1':'0'}">
+          ${isPride ? `
+          <span class="pk-pride-heart-wrap${liked?' popping':''}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${liked?'url(#pk-rainbow-grad)':'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            <span class="pk-pride-heart-fill${liked?' filling':''}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="url(#pk-rainbow-grad)" stroke="url(#pk-rainbow-grad)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            </span>
+          </span>` : `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="${liked?_activeProfColor:'none'}" stroke="${liked?_activeProfColor:'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
           ${likes > 0 ? likes : ''}
         </button>
         ${menuHtml}
@@ -9676,29 +9742,85 @@ async function pkToggleLike(pokeetId) {
   if (!currentUser) return;
   const btn = document.getElementById('pkbtn-like-' + pokeetId);
   if (!btn) return;
-  const isLiked = btn.classList.contains('liked');
+  const isPride  = btn.dataset.pride === '1';
+  const isLiked  = btn.classList.contains('liked') || btn.classList.contains('liked-pride');
 
-  // Animação igual ao story like
-  btn.style.transform = 'scale(1.35)';
-  setTimeout(() => btn.style.transform = 'scale(1)', 200);
+  // Atualiza contador otimisticamente (antes de remodelar o DOM)
+  const currentCount = parseInt(btn.textContent.replace(/\D/g,'')) || 0;
+  const newCount = isLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
 
+  if (isPride) {
+    // ── Coração arco-íris ────────────────────────────────
+    const wrap = btn.querySelector('.pk-pride-heart-wrap');
+    const fill = btn.querySelector('.pk-pride-heart-fill');
+    const outlineSvg = wrap ? wrap.querySelector(':scope > svg') : null;
+
+    if (isLiked) {
+      // Descurtir
+      btn.classList.remove('liked-pride');
+      if (fill)      { fill.classList.remove('filling'); fill.style.opacity = '0'; }
+      if (outlineSvg){ outlineSvg.setAttribute('stroke','currentColor'); }
+      if (wrap)      { wrap.classList.remove('popping'); }
+      // Pequena animação de "deflate"
+      btn.style.transform = 'scale(0.85)';
+      setTimeout(() => btn.style.transform = 'scale(1)', 180);
+    } else {
+      // Curtir com animação arco-íris
+      btn.classList.add('liked-pride');
+      if (outlineSvg){ outlineSvg.setAttribute('stroke','url(#pk-rainbow-grad)'); }
+      if (wrap) {
+        wrap.classList.remove('popping');
+        // Força reflow para reiniciar animação
+        void wrap.offsetWidth;
+        wrap.classList.add('popping');
+      }
+      if (fill) {
+        fill.classList.remove('filling');
+        void fill.offsetWidth;
+        fill.classList.add('filling');
+        fill.style.opacity = '1';
+      }
+    }
+
+    // Atualiza número sem desmontar a estrutura pride
+    // Remove texto avulso (text nodes) e recoloca
+    Array.from(btn.childNodes)
+      .filter(n => n.nodeType === 3)
+      .forEach(n => n.remove());
+    if (newCount > 0) btn.append(document.createTextNode(' ' + newCount));
+
+  } else {
+    // ── Coração normal (cor do perfil) ───────────────────
+    btn.style.transform = 'scale(1.35)';
+    setTimeout(() => btn.style.transform = 'scale(1)', 200);
+
+    if (isLiked) {
+      btn.classList.remove('liked');
+      btn.querySelector('svg').setAttribute('fill', 'none');
+      btn.querySelector('svg').setAttribute('stroke', 'currentColor');
+    } else {
+      btn.classList.add('liked');
+      const _activeProf = pkActiveProfile();
+      const _likeColor = (_activeProf?.color) || currentUser.color || '#e53935';
+      btn.querySelector('svg').setAttribute('fill', _likeColor);
+      btn.querySelector('svg').setAttribute('stroke', _likeColor);
+    }
+    // Atualiza contador
+    const svg = btn.querySelector('svg');
+    btn.innerHTML = '';
+    btn.appendChild(svg);
+    if (newCount > 0) btn.append(document.createTextNode(' ' + newCount));
+  }
+
+  // ── DB ───────────────────────────────────────────────────
   if (isLiked) {
-    btn.classList.remove('liked');
-    btn.querySelector('svg').setAttribute('fill', 'none');
-    btn.querySelector('svg').setAttribute('stroke', 'currentColor');
     await db.from('pokeet_likes').delete().eq('user_id', currentUser.id).eq('pokeet_id', pokeetId);
-    // Remove notificação
     await db.from('notifications').delete()
       .eq('type', 'pokeet_like')
       .eq('post_id', pokeetId)
       .eq('actor_id', currentUser.id);
   } else {
-    btn.classList.add('liked');
-    btn.querySelector('svg').setAttribute('fill', '#e53935');
-    btn.querySelector('svg').setAttribute('stroke', '#e53935');
     await db.from('pokeet_likes').upsert({ user_id: currentUser.id, pokeet_id: pokeetId }, { onConflict: 'user_id,pokeet_id' });
-
-    // Notificação para o dono do pokeet
     try {
       const { data: pkRow } = await db.from('pokeets').select('user_id').eq('id', pokeetId).maybeSingle();
       if (pkRow && pkRow.user_id !== currentUser.id) {
@@ -9717,15 +9839,6 @@ async function pkToggleLike(pokeetId) {
       }
     } catch(e) { console.warn('pkToggleLike notif:', e); }
   }
-  // Atualiza contador otimisticamente
-  const spans = btn.querySelectorAll('span');
-  const currentCount = parseInt(btn.textContent.replace(/\D/g,'')) || 0;
-  const newCount = isLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
-  // re-render only the text node
-  const svg = btn.querySelector('svg');
-  btn.innerHTML = '';
-  btn.appendChild(svg);
-  if (newCount > 0) btn.append(document.createTextNode(' ' + newCount));
 }
 
 // ── Thread (replies) ──────────────────────────────────────
@@ -9815,10 +9928,10 @@ async function pkOpenThread(pokeetId) {
                 </div>
                 <div class="pk-card-text">${pkFormatText(r.text)}</div>
                 <div class="pk-actions">
-                  <button class="pk-action-btn${likedSet.has(r.id)?' liked':''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="${likedSet.has(r.id)?'#e53935':'none'}" stroke="${likedSet.has(r.id)?'#e53935':'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                  ${(()=>{ const _rPride = /\#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i.test(normalizeTag(r.text||'')); const _rLiked = likedSet.has(r.id); const _rColor = pkActiveProfile()?.color||currentUser?.color||'#e53935'; return `<button class="pk-action-btn${_rLiked?(_rPride?' liked-pride':' liked'):''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')" data-pride="${_rPride?'1':'0'}">
+                    ${_rPride ? `<span class="pk-pride-heart-wrap${_rLiked?' popping':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${_rLiked?'url(#pk-rainbow-grad)':'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><span class="pk-pride-heart-fill${_rLiked?' filling':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="url(#pk-rainbow-grad)" stroke="url(#pk-rainbow-grad)" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span></span>` : `<svg width="15" height="15" viewBox="0 0 24 24" fill="${_rLiked?_rColor:'none'}" stroke="${_rLiked?_rColor:'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
                     ${(likeMap[r.id]||0) > 0 ? likeMap[r.id] : ''}
-                  </button>
+                  </button>`; })()}
                 </div>
               </div>
             </div>`;}).join('')
@@ -10015,24 +10128,40 @@ function pkSwitchTab(btn, tab, skipSync) {
 function pkLoadTrends(pokeets) {
   const container = document.getElementById('pokeets-trends');
   if (!container) return;
-  const tagCount = {};
+
+  // Agrupa por tag normalizada (sem acentos), guarda a variante original mais usada
+  const tagCount   = {}; // normKey → count
+  const tagDisplay = {}; // normKey → variante original mais frequente
+  const tagOrigFreq = {}; // normKey:orig → count (para eleger o display)
+
   (pokeets || []).forEach(p => {
     const matches = (p.text || '').match(/#([^\s#<&]+)/g) || [];
     matches.forEach(m => {
-      const tag = m.slice(1).toLowerCase();
-      tagCount[tag] = (tagCount[tag] || 0) + 1;
+      const orig = m.slice(1);
+      const key  = normalizeTag(orig);
+      tagCount[key] = (tagCount[key] || 0) + 1;
+      const origKey = key + ':' + orig.toLowerCase();
+      tagOrigFreq[origKey] = (tagOrigFreq[origKey] || 0) + 1;
+      // Atualiza display para a variante original mais frequente
+      if (!tagDisplay[key] || tagOrigFreq[origKey] > tagOrigFreq[key + ':' + tagDisplay[key].toLowerCase()]) {
+        tagDisplay[key] = orig;
+      }
     });
   });
+
   const sorted = Object.entries(tagCount).sort((a,b) => b[1]-a[1]).slice(0, 5);
   if (!sorted.length) {
     container.innerHTML = '<div style="font-size:13px;color:#aaa;font-family:\'Nunito\',sans-serif">Nenhuma hashtag ainda.</div>';
   } else {
-    container.innerHTML = sorted.map(([tag, count]) => `
-    <div class="pk-trend-item" onclick="pkSearchHashtag('${esc(tag)}')">
-      <div class="pk-trend-cat">Pokémon · Tendência</div>
-      <div class="pk-trend-tag">#${esc(tag)}</div>
-      <div class="pk-trend-count">${count} Pokeet${count>1?'s':''}</div>
-    </div>`).join('');
+    container.innerHTML = sorted.map(([normKey, count]) => {
+      const displayTag = tagDisplay[normKey] || normKey;
+      return `
+      <div class="pk-trend-item" onclick="pkSearchHashtag('${esc(displayTag)}')">
+        <div class="pk-trend-cat">Pokémon · Tendência</div>
+        <div class="pk-trend-tag">#${esc(displayTag)}</div>
+        <div class="pk-trend-count">${count} Pokeet${count>1?'s':''}</div>
+      </div>`;
+    }).join('');
   }
   // Sincroniza com o painel mobile (aba Tendências) se estiver visível
   const mobile = document.getElementById('pokeets-trends-mobile');
@@ -10042,8 +10171,10 @@ function pkLoadTrends(pokeets) {
 }
 
 async function pkSearchHashtag(tag) {
-  // Normaliza a tag (sem #, minúsculo)
-  const cleanTag = tag.replace(/^#/, '').toLowerCase();
+  // Normaliza: remove # inicial, gera versão sem acentos
+  const rawTag   = tag.replace(/^#/, '');
+  const normTag  = normalizeTag(rawTag);   // sem acentos, minúsculo
+  const cleanTag = rawTag;                 // preserva acentos para exibição no título
 
   // Se estiver no Feed (não na aba Tendências), muda para Tendências primeiro
   if (_pk.tab !== 'trends') {
@@ -10074,24 +10205,41 @@ async function pkSearchHashtag(tag) {
       </div>`).join('')}</div></div>`;
 
   try {
-    // Busca pokeets que contenham a hashtag (case-insensitive, sem replies)
-    const { data: pokeets, error } = await db
-      .from('pokeets')
-      .select('*')
-      .ilike('text', `%#${cleanTag}%`)
-      .is('reply_to_id', null)
-      .order('created_at', { ascending: false })
-      .limit(40);
+    // Monta variantes para busca: original + sem acentos (deduplica se iguais)
+    const variants = [...new Set([rawTag, normTag])];
 
-    if (error) throw error;
+    // Busca paralela para cada variante e une os resultados
+    const queries = variants.map(v =>
+      db.from('pokeets')
+        .select('*')
+        .ilike('text', `%#${v}%`)
+        .is('reply_to_id', null)
+        .order('created_at', { ascending: false })
+        .limit(40)
+    );
+    const results = await Promise.all(queries);
+
+    // Une resultados, deduplica por id, filtra pelo normalizado client-side
+    const allRows = results.flatMap(r => r.data || []);
+    const seenIds = new Set();
+    const pokeets = allRows.filter(p => {
+      if (seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
+      // Confirma que o texto contém a tag normalizada (evita falsos positivos do ilike)
+      const textNorm = normalizeTag(p.text || '');
+      return textNorm.includes('#' + normTag);
+    });
 
     const listEl = document.getElementById('pk-hashtag-feed-list');
     if (!listEl) return;
 
-    if (!pokeets || !pokeets.length) {
+    if (!pokeets.length) {
       listEl.innerHTML = `<div class="pk-thread-empty">Nenhum Pokeet com #${esc(cleanTag)} ainda.</div>`;
       return;
     }
+
+    // Ordena por data decrescente após merge
+    pokeets.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     // Busca autores
     const authorIds = [...new Set(pokeets.map(p => p.user_id).filter(Boolean))];
