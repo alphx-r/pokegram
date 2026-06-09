@@ -863,10 +863,19 @@
 .pokeet-card .pk-card-avatar,
 .pokeet-card .pk-card-avatar img,
 .pk-thread-reply .pk-card-avatar,
-.pk-thread-reply .pk-card-avatar img {
+.pk-thread-reply .pk-card-avatar img,
+.pk-rq-avatar,
+.pk-rq-avatar img {
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
+}
+/* Avatares no feed de pokeets nao devem ter ::before/::after coloridos */
+.pokeet-card .pk-card-avatar::before,
+.pokeet-card .pk-card-avatar::after,
+.pk-thread-reply .pk-card-avatar::before,
+.pk-thread-reply .pk-card-avatar::after {
+  display: none !important;
 }
 .pk-card-header {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
@@ -9640,9 +9649,9 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
             <span class="pk-pride-heart-fill${liked?' filling':''}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="url(#pk-pride-flag-grad)" stroke="url(#pk-pride-flag-grad)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
             </span>
-          </span>` : `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="${liked?_activeProfColor:'none'}" stroke="${liked?_activeProfColor:'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
-          ${likes > 0 ? likes : ''}
+          </span>${likes > 0 ? `<span style="color:#8e8e8e"> ${likes}</span>` : ''}` : `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="${liked?_activeProfColor:'none'}" stroke="${liked?_activeProfColor:'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          ${likes > 0 ? likes : ''}`}
         </button>
         ${menuHtml}
       </div>
@@ -9723,11 +9732,17 @@ async function pkToggleLike(pokeetId) {
     }
 
     // Atualiza número sem desmontar a estrutura pride
-    // Remove texto avulso (text nodes) e recoloca
+    // Remove texto avulso e spans de contador anteriores, depois recoloca
     Array.from(btn.childNodes)
-      .filter(n => n.nodeType === 3)
+      .filter(n => n.nodeType === 3 || (n.nodeType === 1 && n.dataset && n.dataset.likeCount))
       .forEach(n => n.remove());
-    if (newCount > 0) btn.append(document.createTextNode(' ' + newCount));
+    if (newCount > 0) {
+      const countSpan = document.createElement('span');
+      countSpan.dataset.likeCount = '1';
+      countSpan.style.color = '#8e8e8e';
+      countSpan.textContent = ' ' + newCount;
+      btn.append(countSpan);
+    }
 
   } else {
     // ── Coração normal (cor do perfil) ───────────────────
