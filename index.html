@@ -1643,7 +1643,7 @@
 
     <!-- Canvas fullscreen (fundo + imagem) -->
     <canvas id="story-canvas" width="1080" height="1920"
-      style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;touch-action:none"></canvas>
+      style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;touch-action:none"></canvas>
 
     <!-- Placeholder sem foto -->
     <label for="story-img-file" id="story-upload-placeholder"
@@ -1656,9 +1656,9 @@
     </label>
 
     <!-- ══ MODO NORMAL (sem edição de texto) ══ -->
-    <div id="story-mode-normal">
+    <div id="story-mode-normal" style="position:absolute;inset:0;pointer-events:none">
       <!-- Barra superior: X  |  Trocar foto  |  Publicar -->
-      <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(rgba(0,0,0,.55),transparent)">
+      <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(rgba(0,0,0,.55),transparent);pointer-events:all">
         <button onclick="closeModal('modal-story-new')" style="width:36px;height:36px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
         <label for="story-img-file" id="story-change-photo-btn" style="display:none;background:rgba(255,255,255,.18);border:none;border-radius:20px;color:#fff;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">📷 Trocar foto</label>
         <button id="snap-text-toggle-btn" onclick="snapTextToggle()" style="display:none;background:rgba(255,255,255,.15);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:900;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">Aa</button>
@@ -1667,28 +1667,25 @@
 
       <!-- Faixa de texto estilo Snapchat (arrastável verticalmente) -->
       <div id="snap-text-bar"
-        style="display:none;position:absolute;left:0;right:0;z-index:8;background:rgba(0,0,0,0.6);padding:10px 16px;touch-action:none;cursor:grab;user-select:none"
-        ondblclick="snapTextEdit()">
+        style="display:none;position:absolute;left:0;right:0;z-index:8;background:rgba(0,0,0,0.6);padding:10px 16px;touch-action:none;cursor:grab;user-select:none;pointer-events:all"
+        onclick="snapTextEdit()">
         <div id="snap-text-display"
-          style="color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;min-height:24px;word-break:break-word;white-space:pre-wrap;line-height:1.4"></div>
+          style="color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;word-break:break-word;white-space:pre-wrap;line-height:1.4"></div>
       </div>
 
-      <!-- Textarea oculta para edição da faixa -->
-      <div id="snap-text-editor" style="display:none;position:absolute;left:0;right:0;z-index:11;background:#000;padding:10px 16px">
+      <!-- Editor inline (substitui a faixa durante edição) -->
+      <div id="snap-text-editor" style="display:none;position:absolute;left:0;right:0;z-index:9;background:rgba(0,0,0,0.6);padding:10px 16px;pointer-events:all">
         <textarea id="snap-text-input"
           maxlength="120"
           placeholder="Escreva algo..."
-          style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;resize:none;caret-color:#fff;padding:0;line-height:1.4;box-sizing:border-box"
-          rows="3"
+          style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;resize:none;caret-color:#fff;padding:0;line-height:1.4;box-sizing:border-box;display:block"
+          rows="1"
           oninput="snapTextSync()"
+          onblur="snapTextConfirm()"
         ></textarea>
-        <div style="display:flex;justify-content:flex-end;margin-top:6px">
-          <button onclick="snapTextConfirm()" style="background:none;border:none;color:#fff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;padding:4px 8px">Pronto</button>
-        </div>
       </div>
 
     </div><!-- /mode-normal -->
-
 
     <input type="file" id="story-img-file" accept="image/*" style="display:none" onchange="previewStoryImage(this)">
   </div>
@@ -7468,21 +7465,26 @@ async function storyRenderFinal() {
 let _snapDragging = false;
 
 function snapTextToggle() {
-  const bar = document.getElementById('snap-text-bar');
-  const input = document.getElementById('snap-text-input');
+  const bar    = document.getElementById('snap-text-bar');
+  const editor = document.getElementById('snap-text-editor');
+  const input  = document.getElementById('snap-text-input');
   if (!bar) return;
-  if (bar.style.display === 'none') {
-    // Posição inicial: ~70% da tela
-    const modal = document.getElementById('modal-story-new');
-    const mh = modal.offsetHeight || window.innerHeight;
-    bar.style.top = Math.round(mh * 0.68) + 'px';
-    bar.style.display = 'block';
-    if (input && !input.value.trim()) snapTextEdit();
-  } else {
-    bar.style.display = 'none';
-    document.getElementById('snap-text-editor').style.display = 'none';
+  const isVisible = bar.style.display !== 'none' || editor.style.display !== 'none';
+  if (isVisible) {
+    // Remove tudo
+    bar.style.display    = 'none';
+    editor.style.display = 'none';
     if (input) input.value = '';
     document.getElementById('snap-text-display').textContent = '';
+  } else {
+    // Posição inicial: ~68% da tela
+    const modal = document.getElementById('modal-story-new');
+    const mh = modal.offsetHeight || window.innerHeight;
+    const top = Math.round(mh * 0.68) + 'px';
+    bar.style.top    = top;
+    editor.style.top = top;
+    // Abre direto no editor
+    snapTextEdit();
   }
 }
 
@@ -7490,38 +7492,43 @@ function snapTextEdit() {
   const bar    = document.getElementById('snap-text-bar');
   const editor = document.getElementById('snap-text-editor');
   const input  = document.getElementById('snap-text-input');
-  if (!bar || !editor) return;
-  // Posiciona o editor na mesma posição que a barra
-  editor.style.top = bar.style.top;
+  if (!editor) return;
+  // Herda posição da barra
+  if (bar && bar.style.top) editor.style.top = bar.style.top;
+  bar.style.display    = 'none';
   editor.style.display = 'block';
-  bar.style.display = 'none';
-  if (input) { input.focus(); input.select(); }
+  if (input) {
+    // Auto-resize antes de focar
+    input.style.height = 'auto';
+    input.style.height = input.scrollHeight + 'px';
+    setTimeout(() => { input.focus(); }, 30);
+  }
 }
 
 function snapTextSync() {
-  // Atualiza display em tempo real
-  const val = document.getElementById('snap-text-input')?.value || '';
-  const disp = document.getElementById('snap-text-display');
-  if (disp) disp.textContent = val;
+  const input = document.getElementById('snap-text-input');
+  const disp  = document.getElementById('snap-text-display');
+  if (disp && input) disp.textContent = input.value;
+  // Auto-resize da textarea
+  input.style.height = 'auto';
+  input.style.height = input.scrollHeight + 'px';
 }
 
 function snapTextConfirm() {
   const editor = document.getElementById('snap-text-editor');
   const bar    = document.getElementById('snap-text-bar');
   const input  = document.getElementById('snap-text-input');
-  if (!editor || !bar) return;
+  if (!editor || editor.style.display === 'none') return;
   const text = input?.value?.trim() || '';
   if (!text) {
-    // Sem texto: some a barra toda
     editor.style.display = 'none';
-    bar.style.display = 'none';
+    bar.style.display    = 'none';
     return;
   }
-  // Sincroniza posição (editor pode ter sido reposicionado)
   bar.style.top = editor.style.top;
-  document.getElementById('snap-text-display').textContent = text;
+  document.getElementById('snap-text-display').textContent = input.value;
   editor.style.display = 'none';
-  bar.style.display = 'block';
+  bar.style.display    = 'block';
 }
 
 function _snapInitDrag() {
@@ -7529,44 +7536,53 @@ function _snapInitDrag() {
   const modal = document.getElementById('modal-story-new');
   if (!bar || !modal) return;
 
-  let dragging = false, startY = 0, origTop = 0;
+  // Remove listeners anteriores se existirem
+  if (bar._snapDragDown)  bar.removeEventListener('mousedown',  bar._snapDragDown);
+  if (bar._snapDragTouch) bar.removeEventListener('touchstart', bar._snapDragTouch);
+
+  let dragging = false, startY = 0, origTop = 0, moved = false;
 
   function getY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
 
-  bar.addEventListener('mousedown', e => {
-    dragging = true; startY = getY(e); origTop = parseInt(bar.style.top) || 0;
-    bar.style.cursor = 'grabbing'; e.preventDefault();
-  });
-  bar.addEventListener('touchstart', e => {
-    dragging = true; startY = getY(e); origTop = parseInt(bar.style.top) || 0;
+  function onStart(e) {
+    // Não inicia drag se o alvo for a textarea (modo edição)
+    if (e.target.tagName === 'TEXTAREA') return;
+    dragging = true; moved = false;
+    startY   = getY(e);
+    origTop  = parseInt(bar.style.top) || 0;
+    bar.style.cursor = 'grabbing';
     e.preventDefault();
-  }, { passive: false });
+  }
 
-  window.addEventListener('mousemove', e => {
+  function onMove(e) {
     if (!dragging) return;
-    const dy  = getY(e) - startY;
-    const mh  = modal.offsetHeight || window.innerHeight;
-    const bh  = bar.offsetHeight;
+    const dy   = getY(e) - startY;
+    if (Math.abs(dy) > 3) moved = true;
+    const mh   = modal.offsetHeight || window.innerHeight;
+    const bh   = bar.offsetHeight || 44;
     const newT = Math.max(0, Math.min(mh - bh, origTop + dy));
     bar.style.top = newT + 'px';
-    // Sincroniza editor se estiver aberto
+    // Sincroniza editor
     const ed = document.getElementById('snap-text-editor');
-    if (ed && ed.style.display !== 'none') ed.style.top = newT + 'px';
-  });
-  modal.addEventListener('touchmove', e => {
-    if (!dragging) return;
+    if (ed) ed.style.top = newT + 'px';
     e.preventDefault();
-    const dy  = getY(e) - startY;
-    const mh  = modal.offsetHeight || window.innerHeight;
-    const bh  = bar.offsetHeight;
-    const newT = Math.max(0, Math.min(mh - bh, origTop + dy));
-    bar.style.top = newT + 'px';
-    const ed = document.getElementById('snap-text-editor');
-    if (ed && ed.style.display !== 'none') ed.style.top = newT + 'px';
-  }, { passive: false });
+  }
 
-  window.addEventListener('mouseup',  () => { dragging = false; bar.style.cursor = 'grab'; });
-  window.addEventListener('touchend', () => { dragging = false; });
+  function onEnd() {
+    dragging = false;
+    bar.style.cursor = 'grab';
+    // Se não houve movimento real, o click handler já cuidou do edit
+  }
+
+  bar._snapDragDown  = onStart;
+  bar._snapDragTouch = onStart;
+
+  bar.addEventListener('mousedown',  onStart, { passive: false });
+  bar.addEventListener('touchstart', onStart, { passive: false });
+  window.addEventListener('mousemove',  onMove, { passive: false });
+  modal.addEventListener('touchmove',   onMove, { passive: false });
+  window.addEventListener('mouseup',    onEnd);
+  window.addEventListener('touchend',   onEnd);
 }
 
 
