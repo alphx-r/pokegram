@@ -1901,6 +1901,11 @@
 
 /* ══ MOBILE ══════════════════════════════════════════ */
 @media (max-width: 768px) {
+  /* Impede que o container do modal role — só o scroll-body deve rolar */
+  #modal-comments {
+    overflow: hidden !important;
+  }
+
   .comments-modal-box {
     position: fixed !important;
     left: 50% !important;
@@ -1931,9 +1936,9 @@
     border-bottom: 1px solid var(--border, #dbdbdb) !important;
   }
 
-  /* A imagem no mobile: altura maior agora que não divide espaço com a legenda */
+  /* A imagem no mobile: altura menor para dar mais espaço aos comentários */
   .comments-post-image {
-    height: 300px !important;
+    height: 200px !important;
     flex: none !important;
   }
 
