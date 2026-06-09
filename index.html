@@ -1669,15 +1669,21 @@
       <button onclick="submitStory()" id="story-publish-btn" style="background:#e53935;border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:8px 18px;cursor:pointer">Publicar</button>
     </div>
 
-    <!-- Barra de ferramentas inferior -->
-    <div id="story-toolbar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.7))">
+    <!-- Botão "Aa" flutuante — só visível após foto adicionada, abre a toolbar -->
+    <button id="story-text-fab" onclick="storyOpenTextToolbar()"
+      style="display:none;position:absolute;top:62px;right:16px;z-index:10;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.5);color:#fff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;cursor:pointer;backdrop-filter:blur(4px);transition:background .15s"
+      title="Adicionar texto">Aa</button>
 
-      <!-- Input de texto -->
+    <!-- Barra de ferramentas de texto — oculta por padrão, abre ao clicar na imagem ou no botão Aa -->
+    <div id="story-toolbar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.8))">
+
+      <!-- Linha topo: input + fechar toolbar -->
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <input id="story-text-input" type="text" maxlength="80" placeholder="Escreva algo..."
           oninput="storyEditorUpdate()"
           style="flex:1;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:9px 16px;min-width:0;backdrop-filter:blur(4px)"
         />
+        <button onclick="storyCloseTextToolbar()" style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Fechar">✕</button>
       </div>
 
       <!-- Linha de opções -->
@@ -1715,7 +1721,7 @@
           <button onclick="storySetBg('white')" class="sty-bg-btn"        data-bg="white" title="Branco">□</button>
         </div>
 
-        <!-- Cor de fundo (sem foto) -->
+        <!-- Cor de fundo (sem foto) — oculto quando há imagem -->
         <div id="story-bg-color-section" style="display:flex;gap:5px;align-items:center">
           <div onclick="storySetBgColor('#111111')" class="sty-bgc-dot active" data-bgc="#111111" style="background:#111;border:2px solid rgba(255,255,255,.5)"></div>
           <div onclick="storySetBgColor('#1a237e')" class="sty-bgc-dot" data-bgc="#1a237e" style="background:#1a237e;border:2px solid transparent"></div>
@@ -7452,6 +7458,13 @@ function showNewStory() {
   if (ti) ti.value = '';
   if (sz) sz.value = 36;
 
+  // Remove listener de clique no canvas (limpeza)
+  const canvasReset = document.getElementById('story-canvas');
+  if (canvasReset?._storyTextClick) {
+    canvasReset.removeEventListener('click', canvasReset._storyTextClick);
+    canvasReset._storyTextClick = null;
+  }
+
   document.querySelectorAll('.sty-font-btn').forEach(b => b.classList.toggle('active', b.dataset.font === 'Nunito'));
   document.querySelectorAll('.sty-bg-btn').forEach(b => b.classList.toggle('active', b.dataset.bg === 'none'));
   document.querySelectorAll('.sty-color-dot').forEach(b => b.classList.toggle('active', b.dataset.tc === '#ffffff'));
@@ -7461,27 +7474,36 @@ function showNewStory() {
   const dt = document.getElementById('story-drag-text');
   if (dt) { dt.style.left = '50%'; dt.style.top = '50%'; dt.style.transform = 'translate(-50%,-50%)'; dt.style.display = 'none'; }
 
-  // Oculta toolbar até o usuário tocar na tela
+  // Oculta toolbar e botão Aa até a foto ser adicionada
   const tb = document.getElementById('story-toolbar');
   if (tb) tb.style.display = 'none';
+  const fab = document.getElementById('story-text-fab');
+  if (fab) fab.style.display = 'none';
 
   openModal('modal-story-new');
   storyDrawCanvas(); // chamado após o modal abrir para garantir contexto 2d válido
   _storyInitDrag();
+}
 
-  // Mostra toolbar ao primeiro toque/clique na tela
-  const canvas = document.getElementById('story-canvas');
-  const ph2 = document.getElementById('story-upload-placeholder');
-  function _storyShowToolbar() {
-    const tb2 = document.getElementById('story-toolbar');
-    if (tb2) tb2.style.display = 'block';
-    canvas?.removeEventListener('click', _storyShowToolbar);
-    canvas?.removeEventListener('touchstart', _storyShowToolbar);
-    ph2?.removeEventListener('click', _storyShowToolbar);
-  }
-  canvas?.addEventListener('click', _storyShowToolbar);
-  canvas?.addEventListener('touchstart', _storyShowToolbar);
-  ph2?.addEventListener('click', _storyShowToolbar);
+// ── Toolbar de texto: abre ao clicar na imagem ───────────
+function storyOpenTextToolbar() {
+  const tb  = document.getElementById('story-toolbar');
+  const fab = document.getElementById('story-text-fab');
+  if (tb)  tb.style.display  = 'block';
+  if (fab) fab.style.display = 'none';
+  // Foca o input automaticamente
+  setTimeout(() => {
+    const ti = document.getElementById('story-text-input');
+    if (ti) ti.focus();
+  }, 80);
+}
+
+function storyCloseTextToolbar() {
+  const tb  = document.getElementById('story-toolbar');
+  const fab = document.getElementById('story-text-fab');
+  if (tb)  tb.style.display  = 'none';
+  // Mostra o botão Aa de volta só se houver imagem
+  if (fab && _storyEd.img) fab.style.display = 'flex';
 }
 
 // ── Drag do texto ─────────────────────────────────────────
@@ -7723,6 +7745,21 @@ function previewStoryImage(input) {
       if (ph)    ph.style.display = 'none';
       if (cb)    cb.style.display = 'block';
       if (bgSec) bgSec.style.display = 'none';
+
+      // Mostra botão "Aa" e registra clique no canvas para abrir toolbar de texto
+      const fab = document.getElementById('story-text-fab');
+      if (fab) fab.style.display = 'flex';
+
+      const canvas2 = document.getElementById('story-canvas');
+      // remove listener anterior para não acumular
+      if (canvas2._storyTextClick) canvas2.removeEventListener('click', canvas2._storyTextClick);
+      canvas2._storyTextClick = (e) => {
+        // Não abre toolbar se o clique foi num botão da interface (barra superior etc)
+        if (e.target.closest('#story-toolbar, #story-text-fab, [id^=story-change], .sty-')) return;
+        storyOpenTextToolbar();
+      };
+      canvas2.addEventListener('click', canvas2._storyTextClick);
+
       storyDrawCanvas();
     };
     img.src = url;
