@@ -888,9 +888,35 @@
   font-size: 15px; color: var(--text, #262626); line-height: 1.55;
   font-family: 'Nunito', sans-serif; word-break: break-word; white-space: pre-wrap;
 }
-.pk-card-text .pk-mention { color: var(--pk-accent, #e53935); font-weight: 700; cursor: pointer; }
-.pk-card-text .pk-hashtag { color: #0095f6; cursor: pointer; }
-/* ── Pride rainbow hashtags ── */
+.pk-card-text .pk-mention { color: var(--pk-accent, #e53935); font-weight: 700; cursor: pointer; position: relative; z-index: 1; pointer-events: all; }
+.pk-card-text .pk-hashtag { color: #0095f6; cursor: pointer; position: relative; z-index: 1; pointer-events: all; }
+/* ── Banner "Novos Pokeets disponíveis" ── */
+#pk-new-banner {
+  display: none;
+  position: sticky;
+  top: 56px;
+  z-index: 100;
+  margin: 0 0 0 0;
+  padding: 10px 16px;
+  background: var(--pk-accent, #e53935);
+  color: #fff;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 3px 12px rgba(0,0,0,.18);
+  transition: opacity .2s;
+  animation: pkBannerIn .25s ease;
+  user-select: none;
+}
+#pk-new-banner:hover { opacity: .92; }
+@keyframes pkBannerIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .pk-card-text .pk-hashtag-pride,
 .cap-tag-pride {
   font-weight: 700;
@@ -1496,6 +1522,7 @@
               <button class="pkTab" onclick="pkSwitchTab(this,'trends')">Tendências</button>
             </div>
             <!-- Feed -->
+            <div id="pk-new-banner" onclick="pkLoadNewPokeets()" role="button" aria-live="polite">⬆ Novos Pokeets disponíveis</div>
             <div id="pokeets-feed"></div>
             <!-- Tendências mobile (aba) -->
             <div id="pokeets-trends-mobile" style="display:none"></div>
@@ -9499,6 +9526,11 @@ async function renderPokeets() {
     if (typeof pkFetchProfiles === 'function') await pkFetchProfiles(allAuthorIds);
 
     _pk.feed = pokeets;
+    // Atualiza o timestamp mais recente visto (para o polling)
+    if (pokeets.length) {
+      _pkLatestSeenAt = pokeets[0].created_at || null;
+    }
+    pkHideNewBanner();
 
     // Buscar likes e contagens em paralelo
     const ids = pokeets.map(p => p.id);
@@ -9525,6 +9557,8 @@ async function renderPokeets() {
 
     // Carregar tendências
     pkLoadTrends(pokeets);
+    // Inicia polling em segundo plano
+    pkStartPolling();
 
   } catch(e) {
     console.error('Pokeets error:', e);
@@ -9532,7 +9566,73 @@ async function renderPokeets() {
   }
 }
 
-// ── Render card ───────────────────────────────────────────
+// ── Polling de novos Pokeets em segundo plano ─────────────
+let _pkPollInterval  = null;
+let _pkLatestSeenAt  = null; // ISO string do pokeet mais recente visto
+
+function pkStartPolling() {
+  pkStopPolling();
+  // Registra o pokeet mais recente ao iniciar o polling
+  if (_pk.feed && _pk.feed.length) {
+    _pkLatestSeenAt = _pk.feed[0]?.created_at || null;
+  }
+  _pkPollInterval = setInterval(pkPollNewPokeets, 30000); // a cada 30s
+}
+
+function pkStopPolling() {
+  if (_pkPollInterval) { clearInterval(_pkPollInterval); _pkPollInterval = null; }
+}
+
+async function pkPollNewPokeets() {
+  // Só faz polling se a aba Pokeets estiver visível e não for a aba Tendências
+  const feedEl = document.getElementById('pokeets-feed');
+  if (!feedEl || feedEl.style.display === 'none') return;
+  if (_pk.tab === 'trends') return;
+  if (!currentUser) return;
+
+  try {
+    let q = db.from('pokeets').select('created_at').is('reply_to_id', null).order('created_at', { ascending: false }).limit(1);
+    if (_pk.tab === 'following') {
+      const { data: follows } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id);
+      const userIds = (follows || []).map(f => f.following_id);
+      if (!userIds.length) return;
+      q = q.in('user_id', userIds);
+    }
+    const { data } = await q;
+    if (!data || !data.length) return;
+
+    const newestAt = data[0].created_at;
+    if (_pkLatestSeenAt && newestAt > _pkLatestSeenAt) {
+      pkShowNewBanner();
+    }
+  } catch(e) {
+    // silencioso — polling não deve quebrar a interface
+  }
+}
+
+function pkShowNewBanner() {
+  const banner = document.getElementById('pk-new-banner');
+  if (banner) banner.style.display = 'block';
+}
+
+function pkHideNewBanner() {
+  const banner = document.getElementById('pk-new-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+async function pkLoadNewPokeets() {
+  pkHideNewBanner();
+  // Scroll suave para o topo antes de recarregar
+  const feedEl = document.getElementById('pokeets-feed');
+  if (feedEl) feedEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  await renderPokeets();
+  // Após renderizar, atualiza o timestamp mais recente visto
+  if (_pk.feed && _pk.feed.length) {
+    _pkLatestSeenAt = _pk.feed[0]?.created_at || null;
+  }
+}
+
+
 function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, isThread) {
   if (!p) return '';
   // Se p.users vier null (ex: RLS bloqueando users) mas há snapshot do autor, constrói objeto mínimo
@@ -9644,10 +9744,6 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
     ? `<div class="pk-card-avatar" style="background:${color};overflow:hidden"><img src="${esc(u.avatar_url)}" alt=""></div>`
     : `<div class="pk-card-avatar" style="background:${color};font-size:15px">${initials(u.username||'?')}</div>`;
 
-  // Menu:
-  // - Se é dono do pokeet original (isOwn): mostra pin + apagar (pelo ID original p.id)
-  // - Se é dono do repost (_isRepostOwner): mostra só "Desfazer repost" (pelo ID do repost _repostOwnId)
-  // - Caso contrário: sem menu
   const _menuDropId = _isRepostOwner ? _repostOwnId : p.id;
   const menuHtml = isOwn
     ? `<div class="pk-menu" style="flex-shrink:0;margin-left:auto">
@@ -9676,7 +9772,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
         <span class="pk-card-user">@${esc(u.username)}</span>
         <span class="pk-card-time">${pkTimeAgo(p.created_at)}</span>
       </div>
-      <div class="pk-card-text">${pkFormatText(p.text)}</div>
+      <div class="pk-card-text" onclick="event.stopPropagation()">${pkFormatText(p.text)}</div>
       ${quoteHtml}
       <div class="pk-actions">
         <button class="pk-action-btn" onclick="event.stopPropagation();pkOpenThread('${p.id}')" title="Responder">
@@ -9929,7 +10025,7 @@ async function pkOpenThread(pokeetId) {
                   <span class="pk-card-user">@${esc(rHandle||'')}</span>
                   <span class="pk-card-time">${pkTimeAgo(r.created_at)}</span>
                 </div>
-                <div class="pk-card-text">${pkFormatText(r.text)}</div>
+                <div class="pk-card-text" onclick="event.stopPropagation()">${pkFormatText(r.text)}</div>
                 <div class="pk-actions">
                   ${(()=>{ const _rPride = /\#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i.test(normalizeTag(r.text||'')); const _rLiked = likedSet.has(r.id); const _rColor = pkEffectiveUser()?.avatar_color||pkEffectiveUser()?.color||currentUser?.color||'#e53935'; const _rIsOwn = r.user_id === currentUser.id; return `<button class="pk-action-btn${_rLiked?(_rPride?' liked-pride':' liked'):''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')" data-pride="${_rPride?'1':'0'}"${_rLiked&&!_rPride?` style="color:${_rColor}"`:''}>
                     ${_rPride ? `<span class="pk-pride-heart-wrap${_rLiked?' popping':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${_rLiked?'url(#pk-pride-flag-grad)':'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><span class="pk-pride-heart-fill${_rLiked?' filling':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="url(#pk-pride-flag-grad)" stroke="url(#pk-pride-flag-grad)" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span></span>` : `<svg width="15" height="15" viewBox="0 0 24 24" fill="${_rLiked?_rColor:'none'}" stroke="${_rLiked?_rColor:'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
@@ -9973,8 +10069,16 @@ async function submitPokeetReply() {
 }
 
 // ── Repost ────────────────────────────────────────────────
-function pkOpenRepost(pokeetId) {
+async function pkOpenRepost(pokeetId) {
   if (!currentUser) return;
+  // Se já repostou, desfaz direto sem abrir modal
+  const { data: existing } = await db.from('pokeets').select('id').eq('user_id', currentUser.id).eq('repost_of_id', pokeetId).is('quote_id', null).maybeSingle();
+  if (existing) {
+    await db.from('pokeets').delete().eq('id', existing.id);
+    toast('Repost desfeito.');
+    await renderPokeets();
+    return;
+  }
   _pk.repostTarget = pokeetId;
   document.getElementById('pk-quote-compose-area').style.display = 'none';
   document.getElementById('pk-quote-text').value = '';
@@ -10102,7 +10206,6 @@ async function pkDelete(pokeetId, evt) {
 async function pkDeleteRepost(repostId, evt) {
   if (evt) { evt.stopPropagation(); evt.preventDefault(); }
   document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
-  if (!confirm('Desfazer repost?')) return;
   const { error } = await db.from('pokeets').delete().eq('id', repostId).eq('user_id', currentUser.id);
   if (error) { toast('Erro ao desfazer repost.'); return; }
   toast('Repost desfeito.');
@@ -10123,6 +10226,8 @@ function pkSwitchTab(btn, tab, skipSync) {
   document.querySelectorAll('.pkTab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   _pk.tab = tab;
+  pkHideNewBanner();
+  pkStopPolling();
 
   const feedEl   = document.getElementById('pokeets-feed');
   const trendsEl = document.getElementById('pokeets-trends-mobile');
