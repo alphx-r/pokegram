@@ -9586,6 +9586,9 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
 
   // Para reposts simples: repostador é 'u', autor original vem de p._original
   let reposterName = u.name || u.username || '';
+  // Guarda o ID do repost ANTES do swap, para que o delete apague o repost e não o original
+  const _repostOwnId   = isRepost ? p.id       : null;
+  const _repostOwnerId = isRepost ? p.user_id  : null;
   if (isRepost && p._original) {
     // Substitui 'u' pelo autor original para renderizar o card
     const orig = p._original;
@@ -9603,7 +9606,9 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   }
 
   // Calculado APÓS o swap de p.id para que usem o ID correto (original, não o repost)
-  const isOwn    = p._repostCard ? false : (p.user_id === currentUser.id);
+  // Para repost: isOwn = false (não é dono do original), mas _isRepostOwner = true se for dono do repost
+  const isOwn          = p._repostCard ? false : (p.user_id === currentUser.id);
+  const _isRepostOwner = _repostOwnerId === currentUser.id;
   const liked    = likedSet   ? likedSet.has(p.id)   : false;
   const _activeProfColor = pkEffectiveUser()?.avatar_color || pkEffectiveUser()?.color || currentUser?.color || '#e53935';
   const pkLikeColor = liked ? _activeProfColor : 'none';
@@ -9639,13 +9644,27 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
     ? `<div class="pk-card-avatar" style="background:${color};overflow:hidden"><img src="${esc(u.avatar_url)}" alt=""></div>`
     : `<div class="pk-card-avatar" style="background:${color};font-size:15px">${initials(u.username||'?')}</div>`;
 
-  const menuHtml = isOwn ? `<div class="pk-menu" style="flex-shrink:0;margin-left:auto">
+  // Menu:
+  // - Se é dono do pokeet original (isOwn): mostra pin + apagar (pelo ID original p.id)
+  // - Se é dono do repost (_isRepostOwner): mostra só "Desfazer repost" (pelo ID do repost _repostOwnId)
+  // - Caso contrário: sem menu
+  const _menuDropId = _isRepostOwner ? _repostOwnId : p.id;
+  const menuHtml = isOwn
+    ? `<div class="pk-menu" style="flex-shrink:0;margin-left:auto">
     <button class="pk-menu-btn" onclick="event.stopPropagation();pkToggleMenu('${p.id}')" title="Opções">···</button>
     <div class="pk-dropdown" id="pkdrop-${p.id}">
       <div class="pk-dd-item" onclick="pkTogglePin('${p.id}',${isPinned})">${isPinned ? '📌 Desafixar' : '📌 Fixar'} Pokeet</div>
       <div class="pk-dd-item danger" onclick="pkDelete('${p.id}',event)">🗑 Apagar Pokeet</div>
     </div>
-  </div>` : '';
+  </div>`
+    : _isRepostOwner
+    ? `<div class="pk-menu" style="flex-shrink:0;margin-left:auto">
+    <button class="pk-menu-btn" onclick="event.stopPropagation();pkToggleMenu('${_menuDropId}')" title="Opções">···</button>
+    <div class="pk-dropdown" id="pkdrop-${_menuDropId}">
+      <div class="pk-dd-item danger" onclick="pkDeleteRepost('${_repostOwnId}',event)">🔁 Desfazer repost</div>
+    </div>
+  </div>`
+    : '';
 
   return `<div class="pokeet-card${isPinned?' pk-card-pinned':''}" id="pkcard-${p.id}" onclick="pkOpenThread('${p.id}')" style="flex-direction:column;gap:0">
     ${pinnedLabel}${repostLabel}
@@ -10076,6 +10095,17 @@ async function pkDelete(pokeetId, evt) {
   const { error } = await db.from('pokeets').delete().eq('id', pokeetId);
   if (error) { toast('Erro ao apagar.'); return; }
   toast('Pokeet apagado.');
+  await renderPokeets();
+}
+
+// Apaga apenas o repost (não o pokeet original)
+async function pkDeleteRepost(repostId, evt) {
+  if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+  document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
+  if (!confirm('Desfazer repost?')) return;
+  const { error } = await db.from('pokeets').delete().eq('id', repostId).eq('user_id', currentUser.id);
+  if (error) { toast('Erro ao desfazer repost.'); return; }
+  toast('Repost desfeito.');
   await renderPokeets();
 }
 
