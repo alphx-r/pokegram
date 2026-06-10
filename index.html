@@ -4544,9 +4544,13 @@ async function automacaoInit() {
       </div>
 
       <div class="adm-field" style="margin-bottom:12px">
-        <label>Horários de postagem <span style="font-weight:400;text-transform:none;letter-spacing:0">(HH:MM separados por vírgula)</span></label>
-        <input type="text" id="auto-horarios-${npc.id}" value="${esc(horarios)}" placeholder="09:00, 13:00, 18:00"
-          style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);width:100%;box-sizing:border-box;background:var(--surface)">
+        <label>Horários de postagem <span style="font-weight:400;text-transform:none;letter-spacing:0">(HH:MM separados por vírgula — edite livremente)</span></label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="auto-horarios-${npc.id}" value="${esc(horarios)}" placeholder="09:00, 13:00, 18:00"
+            style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);flex:1;box-sizing:border-box;background:var(--surface)">
+          <button type="button" onclick="autoRegenerarHorarios('${npc.id}')" title="Gerar horários aleatórios com base no Posts por dia"
+            style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;cursor:pointer;white-space:nowrap;font-family:'Nunito',sans-serif">🎲 Gerar</button>
+        </div>
       </div>
 
       <div class="adm-field" style="margin-bottom:14px">
@@ -4580,8 +4584,13 @@ async function autoSalvar(npcId) {
   const contexto = document.getElementById(`auto-contexto-${npcId}`).value.trim();
   const ppd      = parseInt(document.getElementById(`auto-ppd-${npcId}`).value) || 2;
 
-  // Gera horários aleatórios distribuídos entre 8h e 23h
-  const horarios = autoGerarHorarios(ppd);
+  // Lê os horários do campo editável; se vazio ou inválido, gera aleatoriamente
+  const horariosRaw = (document.getElementById(`auto-horarios-${npcId}`)?.value || '').trim();
+  const horariosParsed = horariosRaw
+    .split(',')
+    .map(h => h.trim())
+    .filter(h => /^\d{2}:\d{2}$/.test(h));
+  const horarios = horariosParsed.length > 0 ? horariosParsed : autoGerarHorarios(ppd);
 
   const btn = document.querySelector(`#auto-card-${npcId} .adm-btn-primary`);
   btn.disabled = true; btn.textContent = '⏳';
@@ -4621,6 +4630,17 @@ function autoGerarHorarios(qtd) {
     const mm = (m % 60).toString().padStart(2, '0');
     return `${h}:${mm}`;
   });
+}
+
+function autoRegenerarHorarios(npcId) {
+  const ppd = parseInt(document.getElementById(`auto-ppd-${npcId}`)?.value) || 2;
+  const novos = autoGerarHorarios(ppd);
+  const input = document.getElementById(`auto-horarios-${npcId}`);
+  if (input) {
+    input.value = novos.join(', ');
+    input.style.borderColor = 'var(--green)';
+    setTimeout(() => input.style.borderColor = 'var(--border)', 1000);
+  }
 }
 
 // ── Usuários ──────────────────────────────────────────────
