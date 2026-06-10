@@ -4526,6 +4526,7 @@ async function automacaoInit() {
     const ppd = cfg.posts_por_dia || 2;
     const tom = cfg.tom || 'natural';
     const contexto = cfg.contexto_fixo || '';
+    const lowercase = cfg.lowercase || false;
     const horarios = (cfg.horarios || ['09:00','18:00']).join(', ');
     const ultimoPost = cfg.ultimo_post ? new Date(cfg.ultimo_post).toLocaleString('pt-BR') : '—';
 
@@ -4580,10 +4581,17 @@ async function automacaoInit() {
         </div>
       </div>
 
-      <div class="adm-field" style="margin-bottom:14px">
+      <div class="adm-field" style="margin-bottom:12px">
         <label>Contexto fixo <span style="font-weight:400;text-transform:none;letter-spacing:0">(opcional — guia a IA sempre)</span></label>
         <textarea id="auto-contexto-${npc.id}" rows="2" placeholder="Ex: Está viajando pela região de Johto, focado em se tornar mestre Pokémon..."
           style="padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;color:var(--text);resize:vertical;width:100%;box-sizing:border-box;background:var(--surface)">${esc(contexto)}</textarea>
+      </div>
+
+      <div class="adm-field" style="margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:700;font-size:12px">
+          <input type="checkbox" id="auto-lowercase-${npc.id}" ${lowercase ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer;accent-color:var(--brand)">
+          <span>Escrever em <strong>lowercase</strong> <span style="font-weight:400">(minúsculas, estilo internet)</span></span>
+        </label>
       </div>
 
       <div style="display:flex;gap:8px;align-items:center">
@@ -4610,6 +4618,7 @@ async function autoSalvar(npcId) {
   const tom      = document.getElementById(`auto-tom-${npcId}`).value;
   const contexto = document.getElementById(`auto-contexto-${npcId}`).value.trim();
   const ppd      = parseInt(document.getElementById(`auto-ppd-${npcId}`).value) || 2;
+  const lowercase = document.getElementById(`auto-lowercase-${npcId}`).checked;
 
   // Lê os horários do campo editável; se vazio ou inválido, gera aleatoriamente
   const horariosRaw = (document.getElementById(`auto-horarios-${npcId}`)?.value || '').trim();
@@ -4627,6 +4636,7 @@ async function autoSalvar(npcId) {
     posts_por_dia: ppd,
     horarios,
     contexto_fixo: contexto || null,
+    lowercase,
   }, { onConflict: 'npc_id' });
 
   btn.disabled = false; btn.textContent = '💾 Salvar';
