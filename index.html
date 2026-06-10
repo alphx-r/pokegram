@@ -9580,23 +9580,9 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
     }
     u = p.users;
   }
-  const liked    = likedSet   ? likedSet.has(p.id)   : false;
-  const _activeProfColor = pkEffectiveUser()?.avatar_color || pkEffectiveUser()?.color || currentUser?.color || '#e53935';
-  const pkLikeColor = liked ? _activeProfColor : 'none';
-  // Detecta hashtags Pride no texto (normalizado para ignorar acentos)
-  const _textNorm = normalizeTag(p.text || '');
-  const _prideRx  = /#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i;
-  const isPride   = _prideRx.test(_textNorm);
-  const reposted = repostedSet? repostedSet.has(p.id) : false;
-  const likes    = likeMap    ? (likeMap[p.id]    || 0) : (p._likes    || 0);
-  const replies  = replyMap   ? (replyMap[p.id]   || 0) : (p._replies  || 0);
-  const reposts  = repostMap  ? (repostMap[p.id]  || 0) : (p._reposts  || 0);
-  const color    = u.avatar_color || u.color || '#e53935';
-
   const isRepost = !!p.repost_of_id && !p.quote_id;
   const isQuote  = !!p.quote_id;
   const isPinned = !!p.pinned;
-  const isOwn    = p._repostCard ? false : (p.user_id === currentUser.id);
 
   // Para reposts simples: repostador é 'u', autor original vem de p._original
   let reposterName = u.name || u.username || '';
@@ -9615,6 +9601,21 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
     // Texto e id do pokeet original (para likes/replies/ações)
     p = { ...p, text: orig.text, id: orig.id, created_at: orig.created_at, _repostCard: true, _reposterId: p.user_id };
   }
+
+  // Calculado APÓS o swap de p.id para que usem o ID correto (original, não o repost)
+  const isOwn    = p._repostCard ? false : (p.user_id === currentUser.id);
+  const liked    = likedSet   ? likedSet.has(p.id)   : false;
+  const _activeProfColor = pkEffectiveUser()?.avatar_color || pkEffectiveUser()?.color || currentUser?.color || '#e53935';
+  const pkLikeColor = liked ? _activeProfColor : 'none';
+  // Detecta hashtags Pride no texto (normalizado para ignorar acentos)
+  const _textNorm = normalizeTag(p.text || '');
+  const _prideRx  = /#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i;
+  const isPride   = _prideRx.test(_textNorm);
+  const reposted = repostedSet? repostedSet.has(p.id) : false;
+  const likes    = likeMap    ? (likeMap[p.id]    || 0) : (p._likes    || 0);
+  const replies  = replyMap   ? (replyMap[p.id]   || 0) : (p._replies  || 0);
+  const reposts  = repostMap  ? (repostMap[p.id]  || 0) : (p._reposts  || 0);
+  const color    = u.avatar_color || u.color || '#e53935';
 
   let pinnedLabel = isPinned ? `<div class="pk-pinned-label">📌 Pokeet fixado</div>` : '';
   let repostLabel = isRepost ? `<div class="pk-card-repost-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>${esc(reposterName)} repostou</div>` : '';
