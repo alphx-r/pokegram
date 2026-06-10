@@ -6959,7 +6959,9 @@ async function loadProfilePokeets(userId, userObj) {
     const { data: myReposts } = await db.from('pokeets').select('repost_of_id').eq('user_id', currentUser.id).in('repost_of_id', ids).is('quote_id', null);
     const repostedSet = new Set((myReposts || []).map(r => r.repost_of_id));
 
-    container.innerHTML = pokeets.map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
+    container.innerHTML = pokeets
+      .filter(p => !(p.repost_of_id && !p.quote_id && !p._original))
+      .map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
     container.dataset.loaded = userId;
 
   } catch(e) {
@@ -9516,7 +9518,9 @@ async function renderPokeets() {
     const { data: myReposts } = await db.from('pokeets').select('repost_of_id').eq('user_id', currentUser.id).in('repost_of_id', ids).is('quote_id', null);
     const repostedSet = new Set((myReposts || []).map(r => r.repost_of_id));
 
-    const renderedCards = pokeets.map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
+    const renderedCards = pokeets
+      .filter(p => !(p.repost_of_id && !p.quote_id && !p._original))
+      .map(p => pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet)).join('');
     container.innerHTML = renderedCards || '<div class="pk-thread-empty">Nenhum Pokeet para exibir.</div>';
 
     // Carregar tendências
@@ -9592,7 +9596,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   const isRepost = !!p.repost_of_id && !p.quote_id;
   const isQuote  = !!p.quote_id;
   const isPinned = !!p.pinned;
-  const isOwn    = p.user_id === currentUser.id;
+  const isOwn    = p._repostCard ? false : (p.user_id === currentUser.id);
 
   // Para reposts simples: repostador é 'u', autor original vem de p._original
   let reposterName = u.name || u.username || '';
@@ -9642,8 +9646,9 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
     </div>
   </div>` : '';
 
-  return `<div class="pokeet-card${isPinned?' pk-card-pinned':''}" id="pkcard-${p.id}" onclick="pkOpenThread('${p.id}')">
+  return `<div class="pokeet-card${isPinned?' pk-card-pinned':''}" id="pkcard-${p.id}" onclick="pkOpenThread('${p.id}')" style="flex-direction:column;gap:0">
     ${pinnedLabel}${repostLabel}
+    <div style="display:flex;gap:12px">
     ${avatarHtml}
     <div class="pk-card-body">
       <div class="pk-card-header">
@@ -9675,6 +9680,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
         </button>
         ${menuHtml}
       </div>
+    </div>
     </div>
   </div>`;
 }
@@ -9905,10 +9911,10 @@ async function pkOpenThread(pokeetId) {
                 </div>
                 <div class="pk-card-text">${pkFormatText(r.text)}</div>
                 <div class="pk-actions">
-                  ${(()=>{ const _rPride = /\#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i.test(normalizeTag(r.text||'')); const _rLiked = likedSet.has(r.id); const _rColor = pkEffectiveUser()?.avatar_color||pkEffectiveUser()?.color||currentUser?.color||'#e53935'; return `<button class="pk-action-btn${_rLiked?(_rPride?' liked-pride':' liked'):''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')" data-pride="${_rPride?'1':'0'}"${_rLiked&&!_rPride?` style="color:${_rColor}"`:''}>
+                  ${(()=>{ const _rPride = /\#(pridemonth|mesdoorgulho|lgbt\+?|lgbtq\+?|lgbtqia\+?)/i.test(normalizeTag(r.text||'')); const _rLiked = likedSet.has(r.id); const _rColor = pkEffectiveUser()?.avatar_color||pkEffectiveUser()?.color||currentUser?.color||'#e53935'; const _rIsOwn = r.user_id === currentUser.id; return `<button class="pk-action-btn${_rLiked?(_rPride?' liked-pride':' liked'):''}" id="pkbtn-like-${r.id}" onclick="pkToggleLike('${r.id}')" data-pride="${_rPride?'1':'0'}"${_rLiked&&!_rPride?` style="color:${_rColor}"`:''}>
                     ${_rPride ? `<span class="pk-pride-heart-wrap${_rLiked?' popping':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${_rLiked?'url(#pk-pride-flag-grad)':'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><span class="pk-pride-heart-fill${_rLiked?' filling':''}"><svg width="15" height="15" viewBox="0 0 24 24" fill="url(#pk-pride-flag-grad)" stroke="url(#pk-pride-flag-grad)" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span></span>` : `<svg width="15" height="15" viewBox="0 0 24 24" fill="${_rLiked?_rColor:'none'}" stroke="${_rLiked?_rColor:'currentColor'}" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>`}
                     ${(likeMap[r.id]||0) > 0 ? likeMap[r.id] : ''}
-                  </button>`; })()}
+                  </button>${_rIsOwn ? `<div class="pk-menu" style="flex-shrink:0;margin-left:auto"><button class="pk-menu-btn" onclick="event.stopPropagation();pkToggleMenu('reply-${r.id}')" title="Opções">···</button><div class="pk-dropdown" id="pkdrop-reply-${r.id}"><div class="pk-dd-item danger" onclick="event.stopPropagation();pkDeleteReply('${r.id}')">🗑 Apagar resposta</div></div></div>` : ''}`; })()}
                 </div>
               </div>
             </div>`;}).join('')
@@ -10064,10 +10070,21 @@ async function pkDelete(pokeetId, evt) {
   if (evt) { evt.stopPropagation(); evt.preventDefault(); }
   document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
   if (!confirm('Apagar este Pokeet?')) return;
+  // Apaga reposts simples que apontem para este pokeet (cascata)
+  await db.from('pokeets').delete().eq('repost_of_id', pokeetId).is('quote_id', null);
   const { error } = await db.from('pokeets').delete().eq('id', pokeetId);
   if (error) { toast('Erro ao apagar.'); return; }
-  document.getElementById('pkcard-' + pokeetId)?.remove();
   toast('Pokeet apagado.');
+  await renderPokeets();
+}
+
+async function pkDeleteReply(replyId) {
+  document.querySelectorAll('.pk-dropdown').forEach(d => d.classList.remove('open'));
+  if (!confirm('Apagar esta resposta?')) return;
+  const { error } = await db.from('pokeets').delete().eq('id', replyId).eq('user_id', currentUser.id);
+  if (error) { toast('Erro ao apagar.'); return; }
+  toast('Resposta apagada.');
+  await pkOpenThread(_pk.threadTarget);
 }
 
 // ── Tabs ──────────────────────────────────────────────────
