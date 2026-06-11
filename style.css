@@ -1340,7 +1340,8 @@ input, select, textarea { font-family: var(--font); }
   /* Comments split → stack no mobile */
   .comments-split { flex-direction: column; height: auto; max-height: 90vh; overflow-y: auto; }
   .comments-post-side { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--border); }
-  .comments-post-image { min-height: 260px; }
+  .comments-post-image { min-height: unset; aspect-ratio: 1 / 1; width: 100%; }
+  .comments-post-image img { object-fit: contain; background: #000; }
   .comments-right-side { min-height: 300px; }
 }
 @media (max-width: 935px) and (min-width: 769px) {
