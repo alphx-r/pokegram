@@ -8014,7 +8014,8 @@ async function storySendReaction(emoji) {
   const bar = document.getElementById('sv-comment-bar');
   if (!bar) return;
   const ownerUsername = bar.dataset.storyOwner;
-  if (!ownerUsername || ownerUsername === currentUser.username) return;
+  const effectiveSender = (typeof pkEffectiveUser === 'function' ? pkEffectiveUser() : null) || currentUser;
+  if (!ownerUsername || ownerUsername === effectiveSender.username) return;
 
   // Animação no botão clicado
   document.querySelectorAll('.sv-react-btn').forEach(b => {
@@ -8027,7 +8028,7 @@ async function storySendReaction(emoji) {
   });
 
   const { error } = await db.from('messages').insert({
-    sender_id:   currentUser.username,
+    sender_id:   effectiveSender.username,
     receiver_id: ownerUsername,
     content:     emoji,
     meta_type:   'story_reply',
@@ -8117,14 +8118,15 @@ async function storySendComment() {
   if (!text) return;
 
   const ownerUsername = bar.dataset.storyOwner;
-  if (!ownerUsername || ownerUsername === currentUser.username) return;
+  const effectiveSender = (typeof pkEffectiveUser === 'function' ? pkEffectiveUser() : null) || currentUser;
+  if (!ownerUsername || ownerUsername === effectiveSender.username) return;
 
   inp.value = '';
   inp.disabled = true;
 
   // Envia via tabela messages (mesmo sistema do chat)
   const { error } = await db.from('messages').insert({
-    sender_id:   currentUser.username,
+    sender_id:   effectiveSender.username,
     receiver_id: ownerUsername,
     content:     text,
     meta_type:   'story_reply',
