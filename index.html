@@ -2053,17 +2053,12 @@
         </div>
       </div>
 
-      <!-- Confirmação de resposta enviada — aparece sobre o story -->
-      <div id="sv-reply-sent" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;pointer-events:none;flex-direction:column;align-items:center;gap:8px">
-        <div style="background:rgba(0,0,0,.72);border-radius:16px;padding:18px 28px;display:flex;flex-direction:column;align-items:center;gap:10px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12)">
-          <div id="sv-reply-sent-emoji" style="font-size:36px;line-height:1"></div>
-          <div id="sv-reply-sent-text" style="color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;text-align:center;opacity:.92"></div>
-        </div>
-      </div>
-
+      <!-- Confirmação de resposta enviada — aparece no rodapé, no lugar da barra de input -->
       <!-- Barra de comentário — dentro do sv-container, sempre dentro da área do story -->
       <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:40px 5px calc(env(safe-area-inset-bottom,0px) + 10px) 5px;background:linear-gradient(transparent,rgba(0,0,0,.75) 50%);flex-direction:column">
-        <div style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box">
+
+        <!-- Linha de input normal -->
+        <div id="sv-input-row" style="display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box">
           <div style="position:relative;flex:1;min-width:0">
             <input id="sv-comment-input" type="text" maxlength="300" placeholder="Responder story..." autocomplete="off"
               style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.15);border:1.5px solid var(--user-color,rgba(255,255,255,.35));border-radius:24px;outline:none;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;padding:10px 44px 10px 18px"
@@ -2077,6 +2072,13 @@
             <svg id="sv-like-icon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));transition:all .2s"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
           </button>
         </div>
+
+        <!-- Confirmação de envio — substitui a linha de input temporariamente -->
+        <div id="sv-reply-sent" style="display:none;align-items:center;justify-content:center;gap:10px;width:100%;box-sizing:border-box;padding:8px 0">
+          <div id="sv-reply-sent-emoji" style="font-size:26px;line-height:1"></div>
+          <div id="sv-reply-sent-text" style="color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;opacity:.95;text-shadow:0 1px 4px rgba(0,0,0,.5)"></div>
+        </div>
+
       </div>
 
     </div><!-- /sv-container -->
@@ -7881,6 +7883,8 @@ function closeStoryViewer() {
   if (qr) qr.style.display = 'none';
   const rs = document.getElementById('sv-reply-sent');
   if (rs) { rs.style.display = 'none'; clearTimeout(rs._hideTimer); }
+  const inputRow = document.getElementById('sv-input-row');
+  if (inputRow) inputRow.style.display = 'flex';
   document.getElementById('modal-story').style.display = 'none';
   document.body.style.overflow = '';
   // restaura URL anterior se estava em /usuario/stories
@@ -7996,17 +8000,22 @@ function storyRestartTimer() {
 
 // ── Story: enviar comentário como DM ─────────────────────
 
-// ── Confirmação visual de resposta enviada (sobre o story) ──
+// ── Confirmação visual de resposta enviada (no rodapé do story) ──
 function svShowReplySent(emoji, text) {
-  const el    = document.getElementById('sv-reply-sent');
+  const rs      = document.getElementById('sv-reply-sent');
+  const inputRow = document.getElementById('sv-input-row');
   const elEmoji = document.getElementById('sv-reply-sent-emoji');
   const elText  = document.getElementById('sv-reply-sent-text');
-  if (!el) return;
-  elEmoji.textContent = emoji;
-  elText.textContent  = text;
-  el.style.display    = 'flex';
-  clearTimeout(el._hideTimer);
-  el._hideTimer = setTimeout(() => { el.style.display = 'none'; }, 1800);
+  if (!rs || !inputRow) return;
+  elEmoji.textContent  = emoji;
+  elText.textContent   = text;
+  inputRow.style.display = 'none';
+  rs.style.display       = 'flex';
+  clearTimeout(rs._hideTimer);
+  rs._hideTimer = setTimeout(() => {
+    rs.style.display       = 'none';
+    inputRow.style.display = 'flex';
+  }, 1800);
 }
 
 // ── Quick Reaction (story) ────────────────────────────────
