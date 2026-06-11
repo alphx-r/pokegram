@@ -7804,7 +7804,7 @@ function showStory(idx) {
   if (moreWrap) {
     moreWrap.style.display = isOwn ? 'flex' : 'none';
     moreWrap.dataset.storyId = story.id;
-    moreWrap.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
+    try { moreWrap.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || ''; } catch(e) { moreWrap.dataset.storyPath = ''; }
   }
 
   // barra de comentário (só para stories de outros)
@@ -7867,10 +7867,12 @@ function showStory(idx) {
 
   // registra view individual por story_id ao exibir (apenas para stories alheios)
   if (!isOwn && story.id) {
-    db.from('story_views').upsert(
-      { viewer_id: currentUser.id, owner_id: story.user_id, story_id: story.id, viewed_at: new Date().toISOString() },
-      { onConflict: 'viewer_id,story_id', ignoreDuplicates: true }
-    ).catch(() => {});
+    setTimeout(() => {
+      db.from('story_views').upsert(
+        { viewer_id: currentUser.id, owner_id: story.user_id, story_id: story.id, viewed_at: new Date().toISOString() },
+        { onConflict: 'viewer_id,story_id', ignoreDuplicates: true }
+      ).catch(() => {});
+    }, 500);
   }
 }
 
@@ -7879,10 +7881,10 @@ async function storyNav(dir) {
   if (next < 0 || next >= _storyViewList.length) {
     // terminou todos os stories deste usuário — marca como visto (owner-level)
     if (_storyViewOwnerId && _storyViewOwnerId !== currentUser.id) {
-      await db.from('story_views').upsert(
+      db.from('story_views').upsert(
         { viewer_id: currentUser.id, owner_id: _storyViewOwnerId, viewed_at: new Date().toISOString() },
         { onConflict: 'viewer_id,owner_id' }
-      );
+      ).catch(() => {});
     }
     closeStoryViewer();
     renderStories();
