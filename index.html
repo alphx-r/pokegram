@@ -5747,7 +5747,8 @@ async function renderStories() {
       .from('story_views')
       .select('owner_id')
       .eq('viewer_id', currentUser.id)
-      .in('owner_id', ownerIds);
+      .in('owner_id', ownerIds)
+      .is('story_id', null);
     viewedOwners = new Set((views || []).map(v => v.owner_id));
   }
 
@@ -8129,6 +8130,22 @@ async function storySendReaction(emoji) {
 
   toast('Reação enviada! ' + emoji);
 
+  // Notificação para o dono do story
+  try {
+    const { data: ownerUser } = await db.from('users').select('id').eq('username', ownerUsername).maybeSingle();
+    const storyId = bar.dataset.storyId || null;
+    if (ownerUser) {
+      db.from('notifications').insert({
+        user_id:      ownerUser.id,
+        actor_id:     currentUser.id,
+        type:         'story_reaction',
+        post_id:      storyId,
+        comment_text: emoji,
+        read:         false
+      }).catch(() => {});
+    }
+  } catch(e) {}
+
   // Abre o chat mostrando a conversa com o dono do story
   try {
     const { data: peerUser } = await db
@@ -8241,6 +8258,22 @@ async function storySendComment() {
   }
 
   toast('Mensagem enviada! 💬');
+
+  // Notificação para o dono do story
+  try {
+    const { data: ownerUser } = await db.from('users').select('id').eq('username', ownerUsername).maybeSingle();
+    const storyId = bar.dataset.storyId || null;
+    if (ownerUser) {
+      db.from('notifications').insert({
+        user_id:      ownerUser.id,
+        actor_id:     currentUser.id,
+        type:         'story_comment',
+        post_id:      storyId,
+        comment_text: text,
+        read:         false
+      }).catch(() => {});
+    }
+  } catch(e) {}
 
   // Abre o chat mostrando a conversa com o dono do story
   try {
@@ -8482,14 +8515,19 @@ async function renderNotifList() {
   }
 
   // busca actors e posts em paralelo
-  const actorIds = [...new Set(notifs.map(n => n.actor_id).filter(Boolean))];
-  const postIds  = [...new Set(notifs.map(n => n.post_id).filter(Boolean))];
-  const [{ data: actors }, { data: posts }] = await Promise.all([
+  const actorIds   = [...new Set(notifs.map(n => n.actor_id).filter(Boolean))];
+  const storyTypes = ['story_like', 'story_reaction', 'story_comment'];
+  const postIds    = [...new Set(notifs.filter(n => !storyTypes.includes(n.type)).map(n => n.post_id).filter(Boolean))];
+  const storyIds   = [...new Set(notifs.filter(n =>  storyTypes.includes(n.type)).map(n => n.post_id).filter(Boolean))];
+  const fetches = [
     db.from('users').select('id, username, color, avatar_url').in('id', actorIds),
-    db.from('posts').select('id, image_url, emoji, bg').in('id', postIds)
-  ]);
+    postIds.length  ? db.from('posts').select('id, image_url, emoji, bg').in('id', postIds)   : Promise.resolve({ data: [] }),
+    storyIds.length ? db.from('stories').select('id, image_url').in('id', storyIds)           : Promise.resolve({ data: [] }),
+  ];
+  const [{ data: actors }, { data: posts }, { data: storyThumbs }] = await Promise.all(fetches);
   const actorMap = Object.fromEntries((actors||[]).map(a => [a.id, a]));
   const postMap  = Object.fromEntries((posts||[]).map(p => [p.id, p]));
+  const storyThumbMap = Object.fromEntries((storyThumbs||[]).map(s => [s.id, s]));
 
   // marca como lidas
   await db.from('notifications').update({ read: true }).eq('user_id', currentUser.id).eq('read', false);
@@ -8503,24 +8541,34 @@ async function renderNotifList() {
       ? `<img src="${actor.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
       : initials(actor.username);
     const avBg = actor.avatar_url ? 'transparent' : (actor.color || '#e53935');
-    const thumb = post ? (post.image_url
-      ? `<img src="${post.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0">`
-      : `<div style="width:44px;height:44px;border-radius:6px;background:${post.bg||'#eee'};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${post.emoji||'📸'}</div>`)
+    const storyThumb = storyThumbMap[n.post_id];
+    const thumb = (n.type === 'story_like' || n.type === 'story_reaction' || n.type === 'story_comment') && storyThumb
+      ? `<img src="${storyThumb.image_url}" style="width:44px;height:54px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+      : post ? (post.image_url
+        ? `<img src="${post.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0">`
+        : `<div style="width:44px;height:44px;border-radius:6px;background:${post.bg||'#eee'};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${post.emoji||'📸'}</div>`)
       : '';
     const msg = n.type === 'like'
       ? `<span style="font-weight:700">${esc(actor.username)}</span> curtiu sua publicação.`
       : n.type === 'story_like'
       ? `<span style="font-weight:700">${esc(actor.username)}</span> curtiu seu story. ❤️`
+      : n.type === 'story_reaction'
+      ? `<span style="font-weight:700">${esc(actor.username)}</span> reagiu ao seu story: ${esc(n.comment_text || '')}`
+      : n.type === 'story_comment'
+      ? `<span style="font-weight:700">${esc(actor.username)}</span> respondeu seu story: <span style="color:#555">${esc(n.comment_text || '')}</span>`
       : n.type === 'pokeet_like'
       ? `<span style="font-weight:700">${esc(actor.username)}</span> curtiu seu Pokeet. 💭`
       : n.type === 'follow'
       ? `<span style="font-weight:700">${esc(actor.username)}</span> começou a seguir você.`
       : `<span style="font-weight:700">${esc(actor.username)}</span> comentou: <span style="color:#555">${esc(n.comment_text || '')}</span>`;
     const unread = !n.read ? 'background:#f0f7ff;' : '';
+    const storyNotifTypes = ['story_like', 'story_reaction', 'story_comment'];
     const notifAction = n.type === 'follow'
       ? `closeNotifPanel();showUserProfile('${esc(actor.username)}')`
       : n.type === 'pokeet_like'
       ? `closeNotifPanel();showTab('pokeets')`
+      : storyNotifTypes.includes(n.type)
+      ? `closeNotifPanel()`
       : `closeNotifPanel();openComments('${n.post_id}')`;
     return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;${unread}" onclick="${notifAction}">
       <div style="width:38px;height:38px;border-radius:50%;background:${avBg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0">${av}</div>
@@ -9274,8 +9322,11 @@ function chatRenderMessages() {
     if (mtype === 'story_reply') {
       bubble.className += ' chat-bubble-rich';
       const storyDiv = document.createElement('div');
+      // meta_ref_id é o story_id; para abrir o viewer precisamos do user_id do dono
+      // O dono é o receiver quando a mensagem é enviada pelo viewer, ou o sender_id quando é o próprio
+      const _storyOwnerUsername = isSent ? msg.receiver_id : msg.sender_id;
       storyDiv.innerHTML = `
-        <div class="chat-story-preview" onclick="openStoryViewer('${_escHtml(msg.meta_ref_id||msg.sender_id||'')}')">
+        <div class="chat-story-preview" onclick="chatOpenStoryByUsername('${_escHtml(_storyOwnerUsername)}')">
           ${msg.meta_img
             ? `<img src="${_escHtml(msg.meta_img)}" style="width:100%;height:100%;object-fit:cover;display:block">`
             : `<div style="width:100%;height:100%;background:#222;display:flex;align-items:center;justify-content:center;color:#888;font-size:11px">Story</div>`}
@@ -9284,7 +9335,7 @@ function chatRenderMessages() {
             Story
           </div>
         </div>
-        ${msg.content ? `<div class="chat-rich-text">${_escHtml(msg.content)}</div>` : ''}`;
+        ${msg.content ? `<div class="chat-rich-text" style="font-size:${msg.content.length <= 2 ? '28px' : '13px'};text-align:${msg.content.length <= 2 ? 'center' : 'left'};padding:${msg.content.length <= 2 ? '8px 12px' : '7px 11px 9px'}">${_escHtml(msg.content)}</div>` : ''}`;
       bubble.appendChild(storyDiv);
     } else if (mtype === 'post_share') {
       bubble.className += ' chat-bubble-rich';
@@ -9427,6 +9478,14 @@ function chatSubscribeRealtime() {
       }
     })
     .subscribe();
+}
+
+// ── Abrir story a partir do chat (via username do dono) ─────
+async function chatOpenStoryByUsername(username) {
+  if (!username) return;
+  const { data: u } = await db.from('users').select('id').eq('username', username).maybeSingle();
+  if (u?.id) openStoryViewer(u.id);
+  else toast('Story não encontrado.');
 }
 
 // ── Iniciar conversa a partir de um perfil ───────────────
