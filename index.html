@@ -9168,7 +9168,7 @@ function chatRenderMessages() {
       const storyDiv = document.createElement('div');
       const isEmoji = msg.content && /^\p{Emoji}/u.test(msg.content.trim()) && msg.content.trim().length <= 4;
       const hasText = msg.content && !isEmoji;
-      if (isEmoji) bubble.style.overflow = 'visible';
+      if (isEmoji) bubble.classList.add('chat-bubble-story-emoji');
       const previewRadius = hasText ? '14px 14px 0 0' : '14px';
       const emojiSide = isSent ? 'left:0;transform:translate(-50%,50%)' : 'right:0;transform:translate(50%,50%)';
       storyDiv.innerHTML = `
