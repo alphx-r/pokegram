@@ -3485,12 +3485,35 @@ async function initPokegram() {
   }
 }
 
-function openEditPost(postId, caption, location) {
+let _editPostPendingImageFile = null;
+
+function openEditPost(postId, caption, location, imageUrl) {
   document.getElementById('edit-post-id').value       = postId;
   document.getElementById('edit-post-caption').value  = caption.replace(/\n/g, '\n');
   document.getElementById('edit-post-location').value = location;
+  _editPostPendingImageFile = null;
+  const preview = document.getElementById('edit-post-preview-img');
+  if (preview) preview.src = imageUrl || '';
+  const fileInput = document.getElementById('edit-post-image-input');
+  if (fileInput) fileInput.value = '';
   closePostMenu(postId);
   openModal('modal-edit-post');
+}
+
+function previewEditPostImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 15 * 1024 * 1024) { toast('Imagem muito grande. Máximo 15MB.'); return; }
+  openCropper(file, 'square', croppedFile => {
+    _editPostPendingImageFile = croppedFile;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const preview = document.getElementById('edit-post-preview-img');
+      if (preview) preview.src = e.target.result;
+    };
+    reader.readAsDataURL(croppedFile);
+  });
+  input.value = '';
 }
 
 async function saveEditPost() {
@@ -3498,8 +3521,22 @@ async function saveEditPost() {
   const caption  = document.getElementById('edit-post-caption').value.trim();
   const location = document.getElementById('edit-post-location').value.trim();
   if (!caption) { toast('A legenda não pode estar vazia.'); return; }
-  const { error } = await db.from('posts').update({ caption, location }).eq('id', postId);
+
+  const updatePayload = { caption, location };
+  let newImageUrl = null;
+
+  if (_editPostPendingImageFile) {
+    const path = `${currentUser.id}_${Date.now()}.png`;
+    const { error: upErr } = await db.storage.from('posts').upload(path, _editPostPendingImageFile, { upsert: false, contentType: 'image/png' });
+    if (upErr) { toast('Erro ao enviar foto: ' + upErr.message); return; }
+    const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
+    newImageUrl = urlData.publicUrl;
+    updatePayload.image_url = newImageUrl;
+  }
+
+  const { error } = await db.from('posts').update(updatePayload).eq('id', postId);
   if (error) { toast('Erro ao salvar. Tente novamente.'); return; }
+  _editPostPendingImageFile = null;
   closeModal('modal-edit-post');
   toast('Publicação atualizada!');
   // atualiza no DOM sem recarregar tudo
@@ -3512,9 +3549,13 @@ async function saveEditPost() {
   }
   const locEl = document.querySelector(`#post-${postId} .post-location-tag`);
   if (locEl) locEl.textContent = location;
+  if (newImageUrl) {
+    const imgEl = document.querySelector(`#post-${postId} .post-image img`);
+    if (imgEl) imgEl.src = newImageUrl;
+  }
   // atualiza cache local
   const cached = (appPosts || []).find(p => p.id === postId);
-  if (cached) { cached.caption = caption; cached.location = location; }
+  if (cached) { cached.caption = caption; cached.location = location; if (newImageUrl) cached.image_url = newImageUrl; }
 }
 
 async function deleteComment(commentId, postId) {
@@ -5867,7 +5908,7 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
       ${author.id === currentUser.id ? `
       <button class="post-header-more" onclick="togglePostMenu('${p.id}', this)">···</button>
       <div class="post-menu" id="post-menu-${p.id}">
-        <button class="post-menu-item" onclick="openEditPost('${p.id}','${(p.caption||'').replace(/'/g,"\'" ).replace(/\n/g,'\n')}','${(p.location||'').replace(/'/g,"\'")}')">
+        <button class="post-menu-item" onclick="openEditPost('${p.id}','${(p.caption||'').replace(/'/g,"\'" ).replace(/\n/g,'\n')}','${(p.location||'').replace(/'/g,"\'")}','${(p.image_url||'').replace(/'/g,"\'")}')">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Editar publicação
         </button>
@@ -6077,6 +6118,7 @@ async function openComments(postId) {
     const isOwner   = String(u.id) === String(currentUser.id);
     const captionEscaped = (post.caption || '').replace(/'/g, "\\'").replace(/\n/g, '\\n');
     const locationEscaped = (post.location || '').replace(/'/g, "\\'");
+    const imageUrlEscaped = (post.image_url || '').replace(/'/g, "\\'");
 
     const menuHTML = isOwner
       ? `<div style="position:relative">
@@ -6084,7 +6126,7 @@ async function openComments(postId) {
              style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;line-height:1;border-radius:6px"
              title="Opções">···</button>
            <div id="modal-post-menu-${post.id}" style="display:none;position:absolute;right:0;top:100%;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.15);min-width:180px;z-index:99999;overflow:hidden">
-             <button onclick="openEditPost('${post.id}','${captionEscaped}','${locationEscaped}');closeModalPostMenu('${post.id}')"
+             <button onclick="openEditPost('${post.id}','${captionEscaped}','${locationEscaped}','${imageUrlEscaped}');closeModalPostMenu('${post.id}')"
                style="display:flex;align-items:center;gap:8px;width:100%;padding:11px 14px;border:none;background:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;color:var(--text);text-align:left">
                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                Editar publicação
@@ -8857,6 +8899,14 @@ if (typeof db !== 'undefined') loadFilters();
       <button class="modal-x" onclick="closeModal('modal-edit-post')">✕</button>
     </div>
     <input type="hidden" id="edit-post-id">
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Foto</label>
+      <div style="display:flex;align-items:center;gap:12px">
+        <img id="edit-post-preview-img" style="width:64px;height:64px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border)">
+        <label for="edit-post-image-input" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--text)">Substituir imagem</label>
+        <input type="file" id="edit-post-image-input" accept="image/*" style="display:none" onchange="previewEditPostImage(this)">
+      </div>
+    </div>
     <div style="margin-bottom:12px">
       <label style="font-size:11px;font-weight:700;color:#8e8e8e;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Legenda</label>
       <textarea id="edit-post-caption" rows="4" maxlength="2200"
