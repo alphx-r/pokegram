@@ -7160,9 +7160,45 @@ async function loadProfilePokeets(userId, userObj) {
 
 // ── Load user data helper ─────────────────────────────────
 async function loadUserData(username) {
-  const { data: u, error } = await db.from('users').select('*').eq('username', username).maybeSingle();
+  const { data: u, error } = await db.from('users').select('*').ilike('username', username).maybeSingle();
   if (error) console.error('Erro ao carregar usuário:', error);
-  if (!u) return null;
+  if (!u) {
+    // Fallback: perfil secundário do Pokeet ainda sem user correspondente em 'users'
+    // (perfis criados antes da sincronização automática, ou onde o insert falhou)
+    try {
+      const { data: prof } = await db.from('pokeet_profiles').select('*').ilike('handle', username).maybeSingle();
+      if (prof) {
+        const synthetic = {
+          id:                 prof.id,
+          username:           prof.handle,
+          name:               prof.name || prof.handle,
+          bio:                prof.bio || null,
+          color:              prof.color || '#e53935',
+          avatar_url:         prof.avatar_url || null,
+          header_url:         prof.header_url || null,
+          is_pokeet_secondary: true,
+          pokeet_profile_id:  prof.id,
+          owner_user_id:      prof.user_id,
+        };
+        // Tenta criar o user secundário agora, para futuras consultas
+        try {
+          await db.from('users').insert({
+            username:            prof.handle,
+            name:                prof.name || prof.handle,
+            bio:                 prof.bio || null,
+            color:               prof.color || '#e53935',
+            avatar_url:          prof.avatar_url || null,
+            header_url:          prof.header_url || null,
+            is_pokeet_secondary: true,
+            pokeet_profile_id:   prof.id,
+            owner_user_id:       prof.user_id,
+          });
+        } catch(e) {}
+        return { u: synthetic, userPosts: [], followers: 0, following: 0 };
+      }
+    } catch(e) {}
+    return null;
+  }
   const [postsRes, followersRes, followingRes, myFollowRes] = await Promise.all([
     db.from('posts').select('id,emoji,bg,image_url').eq('user_id', u.id).order('created_at', { ascending: false }),
     db.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', u.id),
