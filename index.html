@@ -1877,23 +1877,22 @@
 
 /* ══ MOBILE ══════════════════════════════════════════ */
 @media (max-width: 768px) {
-  /* Modal ocupa tela toda no mobile */
   #modal-comments {
-    padding: 0 !important;
-    align-items: flex-end !important;
+    overflow: hidden !important;
   }
 
   .comments-modal-box {
     position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    top: auto !important;
-    transform: none !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    height: 92dvh !important;
-    max-height: 92dvh !important;
-    border-radius: 16px 16px 0 0 !important;
+    left: 50% !important;
+    top: calc(50% - 15px) !important;
+    transform: translate(-50%, -50%) !important;
+    width: 92vw !important;
+    max-width: 92vw !important;
+    height: 80vh !important;
+    height: 80dvh !important;
+    max-height: calc(100vh - 72px) !important;
+    max-height: calc(100dvh - 72px) !important;
+    border-radius: 16px !important;
     margin: 0 !important;
     z-index: 1500 !important;
     display: flex !important;
@@ -1920,12 +1919,13 @@
     border-bottom: none !important;
   }
 
-  /* Imagem quadrada sem barras pretas */
+  /* Imagem sem barras pretas */
   .comments-post-image {
     height: auto !important;
     flex: none !important;
     aspect-ratio: 1 / 1;
     width: 100%;
+    max-height: 45dvh;
     background: #000;
   }
   .comments-post-image img,
@@ -1933,7 +1933,7 @@
     object-fit: cover !important;
   }
 
-  /* Painel direito: cresce naturalmente para empurrar o footer */
+  /* Painel direito: scroll contínuo */
   .comments-right-panel {
     flex: 1 !important;
     display: flex !important;
@@ -1942,7 +1942,6 @@
     min-height: 0 !important;
   }
 
-  /* Cabeçalho do painel direito oculto no mobile (fechar fica no topo) */
   .comments-right-header {
     position: sticky !important;
     top: 0 !important;
@@ -1950,14 +1949,12 @@
     background: var(--bg, #fff) !important;
   }
 
-  /* scroll-body: legenda + comentários, fluxo normal */
   .comments-scroll-body {
     overflow: visible !important;
     flex: 1 !important;
     display: block !important;
   }
 
-  /* Footer gruda no final do scroll, não flutua */
   .comments-footer {
     position: sticky !important;
     bottom: 0 !important;
