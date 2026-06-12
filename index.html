@@ -780,6 +780,63 @@
   cursor: pointer; transition: background .15s;
 }
 .pk-profile-btn-save:hover { background: var(--pk-accent-dark, #c62828); }
+
+/* ── Pokeet secondary profile: Twitter-like header banner ── */
+.pkprof-page { position: relative; }
+.pkprof-header-banner {
+  width: 100%;
+  height: 140px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--surface2, #f0f0f0);
+  border-radius: 12px 12px 0 0;
+  margin-bottom: -44px;
+}
+.pkprof-page .profile-header {
+  position: relative;
+}
+.pkprof-page .profile-avatar-wrap {
+  border: 4px solid var(--surface, #fff);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border, #dbdbdb);
+}
+
+/* ── Header upload field in profile switcher modal ── */
+.pk-profile-header-section {
+  width: 100%;
+}
+.pk-profile-header-preview {
+  width: 100%;
+  height: 100px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--surface2, #f0f0f0);
+  border: 1.5px solid var(--border, #dbdbdb);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.pk-profile-header-preview .pk-profile-avatar-overlay { border-radius: 12px; }
+.pk-profile-header-hint {
+  font-size: 11px;
+  color: var(--muted, #8e8e8e);
+  font-family: 'Nunito', sans-serif;
+  text-align: center;
+  margin-top: 6px;
+}
+.pk-profile-field textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border, #dbdbdb);
+  background: var(--surface, #fff);
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px; color: var(--text, #262626);
+  transition: border .2s; width: 100%; box-sizing: border-box;
+  resize: vertical;
+}
+.pk-profile-field textarea:focus { outline: none; border-color: var(--pk-accent, #e53935); }
 .pkc-avatar-btn {
   cursor: pointer;
   position: relative;
@@ -6900,10 +6957,15 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
     ? `<img src="${u.avatar_url}" alt="${u.username}">`
     : `<span>${initials(u.username)}</span>`;
   const avatarBg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+  const isSecondary = !!u.is_pokeet_secondary;
+
+  const headerBanner = isSecondary ? `
+      <div class="pkprof-header-banner" style="${u.header_url ? `background-image:url('${u.header_url}')` : `background:linear-gradient(135deg, ${u.color||'#e53935'}, ${u.color||'#e53935'}99)`}"></div>
+  ` : '';
 
   return `
-    <div class="profile-page">
-
+    <div class="profile-page${isSecondary ? ' pkprof-page' : ''}">
+      ${headerBanner}
       <div class="profile-header">
           <div class="profile-avatar-wrap">
             <div class="profile-avatar" style="background:${avatarBg}">
@@ -6916,18 +6978,23 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
               ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
               ${isMe
                 ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
-                : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>
+                : (isSecondary
+                  ? ''
+                  : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>
                    <button class="btn-icon-profile" onclick="chatStartConversation('${u.username}')" title="Mensagem" style="${document.documentElement.dataset.profileMsgSprite ? 'border:none' : ''}">
                      ${document.documentElement.dataset.profileMsgSprite
                        ? `<img src="${document.documentElement.dataset.profileMsgSprite}" style="width:28px;height:28px;object-fit:contain;display:block;pointer-events:none">`
                        : `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`}
-                   </button>`
+                   </button>`)
               }
             </div>
             <div class="profile-stats">
-              <div class="stat-item"><strong>${fmtNum(postCount)}</strong><span> posts</span></div>
+              ${isSecondary
+                ? `<div class="stat-item"><strong id="pkprof-count-${u.id}">${fmtNum(postCount)}</strong><span> pokeets</span></div>`
+                : `<div class="stat-item"><strong>${fmtNum(postCount)}</strong><span> posts</span></div>
               <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','followers','${u.username}')"><strong>${fmtNum(followers||0)}</strong><span> seguidores</span></div>
-              <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','following','${u.username}')"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>
+              <div class="stat-item" style="cursor:pointer" onclick="openFollowModal('${u.id}','following','${u.username}')"><strong>${fmtNum(following||0)}</strong><span> seguindo</span></div>`
+              }
             </div>
           </div>
           <div class="profile-bio">
@@ -8820,11 +8887,14 @@ function confirmarCrop() {
   if (!_cropperInstance || !_cropCallback) return;
   const cb = _cropCallback; // salva referência antes de fechar
 
-  // Stories: 1080×1920 — posts/avatar: 1080×1080
-  const isStory = Math.abs(_cropperInstance.options.aspectRatio - 9/16) < 0.01;
+  // Stories: 1080×1920 — banner/header: 1500×500 — posts/avatar: 1080×1080
+  const isStory  = Math.abs(_cropperInstance.options.aspectRatio - 9/16) < 0.01;
+  const isBanner = Math.abs(_cropperInstance.options.aspectRatio - 3)    < 0.01;
   const canvas = _cropperInstance.getCroppedCanvas(
     isStory
       ? { width: 1080, height: 1920, imageSmoothingQuality: 'high' }
+      : isBanner
+      ? { width: 1500, height: 500, imageSmoothingQuality: 'high' }
       : { maxWidth: 1080, maxHeight: 1080, imageSmoothingQuality: 'high' }
   );
   const filterCSS = getFilterCSS(_selectedFilter);
@@ -8876,8 +8946,8 @@ function _cropFlipX() {
 
 // adapters — mantém compatibilidade com openCropper(file, mode, callback)
 function openCropper(file, mode, callback) {
-  // sempre 1:1 para postagens e avatar; 9:16 para stories
-  const ratio = (mode === 'story') ? 9/16 : 1;
+  // sempre 1:1 para postagens e avatar; 9:16 para stories; 3:1 para banner/header
+  const ratio = (mode === 'story') ? 9/16 : (mode === 'banner') ? 3 : 1;
   const reader = new FileReader();
   reader.onload = e => _abrirCrop(e.target.result, callback, ratio);
   reader.readAsDataURL(file);
@@ -10593,6 +10663,16 @@ CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid()
     <!-- Formulário — oculto até clicar em um perfil ou "Novo" -->
     <div id="pk-profile-form-area" style="display:none">
       <div class="pk-profile-modal-body">
+        <!-- Header (banner) -->
+        <div class="pk-profile-header-section">
+          <div class="pk-profile-header-preview" id="pk-prof-header-preview" onclick="document.getElementById('pk-prof-header-input').click()">
+            <div class="pk-profile-avatar-overlay">
+              <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+          </div>
+          <input type="file" id="pk-prof-header-input" accept="image/*" style="display:none" onchange="pkHandleHeaderImg(this)">
+          <p class="pk-profile-header-hint">Clique para definir o cabeçalho do perfil</p>
+        </div>
         <!-- Avatar -->
         <div class="pk-profile-avatar-section">
           <div class="pk-profile-avatar-preview" id="pk-prof-avatar-preview" onclick="document.getElementById('pk-prof-img-input').click()">
@@ -10616,6 +10696,11 @@ CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid()
             <input type="text" id="pk-prof-handle" placeholder="seunick" maxlength="30"
               oninput="this.value=this.value.replace(/[^a-zA-Z0-9_.]/g,'');pkProfilePreview()">
           </div>
+        </div>
+        <!-- Bio -->
+        <div class="pk-profile-field">
+          <label>Bio</label>
+          <textarea id="pk-prof-bio" rows="3" maxlength="160" placeholder="Conte um pouco sobre esse perfil..."></textarea>
         </div>
         <!-- Cor do avatar -->
         <div class="pk-profile-field">
@@ -10648,8 +10733,14 @@ CREATE POLICY "pokeet_likes_delete" ON pokeet_likes FOR DELETE USING (auth.uid()
 //    handle     TEXT,
 //    color      TEXT DEFAULT '#e53935',
 //    avatar_url TEXT,
+//    header_url TEXT,
+//    bio        TEXT,
 //    updated_at TIMESTAMPTZ DEFAULT NOW()
 //  );
+//  -- Para tabelas já existentes:
+//  ALTER TABLE pokeet_profiles ADD COLUMN IF NOT EXISTS header_url TEXT;
+//  ALTER TABLE pokeet_profiles ADD COLUMN IF NOT EXISTS bio        TEXT;
+//  ALTER TABLE users           ADD COLUMN IF NOT EXISTS header_url TEXT;
 //  CREATE UNIQUE INDEX uq_pokeet_handle ON pokeet_profiles(lower(handle));
 //  CREATE INDEX idx_pokeet_profiles_user ON pokeet_profiles(user_id);
 //  ALTER TABLE pokeet_profiles ENABLE ROW LEVEL SECURITY;
@@ -10839,14 +10930,19 @@ function pkSwitchProfile(profileId) {
     id:         prof.id,
     name:       prof.name       || '',
     handle:     prof.handle     || '',
+    bio:        prof.bio        || '',
     color:      prof.color      || '#e53935',
     avatar_url: prof.avatar_url || null,
+    header_url: prof.header_url || null,
     _avatarFile: null,
     _avatarPreviewUrl: null,
+    _headerFile: null,
+    _headerPreviewUrl: null,
     _isNew:     false,
   };
   document.getElementById('pk-prof-name').value   = _pkProfTemp.name;
   document.getElementById('pk-prof-handle').value = _pkProfTemp.handle;
+  document.getElementById('pk-prof-bio').value    = _pkProfTemp.bio;
   const row = document.getElementById('pk-prof-colors');
   row.innerHTML = PK_COLORS.map(c =>
     `<div class="pk-profile-color-dot${c===_pkProfTemp.color?' selected':''}" style="background:${c}" data-color="${c}" onclick="pkPickColor('${c}')"></div>`
@@ -10856,10 +10952,11 @@ function pkSwitchProfile(profileId) {
 
 // ── Novo perfil ───────────────────────────────────────────
 function pkNewProfile() {
-  _pkProfTemp = { id: null, name: '', handle: '', color: '#e53935', avatar_url: null, _avatarFile: null, _avatarPreviewUrl: null, _isNew: true };
+  _pkProfTemp = { id: null, name: '', handle: '', bio: '', color: '#e53935', avatar_url: null, header_url: null, _avatarFile: null, _avatarPreviewUrl: null, _headerFile: null, _headerPreviewUrl: null, _isNew: true };
   pkShowProfileForm();
   document.getElementById('pk-prof-name').value   = '';
   document.getElementById('pk-prof-handle').value = '';
+  document.getElementById('pk-prof-bio').value    = '';
   const row = document.getElementById('pk-prof-colors');
   row.innerHTML = PK_COLORS.map(c =>
     `<div class="pk-profile-color-dot${c==='#e53935'?' selected':''}" style="background:${c}" data-color="${c}" onclick="pkPickColor('${c}')"></div>`
@@ -10901,30 +10998,52 @@ function pkPickColor(c) {
   pkProfilePreview();
 }
 
-// ── Preview do avatar no modal ────────────────────────────
+// ── Preview do avatar e header no modal ───────────────────
 function pkProfilePreview() {
   const preview = document.getElementById('pk-prof-avatar-preview');
-  if (!preview) return;
-  const color = _pkProfTemp.color || '#e53935';
-  const url   = _pkProfTemp._avatarPreviewUrl || _pkProfTemp.avatar_url || null;
-  const name  = document.getElementById('pk-prof-name')?.value.trim() ||
-                document.getElementById('pk-prof-handle')?.value.trim() || '?';
-  // Remove img/text anterior, mantém overlay
-  const overlay = preview.querySelector('.pk-profile-avatar-overlay');
-  preview.innerHTML = '';
-  if (overlay) preview.appendChild(overlay);
-  preview.style.background = url ? 'transparent' : color;
-  if (url) {
-    const img = document.createElement('img');
-    img.src = url;
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;position:absolute;inset:0;';
-    preview.insertBefore(img, preview.firstChild);
-  } else {
-    const txt = document.createElement('span');
-    txt.style.cssText = 'font-size:28px;font-weight:800;color:#fff;font-family:Nunito,sans-serif;z-index:1;position:relative;';
-    txt.textContent = initials(name);
-    preview.insertBefore(txt, preview.firstChild);
+  if (preview) {
+    const color = _pkProfTemp.color || '#e53935';
+    const url   = _pkProfTemp._avatarPreviewUrl || _pkProfTemp.avatar_url || null;
+    const name  = document.getElementById('pk-prof-name')?.value.trim() ||
+                  document.getElementById('pk-prof-handle')?.value.trim() || '?';
+    // Remove img/text anterior, mantém overlay
+    const overlay = preview.querySelector('.pk-profile-avatar-overlay');
+    preview.innerHTML = '';
+    if (overlay) preview.appendChild(overlay);
+    preview.style.background = url ? 'transparent' : color;
+    if (url) {
+      const img = document.createElement('img');
+      img.src = url;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;position:absolute;inset:0;';
+      preview.insertBefore(img, preview.firstChild);
+    } else {
+      const txt = document.createElement('span');
+      txt.style.cssText = 'font-size:28px;font-weight:800;color:#fff;font-family:Nunito,sans-serif;z-index:1;position:relative;';
+      txt.textContent = initials(name);
+      preview.insertBefore(txt, preview.firstChild);
+    }
   }
+
+  const headerPreview = document.getElementById('pk-prof-header-preview');
+  if (headerPreview) {
+    const headerUrl = _pkProfTemp._headerPreviewUrl || _pkProfTemp.header_url || null;
+    headerPreview.style.backgroundImage = headerUrl ? `url('${headerUrl}')` : 'none';
+  }
+}
+
+// ── Upload de imagem de header do perfil Pokeet ───────────
+function pkHandleHeaderImg(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  input.value = '';
+  // Abre o modal de crop com proporção de banner (3:1)
+  openCropper(file, 'banner', croppedFile => {
+    _pkProfTemp._headerFile = croppedFile;
+    _pkProfTemp.header_url  = null;
+    if (_pkProfTemp._headerPreviewUrl) URL.revokeObjectURL(_pkProfTemp._headerPreviewUrl);
+    _pkProfTemp._headerPreviewUrl = URL.createObjectURL(croppedFile);
+    pkProfilePreview();
+  });
 }
 
 // ── Upload de imagem do perfil Pokeet ─────────────────────
@@ -10948,6 +11067,7 @@ async function pkSaveProfile() {
 
   const name   = document.getElementById('pk-prof-name').value.trim();
   const handle = document.getElementById('pk-prof-handle').value.trim();
+  const bio    = document.getElementById('pk-prof-bio').value.trim();
 
   if (!handle) { toast('Escolha um @usuário para o Pokeet.'); return; }
 
@@ -10997,14 +11117,43 @@ async function pkSaveProfile() {
     }
   }
 
+  // Upload do header/banner para o Supabase Storage (se houver arquivo novo)
+  let finalHeaderUrl = _pkProfTemp.header_url || null;
+  if (_pkProfTemp._headerFile) {
+    try {
+      btn.textContent = 'Enviando cabeçalho...';
+      const file = _pkProfTemp._headerFile;
+      const ext  = file.name.split('.').pop() || 'jpg';
+      const profileKey = _pkProfTemp.id || ('new_' + Date.now());
+      const path = `pokeet-headers/${currentUser.id}/${profileKey}.${ext}`;
+      const { error: upErr } = await db.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: urlData } = db.storage.from('avatars').getPublicUrl(path);
+      finalHeaderUrl = urlData.publicUrl + '?t=' + Date.now();
+      if (_pkProfTemp._headerPreviewUrl) {
+        URL.revokeObjectURL(_pkProfTemp._headerPreviewUrl);
+        _pkProfTemp._headerPreviewUrl = null;
+      }
+      _pkProfTemp._headerFile = null;
+    } catch(e) {
+      toast('Erro ao enviar cabeçalho: ' + (e.message || e));
+      btn.disabled = false; btn.textContent = orig;
+      return;
+    }
+  }
+
   btn.textContent = 'Salvando...';
 
   const payload = {
     user_id:    currentUser.id,
     name,
     handle,
+    bio,
     color:      _pkProfTemp.color,
     avatar_url: finalAvatarUrl,
+    header_url: finalHeaderUrl,
     updated_at: new Date().toISOString(),
   };
 
@@ -11031,8 +11180,10 @@ async function pkSaveProfile() {
           await db.from('users').insert({
             username:            handle,
             name:                name || handle,
+            bio:                 bio || null,
             color:               _pkProfTemp.color || '#e53935',
             avatar_url:          finalAvatarUrl || null,
+            header_url:          finalHeaderUrl || null,
             is_pokeet_secondary: true,
             pokeet_profile_id:   savedId,
             owner_user_id:       currentUser.id,
@@ -11051,7 +11202,7 @@ async function pkSaveProfile() {
     if (!err) {
       try {
         await db.from('users')
-          .update({ name: name || handle, color: _pkProfTemp.color || '#e53935', avatar_url: finalAvatarUrl || null })
+          .update({ name: name || handle, bio: bio || null, color: _pkProfTemp.color || '#e53935', avatar_url: finalAvatarUrl || null, header_url: finalHeaderUrl || null })
           .eq('pokeet_profile_id', savedId);
       } catch(e) {}
     }
