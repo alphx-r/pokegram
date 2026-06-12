@@ -1851,6 +1851,10 @@
 }
 .comments-list { overflow: visible !important; flex: 1; }
 
+/* Imagem desktop: visível no desktop, oculta no mobile */
+.comments-image-desktop { display: flex; }
+.comments-image-mobile  { display: none; }
+
 /* Footer */
 .comments-footer {
   flex-shrink: 0 !important;
@@ -1908,36 +1912,29 @@
     overflow: hidden !important;
   }
 
-  /* Painel esquerdo: imagem no topo */
-  .comments-left-panel {
-    flex: none !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    border-right: none !important;
-    border-bottom: none !important;
-  }
-
-  /* Imagem sem barras pretas */
-  .comments-post-image {
-    height: auto !important;
+  /* Imagem mobile: aparece dentro do scroll */
+  .comments-image-desktop { display: none !important; }
+  .comments-image-mobile  {
+    display: flex !important;
     flex: none !important;
     aspect-ratio: 1 / 1;
     width: 100%;
-    max-height: 45dvh;
     background: #000;
   }
-  .comments-post-image img,
-  .comments-post-image video {
-    object-fit: cover !important;
+
+  /* Painel esquerdo: oculto no mobile (sem imagem, sem espaço) */
+  .comments-left-panel {
+    display: none !important;
   }
 
-  /* Painel direito: flex column, ocupa o restante, não vaza */
+  /* Painel direito ocupa tudo */
   .comments-right-panel {
     flex: 1 !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
     min-height: 0 !important;
+    max-width: 100% !important;
   }
 
   /* Header fixo no topo do painel direito */
@@ -1974,13 +1971,14 @@
       <!-- ── Layout de duas colunas ── -->
       <div class="comments-layout">
 
-        <!-- Painel esquerdo: só imagem, sem legenda -->
+        <!-- Painel esquerdo: só imagem no desktop -->
         <div class="comments-left-panel" id="comments-post-side">
           <button class="comments-close-desktop" onclick="closeModal('modal-comments')">✕</button>
-          <div class="comments-post-image" id="comments-post-image"></div>
+          <!-- Imagem desktop: fica aqui no desktop, hidden no mobile -->
+          <div class="comments-post-image comments-image-desktop" id="comments-post-image-desktop"></div>
         </div>
 
-        <!-- Painel direito: cabeçalho + legenda + scroll + footer -->
+        <!-- Painel direito: cabeçalho + scroll + footer -->
         <div class="comments-right-panel">
 
           <!-- Cabeçalho -->
@@ -1990,9 +1988,12 @@
             <span></span>
           </div>
 
-          <!-- Scroll único: legenda + comentários -->
+          <!-- Scroll: imagem mobile (no topo) + legenda + comentários -->
           <div class="comments-scroll-body">
-            <!-- Legenda do post (acima dos comentários, dentro do scroll) -->
+            <!-- Imagem mobile: rola junto com legenda e comentários -->
+            <div class="comments-post-image comments-image-mobile" id="comments-post-image"></div>
+
+            <!-- Legenda do post -->
             <div class="comments-post-caption" id="comments-post-caption"></div>
 
             <div id="comments-list" class="comments-list"></div>
@@ -6035,6 +6036,7 @@ async function openComments(postId) {
   currentCommentPostId = postId;
 
   const imgEl = document.getElementById('comments-post-image');
+  const imgElDesktop = document.getElementById('comments-post-image-desktop');
   const capEl = document.getElementById('comments-post-caption');
 
   // Busca post completo (inclui user_id, bg, emoji, saves)
@@ -6064,6 +6066,10 @@ async function openComments(postId) {
       imgEl.innerHTML = `<span style="font-size:80px">${post.emoji || '📸'}</span>`;
     }
   }
+
+  // Espelha imagem no painel desktop
+  if (imgElDesktop && imgEl) imgElDesktop.innerHTML = imgEl.innerHTML;
+  if (imgElDesktop) { imgElDesktop.style.cssText = imgEl ? imgEl.style.cssText : ''; }
 
   // ── Caption (header com avatar + username + três pontinhos) ──
   if (capEl) {
