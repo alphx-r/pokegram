@@ -790,15 +790,30 @@
   background-position: center;
   background-color: var(--surface2, #f0f0f0);
   border-radius: 12px 12px 0 0;
-  margin-bottom: -44px;
 }
 .pkprof-page .profile-header {
   position: relative;
+  padding-top: 14px;
 }
 .pkprof-page .profile-avatar-wrap {
+  margin-top: -44px;
   border: 4px solid var(--surface, #fff);
   border-radius: 50%;
   box-shadow: 0 0 0 1px var(--border, #dbdbdb);
+  background: var(--surface, #fff);
+  width: fit-content;
+  overflow: hidden;
+}
+.pkprof-page .profile-avatar {
+  border-radius: 50%;
+  overflow: hidden;
+}
+.pkprof-page .profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 /* ── Header upload field in profile switcher modal ── */
@@ -6954,7 +6969,7 @@ function avatarHTML(u, size, extraStyle) {
 function buildProfileHTML(u, userPosts, followers, following, isMe) {
   const postCount = (userPosts||[]).length;
   const avatarInner = u.avatar_url
-    ? `<img src="${u.avatar_url}" alt="${u.username}">`
+    ? `<img src="${u.avatar_url}" alt="${u.username}" onerror="this.style.display='none';this.nextElementSibling?.style.removeProperty('display');this.parentElement.style.background='${u.color || '#e53935'}'"><span style="display:none">${initials(u.username)}</span>`
     : `<span>${initials(u.username)}</span>`;
   const avatarBg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
   const isSecondary = !!u.is_pokeet_secondary;
@@ -9955,7 +9970,7 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
   }
 
   const avatarHtml = u.avatar_url
-    ? `<div class="pk-card-avatar" style="background:${color};overflow:hidden"><img src="${esc(u.avatar_url)}" alt=""></div>`
+    ? `<div class="pk-card-avatar" style="background:${color};overflow:hidden"><img src="${esc(u.avatar_url)}" alt="" onerror="this.style.display='none';this.parentElement.textContent='${initials(u.username||'?')}';this.parentElement.style.fontSize='15px'"></div>`
     : `<div class="pk-card-avatar" style="background:${color};font-size:15px">${initials(u.username||'?')}</div>`;
 
   const _menuDropId = _isRepostOwner ? _repostOwnId : p.id;
