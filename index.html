@@ -1877,67 +1877,92 @@
 
 /* ══ MOBILE ══════════════════════════════════════════ */
 @media (max-width: 768px) {
-  /* Impede que o container do modal role — só o scroll-body deve rolar */
+  /* Modal ocupa tela toda no mobile */
   #modal-comments {
-    overflow: hidden !important;
+    padding: 0 !important;
+    align-items: flex-end !important;
   }
 
   .comments-modal-box {
     position: fixed !important;
-    left: 50% !important;
-    top: calc(50% - 15px) !important;
-    transform: translate(-50%, -50%) !important;
-    width: 92vw !important;
-    max-width: 92vw !important;
-    height: 80vh !important;
-    height: 80dvh !important;
-    max-height: calc(100vh - 72px) !important;
-    max-height: calc(100dvh - 72px) !important;
-    border-radius: 16px !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    top: auto !important;
+    transform: none !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 92dvh !important;
+    max-height: 92dvh !important;
+    border-radius: 16px 16px 0 0 !important;
     margin: 0 !important;
     z-index: 1500 !important;
-  }
-
-  /* No mobile, layout vira coluna única */
-  .comments-layout {
+    display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
   }
 
-  /* Painel esquerdo no mobile: apenas a legenda (sem imagem de fundo) */
-  .comments-left-panel {
-    flex: 0 0 auto !important;
-    max-width: 100% !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--border, #dbdbdb) !important;
+  /* Layout vira coluna: scroll único contínuo */
+  .comments-layout {
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
-  /* A imagem no mobile: altura proporcional, sem corte */
+  /* Painel esquerdo: imagem no topo, proporção quadrada */
+  .comments-left-panel {
+    flex: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: none !important;
+  }
+
+  /* Imagem quadrada sem barras pretas */
   .comments-post-image {
     height: auto !important;
     flex: none !important;
     aspect-ratio: 1 / 1;
     width: 100%;
-    max-height: 45dvh;
+    background: #000;
   }
   .comments-post-image img,
   .comments-post-image video {
-    object-fit: contain !important;
+    object-fit: cover !important;
   }
 
-  /* No mobile: painel direito ocupa o restante */
+  /* Painel direito: cresce naturalmente para empurrar o footer */
   .comments-right-panel {
     flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;
     min-height: 0 !important;
   }
 
-  /* Scroll interno do painel direito (legenda + comentários): deixa flex controlar a altura */
+  /* Cabeçalho do painel direito oculto no mobile (fechar fica no topo) */
+  .comments-right-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    background: var(--bg, #fff) !important;
+  }
+
+  /* scroll-body: legenda + comentários, fluxo normal */
   .comments-scroll-body {
-    max-height: none !important;
+    overflow: visible !important;
     flex: 1 !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
+    display: block !important;
+  }
+
+  /* Footer gruda no final do scroll, não flutua */
+  .comments-footer {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: var(--bg, #fff) !important;
+    z-index: 10 !important;
   }
 
   /* Botão fechar desktop oculto no mobile */
@@ -6207,6 +6232,7 @@ async function modalToggleLike(postId, btn) {
     const post = (appPosts || []).find(p => p.id === postId);
     if (post && post.user_id && post.user_id !== currentUser.id) {
       await db.from('notifications').insert({ user_id: post.user_id, actor_id: currentUser.id, type: 'like', post_id: postId }).catch(()=>{});
+      sendPushToUser(post.user_id, 'PokéGram', `${currentUser.username} curtiu sua publicação.`, '/');
     }
   }
   // Sincroniza o like no card do feed também
