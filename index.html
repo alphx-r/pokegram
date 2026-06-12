@@ -587,6 +587,13 @@
   max-width: 400px;
   padding: 0;
   overflow: hidden;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+#pk-profile-form-area {
+  overflow-y: auto;
+  max-height: calc(85vh - 70px); /* 70px ~ altura do header do modal */
 }
 .pk-profile-modal-header {
   display: flex;
@@ -7066,7 +7073,9 @@ function profileSwitchTab(userId, tab) {
     if (postsPanel) postsPanel.style.display = 'none';
     pokeetsPanel.style.display = '';
     const _listEl = document.getElementById(`prof-pokeets-list-${userId}`);
-    const _uObj = _listEl && _listEl.dataset.secondary ? { is_pokeet_secondary: true, owner_user_id: _listEl.dataset.owner, username: _listEl.dataset.handle } : null;
+    const _uObj = _listEl && _listEl.dataset.secondary
+      ? { is_pokeet_secondary: true, owner_user_id: _listEl.dataset.owner, username: _listEl.dataset.handle }
+      : { is_pokeet_secondary: false, username: _listEl?.dataset.handle || '' };
     loadProfilePokeets(userId, _uObj);
   } else {
     pokeetsBtn.classList.remove('active');
@@ -7096,7 +7105,7 @@ async function loadProfilePokeets(userId, userObj) {
     const { data: pokeets, error } = await (
       (userObj && userObj.is_pokeet_secondary && userObj.owner_user_id)
         ? baseQuery.eq('user_id', userObj.owner_user_id).ilike('author_handle', userObj.username)
-        : baseQuery.eq('user_id', userId)
+        : baseQuery.eq('user_id', userId).or(`author_handle.is.null,author_handle.ilike.${userObj?.username || ''}`)
     );
 
     if (error) throw error;
