@@ -1900,17 +1900,15 @@
     overflow: hidden !important;
   }
 
-  /* Layout vira coluna: scroll único contínuo */
+  /* Layout vira coluna, sem scroll próprio */
   .comments-layout {
     flex-direction: column !important;
     flex: 1 !important;
     min-height: 0 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch !important;
+    overflow: hidden !important;
   }
 
-  /* Painel esquerdo: imagem no topo, proporção quadrada */
+  /* Painel esquerdo: imagem no topo */
   .comments-left-panel {
     flex: none !important;
     max-width: 100% !important;
@@ -1933,33 +1931,33 @@
     object-fit: cover !important;
   }
 
-  /* Painel direito: scroll contínuo */
+  /* Painel direito: flex column, ocupa o restante, não vaza */
   .comments-right-panel {
     flex: 1 !important;
     display: flex !important;
     flex-direction: column !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     min-height: 0 !important;
   }
 
+  /* Header fixo no topo do painel direito */
   .comments-right-header {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 10 !important;
-    background: var(--bg, #fff) !important;
+    flex-shrink: 0 !important;
   }
 
+  /* Scroll apenas aqui: legenda + lista de comentários */
   .comments-scroll-body {
-    overflow: visible !important;
     flex: 1 !important;
-    display: block !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
+  /* Footer fixo no fundo, fora do scroll */
   .comments-footer {
-    position: sticky !important;
-    bottom: 0 !important;
-    background: var(--bg, #fff) !important;
-    z-index: 10 !important;
+    flex-shrink: 0 !important;
+    position: static !important;
   }
 
   /* Botão fechar desktop oculto no mobile */
