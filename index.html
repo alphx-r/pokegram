@@ -2604,7 +2604,7 @@
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-sprites')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">🎨 Sprites do Nav</button>
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-favicon')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">🌐 Favicon</button>
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-pokeet-logo')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">💭 Logo Pokeet</button>
-              <button class="adm-img-tab"         onclick="admImgTab(this,'img-whatsapp')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">📱 Ícone WhatsApp</button>
+              <button class="adm-img-tab"         onclick="admImgTab(this,'img-whatsapp')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">📱 Ícone WhatZapp</button>
             </div>
 
             <!-- ── LOGO DA REDE ── -->
@@ -2729,8 +2729,8 @@
             <!-- ── ÍCONE DO WHATSAPP (menu compartilhar) ── -->
             <div id="img-whatsapp" style="display:none">
               <div class="adm-box" style="max-width:480px">
-                <div class="adm-box-title">Ícone do WhatsApp atual</div>
-                <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Imagem exibida no menu "Compartilhar publicação", na opção "Enviar via WhatsApp", no lugar do ícone padrão.</div>
+                <div class="adm-box-title">Ícone do WhatZapp atual</div>
+                <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Imagem exibida no menu "Compartilhar publicação", na opção "Enviar via WhatZapp", no lugar do ícone padrão.</div>
                 <div id="whatsapp-icon-preview-wrap" style="margin-bottom:16px;min-height:60px;display:flex;align-items:center;gap:12px">
                   <img id="whatsapp-icon-preview-adm" src="" alt="" style="display:none;width:48px;height:48px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
                   <span id="whatsapp-icon-preview-empty" style="font-size:13px;color:var(--muted)">Nenhum ícone cadastrado — ícone padrão será usado.</span>
@@ -2749,7 +2749,7 @@
                   <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarWhatsappIcon()">💾 Salvar Ícone</button>
                   <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="removerWhatsappIcon()">🗑 Remover</button>
                 </div>
-                <div class="adm-fb adm-fb-ok" id="whatsapp-icon-fb-ok">✓ Ícone do WhatsApp salvo com sucesso!</div>
+                <div class="adm-fb adm-fb-ok" id="whatsapp-icon-fb-ok">✓ Ícone do WhatZapp salvo com sucesso!</div>
                 <div class="adm-fb adm-fb-err" id="whatsapp-icon-fb-err">—</div>
               </div>
             </div>
@@ -5271,7 +5271,7 @@ async function loadPokeetLogo() {
   if (data?.value) applyPokeetLogo(data.value);
 }
 
-// ── Ícone do WhatsApp (menu de compartilhar) ───────────────
+// ── Ícone do WhatZapp (menu de compartilhar) ───────────────
 let _pendingWhatsappIconBase64 = null;
 
 async function carregarWhatsappIconAdm() {
@@ -5321,7 +5321,7 @@ async function salvarWhatsappIcon() {
 }
 
 async function removerWhatsappIcon() {
-  if (!confirm('Remover o ícone do WhatsApp? O ícone padrão voltará a ser exibido.')) return;
+  if (!confirm('Remover o ícone do WhatZapp? O ícone padrão voltará a ser exibido.')) return;
   const okEl  = document.getElementById('whatsapp-icon-fb-ok');
   const errEl = document.getElementById('whatsapp-icon-fb-err');
   okEl.style.display = errEl.style.display = 'none';
@@ -5332,9 +5332,9 @@ async function removerWhatsappIcon() {
   document.getElementById('whatsapp-icon-new-preview-wrap').style.display = 'none';
   carregarWhatsappIconAdm();
   document.documentElement.dataset.whatsappShareIcon = '';
-  okEl.textContent = '✓ Ícone do WhatsApp removido.';
+  okEl.textContent = '✓ Ícone do WhatZapp removido.';
   okEl.style.display = 'block';
-  setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ Ícone do WhatsApp salvo com sucesso!'; }, 3000);
+  setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ Ícone do WhatZapp salvo com sucesso!'; }, 3000);
 }
 
 async function loadWhatsappShareIcon() {
@@ -6538,7 +6538,7 @@ function modalSharePost(postId) {
     <a href="https://wa.me/?text=${encodeURIComponent(url)}" target="_blank" rel="noopener"
        style="width:100%;text-align:left;background:none;border:none;padding:13px 16px;font-size:14px;font-family:Nunito,sans-serif;cursor:pointer;display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;border-bottom:1px solid #f5f5f5">
       ${waIconHtml}
-      Enviar via WhatsApp
+      Enviar via WhatZapp
     </a>
     <button onclick="document.getElementById('share-post-menu').remove()" style="width:100%;text-align:center;background:none;border:none;padding:13px 16px;font-size:14px;font-family:Nunito,sans-serif;cursor:pointer;color:#8e8e8e;font-weight:700">Cancelar</button>
   `;
@@ -6618,7 +6618,7 @@ async function modalSendViaChat(postId) {
       <a id="svc-whatsapp-btn" href="https://wa.me/?text=${encodeURIComponent(postUrl)}" target="_blank" rel="noopener"
         style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;background:#f5f5f5;border:none;border-radius:12px;padding:12px 8px;cursor:pointer;font-family:Nunito,sans-serif;font-size:12px;font-weight:700;color:#262626;text-decoration:none;transition:background .15s" onmouseover="this.style.background='#ebebeb'" onmouseout="this.style.background='#f5f5f5'">
         ${waIconHtmlSvc}
-        WhatsApp
+        WhatZapp
       </a>
     </div>
     <div style="padding:10px 14px;border-bottom:1px solid #f0f0f0">
