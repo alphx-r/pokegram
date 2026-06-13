@@ -859,6 +859,31 @@
   resize: vertical;
 }
 .pk-profile-field textarea:focus { outline: none; border-color: var(--pk-accent, #e53935); }
+
+/* BOTÃO FLUTUANTE — LINK PARA KINGDOM PLATINUM */
+#kp-fab {
+  position: fixed;
+  bottom: 84px;
+  right: 18px;
+  z-index: 500;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: center; justify-content: center;
+  font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800;
+  letter-spacing: .3px;
+  text-decoration: none;
+  box-shadow: 0 2px 10px rgba(0,0,0,.25);
+  cursor: pointer;
+  transition: transform .2s, opacity .2s;
+}
+#kp-fab:hover { transform: scale(1.08); }
+@media (min-width: 768px) {
+  #kp-fab { bottom: 24px; }
+}
 .pkc-avatar-btn {
   cursor: pointer;
   position: relative;
@@ -8688,6 +8713,8 @@ if (IS_ADM) {
 </script>
 
 <!-- CROPPER MODAL -->
+<a id="kp-fab" href="https://kingdomplatinum.vercel.app/" target="_blank" rel="noopener" title="Abrir Kingdom Platinum">KP</a>
+
 <div id="modal-crop-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;align-items:center;justify-content:center">
   <div style="background:#1a1a1a;border-radius:14px;padding:18px;width:min(500px,96vw);box-shadow:0 12px 48px rgba(0,0,0,.6)">
     <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#fff;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
