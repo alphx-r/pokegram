@@ -2151,11 +2151,6 @@
 
         <!-- Botões à direita: ... e X -->
         <div style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:8px;position:relative">
-          <!-- Botão ver visualizações (só dono) -->
-          <button id="sv-views-btn" onclick="openStoryViewersModal(event)" style="display:none;background:rgba(0,0,0,0.5);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:0 14px;height:40px;cursor:pointer;align-items:center;gap:6px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            <span id="sv-views-count">0</span>
-          </button>
           <!-- Botão ... (só dono) -->
           <div id="sv-more-wrap" style="display:none;position:relative">
             <button id="sv-more-btn" onclick="svToggleMenu(event)" style="width:40px;height:40px;background:rgba(0,0,0,0.5);border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:sans-serif;letter-spacing:1px">⋯</button>
@@ -2202,6 +2197,12 @@
           <div id="sv-reply-sent-text" style="color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;text-align:center;opacity:.92"></div>
         </div>
       </div>
+
+      <!-- Botão ver visualizações (só dono) — pill no canto inferior esquerdo -->
+      <button id="sv-views-btn" onclick="openStoryViewersModal(event)" style="display:none;position:absolute;left:14px;bottom:22px;z-index:8002;background:rgba(0,0,0,.45);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:6px 14px;cursor:pointer;align-items:center;gap:6px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" stroke="none"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 11.5a4.5 4.5 0 110-9 4.5 4.5 0 010 9z"/><circle cx="12" cy="12" r="2.2" fill="#000"/></svg>
+        <span id="sv-views-count">0</span>
+      </button>
 
       <!-- Barra de comentário — dentro do sv-container, sempre dentro da área do story -->
       <div id="sv-comment-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:8001;padding:40px 5px calc(env(safe-area-inset-bottom,0px) + 10px) 5px;background:linear-gradient(transparent,rgba(0,0,0,.75) 50%);flex-direction:column">
