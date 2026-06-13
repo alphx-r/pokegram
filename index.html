@@ -1534,6 +1534,10 @@
               </div>
               <div id="stories-list"></div>
             </div>
+            <div class="pokeets-tabs" id="feed-tabs" style="border-bottom:1px solid var(--border, #efefef)">
+              <button class="pkTab active" onclick="switchFeedTab(this,'feed')">Feed</button>
+              <button class="pkTab" onclick="switchFeedTab(this,'following')">Seguindo</button>
+            </div>
             <div id="feed-posts"></div>
           </div>
           <aside class="feed-aside">
@@ -2109,7 +2113,7 @@
             <div class="comment-actions-bar" id="comments-actions-bar"></div>
             <div class="comment-input-bar">
               <div class="comment-avatar-sm" id="my-comment-avatar"></div>
-              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150" oninput="if(!this.value.startsWith('@'))clearReplyTarget()">
+              <input type="text" id="new-comment" placeholder="Adicione um comentário..." maxlength="150" oninput="if(!this.value.startsWith('@'))clearReplyTarget()" onkeydown="if(event.key==='Enter'){event.preventDefault();submitComment();}">
               <button class="btn-comment-send" onclick="submitComment()">Publicar</button>
             </div>
           </div>
@@ -2147,6 +2151,11 @@
 
         <!-- Botões à direita: ... e X -->
         <div style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:8px;position:relative">
+          <!-- Botão ver visualizações (só dono) -->
+          <button id="sv-views-btn" onclick="openStoryViewersModal(event)" style="display:none;background:rgba(0,0,0,0.5);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:0 14px;height:40px;cursor:pointer;align-items:center;gap:6px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span id="sv-views-count">0</span>
+          </button>
           <!-- Botão ... (só dono) -->
           <div id="sv-more-wrap" style="display:none;position:relative">
             <button id="sv-more-btn" onclick="svToggleMenu(event)" style="width:40px;height:40px;background:rgba(0,0,0,0.5);border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:sans-serif;letter-spacing:1px">⋯</button>
@@ -2213,6 +2222,17 @@
       </div>
 
     </div><!-- /sv-container -->
+
+    <!-- Modal lista de visualizações do story (apenas dono) -->
+    <div id="sv-viewers-modal" style="display:none;position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center" onclick="if(event.target===this)closeStoryViewersModal()">
+      <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:420px;max-height:60vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #efefef;flex-shrink:0">
+          <div style="font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#262626">Visualizações</div>
+          <button onclick="closeStoryViewersModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#8e8e8e;padding:4px">✕</button>
+        </div>
+        <div id="sv-viewers-list" style="overflow-y:auto;flex:1;padding:6px 0"></div>
+      </div>
+    </div>
 
   </div><!-- /modal-story -->
 
@@ -5908,6 +5928,16 @@ function goBack() {
 }
 
 // ── Feed ──────────────────────────────────────────────────
+// ── Feed tabs: Feed / Seguindo ───────────────────────────
+let _feedMode = 'feed';
+function switchFeedTab(btn, mode) {
+  if (_feedMode === mode) return;
+  _feedMode = mode;
+  document.querySelectorAll('#feed-tabs .pkTab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPosts().catch(e => console.warn('posts error:', e));
+}
+
 async function renderFeed() {
   renderAsideMini();
   try {
@@ -6048,6 +6078,32 @@ async function renderPosts() {
   const container = document.getElementById('feed-posts');
   if (!container) return;
 
+  if (_feedMode === 'following') {
+    // Busca quem o currentUser segue
+    const { data: followRows } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id);
+    const followingIds = (followRows || []).map(r => r.following_id);
+
+    if (!followingIds.length) {
+      appPosts = [];
+      container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Você ainda não segue ninguém.<br>Siga outros treinadores para ver seus posts aqui! 🎉</div>';
+      return;
+    }
+
+    const { data: posts, error } = await db
+      .from('posts')
+      .select('*, users!inner(id, username, color, avatar_url, is_npc, rpg)')
+      .in('user_id', followingIds)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
+    if (!posts.length)   { container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>As pessoas que você segue ainda não postaram. 🎉</div>'; return; }
+
+    appPosts = posts;
+    await renderPostsList(container, posts);
+    return;
+  }
+
   // Busca apenas posts de usuários do mesmo RPG do currentUser
   const { data: posts, error } = await db
     .from('posts')
@@ -6065,7 +6121,10 @@ async function renderPosts() {
     [posts[i], posts[j]] = [posts[j], posts[i]];
   }
   appPosts = posts;
+  await renderPostsList(container, posts);
+}
 
+async function renderPostsList(container, posts) {
   // buscar todas as queries secundárias em paralelo
   const postIds = posts.map(p => p.id);
   const [
@@ -6164,7 +6223,8 @@ function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
   <div class="post-comment-bar">
     <div class="mini-avatar" style="background:${currentUser.avatar_url?'transparent':(currentUser.color||'#e53935')};overflow:hidden">${currentUser.avatar_url?`<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:initials(currentUser.username)}</div>
     <input type="text" placeholder="Adicione um comentário..." id="inline-comment-${p.id}"
-      oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)">
+      oninput="document.getElementById('inline-send-${p.id}').classList.toggle('ready', this.value.length>0)"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();submitInlineComment('${p.id}');}">
     <button class="btn-inline-send" id="inline-send-${p.id}" onclick="submitInlineComment('${p.id}')">Publicar</button>
   </div>
 </div>`;
@@ -8211,6 +8271,21 @@ function showStory(idx) {
     moreWrap.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
   }
 
+  // botão de visualizações (só dono)
+  const viewsBtn = document.getElementById('sv-views-btn');
+  if (viewsBtn) {
+    viewsBtn.style.display = isOwn ? 'flex' : 'none';
+    viewsBtn.dataset.storyId = story.id;
+    if (isOwn && story.id) {
+      db.from('story_views').select('viewer_id', { count: 'exact' }).eq('story_id', story.id)
+        .then(({ data, count }) => {
+          const c = (typeof count === 'number') ? count : (data ? data.length : 0);
+          const span = document.getElementById('sv-views-count');
+          if (span) span.textContent = c;
+        }).catch(() => {});
+    }
+  }
+
   // barra de comentário (só para stories de outros)
   const commentBar = document.getElementById('sv-comment-bar');
   const commentAv  = document.getElementById('sv-comment-avatar');
@@ -8271,6 +8346,15 @@ function showStory(idx) {
 }
 
 async function storyNav(dir) {
+  // marca o story atual como visto (registro individual por story)
+  const cur = _storyViewList[_storyViewIdx];
+  if (cur && cur.users?.id && cur.users.id !== currentUser.id) {
+    db.from('story_views').upsert(
+      { viewer_id: currentUser.id, owner_id: cur.users.id, story_id: cur.id, viewed_at: new Date().toISOString() },
+      { onConflict: 'viewer_id,story_id' }
+    ).catch(() => {});
+  }
+
   const next = _storyViewIdx + dir;
   if (next < 0 || next >= _storyViewList.length) {
     // terminou todos os stories deste usuário — marca como visto
@@ -8307,6 +8391,50 @@ function closeStoryViewer() {
   if (window.location.pathname.endsWith('/stories')) {
     history.replaceState(null, '', '/');
   }
+}
+
+// ── Lista de quem visualizou o story (só dono) ───────────
+async function openStoryViewersModal(e) {
+  if (e) e.stopPropagation();
+  const story = _storyViewList[_storyViewIdx];
+  if (!story || !story.id) return;
+  storyClearTimer();
+  _storyPaused = true;
+
+  const list = document.getElementById('sv-viewers-list');
+  list.innerHTML = '<div style="text-align:center;padding:30px;color:#8e8e8e;font-family:\'Nunito\',sans-serif;font-size:13px">Carregando...</div>';
+  document.getElementById('sv-viewers-modal').style.display = 'flex';
+
+  const { data: views } = await db
+    .from('story_views')
+    .select('viewer_id, viewed_at, users:viewer_id(username, color, avatar_url)')
+    .eq('story_id', story.id)
+    .order('viewed_at', { ascending: false });
+
+  if (!views || !views.length) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:#8e8e8e;font-family:\'Nunito\',sans-serif;font-size:13px">Ninguém visualizou este story ainda.</div>';
+    return;
+  }
+
+  list.innerHTML = views.map(v => {
+    const u = v.users || {};
+    const pic = u.avatar_url
+      ? `<div style="width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover"></div>`
+      : `<div style="width:38px;height:38px;border-radius:50%;background:${u.color||'#e53935'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;font-family:'Nunito',sans-serif;flex-shrink:0">${initials(u.username||'?')}</div>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 18px;cursor:pointer" onclick="closeStoryViewersModal();closeStoryViewer();showUserProfile('${u.username||''}')">
+      ${pic}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:#262626;font-family:'Nunito',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.username||'?'}</div>
+      </div>
+      <div style="font-size:11px;color:#8e8e8e;font-family:'Nunito',sans-serif;flex-shrink:0">${fmtTimeAgo(v.viewed_at)}</div>
+    </div>`;
+  }).join('');
+}
+
+function closeStoryViewersModal() {
+  document.getElementById('sv-viewers-modal').style.display = 'none';
+  _storyPaused = false;
+  storyRestartTimer();
 }
 
 function svToggleMenu(e) {
