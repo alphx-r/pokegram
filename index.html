@@ -8669,22 +8669,7 @@ async function submitPost() {
   closeModal('modal-post');
   await showView('feed');
 
-  // Gera e exibe o link permanente da postagem
-  if (inserted?.id) {
-    const postUrl = `${window.location.origin}/${currentUser.username}/post/${inserted.id}`;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(postUrl);
-        toast('✅ Publicado! Link copiado para a área de transferência');
-      } else {
-        toast('✅ Publicado! ' + postUrl);
-      }
-    } catch (e) {
-      toast('✅ Publicado! ' + postUrl);
-    }
-  } else {
-    toast('Publicação criada! 🎉');
-  }
+  toast('Publicação criada! 🎉');
 }
 
 // ── Modal Helpers ─────────────────────────────────────────
