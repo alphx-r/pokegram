@@ -5999,7 +5999,7 @@ async function renderStories() {
 
   const [{ data: stories }, { data: myStories }] = await Promise.all([
     followingIds.length
-      ? db.from('stories').select('user_id, users(id, username, color, avatar_url, is_npc)').gt('expires_at', now).neq('user_id', currentUser.id).in('user_id', followingIds)
+      ? db.from('stories').select('id, user_id, users(id, username, color, avatar_url, is_npc)').gt('expires_at', now).neq('user_id', currentUser.id).in('user_id', followingIds)
       : Promise.resolve({ data: [] }),
     db.from('stories').select('id').eq('user_id', currentUser.id).gt('expires_at', now).limit(1),
   ]);
@@ -6035,16 +6035,31 @@ async function renderStories() {
     seenSet.add(s.user_id); return true;
   });
 
-  // buscar quais usuários eu já vi todos os stories
+  // buscar quais usuários eu já vi TODOS os stories ativos
   const ownerIds = unique.map(s => s.users?.id).filter(Boolean);
   let viewedOwners = new Set();
   if (ownerIds.length) {
+    // ids de todos os stories ativos (de todos os donos relevantes)
+    const allActiveStoryIds = (stories || []).map(s => s.id).filter(Boolean);
     const { data: views } = await db
       .from('story_views')
-      .select('owner_id')
+      .select('story_id')
       .eq('viewer_id', currentUser.id)
-      .in('owner_id', ownerIds);
-    viewedOwners = new Set((views || []).map(v => v.owner_id));
+      .in('story_id', allActiveStoryIds);
+    const viewedStoryIds = new Set((views || []).map(v => v.story_id));
+
+    // conta quantos stories ativos cada dono tem, e quantos já foram vistos
+    const totalByOwner  = {};
+    const viewedByOwner = {};
+    (stories || []).forEach(s => {
+      const oid = s.users?.id;
+      if (!oid) return;
+      totalByOwner[oid]  = (totalByOwner[oid]  || 0) + 1;
+      if (viewedStoryIds.has(s.id)) viewedByOwner[oid] = (viewedByOwner[oid] || 0) + 1;
+    });
+    ownerIds.forEach(oid => {
+      if ((viewedByOwner[oid] || 0) >= (totalByOwner[oid] || 0)) viewedOwners.add(oid);
+    });
   }
 
   // não-vistos primeiro, vistos depois
@@ -8278,10 +8293,12 @@ function showStory(idx) {
     viewsBtn.dataset.storyId = story.id;
     if (isOwn && story.id) {
       db.from('story_views').select('viewer_id', { count: 'exact' }).eq('story_id', story.id)
-        .then(({ data, count }) => {
-          const c = (typeof count === 'number') ? count : (data ? data.length : 0);
+        .then(({ data, count, error }) => {
           const span = document.getElementById('sv-views-count');
-          if (span) span.textContent = c;
+          if (!span) return;
+          if (error) { console.warn('story_views count error:', error); span.textContent = '0'; return; }
+          const c = (typeof count === 'number') ? count : (data ? data.length : 0);
+          span.textContent = c;
         }).catch(() => {});
     }
   }
@@ -8346,9 +8363,12 @@ function showStory(idx) {
 }
 
 async function storyNav(dir) {
-  // marca o story atual como visto (registro individual por story)
   const cur = _storyViewList[_storyViewIdx];
-  if (cur && cur.users?.id && cur.users.id !== currentUser.id) {
+
+  // marca o story atual como visto (registro individual por story) —
+  // só quando o usuário avança para frente (ou termina), nunca ao voltar
+  // ou ao simplesmente abrir o viewer.
+  if (dir > 0 && cur && cur.users?.id && cur.users.id !== currentUser.id) {
     db.from('story_views').upsert(
       { viewer_id: currentUser.id, owner_id: cur.users.id, story_id: cur.id, viewed_at: new Date().toISOString() },
       { onConflict: 'viewer_id,story_id' }
@@ -8357,13 +8377,6 @@ async function storyNav(dir) {
 
   const next = _storyViewIdx + dir;
   if (next < 0 || next >= _storyViewList.length) {
-    // terminou todos os stories deste usuário — marca como visto
-    if (_storyViewOwnerId && _storyViewOwnerId !== currentUser.id) {
-      await db.from('story_views').upsert(
-        { viewer_id: currentUser.id, owner_id: _storyViewOwnerId, viewed_at: new Date().toISOString() },
-        { onConflict: 'viewer_id,owner_id' }
-      );
-    }
     closeStoryViewer();
     renderStories();
     return;
@@ -8405,11 +8418,17 @@ async function openStoryViewersModal(e) {
   list.innerHTML = '<div style="text-align:center;padding:30px;color:#8e8e8e;font-family:\'Nunito\',sans-serif;font-size:13px">Carregando...</div>';
   document.getElementById('sv-viewers-modal').style.display = 'flex';
 
-  const { data: views } = await db
+  const { data: views, error } = await db
     .from('story_views')
     .select('viewer_id, viewed_at, users:viewer_id(username, color, avatar_url)')
     .eq('story_id', story.id)
     .order('viewed_at', { ascending: false });
+
+  if (error) {
+    console.warn('story_views error:', error);
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:#8e8e8e;font-family:\'Nunito\',sans-serif;font-size:13px">Não foi possível carregar as visualizações.<br>Verifique se a coluna <code>story_id</code> existe em <code>story_views</code>.</div>';
+    return;
+  }
 
   if (!views || !views.length) {
     list.innerHTML = '<div style="text-align:center;padding:30px;color:#8e8e8e;font-family:\'Nunito\',sans-serif;font-size:13px">Ninguém visualizou este story ainda.</div>';
