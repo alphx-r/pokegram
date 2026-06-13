@@ -5930,21 +5930,53 @@ function goBack() {
 // ── Feed ──────────────────────────────────────────────────
 // ── Feed tabs: Feed / Seguindo ───────────────────────────
 let _feedMode = 'feed';
+// Cache do conteúdo de cada aba para evitar recarregar ao trocar
+const _feedCache = { feed: null, following: null };
+
 function switchFeedTab(btn, mode) {
-  if (_feedMode === mode) return;
+  const container = document.getElementById('feed-posts');
+  const isSameTab = (_feedMode === mode);
+
+  // salva o estado atual (com curtidas/comentários atualizados) antes de trocar
+  if (!isSameTab && container && _feedCache[_feedMode]) {
+    _feedCache[_feedMode] = { html: container.innerHTML, posts: appPosts };
+  }
+
   _feedMode = mode;
   document.querySelectorAll('#feed-tabs .pkTab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+
+  if (isSameTab) {
+    // clicou na aba já ativa → força atualização
+    renderPosts(true).catch(e => console.warn('posts error:', e));
+    return;
+  }
+
+  // trocou de aba → restaura cache se existir, sem refazer a busca
+  const cached = _feedCache[mode];
+  if (cached && container) {
+    container.innerHTML = cached.html;
+    appPosts = cached.posts;
+    return;
+  }
+
+  // sem cache ainda → carrega pela primeira vez
   renderPosts().catch(e => console.warn('posts error:', e));
 }
 
 async function renderFeed() {
   renderAsideMini();
   try {
-    await Promise.all([
-      renderPosts().catch(e => { console.warn('posts error:', e); }),
-      renderStories().catch(e => { console.warn('stories error:', e); }),
-    ]);
+    const tasks = [renderStories().catch(e => { console.warn('stories error:', e); })];
+    const cached = _feedCache[_feedMode];
+    const container = document.getElementById('feed-posts');
+    if (cached && container) {
+      container.innerHTML = cached.html;
+      appPosts = cached.posts;
+    } else {
+      tasks.push(renderPosts().catch(e => { console.warn('posts error:', e); }));
+    }
+    await Promise.all(tasks);
   } catch(e) { console.warn('renderFeed error:', e); }
 
   // Garante que followState esteja carregado antes de renderizar sugestões
@@ -6101,6 +6133,7 @@ async function renderPosts() {
     if (!followingIds.length) {
       appPosts = [];
       container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Você ainda não segue ninguém.<br>Siga outros treinadores para ver seus posts aqui! 🎉</div>';
+      _feedCache.following = { html: container.innerHTML, posts: [] };
       return;
     }
 
@@ -6112,7 +6145,12 @@ async function renderPosts() {
       .limit(30);
 
     if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
-    if (!posts.length)   { container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>As pessoas que você segue ainda não postaram. 🎉</div>'; return; }
+    if (!posts.length)   {
+      appPosts = [];
+      container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>As pessoas que você segue ainda não postaram. 🎉</div>';
+      _feedCache.following = { html: container.innerHTML, posts: [] };
+      return;
+    }
 
     appPosts = posts;
     await renderPostsList(container, posts);
@@ -6128,7 +6166,12 @@ async function renderPosts() {
     .limit(30);
 
   if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
-  if (!posts.length)   { container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>Seja o primeiro a postar! 🎉</div>'; return; }
+  if (!posts.length)   {
+    appPosts = [];
+    container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>Seja o primeiro a postar! 🎉</div>';
+    _feedCache.feed = { html: container.innerHTML, posts: [] };
+    return;
+  }
 
   // embaralha o feed
   for (let i = posts.length - 1; i > 0; i--) {
@@ -6166,6 +6209,9 @@ async function renderPostsList(container, posts) {
   });
 
   container.innerHTML = posts.map(p => buildPostHTML(p, likedSet.has(p.id), likeMap[p.id] || 0, commentMap[p.id] || 0, lastCommentMap[p.id] || null)).join('');
+
+  // salva no cache da aba atual para evitar refetch ao trocar de aba
+  _feedCache[_feedMode] = { html: container.innerHTML, posts: appPosts };
 }
 
 function buildPostHTML(p, liked, likeCount, commentCount, lastComment) {
