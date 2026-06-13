@@ -5960,7 +5960,18 @@ function switchFeedTab(btn, mode) {
     return;
   }
 
-  // sem cache ainda → carrega pela primeira vez
+  // sem cache ainda → mostra skeleton (igual ao dos Pokeets) e carrega pela primeira vez
+  if (container) {
+    container.innerHTML = `<div class="pk-loading">${[1,2,3].map(()=>`
+      <div class="pk-skeleton">
+        <div class="pk-skel-avatar"></div>
+        <div class="pk-skel-body">
+          <div class="pk-skel-line" style="width:40%"></div>
+          <div class="pk-skel-line" style="width:90%"></div>
+          <div class="pk-skel-line" style="width:70%"></div>
+        </div>
+      </div>`).join('')}</div>`;
+  }
   renderPosts().catch(e => console.warn('posts error:', e));
 }
 
@@ -8406,23 +8417,22 @@ function showStory(idx) {
     }
   });
   _storyTimer = setTimeout(() => storyNav(1), 5000);
+
+  // marca o story atual como visto imediatamente ao exibi-lo
+  const _cur = _storyViewList[idx];
+  if (_cur && _cur.users?.id && _cur.users.id !== currentUser.id) {
+    db.from('story_views').upsert(
+      { viewer_id: currentUser.id, owner_id: _cur.users.id, story_id: _cur.id, viewed_at: new Date().toISOString() },
+      { onConflict: 'viewer_id,story_id' }
+    ).then(({ error }) => {
+      if (error) console.warn('Erro ao registrar visualização do story:', error);
+    });
+  }
 }
 
 async function storyNav(dir) {
   const cur = _storyViewList[_storyViewIdx];
-
-  // marca o story atual como visto (registro individual por story) —
-  // só quando o usuário avança para frente (ou termina), nunca ao voltar
-  // ou ao simplesmente abrir o viewer.
-  if (dir > 0 && cur && cur.users?.id && cur.users.id !== currentUser.id) {
-    db.from('story_views').upsert(
-      { viewer_id: currentUser.id, owner_id: cur.users.id, story_id: cur.id, viewed_at: new Date().toISOString() },
-      { onConflict: 'viewer_id,story_id' }
-    ).then(({ error }) => {
-      if (error) console.error('Erro ao registrar visualização do story:', error);
-      else console.log('Visualização registrada:', cur.id);
-    });
-  }
+  void cur; // mantido para compatibilidade
 
   const next = _storyViewIdx + dir;
   if (next < 0 || next >= _storyViewList.length) {
