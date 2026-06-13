@@ -1391,12 +1391,13 @@
     } catch(e) {}
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { applySplashGif(); applyLogos(); applyFavicon(); loadPokeetLogo(); });
+    document.addEventListener('DOMContentLoaded', () => { applySplashGif(); applyLogos(); applyFavicon(); loadPokeetLogo(); loadWhatsappShareIcon(); });
   } else {
     applyFavicon();
     applySplashGif();
     applyLogos();
     loadPokeetLogo();
+    loadWhatsappShareIcon();
   }
 
   // Estado de autenticação — declarado aqui para evitar "before initialization"
@@ -2603,6 +2604,7 @@
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-sprites')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">🎨 Sprites do Nav</button>
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-favicon')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">🌐 Favicon</button>
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-pokeet-logo')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">💭 Logo Pokeet</button>
+              <button class="adm-img-tab"         onclick="admImgTab(this,'img-whatsapp')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">📱 Ícone WhatsApp</button>
             </div>
 
             <!-- ── LOGO DA REDE ── -->
@@ -2721,6 +2723,34 @@
                 </div>
                 <div class="adm-fb adm-fb-ok" id="pokeet-logo-fb-ok">✓ Logo Pokeet salva com sucesso!</div>
                 <div class="adm-fb adm-fb-err" id="pokeet-logo-fb-err">—</div>
+              </div>
+            </div>
+
+            <!-- ── ÍCONE DO WHATSAPP (menu compartilhar) ── -->
+            <div id="img-whatsapp" style="display:none">
+              <div class="adm-box" style="max-width:480px">
+                <div class="adm-box-title">Ícone do WhatsApp atual</div>
+                <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Imagem exibida no menu "Compartilhar publicação", na opção "Enviar via WhatsApp", no lugar do ícone padrão.</div>
+                <div id="whatsapp-icon-preview-wrap" style="margin-bottom:16px;min-height:60px;display:flex;align-items:center;gap:12px">
+                  <img id="whatsapp-icon-preview-adm" src="" alt="" style="display:none;width:48px;height:48px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                  <span id="whatsapp-icon-preview-empty" style="font-size:13px;color:var(--muted)">Nenhum ícone cadastrado — ícone padrão será usado.</span>
+                </div>
+                <div class="adm-field">
+                  <label>Selecionar imagem (PNG, JPG, SVG, WebP — máx 500 KB)</label>
+                  <input type="file" id="whatsapp-icon-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
+                    onchange="previewWhatsappIconUpload(this)"/>
+                </div>
+                <div id="whatsapp-icon-new-preview-wrap" style="display:none;margin-bottom:14px">
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
+                  <img id="whatsapp-icon-new-preview" src="" alt="" style="width:48px;height:48px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarWhatsappIcon()">💾 Salvar Ícone</button>
+                  <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="removerWhatsappIcon()">🗑 Remover</button>
+                </div>
+                <div class="adm-fb adm-fb-ok" id="whatsapp-icon-fb-ok">✓ Ícone do WhatsApp salvo com sucesso!</div>
+                <div class="adm-fb adm-fb-err" id="whatsapp-icon-fb-err">—</div>
               </div>
             </div>
           </div>
@@ -4284,7 +4314,7 @@ function admImgTab(btn, id) {
   btn.style.background = 'var(--brand-mid)';
   btn.style.color      = '#fff';
   btn.classList.add('active');
-  ['img-logo','img-gif','img-sprites','img-favicon','img-pokeet-logo'].forEach(s => {
+  ['img-logo','img-gif','img-sprites','img-favicon','img-pokeet-logo','img-whatsapp'].forEach(s => {
     const el = document.getElementById(s);
     if (el) el.style.display = (s === id) ? 'block' : 'none';
   });
@@ -4293,6 +4323,7 @@ function admImgTab(btn, id) {
   if (id === 'img-sprites')      carregarSpritesAdm();
   if (id === 'img-favicon')      carregarFaviconAdm();
   if (id === 'img-pokeet-logo')  carregarPokeetLogoAdm();
+  if (id === 'img-whatsapp')     carregarWhatsappIconAdm();
 }
 
 function admTab(btn, id) {
@@ -4302,7 +4333,7 @@ function admTab(btn, id) {
   document.getElementById('sec-' + id).classList.add('active');
   if (id === 'posts')   carregarPosts();
   if (id === 'stats')   carregarStats();
-  if (id === 'imagens') { carregarLogoAdm(); carregarFaviconAdm(); carregarPokeetLogoAdm(); }
+  if (id === 'imagens') { carregarLogoAdm(); carregarFaviconAdm(); carregarPokeetLogoAdm(); carregarWhatsappIconAdm(); }
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
   if (id === 'npcs')    admNpcLoad();
   if (id === 'gerador') geradorInit();
@@ -5239,6 +5270,79 @@ async function loadPokeetLogo() {
   const { data } = await db.from('settings').select('value').eq('key', 'pokeet_logo').maybeSingle();
   if (data?.value) applyPokeetLogo(data.value);
 }
+
+// ── Ícone do WhatsApp (menu de compartilhar) ───────────────
+let _pendingWhatsappIconBase64 = null;
+
+async function carregarWhatsappIconAdm() {
+  const { data } = await db.from('settings').select('value').eq('key', 'whatsapp_share_icon').maybeSingle();
+  const url   = data?.value;
+  const img   = document.getElementById('whatsapp-icon-preview-adm');
+  const empty = document.getElementById('whatsapp-icon-preview-empty');
+  if (url) { img.src = url; img.style.display = 'block'; empty.style.display = 'none'; }
+  else     { img.style.display = 'none'; empty.style.display = 'inline'; }
+}
+
+function previewWhatsappIconUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 512 * 1024) {
+    const errEl = document.getElementById('whatsapp-icon-fb-err');
+    errEl.textContent = 'Imagem muito grande. Máximo: 500 KB.';
+    errEl.style.display = 'block';
+    return;
+  }
+  document.getElementById('whatsapp-icon-fb-err').style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => {
+    _pendingWhatsappIconBase64 = e.target.result;
+    const wrap = document.getElementById('whatsapp-icon-new-preview-wrap');
+    const img  = document.getElementById('whatsapp-icon-new-preview');
+    img.src = _pendingWhatsappIconBase64;
+    wrap.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function salvarWhatsappIcon() {
+  const okEl  = document.getElementById('whatsapp-icon-fb-ok');
+  const errEl = document.getElementById('whatsapp-icon-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+  if (!_pendingWhatsappIconBase64) { errEl.textContent = 'Selecione uma imagem primeiro.'; errEl.style.display = 'block'; return; }
+  const { error } = await db.from('settings').upsert({ key: 'whatsapp_share_icon', value: _pendingWhatsappIconBase64 }, { onConflict: 'key' });
+  if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
+  document.documentElement.dataset.whatsappShareIcon = _pendingWhatsappIconBase64;
+  _pendingWhatsappIconBase64 = null;
+  document.getElementById('whatsapp-icon-file-input').value = '';
+  document.getElementById('whatsapp-icon-new-preview-wrap').style.display = 'none';
+  carregarWhatsappIconAdm();
+  okEl.style.display = 'block';
+  setTimeout(() => okEl.style.display = 'none', 3000);
+}
+
+async function removerWhatsappIcon() {
+  if (!confirm('Remover o ícone do WhatsApp? O ícone padrão voltará a ser exibido.')) return;
+  const okEl  = document.getElementById('whatsapp-icon-fb-ok');
+  const errEl = document.getElementById('whatsapp-icon-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+  const { error } = await db.from('settings').delete().eq('key', 'whatsapp_share_icon');
+  if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
+  _pendingWhatsappIconBase64 = null;
+  document.getElementById('whatsapp-icon-file-input').value = '';
+  document.getElementById('whatsapp-icon-new-preview-wrap').style.display = 'none';
+  carregarWhatsappIconAdm();
+  document.documentElement.dataset.whatsappShareIcon = '';
+  okEl.textContent = '✓ Ícone do WhatsApp removido.';
+  okEl.style.display = 'block';
+  setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ Ícone do WhatsApp salvo com sucesso!'; }, 3000);
+}
+
+async function loadWhatsappShareIcon() {
+  try {
+    const { data } = await db.from('settings').select('value').eq('key', 'whatsapp_share_icon').maybeSingle();
+    document.documentElement.dataset.whatsappShareIcon = data?.value || '';
+  } catch(e) {}
+}
 let pendingDelete = null;
 function confirmarDeletar(tipo, id, label) {
   pendingDelete = { tipo, id };
@@ -5705,6 +5809,9 @@ async function initApp(user) {
     showView('explore').catch(() => {});
   } else if (urlPath === 'pokeet' || urlPath === 'pokeet/') {
     showView('pokeets').catch(() => {});
+  } else if (urlPath.startsWith('pokeet/') && urlPath.split('/').length === 2 && urlPath.split('/')[1]) {
+    // /pokeet/<handle> — perfil secundário do Pokeet
+    showUserProfile(urlPath.split('/')[1]).catch(() => {});
   } else if (postMatch) {
     // /username/post/id — abre o feed e depois o modal do post
     showView('feed').then(() => openComments(postMatch[1])).catch(() => {});
@@ -6300,6 +6407,11 @@ async function openComments(postId) {
           title="Enviar via chat">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
+        <button onclick="modalSharePost('${postId}')"
+          style="background:none;border:none;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:8px"
+          title="Copiar link / Compartilhar">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
         <button id="modal-save-btn-${postId}" onclick="modalToggleSave('${postId}',this)"
           style="background:none;border:none;cursor:pointer;padding:6px;display:flex;align-items:center;border-radius:8px;margin-left:auto"
           title="${saved?'Remover dos salvos':'Salvar'}">
@@ -6401,14 +6513,52 @@ async function modalToggleSave(postId, btn) {
 }
 
 function modalSharePost(postId) {
-  const url = `${window.location.origin}/post/${postId}`;
-  if (navigator.share) {
-    navigator.share({ url }).catch(() => {});
-  } else if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(() => toast('Link copiado!')).catch(() => toast('Link: ' + url));
-  } else {
-    toast('Link: ' + url);
-  }
+  const post = (appPosts || []).find(p => p.id === postId);
+  const username = post?.users?.username || post?.author_handle || currentUser.username;
+  const url = `${window.location.origin}/${username}/post/${postId}`;
+
+  // Remove menu existente
+  const existing = document.getElementById('share-post-menu');
+  if (existing) { existing.remove(); return; }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'share-post-menu';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:16px;width:300px;overflow:hidden;font-family:Nunito,sans-serif;box-shadow:0 12px 40px rgba(0,0,0,.25)';
+
+  const customWaIcon = document.documentElement.dataset.whatsappShareIcon;
+  const waIconHtml = customWaIcon
+    ? `<img src="${customWaIcon}" style="width:20px;height:20px;object-fit:contain;display:block">`
+    : `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.149-.149.347-.347.521-.521.174-.174.232-.298.347-.521.116-.224.058-.42-.041-.586-.099-.166-.992-2.392-1.36-3.224-.367-.831-.733-.832-.991-.84-.258-.008-.554-.008-.85-.008-.297 0-.778.111-1.183.555-.405.443-1.546 1.51-1.546 3.685s1.587 4.276 1.808 4.573c.222.297 3.067 4.687 7.435 6.39 4.368 1.704 4.368 1.137 5.158 1.066.79-.07 2.555-1.045 2.913-2.057.357-1.011.357-1.879.25-2.057-.108-.179-.396-.288-.694-.437z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.954.555 3.778 1.518 5.327L2 22l4.825-1.466A9.96 9.96 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 0 1-4.27-1.234l-.306-.19-3.225.98.99-3.143-.207-.32A8 8 0 1 1 12 20z"/></svg>`;
+
+  box.innerHTML = `
+    <div style="padding:14px 16px;border-bottom:1px solid #f0f0f0;font-weight:800;font-size:15px;text-align:center">Compartilhar publicação</div>
+    <button id="share-copy-link-btn" style="width:100%;text-align:left;background:none;border:none;padding:13px 16px;font-size:14px;font-family:Nunito,sans-serif;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f5f5f5">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Copiar link
+    </button>
+    <a href="https://wa.me/?text=${encodeURIComponent(url)}" target="_blank" rel="noopener"
+       style="width:100%;text-align:left;background:none;border:none;padding:13px 16px;font-size:14px;font-family:Nunito,sans-serif;cursor:pointer;display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;border-bottom:1px solid #f5f5f5">
+      ${waIconHtml}
+      Enviar via WhatsApp
+    </a>
+    <button onclick="document.getElementById('share-post-menu').remove()" style="width:100%;text-align:center;background:none;border:none;padding:13px 16px;font-size:14px;font-family:Nunito,sans-serif;cursor:pointer;color:#8e8e8e;font-weight:700">Cancelar</button>
+  `;
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  document.getElementById('share-copy-link-btn').onclick = () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => toast('Link copiado!')).catch(() => toast('Link: ' + url));
+    } else {
+      toast('Link: ' + url);
+    }
+    overlay.remove();
+  };
 }
 
 // ── Enviar post via chat ──────────────────────────────────
@@ -6431,6 +6581,15 @@ async function modalSendViaChat(postId) {
     if (m.receiver_id !== currentUser.username) peersSet.add(m.receiver_id);
   });
   const peers = [...peersSet].slice(0, 20);
+
+  // Busca avatar/cor reais dos peers
+  let peersData = [];
+  if (peers.length) {
+    const { data } = await db.from('users').select('username,avatar_url,color').in('username', peers);
+    peersData = data || [];
+  }
+  const peersMap = {};
+  peersData.forEach(u => { peersMap[u.username] = u; });
 
   // Cria o mini-modal de seleção
   const existing = document.getElementById('send-via-chat-modal');
@@ -6458,13 +6617,20 @@ async function modalSendViaChat(postId) {
     </div>
     <div id="svc-list" style="overflow-y:auto;flex:1;padding:6px 0">
       ${peers.length
-        ? peers.map(u => `
+        ? peers.map(u => {
+            const pu = peersMap[u];
+            const av = pu?.avatar_url
+              ? `<img src="${pu.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+              : u.charAt(0).toUpperCase();
+            const bg = pu?.avatar_url ? 'transparent' : (pu?.color || '#e53935');
+            return `
           <div onclick="svcSend('${u}','${postId}','${encodeURIComponent(postUrl)}')"
             style="display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;transition:background .1s"
             onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
-            <div style="width:40px;height:40px;border-radius:50%;background:#e53935;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;flex-shrink:0">${u.charAt(0).toUpperCase()}</div>
+            <div style="width:40px;height:40px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;flex-shrink:0;overflow:hidden">${av}</div>
             <div style="font-weight:600;font-size:14px">${u}</div>
-          </div>`).join('')
+          </div>`;
+          }).join('')
         : '<div style="text-align:center;padding:24px;color:#8e8e8e;font-size:13px">Nenhuma conversa ainda.<br>Busque um usuário acima.</div>'
       }
     </div>`;
@@ -7295,10 +7461,13 @@ async function showUserProfile(username) {
   document.getElementById('view-user').classList.remove('hidden');
   currentViewHistory.push('user');
   window.scrollTo(0, 0);
-  history.pushState(null, '', '/' + username);
   const res = await loadUserData(username);
-  if (!res) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Usuário não encontrado.</div>'; return; }
+  if (!res) {
+    history.pushState(null, '', '/' + username);
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Usuário não encontrado.</div>'; return;
+  }
   const { u, userPosts, followers, following } = res;
+  history.pushState(null, '', u.is_pokeet_secondary ? '/pokeet/' + username : '/' + username);
   container.innerHTML = buildProfileHTML(u, userPosts, followers, following, false);
 
   // Para perfis secundarios do Pokeet, carrega os pokeets automaticamente
@@ -8675,6 +8844,11 @@ window.addEventListener('popstate', async () => {
     closeModal('modal-comments');
     closeStoryViewer();
     await showView('pokeets');
+  } else if (urlPath.startsWith('pokeet/') && urlPath.split('/').length === 2 && urlPath.split('/')[1]) {
+    // /pokeet/<handle> — perfil secundário do Pokeet
+    closeModal('modal-comments');
+    closeStoryViewer();
+    await showUserProfile(urlPath.split('/')[1]);
   } else if (postMatch) {
     // /username/post/id — SEMPRE fecha modais, carrega o feed e abre o modal-comments.
     // Nunca abre página separada: o modal é a única forma de visualizar um post.
