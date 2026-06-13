@@ -995,6 +995,24 @@
 }
 .pk-card-text .pk-mention { color: var(--pk-accent, #e53935); font-weight: 700; cursor: pointer; position: relative; z-index: 1; pointer-events: all; }
 .pk-card-text .pk-hashtag { color: #0095f6; cursor: pointer; position: relative; z-index: 1; pointer-events: all; }
+
+/* ── Highlight de hashtags no editor de legenda ── */
+.post-caption-wrap { position: relative; }
+.post-caption-highlight,
+#post-caption {
+  font-family: 'Nunito', sans-serif; font-size: 14px; line-height: 1.5;
+  padding: 8px 0; border: none; resize: none; box-sizing: border-box;
+  white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word;
+}
+.post-caption-highlight {
+  position: absolute; inset: 0; margin: 0; pointer-events: none;
+  overflow: hidden; color: var(--text, #262626);
+}
+.post-caption-highlight .cap-tag-live { color: var(--user-color, var(--pk-accent, #e53935)); font-weight: 700; }
+#post-caption {
+  position: relative; background: transparent; color: transparent; caret-color: var(--text, #262626);
+  z-index: 1; outline: none; width: 100%; flex: 1; min-height: 80px;
+}
 /* ── Banner "Novos Pokeets disponíveis" ── */
 #pk-new-banner {
   display: none;
@@ -1770,7 +1788,10 @@
           </div>
           <div class="post-caption-side">
             <div id="post-author-row" class="post-author-row"></div>
-            <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!"></textarea>
+            <div class="post-caption-wrap" style="position:relative;flex:1;display:flex;flex-direction:column">
+              <div id="post-caption-highlight" class="post-caption-highlight" aria-hidden="true"></div>
+              <textarea id="post-caption" placeholder="Escreva uma legenda... Use #tags!" oninput="pkSyncCaptionHighlight()" onscroll="pkSyncCaptionScroll()"></textarea>
+            </div>
             <div class="post-fields">
               <div class="pf-row">
                 <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -6307,7 +6328,7 @@ const _captionPrideRx = /^(pridemonth|mesdoorgulho|pride|lgbt\+?|lgbtq\+?|lgbtqi
 function formatCaption(cap) {
   return cap
     .replace(/\n/g, '<br>')
-    .replace(/#(\w+)/g, (_, raw) => {
+    .replace(/#([^\s#<&]+)/g, (_, raw) => {
       if (_captionPrideRx.test(raw)) {
         return `<span class="cap-tag cap-tag-pride" onclick="doSearch('#${raw}');event.stopPropagation()" style="cursor:pointer">#${raw}</span>`;
       }
@@ -7921,6 +7942,7 @@ let _postPendingImageFile = null;
 function showNewPost() {
   _postPendingImageFile = null;
   document.getElementById('post-caption').value  = '';
+  pkSyncCaptionHighlight();
   document.getElementById('post-location').value = '';
   document.getElementById('post-img-file').value = '';
 
@@ -9999,6 +10021,28 @@ function normalizeTag(tag) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
+}
+
+// ── Highlight de hashtags em tempo real (editor "Nova publicação") ──
+function pkSyncCaptionHighlight() {
+  const ta  = document.getElementById('post-caption');
+  const hl  = document.getElementById('post-caption-highlight');
+  if (!ta || !hl) return;
+  const text = ta.value;
+  // escapa HTML e colore hashtags com a cor do perfil
+  let html = esc(text).replace(/#([^\s#<&]+)/g, (m, raw) => `<span class="cap-tag-live">#${raw}</span>`);
+  // garante quebra de linha visual igual ao textarea
+  if (html.endsWith('\n') || text === '') html += '&nbsp;';
+  hl.innerHTML = html;
+  pkSyncCaptionScroll();
+}
+
+function pkSyncCaptionScroll() {
+  const ta = document.getElementById('post-caption');
+  const hl = document.getElementById('post-caption-highlight');
+  if (!ta || !hl) return;
+  hl.scrollTop  = ta.scrollTop;
+  hl.scrollLeft = ta.scrollLeft;
 }
 
 function pkFormatText(text) {
