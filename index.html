@@ -8372,7 +8372,10 @@ async function storyNav(dir) {
     db.from('story_views').upsert(
       { viewer_id: currentUser.id, owner_id: cur.users.id, story_id: cur.id, viewed_at: new Date().toISOString() },
       { onConflict: 'viewer_id,story_id' }
-    ).catch(() => {});
+    ).then(({ error }) => {
+      if (error) console.error('Erro ao registrar visualização do story:', error);
+      else console.log('Visualização registrada:', cur.id);
+    });
   }
 
   const next = _storyViewIdx + dir;
