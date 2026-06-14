@@ -8490,6 +8490,7 @@ function closeStoryViewer() {
   if (window.location.pathname.endsWith('/stories')) {
     history.replaceState(null, '', '/');
   }
+  renderStories();
 }
 
 // ── Lista de quem visualizou o story (só dono) ───────────
