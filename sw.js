@@ -1,7 +1,3 @@
-// Service Worker — Pokégram
-// Responsável apenas por push notifications.
-// Não há precache configurado, então a adição dos arquivos /js/* não requer mudanças aqui.
-
 self.addEventListener('push', e => {
   const data = e.data ? e.data.json() : {};
   e.waitUntil(
