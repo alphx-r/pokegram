@@ -8435,11 +8435,13 @@ function showStory(idx) {
     </div>`).join('');
 
   requestAnimationFrame(() => {
-    const activeFill = document.getElementById('sp-' + idx);
-    if (activeFill) {
-      activeFill.style.transition = 'width 5s linear';
-      activeFill.style.width = '100%';
-    }
+    requestAnimationFrame(() => {
+      const activeFill = document.getElementById('sp-' + idx);
+      if (activeFill) {
+        activeFill.style.transition = 'width 5s linear';
+        activeFill.style.width = '100%';
+      }
+    });
   });
   _storyTimer = setTimeout(() => storyNav(1), 5000);
 
