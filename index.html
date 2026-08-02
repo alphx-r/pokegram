@@ -1511,6 +1511,11 @@
           </button>
           <div id="perfis-novo-form" style="display:none;flex-direction:column;gap:6px;padding:12px;background:#fafafa;border-radius:10px">
             <input type="text" id="perfis-novo-username" placeholder="username" autocomplete="off">
+            <select id="perfis-novo-rpg">
+              <option value="">Selecione seu RPG...</option>
+              <option value="kingdom_platinum">Kingdom Platinum</option>
+              <option value="pchapters">PChapters</option>
+            </select>
             <select id="perfis-novo-pronoun">
               <option value="">Pronomes *</option>
               <option value="ele/dele">ele/dele</option>
@@ -1520,7 +1525,7 @@
               <option value="qualquer pronome">qualquer pronome</option>
             </select>
             <div id="perfis-novo-error" style="display:none;color:#e53935;font-size:12px;text-align:center"></div>
-            <button class="btn-primary" onclick="criarNovoPerfilKp()">Criar e entrar</button>
+            <button class="btn-primary" onclick="criarNovoPerfilKp()">Cadastrar</button>
           </div>
         </div>
 
@@ -3756,11 +3761,13 @@ function toggleNovoPerfilForm() {
 async function criarNovoPerfilKp() {
   const rawUsername = document.getElementById('perfis-novo-username').value || '';
   const username = sanitizeUsername(rawUsername);
+  const rpg      = document.getElementById('perfis-novo-rpg').value;
   const pronoun  = document.getElementById('perfis-novo-pronoun').value;
   const errEl    = document.getElementById('perfis-novo-error');
   errEl.style.display = 'none';
 
   if (!username || username.length < 2) { errEl.textContent = 'Informe um username válido.'; errEl.style.display = 'block'; return; }
+  if (!rpg) { errEl.textContent = 'Selecione seu RPG.'; errEl.style.display = 'block'; return; }
   if (!pronoun) { errEl.textContent = 'Selecione seus pronomes.'; errEl.style.display = 'block'; return; }
 
   try {
@@ -3769,14 +3776,19 @@ async function criarNovoPerfilKp() {
 
     // Cria o perfil no Pokégram sem senha própria — login sempre via player do KP daqui pra frente
     const { data: newUser, error: insErr } = await db.from('users').insert({
-      username, name: username, rpg: 'kingdom_platinum', pronoun, password_plain: ''
+      username, name: username, rpg, pronoun, password_plain: ''
     }).select('*').single();
     if (insErr || !newUser) throw new Error(insErr?.message || 'Erro ao criar perfil.');
 
+    // A vinculação ao player do KP é obrigatória: se falhar, o cadastro é considerado
+    // incompleto e o usuário não entra no perfil (evita perfis "fantasmas" sem vínculo).
     const perfisAtualizados = await kpRpc('player_link_pokegram_perfil', {
       p_nome: _kpSession.nome, p_senha: _kpSession.senha, p_username: username
     });
-    _kpSession.perfis = perfisAtualizados || [..._kpSession.perfis, username];
+    if (!Array.isArray(perfisAtualizados) || !perfisAtualizados.includes(username)) {
+      throw new Error('Não foi possível vincular o perfil ao seu player do KP.');
+    }
+    _kpSession.perfis = perfisAtualizados;
 
     await enterKpProfile(username, newUser);
   } catch(e) {
