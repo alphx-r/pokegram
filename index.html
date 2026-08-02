@@ -1523,7 +1523,7 @@
           </div>
         </div>
         <div style="text-align:center;margin-bottom:4px">
-          <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:#262626">Quem vai jogar?</div>
+          <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:#262626">Escolha seu perfil</div>
           <div id="perfis-kp-player-label" style="font-size:12px;color:#8e8e8e;font-family:'Nunito',sans-serif;margin-top:2px"></div>
         </div>
         <div id="perfis-lista" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;max-height:44vh;overflow-y:auto"></div>
@@ -1565,7 +1565,7 @@
       </div>
       <div style="padding:20px;display:flex;flex-direction:column;gap:10px">
         <div style="font-size:13px;color:#555;font-family:'Nunito',sans-serif">
-          Este perfil é do Kingdom Platinum mas ainda não está vinculado a um player. Entre com seu player e senha do KP para vincular (você continua podendo usar a senha antiga deste perfil normalmente).
+          Entre com seu player e senha do KP para vincular seus perfis do Pokégram.
         </div>
         <input type="text" id="vk-player" placeholder="Player" autocomplete="off"
           style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
@@ -2457,12 +2457,23 @@
         <div style="height:1px;background:#efefef"></div>
 
         <!-- Vínculo com Kingdom Platinum -->
-        <div style="display:flex;flex-direction:column;gap:4px">
+        <div id="ep-kp-link-section" style="display:flex;flex-direction:column;gap:4px">
           <label style="font-size:12px;font-weight:700;color:#8e8e8e">Vínculo com Kingdom Platinum</label>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;background:#fafafa">
             <span id="ep-kp-link-status" style="font-size:13px;color:#8e8e8e;font-family:'Nunito',sans-serif">Verificando...</span>
-            <button type="button" onclick="openVincularKpFromEdit()"
+            <button type="button" onclick="toggleEpKpLinkForm()"
               style="padding:6px 14px;background:#262626;color:#fff;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">Vincular</button>
+          </div>
+          <div id="ep-kp-link-form" style="display:none;flex-direction:column;gap:10px;margin-top:4px">
+            <input type="text" id="ep-vk-player" placeholder="Player" autocomplete="off"
+              style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+            <input type="password" id="ep-vk-senha" placeholder="Senha do KP"
+              style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+            <div id="ep-vk-error" style="display:none;font-size:12px;color:#e53935;padding:8px;background:#fde8e8;border-radius:8px"></div>
+            <button type="button" onclick="confirmarVincularKpFromEdit()"
+              style="align-self:flex-start;padding:8px 18px;background:#262626;color:#fff;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+              Confirmar vínculo
+            </button>
           </div>
         </div>
 
@@ -3555,6 +3566,7 @@ async function doAuth() {
     } else {
       const user = await dbLogin(username, password);
       if (!user) { showAuthError('Usuário ou senha incorretos.'); return; }
+      if (await blockIfLinkedToKpPlayer(user)) return;
       // re-fetch para garantir avatar_url e todos os campos atualizados
       const { data: fresh } = await db.from('users').select('*').eq('id', user.id).maybeSingle();
       const finalUser = fresh || user;
@@ -3768,6 +3780,7 @@ async function enterKpProfile(username, preloadedUser) {
     saveSession(user);
     document.getElementById('perfis-screen').style.display = 'none';
     _kpSession = null; // não precisa mais ficar guardado em memória
+    history.replaceState(null, '', '/'); // garante que abre na home, não em uma URL antiga
     enterApp(user);
   } catch(e) {
     console.error('[enterKpProfile]', e);
@@ -3782,6 +3795,40 @@ function voltarLoginPlayer() {
   document.getElementById('login-kp-player').value = '';
   document.getElementById('login-kp-senha').value = '';
   setAuthLoginMode('kp');
+}
+
+// ── Verifica se um username do Pokégram já está vinculado a algum player do KP ──
+async function getKpPlayerForPokegramUsername(username) {
+  try {
+    const rows = await kpFetch(`players?select=nome&pokegram_perfis=cs.${encodeURIComponent(JSON.stringify([username]))}`);
+    return (rows && rows[0]) ? rows[0].nome : null;
+  } catch(e) {
+    console.error('[getKpPlayerForPokegramUsername]', e);
+    return null; // falha de rede/permissão não deve bloquear o login
+  }
+}
+
+// ── Bloqueia acesso pelo login de usuário/senha (ou sessão salva) assim que o perfil
+//    já estiver vinculado a um player do KP. A partir do vínculo, o acesso só pode
+//    acontecer pela aba "Player (KP)". Usada tanto no login manual quanto na
+//    restauração automática de sessão (para fechar a brecha de sessões já salvas). ──
+async function blockIfLinkedToKpPlayer(user) {
+  if (!user || user.rpg !== 'kingdom_platinum' || user.is_npc) return false;
+  const linkedPlayer = await getKpPlayerForPokegramUsername(user.username);
+  if (!linkedPlayer) return false;
+
+  // Perfil vinculado — encerra qualquer sessão ativa/local e força volta à tela de login
+  try { await db.auth.signOut(); } catch(e) {}
+  clearSession();
+  currentUser = null;
+  hideSplash();
+  document.getElementById('app').classList.add('hidden');
+  const perfisScreenEl = document.getElementById('perfis-screen');
+  if (perfisScreenEl) perfisScreenEl.style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  setAuthLoginMode('kp');
+  showAuthError(`Este perfil já está vinculado ao player "${linkedPlayer}". Faça login pela aba "Player (KP)".`);
+  return true;
 }
 
 // ── Perfis legados (login antigo) do RPG "kingdom_platinum" ainda sem vínculo ──
@@ -3826,14 +3873,16 @@ async function confirmarVincularKp() {
 
 // ── Status de vínculo com KP dentro da edição de perfil ──
 async function checkEpKpLinkStatus() {
-  const statusEl = document.getElementById('ep-kp-link-status');
-  if (!statusEl || !currentUser) return;
+  const sectionEl = document.getElementById('ep-kp-link-section');
+  const statusEl  = document.getElementById('ep-kp-link-status');
+  if (!sectionEl || !statusEl || !currentUser) return;
+  sectionEl.style.display = 'flex';
   statusEl.textContent = 'Verificando...';
   try {
     const rows = await kpFetch(`players?select=nome&pokegram_perfis=cs.${encodeURIComponent(JSON.stringify([currentUser.username]))}`);
     if (rows && rows.length) {
-      statusEl.textContent = 'Vinculado a ' + rows[0].nome;
-      statusEl.style.color = '#1a7a1a';
+      // já vinculado — a seção inteira some da edição de perfil
+      sectionEl.style.display = 'none';
     } else {
       statusEl.textContent = 'Não vinculado';
       statusEl.style.color = '#8e8e8e';
@@ -3844,11 +3893,32 @@ async function checkEpKpLinkStatus() {
   }
 }
 
-function openVincularKpFromEdit() {
-  document.getElementById('vk-player').value = '';
-  document.getElementById('vk-senha').value = '';
-  document.getElementById('vk-error').style.display = 'none';
-  openModal('modal-vincular-kp');
+function toggleEpKpLinkForm() {
+  const form = document.getElementById('ep-kp-link-form');
+  const isOpen = form.style.display === 'flex';
+  form.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) {
+    document.getElementById('ep-vk-player').value = '';
+    document.getElementById('ep-vk-senha').value = '';
+    document.getElementById('ep-vk-error').style.display = 'none';
+  }
+}
+
+async function confirmarVincularKpFromEdit() {
+  const player = (document.getElementById('ep-vk-player').value || '').trim();
+  const senha  = document.getElementById('ep-vk-senha').value || '';
+  const errEl  = document.getElementById('ep-vk-error');
+  errEl.style.display = 'none';
+  if (!player || !senha) { errEl.textContent = 'Preencha player e senha.'; errEl.style.display = 'block'; return; }
+  try {
+    await kpRpc('player_link_pokegram_perfil', { p_nome: player, p_senha: senha, p_username: currentUser.username });
+    document.getElementById('ep-kp-link-form').style.display = 'none';
+    toast('Perfil vinculado ao player! ✅');
+    checkEpKpLinkStatus(); // esconde a seção inteira, já que agora está vinculado
+  } catch(e) {
+    errEl.textContent = 'Erro: ' + (e.message || 'não foi possível vincular.');
+    errEl.style.display = 'block';
+  }
 }
 
 // ── Trocar de conta (perfis irmãos do mesmo player do KP) ──
@@ -4055,15 +4125,22 @@ async function initPokegram() {
     return;
   }
   if (session) {
+    let blockedByKp = false;
     const saved = loadSession();
     if (saved) {
       currentUser = saved;
-      enterApp(currentUser);
+      blockedByKp = await blockIfLinkedToKpPlayer(currentUser);
+      if (!blockedByKp) enterApp(currentUser);
     }
+    if (blockedByKp) return; // sessão já encerrada — não segue com o refetch em background
     // Re-fetch em background para atualizar dados frescos
     db.from('users').select('*').eq('id', session.user.id).maybeSingle()
-      .then(({ data: fresh }) => {
-        if (fresh) { currentUser = fresh; saveSession(fresh); if (saved) renderSidebarAvatar(); else enterApp(fresh); }
+      .then(async ({ data: fresh }) => {
+        if (fresh) {
+          if (await blockIfLinkedToKpPlayer(fresh)) return; // vinculado nesse meio-tempo — encerra
+          currentUser = fresh; saveSession(fresh);
+          if (saved) renderSidebarAvatar(); else enterApp(fresh);
+        }
         else {
           // Auth existe mas não tem perfil na tabela users — limpa e pede login
           db.auth.signOut().catch(() => {});
