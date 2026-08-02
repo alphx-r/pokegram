@@ -1485,7 +1485,7 @@
 
         <!-- LOGIN LEGADO (usuário/senha do Pokégram — PChapters e contas ainda não vinculadas) -->
         <div class="auth-form" id="auth-form" style="display:none">
-          <div id="auth-hint" class="auth-hint" style="margin-bottom:4px;"></div>
+          <div id="auth-hint" class="auth-hint" style="margin-bottom:4px;display:none"></div>
           <input type="text" id="login-username" placeholder="Usuário" autocomplete="off" oninput="onAuthInput()">
           <input type="password" id="login-password" placeholder="Senha">
           <div id="register-fields" style="display:none;flex-direction:column;gap:6px;">
@@ -3496,11 +3496,13 @@ async function onAuthInput() {
   // reflecte o valor normalizado no campo
   if (raw !== username) document.getElementById('login-username').value = username;
   clearTimeout(authCheckTimeout);
-  if (username.length < 2) { setAuthMode('login'); document.getElementById('auth-hint').textContent = ''; return; }
+  const hintEl = document.getElementById('auth-hint');
+  if (username.length < 2) { setAuthMode('login'); hintEl.textContent = ''; hintEl.style.display = 'none'; return; }
   authCheckTimeout = setTimeout(async () => {
     const exists = await dbCheckUserExists(username);
     setAuthMode(exists ? 'login' : 'register');
-    document.getElementById('auth-hint').textContent = exists ? 'Bem-vindo de volta!' : 'Usuário não encontrado — complete o cadastro abaixo.';
+    hintEl.textContent = exists ? 'Bem-vindo de volta!' : 'Usuário não encontrado — complete o cadastro abaixo.';
+    hintEl.style.display = 'block';
   }, 500);
 }
 
@@ -3790,7 +3792,7 @@ async function checkKpLinkPrompt(user) {
     document.getElementById('vk-senha').value = '';
     document.getElementById('vk-error').style.display = 'none';
     openModal('modal-vincular-kp');
-  } catch(e) { /* falha silenciosa — não pode travar o uso do app */ }
+  } catch(e) { console.error('[checkKpLinkPrompt]', e); /* falha silenciosa pro usuário — não pode travar o uso do app */ }
 }
 
 async function confirmarVincularKp() {
