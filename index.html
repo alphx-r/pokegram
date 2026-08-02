@@ -3681,12 +3681,8 @@ async function doKpLogin() {
     const match = Array.isArray(r) ? r[0] : r;
     if (!match) { errEl.textContent = 'Player ou senha incorretos.'; errEl.style.display = 'block'; return; }
 
-    const perfisData = await kpFetch(`players?id=eq.${match.id}&select=nome,pokegram_perfis`);
-    const perfis = (perfisData && perfisData[0] && perfisData[0].pokegram_perfis) || [];
-
-    _kpSession = { id: match.id, nome: match.nome, senha, perfis };
     document.getElementById('login-kp-senha').value = '';
-    await showPerfisScreen();
+    await enterKpPlayerSession(match.id, match.nome, senha);
   } catch(e) {
     console.error('[doKpLogin]', e);
     errEl.textContent = 'Erro: ' + (e.message || 'falha de conexão.');
@@ -3695,6 +3691,47 @@ async function doKpLogin() {
     btn.disabled = false; btn.textContent = 'Entrar';
   }
 }
+
+// ── Monta a sessão do KP em memória (_kpSession) e abre a tela de escolher perfil.
+//    Usado tanto pelo login manual (player+senha) quanto pelo handoff vindo do KP
+//    (nesse caso não temos a senha — fica em branco e algumas ações que dependem
+//    dela, como criar um perfil novo, exigirão login manual). ──
+async function enterKpPlayerSession(playerId, playerNome, senha = '') {
+  const perfisData = await kpFetch(`players?id=eq.${playerId}&select=nome,pokegram_perfis`);
+  const perfis = (perfisData && perfisData[0] && perfisData[0].pokegram_perfis) || [];
+
+  _kpSession = { id: playerId, nome: playerNome, senha, perfis };
+  await showPerfisScreen();
+}
+
+// ── Handoff vindo do KP: lê ?kp_token=... da URL, consome o token no backend
+//    (uso único, curta duração) e, se válido, entra direto na tela de escolher
+//    perfil já identificando o player — sem precisar digitar player+senha aqui. ──
+async function tryKpHandoff() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('kp_token');
+  if (!token) return false;
+
+  // Remove o token da URL imediatamente (é de uso único e não deve ficar
+  // exposto no histórico/bookmarks do navegador).
+  const cleanUrl = location.pathname + location.hash;
+  history.replaceState(null, '', cleanUrl);
+
+  try {
+    const r = await kpRpc('player_consume_handoff_token', { p_token: token });
+    const match = Array.isArray(r) ? r[0] : r;
+    if (!match) return false; // token inválido/expirado/já usado — segue fluxo normal
+
+    document.getElementById('auth-screen').style.display = 'none';
+    await enterKpPlayerSession(match.id, match.nome, '');
+    hideSplash();
+    return true;
+  } catch(e) {
+    console.error('[tryKpHandoff]', e);
+    return false;
+  }
+}
+
 
 async function showPerfisScreen() {
   document.getElementById('auth-screen').style.display = 'none';
@@ -4101,6 +4138,11 @@ async function initPokegram() {
     const emManutencao = await checkManutencao();
     if (emManutencao) return; // para tudo — overlay já está visível
   }
+
+  // Handoff vindo do KP (?kp_token=...) — se identificar o player, já mostra
+  // a tela de escolher perfil e pula toda a lógica normal de login/sessão.
+  if (await tryKpHandoff()) return;
+
   // tenta restaurar sessão pelo Supabase Auth primeiro
   let session = null;
   try {
@@ -4352,7 +4394,14 @@ function pkColorAlpha(hex, alpha) {
 }
 
 document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doAuth();
+    if (e.key !== 'Enter') return;
+    if (document.getElementById('auth-screen').style.display === 'none') return;
+    // Se a aba "Player (KP)" estiver ativa, o campo de senha já tem seu próprio
+    // handler de Enter (doKpLogin). Chamar doAuth() aqui também disparava o
+    // login legado em paralelo e derrubava a tela de escolher perfil.
+    const kpForm = document.getElementById('auth-form-kp');
+    if (kpForm && kpForm.style.display !== 'none') return;
+    doAuth();
   });
 
 // ════════════════════════════════════════════════════════════
