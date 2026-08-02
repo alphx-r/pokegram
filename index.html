@@ -860,30 +860,6 @@
 }
 .pk-profile-field textarea:focus { outline: none; border-color: var(--pk-accent, #e53935); }
 
-/* BOTÃO FLUTUANTE — LINK PARA KINGDOM PLATINUM */
-#kp-fab {
-  position: fixed;
-  bottom: 84px;
-  right: 18px;
-  z-index: 500;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #000;
-  color: #fff;
-  display: flex;
-  align-items: center; justify-content: center;
-  font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800;
-  letter-spacing: .3px;
-  text-decoration: none;
-  box-shadow: 0 2px 10px rgba(0,0,0,.25);
-  cursor: pointer;
-  transition: transform .2s, opacity .2s;
-}
-#kp-fab:hover { transform: scale(1.08); }
-@media (min-width: 768px) {
-  #kp-fab { bottom: 24px; }
-}
 .pkc-avatar-btn {
   cursor: pointer;
   position: relative;
@@ -1357,6 +1333,10 @@
   const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // ── Banco do Kingdom Platinum (login por player) ──────────
+  const KP_URL = 'https://ucbkodkjlbatttiuqjtv.supabase.co';
+  const KP_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjYmtvZGtqbGJhdHR0aXVxanR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NjExODcsImV4cCI6MjA5MzMzNzE4N30.a65MSk7m4DvgTw2pHXhaqMOOEpjTB_wPsXJUfvOGiG4';
   const IS_ADM = window.location.pathname.startsWith('/adm');
 
   // ── Logo da rede social (armazenada no Supabase) ──────────
@@ -1464,8 +1444,24 @@
             <img class="brand-logo-img" src="" alt="Pokégram" style="display:none;max-height:54px;max-width:200px;object-fit:contain;vertical-align:middle;">
           </h1>
         </div>
-        <div class="auth-form" id="auth-form">
-          <div id="auth-hint" class="auth-hint" style="margin-bottom:4px;"></div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;background:#f0f0f0;border-radius:10px;padding:3px">
+          <button type="button" id="auth-tab-kp" onclick="setAuthLoginMode('kp')"
+            style="flex:1;padding:8px 0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#262626;box-shadow:0 1px 3px rgba(0,0,0,.1)">Player</button>
+          <button type="button" id="auth-tab-legacy" onclick="setAuthLoginMode('legacy')"
+            style="flex:1;padding:8px 0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#8e8e8e">Usuário</button>
+        </div>
+
+        <!-- LOGIN POR PLAYER DO KP -->
+        <div class="auth-form" id="auth-form-kp">
+          <input type="text" id="login-kp-player" placeholder="Player" autocomplete="off" oninput="sanitizeKpPlayerInput(this)" onkeydown="if(event.key==='Enter')doKpLogin()">
+          <input type="password" id="login-kp-senha" placeholder="Senha" onkeydown="if(event.key==='Enter')doKpLogin()">
+          <div id="auth-kp-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
+          <button class="btn-primary" id="auth-kp-btn" onclick="doKpLogin()">Entrar</button>
+        </div>
+
+        <!-- LOGIN LEGADO (usuário/senha do Pokégram — PChapters e contas ainda não vinculadas) -->
+        <div class="auth-form" id="auth-form" style="display:none">
+          <div id="auth-hint" class="auth-hint" style="margin-bottom:4px;display:none"></div>
           <input type="text" id="login-username" placeholder="Usuário" autocomplete="off" oninput="onAuthInput()">
           <input type="password" id="login-password" placeholder="Senha">
           <div id="register-fields" style="display:none;flex-direction:column;gap:6px;">
@@ -1488,6 +1484,86 @@
           <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- TELA DE PERFIS (pós-login KP, "fantasma" — vive só em memória, não sobrevive a reload) -->
+  <div id="perfis-screen" class="auth-screen" style="display:none">
+    <div class="auth-wrap">
+      <div class="auth-card" style="max-width:420px">
+        <div class="auth-logo">
+          <div class="pokeball-logo">
+            <div class="pb-top"></div>
+            <div class="pb-band"><div class="pb-btn"></div></div>
+            <div class="pb-bottom"></div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-bottom:4px">
+          <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;color:#262626">Escolha seu perfil</div>
+          <div id="perfis-kp-player-label" style="font-size:12px;color:#8e8e8e;font-family:'Nunito',sans-serif;margin-top:2px"></div>
+        </div>
+        <div id="perfis-lista" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;max-height:44vh;overflow-y:auto"></div>
+
+        <div id="perfis-novo-wrap" style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+          <button type="button" id="perfis-btn-novo" onclick="toggleNovoPerfilForm()"
+            style="width:100%;padding:10px 0;border-radius:10px;border:1.5px dashed #c8c8c8;background:transparent;color:#555;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+            ＋ Criar novo perfil
+          </button>
+          <div id="perfis-novo-form" style="display:none;flex-direction:column;gap:6px;padding:12px;background:#fafafa;border-radius:10px">
+            <input type="text" id="perfis-novo-username" placeholder="username" autocomplete="off">
+            <select id="perfis-novo-pronoun">
+              <option value="">Pronomes *</option>
+              <option value="ele/dele">ele/dele</option>
+              <option value="ela/dela">ela/dela</option>
+              <option value="elu/delu">elu/delu</option>
+              <option value="ele/ela">ele/ela</option>
+              <option value="qualquer pronome">qualquer pronome</option>
+            </select>
+            <div id="perfis-novo-error" style="display:none;color:#e53935;font-size:12px;text-align:center"></div>
+            <button class="btn-primary" onclick="criarNovoPerfilKp()">Criar e entrar</button>
+          </div>
+        </div>
+
+        <button type="button" onclick="voltarLoginPlayer()"
+          style="margin-top:16px;width:100%;background:none;border:none;color:#8e8e8e;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer">
+          ← Trocar de player
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: pedir vínculo com player do KP (perfil legado ainda não vinculado) -->
+  <div id="modal-vincular-kp" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box" style="max-width:380px">
+      <div class="modal-header">
+        <h3>Vincular ao Kingdom Platinum</h3>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:13px;color:#555;font-family:'Nunito',sans-serif">
+          Entre com seu player e senha do KP para vincular seus perfis do Pokégram.
+        </div>
+        <input type="text" id="vk-player" placeholder="Player" autocomplete="off"
+          style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+        <input type="password" id="vk-senha" placeholder="Senha do KP"
+          style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+        <div id="vk-error" style="display:none;color:#e53935;font-size:12px;text-align:center"></div>
+        <button class="btn-primary" onclick="confirmarVincularKp()">Vincular</button>
+        <button type="button" onclick="closeModal('modal-vincular-kp')"
+          style="background:none;border:none;color:#8e8e8e;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Agora não</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: trocar de conta (perfis irmãos do mesmo player do KP) -->
+  <div id="modal-switch-account" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModal('modal-switch-account')"></div>
+    <div class="modal-box" style="max-width:380px">
+      <div class="modal-header">
+        <button class="modal-x" onclick="closeModal('modal-switch-account')">✕</button>
+        <h3>Trocar de conta</h3>
+      </div>
+      <div id="switch-account-body" style="padding:14px 20px 20px;display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
 
@@ -2352,6 +2428,30 @@
         </div>
 
         <div id="ep-save-err" style="display:none;font-size:12px;color:#e53935;text-align:center;padding:8px;background:#fde8e8;border-radius:8px"></div>
+
+        <!-- Separador -->
+        <div style="height:1px;background:#efefef"></div>
+
+        <!-- Vínculo com Kingdom Platinum -->
+        <div id="ep-kp-link-section" style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:12px;font-weight:700;color:#8e8e8e">Vínculo com Kingdom Platinum</label>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;background:#fafafa">
+            <span id="ep-kp-link-status" style="font-size:13px;color:#8e8e8e;font-family:'Nunito',sans-serif">Verificando...</span>
+            <button type="button" onclick="toggleEpKpLinkForm()"
+              style="padding:6px 14px;background:#262626;color:#fff;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">Vincular</button>
+          </div>
+          <div id="ep-kp-link-form" style="display:none;flex-direction:column;gap:10px;margin-top:4px">
+            <input type="text" id="ep-vk-player" placeholder="Player" autocomplete="off"
+              style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+            <input type="password" id="ep-vk-senha" placeholder="Senha do KP"
+              style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+            <div id="ep-vk-error" style="display:none;font-size:12px;color:#e53935;padding:8px;background:#fde8e8;border-radius:8px"></div>
+            <button type="button" onclick="confirmarVincularKpFromEdit()"
+              style="align-self:flex-start;padding:8px 18px;background:#262626;color:#fff;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+              Confirmar vínculo
+            </button>
+          </div>
+        </div>
 
         <!-- Separador -->
         <div style="height:1px;background:#efefef"></div>
@@ -3385,11 +3485,13 @@ async function onAuthInput() {
   // reflecte o valor normalizado no campo
   if (raw !== username) document.getElementById('login-username').value = username;
   clearTimeout(authCheckTimeout);
-  if (username.length < 2) { setAuthMode('login'); document.getElementById('auth-hint').textContent = ''; return; }
+  const hintEl = document.getElementById('auth-hint');
+  if (username.length < 2) { setAuthMode('login'); hintEl.textContent = ''; hintEl.style.display = 'none'; return; }
   authCheckTimeout = setTimeout(async () => {
     const exists = await dbCheckUserExists(username);
     setAuthMode(exists ? 'login' : 'register');
-    document.getElementById('auth-hint').textContent = exists ? 'Bem-vindo de volta!' : 'Usuário não encontrado — complete o cadastro abaixo.';
+    hintEl.textContent = exists ? 'Bem-vindo de volta!' : 'Usuário não encontrado — complete o cadastro abaixo.';
+    hintEl.style.display = 'block';
   }, 500);
 }
 
@@ -3440,6 +3542,7 @@ async function doAuth() {
     } else {
       const user = await dbLogin(username, password);
       if (!user) { showAuthError('Usuário ou senha incorretos.'); return; }
+      if (await blockIfLinkedToKpPlayer(user)) return;
       // re-fetch para garantir avatar_url e todos os campos atualizados
       const { data: fresh } = await db.from('users').select('*').eq('id', user.id).maybeSingle();
       const finalUser = fresh || user;
@@ -3470,6 +3573,8 @@ function enterApp(user) {
   if (!user.avatar_color) user.avatar_color = user.color;
   if (!user.display_name) user.display_name = user.name || user.username;
   document.getElementById('auth-screen').style.display = 'none';
+  const perfisScreenEl = document.getElementById('perfis-screen');
+  if (perfisScreenEl) perfisScreenEl.style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
 
   // Splash some apenas quando o initApp terminar
@@ -3479,6 +3584,404 @@ function enterApp(user) {
     hideSplash();
   }
   initPushNotifications(user);
+  checkKpLinkPrompt(user).catch(() => {});
+}
+
+// ════════════════════════════════════════════════════════════
+// LOGIN POR PLAYER DO KP (kingdom platinum) + tela /perfis
+// ════════════════════════════════════════════════════════════
+let _kpSession = null; // {id, nome, senha, perfis} — só em memória, nunca vai pro localStorage
+
+function setAuthLoginMode(mode) {
+  const kpTab = document.getElementById('auth-tab-kp');
+  const legacyTab = document.getElementById('auth-tab-legacy');
+  const kpForm = document.getElementById('auth-form-kp');
+  const legacyForm = document.getElementById('auth-form');
+  const isKp = mode === 'kp';
+  kpForm.style.display = isKp ? 'flex' : 'none';
+  legacyForm.style.display = isKp ? 'none' : 'flex';
+  kpTab.style.background = isKp ? '#fff' : 'transparent';
+  kpTab.style.boxShadow = isKp ? '0 1px 3px rgba(0,0,0,.1)' : 'none';
+  kpTab.style.color = isKp ? '#262626' : '#8e8e8e';
+  legacyTab.style.background = isKp ? 'transparent' : '#fff';
+  legacyTab.style.boxShadow = isKp ? 'none' : '0 1px 3px rgba(0,0,0,.1)';
+  legacyTab.style.color = isKp ? '#8e8e8e' : '#262626';
+}
+
+function sanitizeKpPlayerInput(el) {
+  // mesma normalização que o KP usa: sem espaço/acento, minúsculo
+  const pos = el.selectionStart;
+  const original = el.value;
+  const sanitized = original.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').toLowerCase();
+  if (sanitized !== original) {
+    el.value = sanitized;
+    try { el.setSelectionRange(Math.min(pos, sanitized.length), Math.min(pos, sanitized.length)); } catch(e) {}
+  }
+}
+
+async function kpRpc(fn, args = {}) {
+  const res = await fetch(`${KP_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { 'apikey': KP_KEY, 'Authorization': 'Bearer ' + KP_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args)
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(e) {}
+  if (!res.ok) { const msg = data?.message || data?.hint || `Erro ${res.status}`; throw new Error(msg); }
+  return data;
+}
+
+async function kpFetch(path) {
+  const res = await fetch(`${KP_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': KP_KEY, 'Authorization': 'Bearer ' + KP_KEY }
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(e) {}
+  if (!res.ok) { const msg = data?.message || data?.hint || `Erro ${res.status}`; throw new Error(msg); }
+  return data;
+}
+
+async function doKpLogin() {
+  const errEl = document.getElementById('auth-kp-error');
+  const btn   = document.getElementById('auth-kp-btn');
+  errEl.style.display = 'none';
+  const player = (document.getElementById('login-kp-player').value || '').trim();
+  const senha  = document.getElementById('login-kp-senha').value || '';
+  if (!player || !senha) { errEl.textContent = 'Preencha player e senha.'; errEl.style.display = 'block'; return; }
+
+  btn.disabled = true; btn.textContent = 'Aguarde...';
+  try {
+    const r = await kpRpc('player_login', { p_nome: player, p_senha: senha });
+    const match = Array.isArray(r) ? r[0] : r;
+    if (!match) { errEl.textContent = 'Player ou senha incorretos.'; errEl.style.display = 'block'; return; }
+
+    document.getElementById('login-kp-senha').value = '';
+    await enterKpPlayerSession(match.id, match.nome, senha);
+  } catch(e) {
+    console.error('[doKpLogin]', e);
+    errEl.textContent = 'Erro: ' + (e.message || 'falha de conexão.');
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+}
+
+// ── Monta a sessão do KP em memória (_kpSession) e abre a tela de escolher perfil.
+//    Usado tanto pelo login manual (player+senha) quanto pelo handoff vindo do KP
+//    (nesse caso não temos a senha — fica em branco e algumas ações que dependem
+//    dela, como criar um perfil novo, exigirão login manual). ──
+async function enterKpPlayerSession(playerId, playerNome, senha = '') {
+  const perfisData = await kpFetch(`players?id=eq.${playerId}&select=nome,pokegram_perfis`);
+  const perfis = (perfisData && perfisData[0] && perfisData[0].pokegram_perfis) || [];
+
+  _kpSession = { id: playerId, nome: playerNome, senha, perfis };
+  await showPerfisScreen();
+}
+
+// ── Handoff vindo do KP: lê ?kp_token=... da URL, consome o token no backend
+//    (uso único, curta duração) e, se válido, entra direto na tela de escolher
+//    perfil já identificando o player — sem precisar digitar player+senha aqui. ──
+async function tryKpHandoff() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('kp_token');
+  if (!token) return false;
+
+  // Remove o token da URL imediatamente (é de uso único e não deve ficar
+  // exposto no histórico/bookmarks do navegador).
+  const cleanUrl = location.pathname + location.hash;
+  history.replaceState(null, '', cleanUrl);
+
+  try {
+    const r = await kpRpc('player_consume_handoff_token', { p_token: token });
+    const match = Array.isArray(r) ? r[0] : r;
+    if (!match) return false; // token inválido/expirado/já usado — segue fluxo normal
+
+    document.getElementById('auth-screen').style.display = 'none';
+    await enterKpPlayerSession(match.id, match.nome, '');
+    hideSplash();
+    return true;
+  } catch(e) {
+    console.error('[tryKpHandoff]', e);
+    return false;
+  }
+}
+
+
+async function showPerfisScreen() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('perfis-screen').style.display = 'flex';
+  document.getElementById('perfis-kp-player-label').textContent = _kpSession.nome;
+  document.getElementById('perfis-novo-form').style.display = 'none';
+  const lista = document.getElementById('perfis-lista');
+  lista.innerHTML = '<div style="text-align:center;color:#8e8e8e;font-size:13px;font-family:\'Nunito\',sans-serif">Carregando...</div>';
+
+  // Dispara o carregamento da home em background enquanto o usuário escolhe
+  // o perfil — todos os perfis do KP são do mesmo RPG, então o feed principal
+  // já pode ser buscado adiantado (não bloqueia nada aqui, roda em paralelo).
+  prefetchHomeFeedInBackground('kingdom_platinum');
+
+  if (!_kpSession.perfis.length) {
+    lista.innerHTML = '';
+    return;
+  }
+  const { data: users } = await db.from('users').select('*').in('username', _kpSession.perfis);
+  const rows = users || [];
+  lista.innerHTML = rows.map(u => {
+    const av = u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username);
+    const bg = u.color || '#e53935';
+    return `<div onclick="enterKpProfile('${u.username}')"
+      style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;border:1.5px solid #efefef;cursor:pointer">
+      <div style="width:44px;height:44px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0;font-family:'Nunito',sans-serif">${av}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px;font-family:'Nunito',sans-serif">${u.username}</div>
+        ${u.name ? `<div style="font-size:12px;color:#8e8e8e;font-family:'Nunito',sans-serif">${u.name}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  // se algum username vinculado não existe mais no Pokégram (perfil apagado), tira da lista em memória
+  if (rows.length !== _kpSession.perfis.length) {
+    _kpSession.perfis = rows.map(u => u.username);
+  }
+}
+
+function toggleNovoPerfilForm() {
+  const form = document.getElementById('perfis-novo-form');
+  const isOpen = form.style.display === 'flex';
+  form.style.display = isOpen ? 'none' : 'flex';
+  document.getElementById('perfis-novo-error').style.display = 'none';
+}
+
+async function criarNovoPerfilKp() {
+  const rawUsername = document.getElementById('perfis-novo-username').value || '';
+  const username = sanitizeUsername(rawUsername);
+  const pronoun  = document.getElementById('perfis-novo-pronoun').value;
+  const errEl    = document.getElementById('perfis-novo-error');
+  errEl.style.display = 'none';
+
+  if (!username || username.length < 2) { errEl.textContent = 'Informe um username válido.'; errEl.style.display = 'block'; return; }
+  if (!pronoun) { errEl.textContent = 'Selecione seus pronomes.'; errEl.style.display = 'block'; return; }
+
+  try {
+    const exists = await dbCheckUserExists(username);
+    if (exists) { errEl.textContent = 'Este username já está em uso.'; errEl.style.display = 'block'; return; }
+
+    // Cria o perfil no Pokégram sem senha própria — login sempre via player do KP daqui pra frente
+    const { data: newUser, error: insErr } = await db.from('users').insert({
+      username, name: username, rpg: 'kingdom_platinum', pronoun, password_plain: ''
+    }).select('*').single();
+    if (insErr || !newUser) throw new Error(insErr?.message || 'Erro ao criar perfil.');
+
+    const perfisAtualizados = await kpRpc('player_link_pokegram_perfil', {
+      p_nome: _kpSession.nome, p_senha: _kpSession.senha, p_username: username
+    });
+    _kpSession.perfis = perfisAtualizados || [..._kpSession.perfis, username];
+
+    await enterKpProfile(username, newUser);
+  } catch(e) {
+    console.error('[criarNovoPerfilKp]', e);
+    errEl.textContent = 'Erro: ' + (e.message || 'falha ao criar perfil.');
+    errEl.style.display = 'block';
+  }
+}
+
+async function enterKpProfile(username, preloadedUser) {
+  try {
+    let user = preloadedUser;
+    if (!user) {
+      const r = await db.from('users').select('*').eq('username', username).maybeSingle();
+      user = r.data;
+    }
+    if (!user) { toast('Perfil não encontrado.'); return; }
+    currentUser = user;
+    saveSession(user);
+    document.getElementById('perfis-screen').style.display = 'none';
+    _kpSession = null; // não precisa mais ficar guardado em memória
+    history.replaceState(null, '', '/'); // garante que abre na home, não em uma URL antiga
+    enterApp(user);
+  } catch(e) {
+    console.error('[enterKpProfile]', e);
+    toast('Erro ao entrar no perfil.');
+  }
+}
+
+function voltarLoginPlayer() {
+  _kpSession = null;
+  document.getElementById('perfis-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('login-kp-player').value = '';
+  document.getElementById('login-kp-senha').value = '';
+  setAuthLoginMode('kp');
+}
+
+// ── Verifica se um username do Pokégram já está vinculado a algum player do KP ──
+async function getKpPlayerForPokegramUsername(username) {
+  try {
+    const rows = await kpFetch(`players?select=nome&pokegram_perfis=cs.${encodeURIComponent(JSON.stringify([username]))}`);
+    return (rows && rows[0]) ? rows[0].nome : null;
+  } catch(e) {
+    console.error('[getKpPlayerForPokegramUsername]', e);
+    return null; // falha de rede/permissão não deve bloquear o login
+  }
+}
+
+// ── Bloqueia acesso pelo login de usuário/senha (ou sessão salva) assim que o perfil
+//    já estiver vinculado a um player do KP. A partir do vínculo, o acesso só pode
+//    acontecer pela aba "Player (KP)". Usada tanto no login manual quanto na
+//    restauração automática de sessão (para fechar a brecha de sessões já salvas). ──
+async function blockIfLinkedToKpPlayer(user) {
+  if (!user || user.rpg !== 'kingdom_platinum' || user.is_npc) return false;
+  const linkedPlayer = await getKpPlayerForPokegramUsername(user.username);
+  if (!linkedPlayer) return false;
+
+  // Perfil vinculado — encerra qualquer sessão ativa/local e força volta à tela de login
+  try { await db.auth.signOut(); } catch(e) {}
+  clearSession();
+  currentUser = null;
+  hideSplash();
+  document.getElementById('app').classList.add('hidden');
+  const perfisScreenEl = document.getElementById('perfis-screen');
+  if (perfisScreenEl) perfisScreenEl.style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  setAuthLoginMode('kp');
+  showAuthError(`Este perfil já está vinculado ao player "${linkedPlayer}". Faça login pela aba "Player".`);
+  return true;
+}
+
+// ── Perfis legados (login antigo) do RPG "kingdom_platinum" ainda sem vínculo ──
+async function checkKpLinkPrompt(user) {
+  console.log('[checkKpLinkPrompt] chamado com', { username: user?.username, rpg: user?.rpg, is_npc: user?.is_npc });
+  if (!user || user.rpg !== 'kingdom_platinum' || user.is_npc) {
+    console.log('[checkKpLinkPrompt] saiu cedo — condição não bateu (rpg ou is_npc)');
+    return;
+  }
+  try {
+    const rows = await kpFetch(`players?select=nome&pokegram_perfis=cs.${encodeURIComponent(JSON.stringify([user.username]))}`);
+    console.log('[checkKpLinkPrompt] resultado da query:', rows);
+    if (rows && rows.length) {
+      console.log('[checkKpLinkPrompt] já vinculado a:', rows[0]?.nome, '— não vai abrir modal');
+      return;
+    }
+    document.getElementById('vk-player').value = '';
+    document.getElementById('vk-senha').value = '';
+    document.getElementById('vk-error').style.display = 'none';
+    console.log('[checkKpLinkPrompt] abrindo modal-vincular-kp agora');
+    openModal('modal-vincular-kp');
+    console.log('[checkKpLinkPrompt] modal-vincular-kp classList após abrir:', document.getElementById('modal-vincular-kp')?.classList.toString());
+  } catch(e) { console.error('[checkKpLinkPrompt] ERRO:', e); /* falha silenciosa pro usuário — não pode travar o uso do app */ }
+}
+
+async function confirmarVincularKp() {
+  const player = (document.getElementById('vk-player').value || '').trim();
+  const senha  = document.getElementById('vk-senha').value || '';
+  const errEl  = document.getElementById('vk-error');
+  errEl.style.display = 'none';
+  if (!player || !senha) { errEl.textContent = 'Preencha player e senha.'; errEl.style.display = 'block'; return; }
+  try {
+    await kpRpc('player_link_pokegram_perfil', { p_nome: player, p_senha: senha, p_username: currentUser.username });
+    closeModal('modal-vincular-kp');
+    toast('Perfil vinculado ao player! ✅');
+    checkEpKpLinkStatus(); // atualiza o status na tela de edição de perfil, se estiver aberta
+  } catch(e) {
+    errEl.textContent = 'Erro: ' + (e.message || 'não foi possível vincular.');
+    errEl.style.display = 'block';
+  }
+}
+
+// ── Status de vínculo com KP dentro da edição de perfil ──
+async function checkEpKpLinkStatus() {
+  const sectionEl = document.getElementById('ep-kp-link-section');
+  const statusEl  = document.getElementById('ep-kp-link-status');
+  if (!sectionEl || !statusEl || !currentUser) return;
+  sectionEl.style.display = 'flex';
+  statusEl.textContent = 'Verificando...';
+  try {
+    const rows = await kpFetch(`players?select=nome&pokegram_perfis=cs.${encodeURIComponent(JSON.stringify([currentUser.username]))}`);
+    if (rows && rows.length) {
+      // já vinculado — a seção inteira some da edição de perfil
+      sectionEl.style.display = 'none';
+    } else {
+      statusEl.textContent = 'Não vinculado';
+      statusEl.style.color = '#8e8e8e';
+    }
+  } catch(e) {
+    statusEl.textContent = 'Erro ao verificar.';
+    statusEl.style.color = '#e53935';
+  }
+}
+
+function toggleEpKpLinkForm() {
+  const form = document.getElementById('ep-kp-link-form');
+  const isOpen = form.style.display === 'flex';
+  form.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) {
+    document.getElementById('ep-vk-player').value = '';
+    document.getElementById('ep-vk-senha').value = '';
+    document.getElementById('ep-vk-error').style.display = 'none';
+  }
+}
+
+async function confirmarVincularKpFromEdit() {
+  const player = (document.getElementById('ep-vk-player').value || '').trim();
+  const senha  = document.getElementById('ep-vk-senha').value || '';
+  const errEl  = document.getElementById('ep-vk-error');
+  errEl.style.display = 'none';
+  if (!player || !senha) { errEl.textContent = 'Preencha player e senha.'; errEl.style.display = 'block'; return; }
+  try {
+    await kpRpc('player_link_pokegram_perfil', { p_nome: player, p_senha: senha, p_username: currentUser.username });
+    document.getElementById('ep-kp-link-form').style.display = 'none';
+    toast('Perfil vinculado ao player! ✅');
+    checkEpKpLinkStatus(); // esconde a seção inteira, já que agora está vinculado
+  } catch(e) {
+    errEl.textContent = 'Erro: ' + (e.message || 'não foi possível vincular.');
+    errEl.style.display = 'block';
+  }
+}
+
+// ── Trocar de conta (perfis irmãos do mesmo player do KP) ──
+async function openSwitchAccount() {
+  const body = document.getElementById('switch-account-body');
+  body.innerHTML = '<div style="text-align:center;color:#8e8e8e;font-size:13px;font-family:\'Nunito\',sans-serif;padding:12px 0">Carregando...</div>';
+  openModal('modal-switch-account');
+  try {
+    const rows = await kpFetch(`players?select=nome,pokegram_perfis&pokegram_perfis=cs.${encodeURIComponent(JSON.stringify([currentUser.username]))}`);
+    const player = rows && rows[0];
+    if (!player) {
+      body.innerHTML = '<div style="text-align:center;color:#8e8e8e;font-size:13px;font-family:\'Nunito\',sans-serif;padding:12px 0">Este perfil não está vinculado a nenhum player do KP ainda. Abra "Editar perfil" para vincular.</div>';
+      return;
+    }
+    const outros = (player.pokegram_perfis || []).filter(u => u !== currentUser.username);
+    if (!outros.length) {
+      body.innerHTML = `<div style="text-align:center;color:#8e8e8e;font-size:13px;font-family:'Nunito',sans-serif;padding:12px 0">${player.nome} ainda não tem outros perfis vinculados.</div>`;
+      return;
+    }
+    const { data: users } = await db.from('users').select('*').in('username', outros);
+    body.innerHTML = (users || []).map(u => {
+      const av = u.avatar_url ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username);
+      const bg = u.color || '#e53935';
+      return `<div onclick="switchToAccount('${u.username}')"
+        style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;border:1.5px solid #efefef;cursor:pointer">
+        <div style="width:40px;height:40px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;overflow:hidden;flex-shrink:0;font-family:'Nunito',sans-serif">${av}</div>
+        <div style="font-weight:700;font-size:14px;font-family:'Nunito',sans-serif">${u.username}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    body.innerHTML = '<div style="text-align:center;color:#e53935;font-size:13px;font-family:\'Nunito\',sans-serif;padding:12px 0">Erro ao carregar contas.</div>';
+  }
+}
+
+async function switchToAccount(username) {
+  closeModal('modal-switch-account');
+  const { data: user } = await db.from('users').select('*').eq('username', username).maybeSingle();
+  if (!user) { toast('Perfil não encontrado.'); return; }
+  currentUser = user;
+  saveSession(user);
+  if (typeof initApp === 'function') initApp(user).catch(() => {});
+  renderSidebarAvatar();
+  applyUserColor(user.color);
+  showView('feed');
+  toast(`Entrou como ${username}`);
 }
 
 async function doLogout() {
@@ -3616,6 +4119,11 @@ async function initPokegram() {
     const emManutencao = await checkManutencao();
     if (emManutencao) return; // para tudo — overlay já está visível
   }
+
+  // Handoff vindo do KP (?kp_token=...) — se identificar o player, já mostra
+  // a tela de escolher perfil e pula toda a lógica normal de login/sessão.
+  if (await tryKpHandoff()) return;
+
   // tenta restaurar sessão pelo Supabase Auth primeiro
   let session = null;
   try {
@@ -3640,15 +4148,22 @@ async function initPokegram() {
     return;
   }
   if (session) {
+    let blockedByKp = false;
     const saved = loadSession();
     if (saved) {
       currentUser = saved;
-      enterApp(currentUser);
+      blockedByKp = await blockIfLinkedToKpPlayer(currentUser);
+      if (!blockedByKp) enterApp(currentUser);
     }
+    if (blockedByKp) return; // sessão já encerrada — não segue com o refetch em background
     // Re-fetch em background para atualizar dados frescos
     db.from('users').select('*').eq('id', session.user.id).maybeSingle()
-      .then(({ data: fresh }) => {
-        if (fresh) { currentUser = fresh; saveSession(fresh); if (saved) renderSidebarAvatar(); else enterApp(fresh); }
+      .then(async ({ data: fresh }) => {
+        if (fresh) {
+          if (await blockIfLinkedToKpPlayer(fresh)) return; // vinculado nesse meio-tempo — encerra
+          currentUser = fresh; saveSession(fresh);
+          if (saved) renderSidebarAvatar(); else enterApp(fresh);
+        }
         else {
           // Auth existe mas não tem perfil na tabela users — limpa e pede login
           db.auth.signOut().catch(() => {});
@@ -3860,7 +4375,14 @@ function pkColorAlpha(hex, alpha) {
 }
 
 document.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doAuth();
+    if (e.key !== 'Enter') return;
+    if (document.getElementById('auth-screen').style.display === 'none') return;
+    // Se a aba "Player (KP)" estiver ativa, o campo de senha já tem seu próprio
+    // handler de Enter (doKpLogin). Chamar doAuth() aqui também disparava o
+    // login legado em paralelo e derrubava a tela de escolher perfil.
+    const kpForm = document.getElementById('auth-form-kp');
+    if (kpForm && kpForm.style.display !== 'none') return;
+    doAuth();
   });
 
 // ════════════════════════════════════════════════════════════
@@ -5957,6 +6479,30 @@ let _feedMode = 'feed';
 // Cache do conteúdo de cada aba para evitar recarregar ao trocar
 const _feedCache = { feed: null, following: null };
 
+// ── Prefetch da home em background enquanto o usuário está na tela de
+//    escolher perfil (KP). Todos os perfis listados ali pertencem ao mesmo
+//    RPG (kingdom_platinum), então o feed "principal" (não o "seguindo",
+//    que depende de quem cada perfil segue) é idêntico não importa qual
+//    perfil for escolhido — dá pra buscar os posts adiantado e só faltar
+//    os dados pessoais (curtidas/comentários) depois da escolha. ──
+let _prefetchedFeedPosts = null;
+let _prefetchedFeedRpg   = null;
+
+async function prefetchHomeFeedInBackground(rpg) {
+  try {
+    const { data: posts, error } = await db
+      .from('posts')
+      .select('*, users!inner(id, username, color, avatar_url, is_npc, rpg)')
+      .eq('users.rpg', rpg)
+      .order('created_at', { ascending: false })
+      .limit(30);
+    if (error || !posts) return;
+
+    _prefetchedFeedPosts = posts;
+    _prefetchedFeedRpg   = rpg;
+  } catch(e) { console.warn('[prefetchHomeFeedInBackground]', e); }
+}
+
 function switchFeedTab(btn, mode) {
   const container = document.getElementById('feed-posts');
   const isSameTab = (_feedMode === mode);
@@ -6193,12 +6739,21 @@ async function renderPosts() {
   }
 
   // Busca apenas posts de usuários do mesmo RPG do currentUser
-  const { data: posts, error } = await db
-    .from('posts')
-    .select('*, users!inner(id, username, color, avatar_url, is_npc, rpg)')
-    .eq('users.rpg', currentUser.rpg)
-    .order('created_at', { ascending: false })
-    .limit(30);
+  let posts, error;
+  if (_prefetchedFeedPosts && _prefetchedFeedRpg === currentUser.rpg) {
+    // já veio pronto do prefetch disparado na tela de escolher perfil —
+    // evita refazer a query mais pesada do feed
+    posts = _prefetchedFeedPosts;
+    _prefetchedFeedPosts = null;
+    _prefetchedFeedRpg   = null;
+  } else {
+    ({ data: posts, error } = await db
+      .from('posts')
+      .select('*, users!inner(id, username, color, avatar_url, is_npc, rpg)')
+      .eq('users.rpg', currentUser.rpg)
+      .order('created_at', { ascending: false })
+      .limit(30));
+  }
 
   if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
   if (!posts.length)   {
@@ -7367,7 +7922,8 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
               <span class="profile-username-text">${u.username}</span>
               ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
               ${isMe
-                ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>`
+                ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>
+                   <button class="btn-edit-profile" onclick="openSwitchAccount()" title="Trocar de conta">🔄 Trocar</button>`
                 : (isSecondary
                   ? ''
                   : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>
@@ -7727,7 +8283,7 @@ function openEditProfile() {
   document.getElementById('ep-pronoun').value  = u.pronoun || '';
   document.getElementById('ep-username-err').style.display = 'none';
   document.getElementById('ep-save-err').style.display     = 'none';
-
+  checkEpKpLinkStatus();
 
   // avatar preview — foto ou iniciais
   _epPendingAvatarFile = null;
@@ -9127,7 +9683,7 @@ if (IS_ADM) {
 </script>
 
 <!-- CROPPER MODAL -->
-<a id="kp-fab" href="https://kingdomplatinum.vercel.app/" target="_blank" rel="noopener" title="Abrir Kingdom Platinum">KP</a>
+
 
 <div id="modal-crop-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;align-items:center;justify-content:center">
   <div style="background:#1a1a1a;border-radius:14px;padding:18px;width:min(500px,96vw);box-shadow:0 12px 48px rgba(0,0,0,.6)">
