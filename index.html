@@ -1446,7 +1446,7 @@
         </div>
         <div style="display:flex;gap:6px;margin-bottom:10px;background:#f0f0f0;border-radius:10px;padding:3px">
           <button type="button" id="auth-tab-kp" onclick="setAuthLoginMode('kp')"
-            style="flex:1;padding:8px 0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#262626;box-shadow:0 1px 3px rgba(0,0,0,.1)">Player (KP)</button>
+            style="flex:1;padding:8px 0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#262626;box-shadow:0 1px 3px rgba(0,0,0,.1)">Player</button>
           <button type="button" id="auth-tab-legacy" onclick="setAuthLoginMode('legacy')"
             style="flex:1;padding:8px 0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#8e8e8e">Usuário</button>
         </div>
@@ -3845,7 +3845,7 @@ async function blockIfLinkedToKpPlayer(user) {
   if (perfisScreenEl) perfisScreenEl.style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
   setAuthLoginMode('kp');
-  showAuthError(`Este perfil já está vinculado ao player "${linkedPlayer}". Faça login pela aba "Player (KP)".`);
+  showAuthError(`Este perfil já está vinculado ao player "${linkedPlayer}". Faça login pela aba "Player".`);
   return true;
 }
 
