@@ -1567,8 +1567,10 @@
         <div style="font-size:13px;color:#555;font-family:'Nunito',sans-serif">
           Este perfil é do Kingdom Platinum mas ainda não está vinculado a um player. Entre com seu player e senha do KP para vincular (você continua podendo usar a senha antiga deste perfil normalmente).
         </div>
-        <input type="text" id="vk-player" placeholder="Player" autocomplete="off">
-        <input type="password" id="vk-senha" placeholder="Senha do KP">
+        <input type="text" id="vk-player" placeholder="Player" autocomplete="off"
+          style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+        <input type="password" id="vk-senha" placeholder="Senha do KP"
+          style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
         <div id="vk-error" style="display:none;color:#e53935;font-size:12px;text-align:center"></div>
         <button class="btn-primary" onclick="confirmarVincularKp()">Vincular</button>
         <button type="button" onclick="closeModal('modal-vincular-kp')"
@@ -3784,15 +3786,25 @@ function voltarLoginPlayer() {
 
 // ── Perfis legados (login antigo) do RPG "kingdom_platinum" ainda sem vínculo ──
 async function checkKpLinkPrompt(user) {
-  if (!user || user.rpg !== 'kingdom_platinum' || user.is_npc) return;
+  console.log('[checkKpLinkPrompt] chamado com', { username: user?.username, rpg: user?.rpg, is_npc: user?.is_npc });
+  if (!user || user.rpg !== 'kingdom_platinum' || user.is_npc) {
+    console.log('[checkKpLinkPrompt] saiu cedo — condição não bateu (rpg ou is_npc)');
+    return;
+  }
   try {
     const rows = await kpFetch(`players?select=nome&pokegram_perfis=cs.${encodeURIComponent(JSON.stringify([user.username]))}`);
-    if (rows && rows.length) return; // já vinculado a algum player
+    console.log('[checkKpLinkPrompt] resultado da query:', rows);
+    if (rows && rows.length) {
+      console.log('[checkKpLinkPrompt] já vinculado a:', rows[0]?.nome, '— não vai abrir modal');
+      return;
+    }
     document.getElementById('vk-player').value = '';
     document.getElementById('vk-senha').value = '';
     document.getElementById('vk-error').style.display = 'none';
+    console.log('[checkKpLinkPrompt] abrindo modal-vincular-kp agora');
     openModal('modal-vincular-kp');
-  } catch(e) { console.error('[checkKpLinkPrompt]', e); /* falha silenciosa pro usuário — não pode travar o uso do app */ }
+    console.log('[checkKpLinkPrompt] modal-vincular-kp classList após abrir:', document.getElementById('modal-vincular-kp')?.classList.toString());
+  } catch(e) { console.error('[checkKpLinkPrompt] ERRO:', e); /* falha silenciosa pro usuário — não pode travar o uso do app */ }
 }
 
 async function confirmarVincularKp() {
