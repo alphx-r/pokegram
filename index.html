@@ -1941,6 +1941,15 @@
       <div id="story-sticker-el" style="display:none;position:absolute;touch-action:none;cursor:grab;pointer-events:all;user-select:none;z-index:9">
         <img id="story-sticker-img" src="" draggable="false" style="display:block;width:100%;height:100%;pointer-events:none;filter:drop-shadow(0 4px 14px rgba(0,0,0,.45))">
         <button onclick="removeSticker(event)" title="Remover sticker" style="position:absolute;top:-10px;right:-10px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.7);border:2px solid #fff;color:#fff;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:all">✕</button>
+        <div id="story-sticker-resize" title="Arraste para redimensionar" style="position:absolute;bottom:-11px;right:-11px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.7);border:2px solid #fff;color:#fff;font-size:13px;line-height:1;cursor:nwse-resize;display:flex;align-items:center;justify-content:center;pointer-events:all;touch-action:none">⤡</div>
+      </div>
+
+      <!-- Controle fino de tamanho do sticker -->
+      <div id="story-sticker-zoom" style="display:none;position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:9;background:rgba(0,0,0,.55);border-radius:20px;padding:8px 14px;align-items:center;gap:8px;pointer-events:all;backdrop-filter:blur(6px)">
+        <button onclick="adjustStickerSize(-40)" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.18);border:none;color:#fff;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>
+        <input type="range" id="story-sticker-range" min="80" max="900" value="420" oninput="setStickerSize(this.value)"
+          style="width:120px;accent-color:#e53935">
+        <button onclick="adjustStickerSize(40)" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.18);border:none;color:#fff;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
       </div>
 
       <!-- Seletor de sticker do evento -->
@@ -8739,10 +8748,12 @@ function showNewStory() {
 
   // Reset sticker de evento
   _storyEd.sticker = null;
-  const stickerBtn = document.getElementById('story-sticker-btn');
-  const stickerEl  = document.getElementById('story-sticker-el');
-  if (stickerBtn) stickerBtn.style.display = 'none';
-  if (stickerEl)  stickerEl.style.display  = 'none';
+  const stickerBtn  = document.getElementById('story-sticker-btn');
+  const stickerEl   = document.getElementById('story-sticker-el');
+  const stickerZoom = document.getElementById('story-sticker-zoom');
+  if (stickerBtn)  stickerBtn.style.display  = 'none';
+  if (stickerEl)   stickerEl.style.display   = 'none';
+  if (stickerZoom) stickerZoom.style.display = 'none';
   closeStickerPicker();
 
   // Garante modo normal visível
@@ -8983,6 +8994,8 @@ function closeStickerPicker() {
   if (sheet) sheet.style.display = 'none';
 }
 
+const STICKER_SIZE_MIN = 80, STICKER_SIZE_MAX = 900;
+
 async function selectSticker(key) {
   closeStickerPicker();
   try {
@@ -8997,14 +9010,18 @@ async function selectSticker(key) {
       size: prev?.size ?? 420,
       aspect
     };
-    const im = document.getElementById('story-sticker-img');
-    const el = document.getElementById('story-sticker-el');
+    const im   = document.getElementById('story-sticker-img');
+    const el   = document.getElementById('story-sticker-el');
+    const zoom = document.getElementById('story-sticker-zoom');
+    const range = document.getElementById('story-sticker-range');
     if (im) im.src = STICKER_ASSETS[key];
     if (el) el.style.display = 'block';
+    if (zoom) zoom.style.display = 'flex';
+    if (range) range.value = _storyEd.sticker.size;
     _stickerRender();
     _stickerInitDrag();
-    // brilho! explode a tela sempre que o sticker de evento aparece
-    triggerStickerBurst(document.getElementById('modal-story-new'));
+    // brilho! explode a tela a partir de onde o sticker foi posicionado
+    _fireStickerBurstAtCurrentPos();
   } catch (e) {
     toast('Não foi possível carregar o sticker.');
   }
@@ -9013,8 +9030,25 @@ async function selectSticker(key) {
 function removeSticker(e) {
   if (e) e.stopPropagation();
   _storyEd.sticker = null;
-  const el = document.getElementById('story-sticker-el');
-  if (el) el.style.display = 'none';
+  const el   = document.getElementById('story-sticker-el');
+  const zoom = document.getElementById('story-sticker-zoom');
+  if (el)   el.style.display   = 'none';
+  if (zoom) zoom.style.display = 'none';
+}
+
+function setStickerSize(val) {
+  if (!_storyEd.sticker) return;
+  _storyEd.sticker.size = Math.min(STICKER_SIZE_MAX, Math.max(STICKER_SIZE_MIN, Number(val)));
+  _stickerRender();
+}
+
+function adjustStickerSize(delta) {
+  if (!_storyEd.sticker) return;
+  const newSize = Math.min(STICKER_SIZE_MAX, Math.max(STICKER_SIZE_MIN, _storyEd.sticker.size + delta));
+  _storyEd.sticker.size = newSize;
+  const range = document.getElementById('story-sticker-range');
+  if (range) range.value = newSize;
+  _stickerRender();
 }
 
 // Mapeia o retângulo real do canvas (considerando object-fit contain/cover)
@@ -9048,15 +9082,43 @@ function _stickerRender() {
   el.style.top    = (map.offsetY + (s.cy - (s.size * s.aspect) / 2) * map.scale) + 'px';
 }
 
+// Dispara o brilho a partir da posição atual do sticker no editor
+function _fireStickerBurstAtCurrentPos() {
+  const s = _storyEd.sticker;
+  const canvas = document.getElementById('story-canvas');
+  if (!s || !canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const mode = getComputedStyle(canvas).objectFit || 'contain';
+  const pt = _mapCanvasPointToPercent(rect, mode, s.cx, s.cy);
+  triggerStickerBurst(document.getElementById('modal-story-new'), pt.xPct, pt.yPct);
+}
+
+// Converte um ponto em coordenadas do canvas (0..1080, 0..1920) para
+// uma porcentagem (x%, y%) dentro de um retângulo exibido com object-fit dado
+function _mapCanvasPointToPercent(rect, mode, cx, cy) {
+  const CW = 1080, CH = 1920;
+  const scale = mode === 'cover'
+    ? Math.max(rect.width / CW, rect.height / CH)
+    : Math.min(rect.width / CW, rect.height / CH);
+  const offsetX = (rect.width  - CW * scale) / 2;
+  const offsetY = (rect.height - CH * scale) / 2;
+  return {
+    xPct: ((offsetX + cx * scale) / rect.width)  * 100,
+    yPct: ((offsetY + cy * scale) / rect.height) * 100
+  };
+}
+
 function _stickerInitDrag() {
-  const el = document.getElementById('story-sticker-el');
+  const el     = document.getElementById('story-sticker-el');
+  const handle = document.getElementById('story-sticker-resize');
   if (!el || el._dragBound) return;
   el._dragBound = true;
 
+  // ── Arrastar para reposicionar ──
   let dragging = false, startX = 0, startY = 0, origCx = 0, origCy = 0;
 
   el.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('button')) return;
+    if (e.target.closest('button') || e.target.closest('#story-sticker-resize')) return;
     if (!_storyEd.sticker) return;
     dragging = true;
     startX = e.clientX; startY = e.clientY;
@@ -9076,15 +9138,57 @@ function _stickerInitDrag() {
   const endDrag = () => { dragging = false; el.style.cursor = 'grab'; };
   el.addEventListener('pointerup', endDrag);
   el.addEventListener('pointercancel', endDrag);
+
+  // ── Arrastar a alça para redimensionar ──
+  if (handle) {
+    let resizing = false, rStartX = 0, rStartY = 0, origSize = 0;
+    handle.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (!_storyEd.sticker) return;
+      resizing = true;
+      rStartX = e.clientX; rStartY = e.clientY;
+      origSize = _storyEd.sticker.size;
+      try { handle.setPointerCapture(e.pointerId); } catch(_) {}
+    });
+    handle.addEventListener('pointermove', (e) => {
+      if (!resizing || !_storyEd.sticker) return;
+      const map = _storyCanvasMap();
+      const dx = (e.clientX - rStartX) / map.scale;
+      const dy = (e.clientY - rStartY) / map.scale;
+      const delta = (dx + dy) / 2; // arrastar na diagonal aumenta/diminui
+      const newSize = Math.min(STICKER_SIZE_MAX, Math.max(STICKER_SIZE_MIN, origSize + delta));
+      _storyEd.sticker.size = newSize;
+      const range = document.getElementById('story-sticker-range');
+      if (range) range.value = newSize;
+      _stickerRender();
+    });
+    const endResize = () => { resizing = false; };
+    handle.addEventListener('pointerup', endResize);
+    handle.addEventListener('pointercancel', endResize);
+  }
+
+  // ── Roda do mouse / trackpad para dar zoom (desktop) ──
+  el.addEventListener('wheel', (e) => {
+    if (!_storyEd.sticker) return;
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 24 : -24;
+    const newSize = Math.min(STICKER_SIZE_MAX, Math.max(STICKER_SIZE_MIN, _storyEd.sticker.size + delta));
+    _storyEd.sticker.size = newSize;
+    const range = document.getElementById('story-sticker-range');
+    if (range) range.value = newSize;
+    _stickerRender();
+  }, { passive: false });
 }
 
 window.addEventListener('resize', () => { if (_storyEd.sticker) _stickerRender(); });
 
 // ── Explosão de brilho — dispara sempre que um sticker de evento aparece ──
-function triggerStickerBurst(container) {
+function triggerStickerBurst(container, xPct = 50, yPct = 50) {
   if (!container) return;
   const wrap = document.createElement('div');
   wrap.className = 'sticker-burst-wrap';
+  wrap.style.setProperty('--bx', xPct + '%');
+  wrap.style.setProperty('--by', yPct + '%');
 
   const flash = document.createElement('div');
   flash.className = 'sticker-burst-flash';
@@ -9184,7 +9288,9 @@ async function submitStory() {
       user_id: currentUser.id,
       image_url: urlData.publicUrl,
       expires_at: expiresAt,
-      sticker: stickerKey
+      sticker: stickerKey,
+      sticker_x: _storyEd.sticker ? _storyEd.sticker.cx : null,
+      sticker_y: _storyEd.sticker ? _storyEd.sticker.cy : null
     });
     if (error) throw error;
 
@@ -9240,9 +9346,14 @@ function showStory(idx) {
   // imagem
   document.getElementById('sv-image').src = story.image_url;
 
-  // Sticker de evento: explode a tela em brilho sempre que aparecer
+  // Sticker de evento: explode a tela em brilho a partir de onde o sticker está posicionado
   if (story.sticker) {
-    triggerStickerBurst(document.getElementById('sv-container'));
+    const svContainer = document.getElementById('sv-container');
+    const rect = svContainer.getBoundingClientRect();
+    const cx = (typeof story.sticker_x === 'number') ? story.sticker_x : 540;
+    const cy = (typeof story.sticker_y === 'number') ? story.sticker_y : 1056;
+    const pt = _mapCanvasPointToPercent(rect, 'cover', cx, cy);
+    triggerStickerBurst(svContainer, pt.xPct, pt.yPct);
   }
 
   // avatar
