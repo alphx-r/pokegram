@@ -1910,8 +1910,11 @@
       <!-- Barra superior: X  |  Trocar foto  |  Publicar -->
       <div style="position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(rgba(0,0,0,.55),transparent);pointer-events:all">
         <button onclick="closeModal('modal-story-new')" style="width:36px;height:36px;background:rgba(255,255,255,.15);border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
-        <label for="story-img-file" id="story-change-photo-btn" style="display:none;background:rgba(255,255,255,.18);border:none;border-radius:20px;color:#fff;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">📷 Trocar foto</label>
-        <button id="snap-text-toggle-btn" onclick="snapTextToggle()" style="display:none;background:rgba(255,255,255,.15);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:900;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">Aa</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label for="story-img-file" id="story-change-photo-btn" style="display:none;background:rgba(255,255,255,.18);border:none;border-radius:20px;color:#fff;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">📷 Trocar foto</label>
+          <button id="snap-text-toggle-btn" onclick="snapTextToggle()" style="display:none;background:rgba(255,255,255,.15);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:900;font-family:'Nunito',sans-serif;padding:7px 14px;cursor:pointer;backdrop-filter:blur(4px)">Aa</button>
+          <button id="story-sticker-btn" onclick="openStickerPicker()" title="Adicionar sticker do evento" style="display:none;background:rgba(255,255,255,.15);border:none;border-radius:20px;color:#fff;font-size:15px;font-weight:900;font-family:'Nunito',sans-serif;padding:7px 12px;cursor:pointer;backdrop-filter:blur(4px)">✨ Sticker</button>
+        </div>
         <button onclick="submitStory()" id="story-publish-btn" style="background:#e53935;border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:8px 18px;cursor:pointer">Publicar</button>
       </div>
 
@@ -1932,6 +1935,30 @@
           oninput="snapTextSync()"
           onblur="snapTextConfirm()"
         ></textarea>
+      </div>
+
+      <!-- Sticker de evento — arrastável sobre o canvas -->
+      <div id="story-sticker-el" style="display:none;position:absolute;touch-action:none;cursor:grab;pointer-events:all;user-select:none;z-index:9">
+        <img id="story-sticker-img" src="" draggable="false" style="display:block;width:100%;height:100%;pointer-events:none;filter:drop-shadow(0 4px 14px rgba(0,0,0,.45))">
+        <button onclick="removeSticker(event)" title="Remover sticker" style="position:absolute;top:-10px;right:-10px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.7);border:2px solid #fff;color:#fff;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:all">✕</button>
+      </div>
+
+      <!-- Seletor de sticker do evento -->
+      <div id="sticker-picker-sheet" style="display:none;position:absolute;left:0;right:0;bottom:0;z-index:30;background:rgba(18,18,18,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:20px 20px 0 0;padding:16px 16px 24px;pointer-events:all">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <span style="color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px">✨ Sticker do evento</span>
+          <button onclick="closeStickerPicker()" style="background:none;border:none;color:#aaa;font-size:18px;cursor:pointer;line-height:1">✕</button>
+        </div>
+        <div style="display:flex;gap:14px;justify-content:center">
+          <button onclick="selectSticker('verde')" class="sticker-pick-btn">
+            <img src="assets/stickers/sticker-verde.png" alt="Bandeira verde">
+            <span>Bandeira verde</span>
+          </button>
+          <button onclick="selectSticker('vermelho')" class="sticker-pick-btn">
+            <img src="assets/stickers/sticker-vermelho.png" alt="Bandeira vermelha">
+            <span>Bandeira vermelha</span>
+          </button>
+        </div>
       </div>
 
     </div><!-- /mode-normal -->
@@ -2579,6 +2606,7 @@
           <button class="adm-snav-btn active" onclick="admTab(this,'usuarios')">👥 Usuários</button>
           <button class="adm-snav-btn" onclick="admTab(this,'posts')">📸 Publicações</button>
           <button class="adm-snav-btn" onclick="admTab(this,'stats')">📊 Estatísticas</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'sticker-log')">🎉 Stickers Evento</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
           <button class="adm-snav-btn" onclick="admTab(this,'imagens')">🖼 Imagens Pokégram</button>
@@ -2706,6 +2734,36 @@
               <div class="adm-box-title">Usuários recentes</div>
               <div id="recent-users-list"></div>
             </div>
+          </div>
+
+          <!-- STICKERS EVENTO -->
+          <div class="adm-section" id="sec-sticker-log">
+            <div class="adm-sec-title">Stickers do Evento</div>
+            <div class="adm-sec-sub">Contabiliza quem usou os stickers de divulgação nos stories e quantas vezes</div>
+            <div class="adm-stats-grid">
+              <div class="adm-stat-card"><div class="adm-stat-value" id="stk-total">—</div><div class="adm-stat-label">Total de usos</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="stk-verde">—</div><div class="adm-stat-label">🟢 Bandeira verde</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="stk-vermelho">—</div><div class="adm-stat-label">🔴 Bandeira vermelha</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="stk-usuarios">—</div><div class="adm-stat-label">Usuários únicos</div></div>
+            </div>
+
+            <div class="adm-box">
+              <div class="adm-box-title">🏆 Ranking de usos por usuário</div>
+              <div id="stk-ranking-list"></div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 12px">
+              <div class="adm-box-title" style="margin:0">📋 Log de uso</div>
+              <input type="text" placeholder="Buscar usuário..." id="stk-log-search" oninput="filtrarStickerLog(this.value)"
+                style="padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;width:200px;outline:none;color:var(--text)"/>
+            </div>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Usuário</th><th>Sticker</th><th>Data</th></tr></thead>
+                <tbody id="tbody-sticker-log"></tbody>
+              </table>
+            </div>
+            <div id="sticker-log-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
           </div>
 
           <!-- MINHA SENHA -->
@@ -4911,6 +4969,7 @@ function admTab(btn, id) {
   document.getElementById('sec-' + id).classList.add('active');
   if (id === 'posts')   carregarPosts();
   if (id === 'stats')   carregarStats();
+  if (id === 'sticker-log') carregarStickerLog();
   if (id === 'imagens') { carregarLogoAdm(); carregarFaviconAdm(); carregarPokeetLogoAdm(); carregarWhatsappIconAdm(); }
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
   if (id === 'npcs')    admNpcLoad();
@@ -5568,6 +5627,72 @@ async function carregarStats() {
       </div>
       ${rpgBadge(u.rpg)}
     </div>`).join('') || '<div style="color:var(--muted);font-size:13px">Nenhum usuário ainda.</div>';
+}
+
+// ── Log de uso dos stickers de evento ──────────────────────
+let _stickerLogRows = [];
+
+async function carregarStickerLog() {
+  const tbody = document.getElementById('tbody-sticker-log');
+  const load  = document.getElementById('sticker-log-loading');
+  tbody.innerHTML = ''; load.style.display = 'block'; load.textContent = 'Carregando...';
+
+  const { data, error } = await db
+    .from('sticker_usage_log')
+    .select('id, sticker, created_at, users(id, username, color, avatar_url)')
+    .order('created_at', { ascending: false });
+
+  load.style.display = 'none';
+  if (error) { load.textContent = 'Erro ao carregar log de stickers.'; load.style.display = 'block'; return; }
+
+  _stickerLogRows = data || [];
+
+  // Cards de estatísticas
+  const total    = _stickerLogRows.length;
+  const verde    = _stickerLogRows.filter(r => r.sticker === 'verde').length;
+  const vermelho = _stickerLogRows.filter(r => r.sticker === 'vermelho').length;
+  const uniqueUsers = new Set(_stickerLogRows.map(r => r.users?.id).filter(Boolean));
+  document.getElementById('stk-total').textContent    = total;
+  document.getElementById('stk-verde').textContent    = verde;
+  document.getElementById('stk-vermelho').textContent = vermelho;
+  document.getElementById('stk-usuarios').textContent = uniqueUsers.size;
+
+  // Ranking por usuário
+  const countByUser = {};
+  _stickerLogRows.forEach(r => {
+    const u = r.users;
+    if (!u) return;
+    if (!countByUser[u.id]) countByUser[u.id] = { user: u, count: 0 };
+    countByUser[u.id].count++;
+  });
+  const ranking = Object.values(countByUser).sort((a, b) => b.count - a.count).slice(0, 10);
+  document.getElementById('stk-ranking-list').innerHTML = ranking.length ? ranking.map((r, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:22px;text-align:center;font-weight:800;color:var(--muted);font-size:12px">${i+1}º</div>
+        <div style="font-weight:700;font-size:13px">${esc(r.user.username)}</div>
+      </div>
+      <div style="font-weight:800;font-size:13px;color:var(--brand-mid,#e53935)">${r.count}×</div>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:13px">Nenhum uso registrado ainda.</div>';
+
+  renderStickerLogTable(_stickerLogRows);
+}
+
+function renderStickerLogTable(rows) {
+  const tbody = document.getElementById('tbody-sticker-log');
+  tbody.innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td><strong>${esc(r.users?.username || '—')}</strong></td>
+      <td>${r.sticker === 'verde' ? '🟢 Bandeira verde' : r.sticker === 'vermelho' ? '🔴 Bandeira vermelha' : esc(r.sticker || '—')}</td>
+      <td style="color:var(--muted);white-space:nowrap">${fmtDate(r.created_at)}</td>
+    </tr>`).join('')
+  : '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">Nenhum uso registrado ainda.</td></tr>';
+}
+
+function filtrarStickerLog(termo) {
+  const t = (termo || '').toLowerCase().trim();
+  if (!t) { renderStickerLogTable(_stickerLogRows); return; }
+  renderStickerLogTable(_stickerLogRows.filter(r => (r.users?.username || '').toLowerCase().includes(t)));
 }
 
 // ── Minha senha ───────────────────────────────────────────
@@ -8585,6 +8710,8 @@ let _storyViewOwnerId = null;
 const _storyEd = {
   // imagem original (HTMLImageElement com src ObjectURL)
   img: null,
+  // sticker de evento: { key, cx, cy, size, aspect } em coordenadas do canvas (1080×1920)
+  sticker: null,
 };
 
 function showNewStory() {
@@ -8609,6 +8736,14 @@ function showNewStory() {
   if (snapInput)  snapInput.value          = '';
   if (snapDisp)   snapDisp.textContent     = '';
   if (snapToggle) snapToggle.style.display = 'none';
+
+  // Reset sticker de evento
+  _storyEd.sticker = null;
+  const stickerBtn = document.getElementById('story-sticker-btn');
+  const stickerEl  = document.getElementById('story-sticker-el');
+  if (stickerBtn) stickerBtn.style.display = 'none';
+  if (stickerEl)  stickerEl.style.display  = 'none';
+  closeStickerPicker();
 
   // Garante modo normal visível
   const modeNormal = document.getElementById('story-mode-normal');
@@ -8644,6 +8779,18 @@ async function storyRenderFinal() {
   const canvas = document.getElementById('story-canvas');
   if (!canvas) return canvas;
   storyDrawCanvas();
+
+  const ctxSticker = canvas.getContext('2d');
+
+  // Renderiza o sticker de evento no canvas, se houver
+  if (_storyEd.sticker && ctxSticker) {
+    try {
+      const simg = await _loadStickerImg(_storyEd.sticker.key);
+      const s = _storyEd.sticker;
+      const w = s.size, h = s.size * s.aspect;
+      ctxSticker.drawImage(simg, s.cx - w / 2, s.cy - h / 2, w, h);
+    } catch (e) { console.warn('Erro ao renderizar sticker:', e); }
+  }
 
   // Renderiza a faixa de texto no canvas, se houver
   const text = (document.getElementById('snap-text-input')?.value || '').trim();
@@ -8810,6 +8957,165 @@ function _snapInitDrag() {
 }
 
 
+// ── Sticker de evento (Pokégram) ──────────────────────────
+const STICKER_ASSETS = {
+  verde:    'assets/stickers/sticker-verde.png',
+  vermelho: 'assets/stickers/sticker-vermelho.png'
+};
+const _stickerImgCache = {};
+
+function _loadStickerImg(key) {
+  if (_stickerImgCache[key]) return Promise.resolve(_stickerImgCache[key]);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload  = () => { _stickerImgCache[key] = img; resolve(img); };
+    img.onerror = reject;
+    img.src = STICKER_ASSETS[key];
+  });
+}
+
+function openStickerPicker() {
+  const sheet = document.getElementById('sticker-picker-sheet');
+  if (sheet) sheet.style.display = 'block';
+}
+function closeStickerPicker() {
+  const sheet = document.getElementById('sticker-picker-sheet');
+  if (sheet) sheet.style.display = 'none';
+}
+
+async function selectSticker(key) {
+  closeStickerPicker();
+  try {
+    const img = await _loadStickerImg(key);
+    const CW = 1080, CH = 1920;
+    const aspect = img.naturalHeight / img.naturalWidth;
+    const prev = _storyEd.sticker;
+    _storyEd.sticker = {
+      key,
+      cx:   prev?.cx   ?? CW / 2,
+      cy:   prev?.cy   ?? CH * 0.55,
+      size: prev?.size ?? 420,
+      aspect
+    };
+    const im = document.getElementById('story-sticker-img');
+    const el = document.getElementById('story-sticker-el');
+    if (im) im.src = STICKER_ASSETS[key];
+    if (el) el.style.display = 'block';
+    _stickerRender();
+    _stickerInitDrag();
+    // brilho! explode a tela sempre que o sticker de evento aparece
+    triggerStickerBurst(document.getElementById('modal-story-new'));
+  } catch (e) {
+    toast('Não foi possível carregar o sticker.');
+  }
+}
+
+function removeSticker(e) {
+  if (e) e.stopPropagation();
+  _storyEd.sticker = null;
+  const el = document.getElementById('story-sticker-el');
+  if (el) el.style.display = 'none';
+}
+
+// Mapeia o retângulo real do canvas (considerando object-fit contain/cover)
+// para converter coordenadas de tela ⇄ coordenadas do canvas (1080×1920)
+function _storyCanvasMap() {
+  const canvas = document.getElementById('story-canvas');
+  const rect   = canvas.getBoundingClientRect();
+  const CW = 1080, CH = 1920;
+  const mode  = getComputedStyle(canvas).objectFit || 'contain';
+  const scale = mode === 'cover'
+    ? Math.max(rect.width / CW, rect.height / CH)
+    : Math.min(rect.width / CW, rect.height / CH);
+  const rw = CW * scale, rh = CH * scale;
+  return {
+    scale,
+    offsetX: rect.left + (rect.width  - rw) / 2,
+    offsetY: rect.top  + (rect.height - rh) / 2
+  };
+}
+
+function _stickerRender() {
+  const s  = _storyEd.sticker;
+  const el = document.getElementById('story-sticker-el');
+  if (!s || !el) return;
+  const map = _storyCanvasMap();
+  const w = s.size * map.scale;
+  const h = s.size * s.aspect * map.scale;
+  el.style.width  = w + 'px';
+  el.style.height = h + 'px';
+  el.style.left   = (map.offsetX + (s.cx - s.size / 2) * map.scale) + 'px';
+  el.style.top    = (map.offsetY + (s.cy - (s.size * s.aspect) / 2) * map.scale) + 'px';
+}
+
+function _stickerInitDrag() {
+  const el = document.getElementById('story-sticker-el');
+  if (!el || el._dragBound) return;
+  el._dragBound = true;
+
+  let dragging = false, startX = 0, startY = 0, origCx = 0, origCy = 0;
+
+  el.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    if (!_storyEd.sticker) return;
+    dragging = true;
+    startX = e.clientX; startY = e.clientY;
+    origCx = _storyEd.sticker.cx; origCy = _storyEd.sticker.cy;
+    try { el.setPointerCapture(e.pointerId); } catch(_) {}
+    el.style.cursor = 'grabbing';
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging || !_storyEd.sticker) return;
+    const map = _storyCanvasMap();
+    const dx = (e.clientX - startX) / map.scale;
+    const dy = (e.clientY - startY) / map.scale;
+    _storyEd.sticker.cx = Math.min(1080, Math.max(0, origCx + dx));
+    _storyEd.sticker.cy = Math.min(1920, Math.max(0, origCy + dy));
+    _stickerRender();
+  });
+  const endDrag = () => { dragging = false; el.style.cursor = 'grab'; };
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
+}
+
+window.addEventListener('resize', () => { if (_storyEd.sticker) _stickerRender(); });
+
+// ── Explosão de brilho — dispara sempre que um sticker de evento aparece ──
+function triggerStickerBurst(container) {
+  if (!container) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'sticker-burst-wrap';
+
+  const flash = document.createElement('div');
+  flash.className = 'sticker-burst-flash';
+  wrap.appendChild(flash);
+
+  for (let i = 0; i < 3; i++) {
+    const ring = document.createElement('div');
+    ring.className = 'sticker-burst-ring';
+    ring.style.animationDelay = (i * 0.12) + 's';
+    wrap.appendChild(ring);
+  }
+
+  const glyphs = ['✨', '⭐', '💫', '❄️'];
+  const n = 20;
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('span');
+    s.className = 'sticker-burst-spark';
+    s.textContent = glyphs[Math.floor(Math.random() * glyphs.length)];
+    const angle = (Math.PI * 2 * i / n) + (Math.random() * 0.4 - 0.2);
+    const dist  = 130 + Math.random() * 170;
+    s.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+    s.style.setProperty('--ty', Math.sin(angle) * dist + 'px');
+    s.style.setProperty('--rot', (Math.random() * 360 - 180) + 'deg');
+    s.style.animationDelay = (Math.random() * 0.15) + 's';
+    wrap.appendChild(s);
+  }
+
+  container.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 1500);
+}
+
 function previewStoryImage(input) {
   const file = input.files[0];
   if (!file) return;
@@ -8826,11 +9132,14 @@ function previewStoryImage(input) {
       if (ph)    ph.style.display = 'none';
       if (cb)    cb.style.display = 'block';
 
-      // Mostra botão Aa
+      // Mostra botão Aa e botão de sticker
       const snapToggle = document.getElementById('snap-text-toggle-btn');
       if (snapToggle) snapToggle.style.display = 'block';
+      const stickerBtn = document.getElementById('story-sticker-btn');
+      if (stickerBtn) stickerBtn.style.display = 'block';
 
       storyDrawCanvas();
+      if (_storyEd.sticker) _stickerRender();
     };
     img.src = url;
   });
@@ -8870,12 +9179,25 @@ async function submitStory() {
 
     const { data: urlData } = db.storage.from('stories').getPublicUrl(path);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const { error } = await db.from('stories').insert({ user_id: currentUser.id, image_url: urlData.publicUrl, expires_at: expiresAt });
+    const stickerKey = _storyEd.sticker?.key || null;
+    const { error } = await db.from('stories').insert({
+      user_id: currentUser.id,
+      image_url: urlData.publicUrl,
+      expires_at: expiresAt,
+      sticker: stickerKey
+    });
     if (error) throw error;
+
+    // Log de uso do sticker de evento — contabiliza quem usou e quantas vezes
+    if (stickerKey) {
+      db.from('sticker_usage_log').insert({ user_id: currentUser.id, sticker: stickerKey })
+        .then(({ error: logErr }) => { if (logErr) console.warn('Erro ao registrar uso do sticker:', logErr); });
+    }
 
     _storyPendingFile = null;
     if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
     _storyEd.img = null;
+    _storyEd.sticker = null;
     closeModal('modal-story-new');
     await renderStories();
     toast('Story publicado! Disponível por 24h 🕐');
@@ -8917,6 +9239,11 @@ function showStory(idx) {
 
   // imagem
   document.getElementById('sv-image').src = story.image_url;
+
+  // Sticker de evento: explode a tela em brilho sempre que aparecer
+  if (story.sticker) {
+    triggerStickerBurst(document.getElementById('sv-container'));
+  }
 
   // avatar
   const avEl = document.getElementById('sv-avatar');
