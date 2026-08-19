@@ -9088,9 +9088,10 @@ function _fireStickerBurstAtCurrentPos() {
   const canvas = document.getElementById('story-canvas');
   if (!s || !canvas) return;
   const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
   const mode = getComputedStyle(canvas).objectFit || 'contain';
   const pt = _mapCanvasPointToPercent(rect, mode, s.cx, s.cy);
-  triggerStickerBurst(document.getElementById('modal-story-new'), pt.xPct, pt.yPct);
+  triggerStickerBurst(document.getElementById('modal-story-new'), pt.xPct, pt.yPct, s.key);
 }
 
 // Converte um ponto em coordenadas do canvas (0..1080, 0..1920) para
@@ -9183,12 +9184,18 @@ function _stickerInitDrag() {
 window.addEventListener('resize', () => { if (_storyEd.sticker) _stickerRender(); });
 
 // ── Explosão de brilho — dispara sempre que um sticker de evento aparece ──
-function triggerStickerBurst(container, xPct = 50, yPct = 50) {
+const STICKER_BURST_COLORS = {
+  verde:    '34,197,94',   // verde (Vulpix de Alola / bandeira verde)
+  vermelho: '255,61,61'    // vermelho (Vulpix / bandeira vermelha)
+};
+
+function triggerStickerBurst(container, xPct = 50, yPct = 50, key = null) {
   if (!container) return;
   const wrap = document.createElement('div');
   wrap.className = 'sticker-burst-wrap';
   wrap.style.setProperty('--bx', xPct + '%');
   wrap.style.setProperty('--by', yPct + '%');
+  wrap.style.setProperty('--burst-rgb', STICKER_BURST_COLORS[key] || '255,224,130');
 
   const flash = document.createElement('div');
   flash.className = 'sticker-burst-flash';
@@ -9329,9 +9336,9 @@ async function openStoryViewer(userId) {
   _storyViewIdx    = 0;
   _storyViewOwnerId = userId;
   _storyPaused     = false;
-  showStory(_storyViewIdx);
   document.getElementById('modal-story').style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  showStory(_storyViewIdx);
   // atualiza URL para /usuario/stories
   const storyUsername = stories[0]?.users?.username;
   if (storyUsername) history.replaceState({ storyUserId: userId }, '', '/' + storyUsername + '/stories');
@@ -9349,11 +9356,16 @@ function showStory(idx) {
   // Sticker de evento: explode a tela em brilho a partir de onde o sticker está posicionado
   if (story.sticker) {
     const svContainer = document.getElementById('sv-container');
-    const rect = svContainer.getBoundingClientRect();
-    const cx = (typeof story.sticker_x === 'number') ? story.sticker_x : 540;
-    const cy = (typeof story.sticker_y === 'number') ? story.sticker_y : 1056;
-    const pt = _mapCanvasPointToPercent(rect, 'cover', cx, cy);
-    triggerStickerBurst(svContainer, pt.xPct, pt.yPct);
+    // requestAnimationFrame garante que o layout do modal já foi calculado
+    // (senão getBoundingClientRect() pode retornar tamanho zero e o brilho cai no centro)
+    requestAnimationFrame(() => {
+      const rect = svContainer.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const cx = (typeof story.sticker_x === 'number') ? story.sticker_x : 540;
+      const cy = (typeof story.sticker_y === 'number') ? story.sticker_y : 1056;
+      const pt = _mapCanvasPointToPercent(rect, 'cover', cx, cy);
+      triggerStickerBurst(svContainer, pt.xPct, pt.yPct, story.sticker);
+    });
   }
 
   // avatar
