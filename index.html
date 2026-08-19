@@ -67,6 +67,8 @@
 .adm-btn-danger{background:#fde8e8;color:var(--red);border:1px solid #f0c0c0}
 .adm-btn-danger:hover{background:#f8c8c8}
 .adm-btn-sm{padding:5px 11px;font-size:12px}
+.ufl-btn{background:var(--surface2);color:var(--text)}
+.ufl-btn.active{background:var(--brand-light);color:var(--brand-mid)}
 .adm-btn-full{width:100%}
 .adm-fb{font-size:12px;font-weight:700;text-align:center;padding:8px 12px;border-radius:6px;margin-top:8px;display:none}
 .adm-fb-ok{background:#e0f0e0;color:var(--green)}
@@ -2616,6 +2618,7 @@
           <button class="adm-snav-btn" onclick="admTab(this,'posts')">📸 Publicações</button>
           <button class="adm-snav-btn" onclick="admTab(this,'stats')">📊 Estatísticas</button>
           <button class="adm-snav-btn" onclick="admTab(this,'kp-vinculos')">🔗 Vínculos KP</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'crescimento')">🚀 Crescimento Automático</button>
           <button class="adm-snav-btn" onclick="admTab(this,'sticker-log')">🎉 Stickers Evento</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
@@ -2658,6 +2661,46 @@
               <div class="adm-fb adm-fb-ok" id="reset-fb-ok">✓ Senha redefinida com sucesso!</div>
               <div class="adm-fb adm-fb-err" id="reset-fb-err">—</div>
             </div>
+
+            <div class="adm-stats-grid">
+              <div class="adm-stat-card"><div class="adm-stat-value" id="ustat-kp">—</div><div class="adm-stat-label">Kingdom Platinum</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="ustat-pc">—</div><div class="adm-stat-label">PChapters</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="ustat-npc">—</div><div class="adm-stat-label">NPCs</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="ustat-personagens">—</div><div class="adm-stat-label">Personagens de player</div></div>
+            </div>
+            <div class="adm-stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+              <div class="adm-stat-card"><div class="adm-stat-value" id="ustat-vinculados" style="color:var(--green)">—</div><div class="adm-stat-label">KP vinculados</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="ustat-faltando" style="color:var(--red)">—</div><div class="adm-stat-label">KP faltando vincular</div></div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;gap:14px;flex-wrap:wrap">
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">RPG</div>
+                  <div style="display:flex;gap:6px">
+                    <button class="adm-btn adm-btn-sm ufl-btn active" data-grp="rpg" data-val="todos" onclick="ufiltrar('rpg','todos')">Todos</button>
+                    <button class="adm-btn adm-btn-sm ufl-btn" data-grp="rpg" data-val="kingdom_platinum" onclick="ufiltrar('rpg','kingdom_platinum')">Kingdom Platinum</button>
+                    <button class="adm-btn adm-btn-sm ufl-btn" data-grp="rpg" data-val="pchapters" onclick="ufiltrar('rpg','pchapters')">PChapters</button>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Tipo</div>
+                  <div style="display:flex;gap:6px">
+                    <button class="adm-btn adm-btn-sm ufl-btn active" data-grp="tipo" data-val="todos" onclick="ufiltrar('tipo','todos')">Todos</button>
+                    <button class="adm-btn adm-btn-sm ufl-btn" data-grp="tipo" data-val="personagem" onclick="ufiltrar('tipo','personagem')">👤 Personagens</button>
+                    <button class="adm-btn adm-btn-sm ufl-btn" data-grp="tipo" data-val="npc" onclick="ufiltrar('tipo','npc')">🤖 NPCs</button>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Vínculo KP</div>
+                  <div style="display:flex;gap:6px">
+                    <button class="adm-btn adm-btn-sm ufl-btn active" data-grp="vinculo" data-val="todos" onclick="ufiltrar('vinculo','todos')">Todos</button>
+                    <button class="adm-btn adm-btn-sm ufl-btn" data-grp="vinculo" data-val="vinculado" onclick="ufiltrar('vinculo','vinculado')">✅ Vinculados</button>
+                    <button class="adm-btn adm-btn-sm ufl-btn" data-grp="vinculo" data-val="faltando" onclick="ufiltrar('vinculo','faltando')">⚠️ Faltando</button>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
               <div style="font-size:12px;color:var(--muted)" id="users-count"></div>
               <input type="text" placeholder="Buscar usuário..." id="users-search" oninput="filtrarUsuarios(this.value)"
@@ -2665,7 +2708,7 @@
             </div>
             <div class="adm-table-wrap">
               <table class="adm-table">
-                <thead><tr><th>Usuário</th><th>RPG</th><th>Cadastro</th><th>Ações</th></tr></thead>
+                <thead><tr><th>Usuário</th><th>RPG</th><th>Tipo</th><th>Vínculo KP</th><th>Cadastro</th><th>Ações</th></tr></thead>
                 <tbody id="tbody-usuarios"></tbody>
               </table>
             </div>
@@ -2778,6 +2821,68 @@
               </table>
             </div>
             <div id="kpv-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
+          </div>
+
+          <!-- CRESCIMENTO AUTOMÁTICO -->
+          <div class="adm-section" id="sec-crescimento">
+            <div class="adm-sec-title">Crescimento Automático</div>
+            <div class="adm-sec-sub">Seguidores e curtidas bônus, calculados em tempo real com base em posts, stories e interações. Os números reais no banco não são alterados — o bônus só é somado na hora de exibir.</div>
+
+            <div class="adm-box">
+              <div class="adm-box-title">⚙️ Configuração</div>
+              <div class="adm-field" style="flex-direction:row;align-items:center;gap:10px;margin-bottom:16px">
+                <input type="checkbox" id="gc-enabled" style="width:16px;height:16px;margin:0">
+                <label style="margin:0;text-transform:none;font-size:13px;font-weight:700;color:var(--text)">Ativar crescimento automático</label>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px">
+                <div class="adm-field">
+                  <label>Seguidores bônus por publicação</label>
+                  <input type="number" step="0.1" id="gc-posts-weight" placeholder="Ex: 2">
+                </div>
+                <div class="adm-field">
+                  <label>Seguidores bônus por story</label>
+                  <input type="number" step="0.1" id="gc-stories-weight" placeholder="Ex: 1">
+                </div>
+                <div class="adm-field">
+                  <label>Seguidores bônus por curtida/comentário recebido</label>
+                  <input type="number" step="0.05" id="gc-interactions-weight" placeholder="Ex: 0.3">
+                </div>
+                <div class="adm-field">
+                  <label>% de curtidas extra a cada 100 seguidores bônus</label>
+                  <input type="number" step="0.5" id="gc-likes-scale" placeholder="Ex: 8">
+                </div>
+              </div>
+
+              <div class="adm-field" style="margin-bottom:6px">
+                <label>Aplicar a</label>
+                <div style="display:flex;gap:16px;margin-top:2px">
+                  <label style="display:flex;align-items:center;gap:6px;margin:0;text-transform:none;font-size:13px;font-weight:600;color:var(--text)">
+                    <input type="checkbox" id="gc-apply-kp" style="width:15px;height:15px;margin:0"> Kingdom Platinum
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;margin:0;text-transform:none;font-size:13px;font-weight:600;color:var(--text)">
+                    <input type="checkbox" id="gc-apply-pc" style="width:15px;height:15px;margin:0"> PChapters
+                  </label>
+                </div>
+              </div>
+              <p style="font-size:12px;color:var(--muted);margin-bottom:14px">NPCs nunca recebem bônus — apenas personagens de player.</p>
+
+              <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarCrescimento()">💾 Salvar Configuração</button>
+              <div class="adm-fb adm-fb-ok" id="gc-fb-ok">✓ Configuração salva!</div>
+              <div class="adm-fb adm-fb-err" id="gc-fb-err">—</div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div class="adm-box-title" style="margin:0">📈 Prévia por personagem</div>
+              <button class="adm-btn adm-btn-sm" onclick="admLoadCrescimento()" style="background:var(--surface2)">↺ Recalcular prévia</button>
+            </div>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Personagem</th><th>RPG</th><th>Posts</th><th>Stories</th><th>Interações</th><th>Seguidores reais</th><th>Bônus</th><th>Exibido</th><th>Curtidas ×</th></tr></thead>
+                <tbody id="tbody-crescimento"></tbody>
+              </table>
+            </div>
+            <div id="gc-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
           </div>
 
           <!-- STICKERS EVENTO -->
@@ -5014,6 +5119,7 @@ function admTab(btn, id) {
   if (id === 'posts')   carregarPosts();
   if (id === 'stats')   carregarStats();
   if (id === 'kp-vinculos') carregarVinculosKp();
+  if (id === 'crescimento') admLoadCrescimento();
   if (id === 'sticker-log') carregarStickerLog();
   if (id === 'imagens') { carregarLogoAdm(); carregarFaviconAdm(); carregarPokeetLogoAdm(); carregarWhatsappIconAdm(); }
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
@@ -5575,25 +5681,99 @@ function autoRegenerarHorarios(npcId) {
 }
 
 // ── Usuários ──────────────────────────────────────────────
+let _uFiltros = { rpg: 'todos', tipo: 'todos', vinculo: 'todos' };
+
 async function carregarUsuarios() {
   const tbody = document.getElementById('tbody-usuarios');
   const load  = document.getElementById('users-loading');
-  tbody.innerHTML = ''; load.style.display = 'block';
-  const { data, error } = await db.from('users').select('*').or('is_npc.is.null,is_npc.eq.false').order('created_at', { ascending: false });
-  load.style.display = 'none';
-  if (error) { load.textContent = 'Erro ao carregar usuários.'; load.style.display = 'block'; return; }
-  allUsers = data || [];
-  document.getElementById('users-count').textContent = `${allUsers.length} usuário(s) cadastrado(s)`;
-  renderUsuarios(allUsers);
+  tbody.innerHTML = ''; load.style.display = 'block'; load.textContent = 'Carregando...';
+
+  try {
+    const [{ data, error }, kpPlayers] = await Promise.all([
+      db.from('users').select('*').or('is_pokeet_secondary.is.null,is_pokeet_secondary.eq.false').order('created_at', { ascending: false }),
+      kpFetch('players?select=nome,pokegram_perfis').catch(e => { console.warn('[carregarUsuarios] falha ao buscar players do KP:', e); return []; }),
+    ]);
+    if (error) throw error;
+
+    // Mapa username -> nome do player do KP vinculado
+    const linkByUsername = {};
+    (kpPlayers || []).forEach(p => {
+      (p.pokegram_perfis || []).forEach(username => { linkByUsername[username] = p.nome; });
+    });
+
+    allUsers = (data || []).map(u => ({
+      ...u,
+      _tipo: u.is_npc ? 'npc' : 'personagem',
+      _linkedPlayer: linkByUsername[u.username] || null,
+    }));
+
+    // Cards de resumo
+    const kpUsers   = allUsers.filter(u => u.rpg === 'kingdom_platinum');
+    const pcUsers   = allUsers.filter(u => u.rpg === 'pchapters');
+    const npcs      = allUsers.filter(u => u._tipo === 'npc');
+    const personagens = allUsers.filter(u => u._tipo === 'personagem');
+    const kpVinculados = kpUsers.filter(u => u._tipo === 'personagem' && u._linkedPlayer).length;
+    const kpFaltando   = kpUsers.filter(u => u._tipo === 'personagem' && !u._linkedPlayer).length;
+    document.getElementById('ustat-kp').textContent          = kpUsers.length;
+    document.getElementById('ustat-pc').textContent          = pcUsers.length;
+    document.getElementById('ustat-npc').textContent         = npcs.length;
+    document.getElementById('ustat-personagens').textContent = personagens.length;
+    document.getElementById('ustat-vinculados').textContent  = kpVinculados;
+    document.getElementById('ustat-faltando').textContent    = kpFaltando;
+
+    load.style.display = 'none';
+    renderUsuarios(allUsers);
+  } catch(e) {
+    console.error('[carregarUsuarios]', e);
+    load.textContent = 'Erro ao carregar usuários.';
+    load.style.display = 'block';
+  }
+}
+
+function ufiltrar(grupo, valor) {
+  _uFiltros[grupo] = valor;
+  document.querySelectorAll(`.ufl-btn[data-grp="${grupo}"]`).forEach(b => {
+    b.classList.toggle('active', b.dataset.val === valor);
+  });
+  renderUsuarios(aplicarFiltrosUsuarios(document.getElementById('users-search').value));
+}
+
+function aplicarFiltrosUsuarios(termo) {
+  const q = (termo || '').toLowerCase();
+  return allUsers.filter(u => {
+    if (q && !u.username.toLowerCase().includes(q)) return false;
+    if (_uFiltros.rpg !== 'todos' && u.rpg !== _uFiltros.rpg) return false;
+    if (_uFiltros.tipo !== 'todos' && u._tipo !== _uFiltros.tipo) return false;
+    if (_uFiltros.vinculo === 'vinculado' && !(u.rpg === 'kingdom_platinum' && u._tipo === 'personagem' && u._linkedPlayer)) return false;
+    if (_uFiltros.vinculo === 'faltando'  && !(u.rpg === 'kingdom_platinum' && u._tipo === 'personagem' && !u._linkedPlayer)) return false;
+    return true;
+  });
+}
+
+function tipoBadge(u) {
+  return u._tipo === 'npc'
+    ? '<span class="rpg-badge" style="background:#ede7f6;color:#4a2f8f">🤖 NPC</span>'
+    : '<span class="rpg-badge" style="background:#e3f2fd;color:#0d47a1">👤 Personagem</span>';
+}
+
+function vinculoBadge(u) {
+  if (u.rpg !== 'kingdom_platinum') return '<span style="color:var(--muted);font-size:12px">— (não é KP)</span>';
+  if (u._tipo === 'npc') return '<span style="color:var(--muted);font-size:12px">— (NPC)</span>';
+  return u._linkedPlayer
+    ? `<span class="rpg-badge" style="background:#e0f0e0;color:var(--green)">✅ ${esc(u._linkedPlayer)}</span>`
+    : '<span class="rpg-badge" style="background:#fde8e8;color:var(--red)">⚠️ Faltando</span>';
 }
 
 function renderUsuarios(list) {
   const tbody = document.getElementById('tbody-usuarios');
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Nenhum usuário encontrado.</td></tr>'; return; }
+  document.getElementById('users-count').textContent = `${list.length} de ${allUsers.length} usuário(s)`;
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Nenhum usuário encontrado.</td></tr>'; return; }
   tbody.innerHTML = list.map(u => `
     <tr>
       <td><strong>${esc(u.username)}</strong></td>
       <td>${rpgBadge(u.rpg)}</td>
+      <td>${tipoBadge(u)}</td>
+      <td>${vinculoBadge(u)}</td>
       <td style="color:var(--muted)">${fmtDate(u.created_at)}</td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -5604,7 +5784,7 @@ function renderUsuarios(list) {
     </tr>`).join('');
 }
 
-function filtrarUsuarios(q) { renderUsuarios(allUsers.filter(u => u.username.toLowerCase().includes(q.toLowerCase()))); }
+function filtrarUsuarios(q) { renderUsuarios(aplicarFiltrosUsuarios(q)); }
 
 function abrirResetSenha(username) {
   document.getElementById('reset-username').value = username;
@@ -5772,6 +5952,98 @@ function kpvRenderTabela() {
       <td>${u.linkedPlayer ? esc(u.linkedPlayer) : '—'}</td>
       <td>${fmtDate(u.created_at)}</td>
     </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhuma conta encontrada.</td></tr>';
+}
+
+// ── Painel ADM: Crescimento Automático (seguidores/curtidas bônus) ──
+async function admLoadCrescimento() {
+  const load = document.getElementById('gc-loading');
+  const tbody = document.getElementById('tbody-crescimento');
+  tbody.innerHTML = ''; load.style.display = 'block'; load.textContent = 'Carregando...';
+
+  try {
+    const cfg = await getGrowthConfig(true); // força reler do banco
+
+    // Preenche os campos do formulário
+    document.getElementById('gc-enabled').checked           = !!cfg.enabled;
+    document.getElementById('gc-posts-weight').value         = cfg.posts_weight;
+    document.getElementById('gc-stories-weight').value       = cfg.stories_weight;
+    document.getElementById('gc-interactions-weight').value  = cfg.interactions_weight;
+    document.getElementById('gc-likes-scale').value          = cfg.likes_scale;
+    document.getElementById('gc-apply-kp').checked = (cfg.apply_to || []).includes('kingdom_platinum');
+    document.getElementById('gc-apply-pc').checked = (cfg.apply_to || []).includes('pchapters');
+
+    // Prévia: personagens de player (exclui NPCs e perfis secundários do Pokeet)
+    const { data: users, error } = await db.from('users').select('id,username,rpg,is_npc,is_pokeet_secondary')
+      .or('is_npc.is.null,is_npc.eq.false')
+      .or('is_pokeet_secondary.is.null,is_pokeet_secondary.eq.false')
+      .not('rpg', 'is', null)
+      .order('username');
+    if (error) throw error;
+
+    const personagens = users || [];
+    const growthMap = await computeGrowthForUsers(personagens);
+
+    load.style.display = 'none';
+    tbody.innerHTML = personagens.map(u => {
+      const g = growthMap.get(u.id) || { postsCount:0, storiesCount:0, interactions:0, followersCount:0, bonusFollowers:0, likeFactor:1 };
+      const elegivel = isGrowthEligible(u, cfg);
+      return `<tr>
+        <td style="font-weight:700">${esc(u.username)}</td>
+        <td>${rpgBadge(u.rpg)}</td>
+        <td>${g.postsCount}</td>
+        <td>${g.storiesCount}</td>
+        <td>${g.interactions}</td>
+        <td>${g.followersCount}</td>
+        <td style="color:${elegivel ? 'var(--green)' : 'var(--muted)'};font-weight:700">${elegivel ? '+' + g.bonusFollowers : '—'}</td>
+        <td style="font-weight:700">${g.followersCount + (elegivel ? g.bonusFollowers : 0)}</td>
+        <td>${elegivel ? '×' + g.likeFactor.toFixed(2) : '—'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Nenhum personagem encontrado.</td></tr>';
+  } catch(e) {
+    console.error('[admLoadCrescimento]', e);
+    load.textContent = 'Erro ao carregar: ' + (e.message || e);
+    load.style.display = 'block';
+  }
+}
+
+async function salvarCrescimento() {
+  const okEl  = document.getElementById('gc-fb-ok');
+  const errEl = document.getElementById('gc-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  const postsW  = parseFloat(document.getElementById('gc-posts-weight').value);
+  const storiesW = parseFloat(document.getElementById('gc-stories-weight').value);
+  const interW  = parseFloat(document.getElementById('gc-interactions-weight').value);
+  const likesS  = parseFloat(document.getElementById('gc-likes-scale').value);
+
+  if ([postsW, storiesW, interW, likesS].some(n => isNaN(n) || n < 0)) {
+    errEl.textContent = 'Preencha todos os pesos com números válidos (≥ 0).';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const applyTo = [];
+  if (document.getElementById('gc-apply-kp').checked) applyTo.push('kingdom_platinum');
+  if (document.getElementById('gc-apply-pc').checked) applyTo.push('pchapters');
+
+  const cfg = {
+    enabled: document.getElementById('gc-enabled').checked,
+    posts_weight: postsW,
+    stories_weight: storiesW,
+    interactions_weight: interW,
+    likes_scale: likesS,
+    apply_to: applyTo,
+  };
+
+  try {
+    await saveGrowthConfig(cfg);
+    okEl.style.display = 'block';
+    setTimeout(() => okEl.style.display = 'none', 2500);
+    admLoadCrescimento();
+  } catch(e) {
+    errEl.textContent = 'Erro ao salvar: ' + (e.message || e);
+    errEl.style.display = 'block';
+  }
 }
 
 // ── Log de uso dos stickers de evento ──────────────────────
@@ -6218,6 +6490,130 @@ function rpgBadge(rpg) {
   if (rpg==='pchapters')        return '<span class="rpg-badge rpg-pc">PChapters</span>';
   return '<span style="color:var(--muted)">—</span>';
 }
+
+// ══════════════════════════════════════════════════════════
+//  CRESCIMENTO ORGÂNICO — seguidores e curtidas bônus
+//  Calcula, em tempo real, um número "bônus" de seguidores e
+//  um fator de curtidas com base na atividade real do
+//  personagem (posts, stories e interações recebidas).
+//  Os números reais no banco NUNCA são alterados — o bônus é
+//  somado só na hora de exibir (perfil e feed), então some/desce
+//  automaticamente conforme a atividade do personagem muda.
+// ══════════════════════════════════════════════════════════
+const GROWTH_DEFAULTS = {
+  enabled: true,
+  posts_weight: 2,           // seguidores bônus por publicação
+  stories_weight: 1,         // seguidores bônus por story (histórico total)
+  interactions_weight: 0.3,  // seguidores bônus por curtida/comentário recebido nos posts
+  likes_scale: 8,            // % de curtidas extras por foto a cada 100 seguidores bônus
+  apply_to: ['kingdom_platinum', 'pchapters'],
+};
+
+let _growthConfig = null;
+
+async function getGrowthConfig(force) {
+  if (_growthConfig && !force) return _growthConfig;
+  try {
+    const { data } = await db.from('settings').select('value').eq('key', 'growth_config').maybeSingle();
+    let parsed = {};
+    if (data && data.value) { try { parsed = JSON.parse(data.value); } catch(e) {} }
+    _growthConfig = { ...GROWTH_DEFAULTS, ...parsed };
+  } catch(e) {
+    _growthConfig = { ...GROWTH_DEFAULTS };
+  }
+  return _growthConfig;
+}
+
+async function saveGrowthConfig(cfg) {
+  const value = JSON.stringify(cfg);
+  const { data: existing } = await db.from('settings').select('key').eq('key', 'growth_config').maybeSingle();
+  if (existing) {
+    await db.from('settings').update({ value }).eq('key', 'growth_config');
+  } else {
+    await db.from('settings').insert({ key: 'growth_config', value });
+  }
+  _growthConfig = cfg;
+}
+
+function isGrowthEligible(u, cfg) {
+  if (!u || !cfg || !cfg.enabled) return false;
+  if (u.is_npc || u.is_pokeet_secondary) return false;
+  if (!u.rpg) return false;
+  return (cfg.apply_to || []).includes(u.rpg);
+}
+
+function computeBonusFollowers(cfg, postsCount, storiesCount, interactionsCount) {
+  const bonus = (cfg.posts_weight * postsCount) + (cfg.stories_weight * storiesCount) + (cfg.interactions_weight * interactionsCount);
+  return Math.max(0, Math.round(bonus));
+}
+
+function computeLikeGrowthFactor(cfg, bonusFollowers) {
+  // fator multiplicativo aplicado sobre as curtidas reais de cada foto:
+  // a cada 100 seguidores bônus, soma "likes_scale"% às curtidas
+  return 1 + (bonusFollowers / 100) * (cfg.likes_scale / 100);
+}
+
+function applyLikeGrowth(realCount, growthEntry) {
+  if (!realCount || !growthEntry) return realCount || 0;
+  return Math.max(realCount, Math.round(realCount * (growthEntry.likeFactor || 1)));
+}
+
+// Calcula o crescimento (bônus de seguidores + fator de curtidas) para um
+// conjunto de usuários de uma vez (evita N+1 queries no feed).
+// usersMeta: [{ id, rpg, is_npc, is_pokeet_secondary }, ...]
+async function computeGrowthForUsers(usersMeta) {
+  const cfg = await getGrowthConfig();
+  const map = new Map();
+  (usersMeta || []).forEach(u => {
+    if (u && u.id) map.set(u.id, { bonusFollowers: 0, likeFactor: 1, postsCount: 0, storiesCount: 0, interactions: 0, followersCount: 0 });
+  });
+  if (!cfg.enabled) return map;
+
+  const eligibleIds = (usersMeta || []).filter(u => isGrowthEligible(u, cfg)).map(u => u.id);
+  if (!eligibleIds.length) return map;
+
+  try {
+    const [{ data: postsRows }, { data: storiesRows }, { data: followRows }] = await Promise.all([
+      db.from('posts').select('id,user_id').in('user_id', eligibleIds),
+      db.from('stories').select('id,user_id').in('user_id', eligibleIds),
+      db.from('follows').select('following_id').in('following_id', eligibleIds),
+    ]);
+
+    const postsByUser = {};
+    (postsRows || []).forEach(p => { (postsByUser[p.user_id] ||= []).push(p.id); });
+    const storiesCountByUser = {};
+    (storiesRows || []).forEach(s => { storiesCountByUser[s.user_id] = (storiesCountByUser[s.user_id] || 0) + 1; });
+    const followersCountByUser = {};
+    (followRows || []).forEach(f => { followersCountByUser[f.following_id] = (followersCountByUser[f.following_id] || 0) + 1; });
+
+    const allPostIds = Object.values(postsByUser).flat();
+    let likesByPost = {}, commentsByPost = {};
+    if (allPostIds.length) {
+      const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
+        db.from('likes').select('post_id').in('post_id', allPostIds),
+        db.from('comments').select('post_id').in('post_id', allPostIds),
+      ]);
+      (likeRows || []).forEach(l => { likesByPost[l.post_id] = (likesByPost[l.post_id] || 0) + 1; });
+      (commentRows || []).forEach(c => { commentsByPost[c.post_id] = (commentsByPost[c.post_id] || 0) + 1; });
+    }
+
+    eligibleIds.forEach(uid => {
+      const postIds = postsByUser[uid] || [];
+      const postsCount = postIds.length;
+      const storiesCount = storiesCountByUser[uid] || 0;
+      let interactions = 0;
+      postIds.forEach(pid => { interactions += (likesByPost[pid] || 0) + (commentsByPost[pid] || 0); });
+      const bonusFollowers = computeBonusFollowers(cfg, postsCount, storiesCount, interactions);
+      const likeFactor = computeLikeGrowthFactor(cfg, bonusFollowers);
+      map.set(uid, { bonusFollowers, likeFactor, postsCount, storiesCount, interactions, followersCount: followersCountByUser[uid] || 0 });
+    });
+  } catch(e) {
+    console.error('[computeGrowthForUsers]', e);
+  }
+
+  return map;
+}
+
 function admToggleEye(inputId, btn) {
   const input = document.getElementById(inputId);
   input.type = input.type === 'password' ? 'text' : 'password';
@@ -7080,6 +7476,19 @@ async function renderPostsList(container, posts) {
     if (!lastCommentMap[c.post_id]) lastCommentMap[c.post_id] = c;
   });
 
+  // ── Crescimento orgânico: aplica o fator de curtidas bônus por autor ──
+  const authorsMeta = [];
+  const seenAuthors = new Set();
+  posts.forEach(p => {
+    const u = p.users;
+    if (u && u.id && !seenAuthors.has(u.id)) { seenAuthors.add(u.id); authorsMeta.push(u); }
+  });
+  const growthMap = await computeGrowthForUsers(authorsMeta);
+  posts.forEach(p => {
+    const g = p.users && growthMap.get(p.users.id);
+    likeMap[p.id] = applyLikeGrowth(likeMap[p.id] || 0, g);
+  });
+
   container.innerHTML = posts.map(p => buildPostHTML(p, likedSet.has(p.id), likeMap[p.id] || 0, commentMap[p.id] || 0, lastCommentMap[p.id] || null)).join('');
 
   // salva no cache da aba atual para evitar refetch ao trocar de aba
@@ -7289,7 +7698,7 @@ async function openComments(postId) {
   if (!post || !post.users) {
     const { data } = await db
       .from('posts')
-      .select('*, users(id, username, color, avatar_url, is_npc)')
+      .select('*, users(id, username, color, avatar_url, is_npc, rpg, is_pokeet_secondary)')
       .eq('id', postId)
       .maybeSingle();
     post = data;
@@ -7381,7 +7790,14 @@ async function openComments(postId) {
     ]);
     const liked    = !!likeData;
     const saved    = !!saveData;
-    const likeCount = (likesCount || []).length;
+    const realLikeCount = (likesCount || []).length;
+    // Aplica o crescimento orgânico (curtidas bônus) do autor do post
+    let likeCount = realLikeCount;
+    if (post.user_id) {
+      const authorMeta = post.users ? { id: post.user_id, rpg: post.users.rpg, is_npc: post.users.is_npc, is_pokeet_secondary: post.users.is_pokeet_secondary } : { id: post.user_id };
+      const growthMap = await computeGrowthForUsers([authorMeta]);
+      likeCount = applyLikeGrowth(realLikeCount, growthMap.get(post.user_id));
+    }
 
     actBar.innerHTML = `
       <div class="cab-actions">
@@ -8437,7 +8853,14 @@ async function loadUserData(username) {
   ]);
   // atualiza followState para que buildProfileHTML use o valor correto
   followState[u.id] = !!myFollowRes.data;
-  return { u, userPosts: postsRes.data || [], followers: followersRes.count || 0, following: followingRes.count || 0 };
+
+  // Crescimento orgânico: soma o bônus de seguidores calculado por atividade
+  const realFollowers = followersRes.count || 0;
+  const growthMap = await computeGrowthForUsers([{ id: u.id, rpg: u.rpg, is_npc: u.is_npc, is_pokeet_secondary: u.is_pokeet_secondary }]);
+  const growth = growthMap.get(u.id) || { bonusFollowers: 0 };
+  const displayFollowers = realFollowers + growth.bonusFollowers;
+
+  return { u, userPosts: postsRes.data || [], followers: displayFollowers, following: followingRes.count || 0, _realFollowers: realFollowers, _growth: growth };
 }
 
 // ── Profile (own) ─────────────────────────────────────────
