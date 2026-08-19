@@ -2615,6 +2615,7 @@
           <button class="adm-snav-btn active" onclick="admTab(this,'usuarios')">👥 Usuários</button>
           <button class="adm-snav-btn" onclick="admTab(this,'posts')">📸 Publicações</button>
           <button class="adm-snav-btn" onclick="admTab(this,'stats')">📊 Estatísticas</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'kp-vinculos')">🔗 Vínculos KP</button>
           <button class="adm-snav-btn" onclick="admTab(this,'sticker-log')">🎉 Stickers Evento</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
@@ -2743,6 +2744,40 @@
               <div class="adm-box-title">Usuários recentes</div>
               <div id="recent-users-list"></div>
             </div>
+          </div>
+
+          <!-- VÍNCULOS KP -->
+          <div class="adm-section" id="sec-kp-vinculos">
+            <div class="adm-sec-title">Vínculos KP</div>
+            <div class="adm-sec-sub">Contas do Kingdom Platinum vinculadas ao player do KP, e quais ainda faltam vincular</div>
+            <div class="adm-stats-grid">
+              <div class="adm-stat-card"><div class="adm-stat-value" id="kpv-total">—</div><div class="adm-stat-label">Contas KP</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="kpv-vinculadas">—</div><div class="adm-stat-label">Vinculadas</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="kpv-faltando">—</div><div class="adm-stat-label">Faltando vincular</div></div>
+              <div class="adm-stat-card"><div class="adm-stat-value" id="kpv-players">—</div><div class="adm-stat-label">Players do KP</div></div>
+            </div>
+
+            <div class="adm-box">
+              <div class="adm-box-title">👤 Perfis por player</div>
+              <div id="kpv-players-list" style="font-size:13px"></div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="adm-btn adm-btn-sm" id="kpv-filtro-todas" onclick="kpvFiltrar('todas')" style="background:var(--brand-light);color:var(--brand-mid)">Todas</button>
+                <button class="adm-btn adm-btn-sm" id="kpv-filtro-vinculadas" onclick="kpvFiltrar('vinculadas')" style="background:var(--surface2)">✅ Vinculadas</button>
+                <button class="adm-btn adm-btn-sm" id="kpv-filtro-faltando" onclick="kpvFiltrar('faltando')" style="background:var(--surface2)">⚠️ Faltando</button>
+              </div>
+              <input type="text" placeholder="Buscar conta..." id="kpv-search" oninput="kpvRenderTabela()"
+                style="padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;width:200px;outline:none;color:var(--text)"/>
+            </div>
+            <div class="adm-table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Conta (Pokégram)</th><th>Nome</th><th>Status</th><th>Player do KP</th><th>Cadastro</th></tr></thead>
+                <tbody id="tbody-kp-vinculos"></tbody>
+              </table>
+            </div>
+            <div id="kpv-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
           </div>
 
           <!-- STICKERS EVENTO -->
@@ -4978,6 +5013,7 @@ function admTab(btn, id) {
   document.getElementById('sec-' + id).classList.add('active');
   if (id === 'posts')   carregarPosts();
   if (id === 'stats')   carregarStats();
+  if (id === 'kp-vinculos') carregarVinculosKp();
   if (id === 'sticker-log') carregarStickerLog();
   if (id === 'imagens') { carregarLogoAdm(); carregarFaviconAdm(); carregarPokeetLogoAdm(); carregarWhatsappIconAdm(); }
   if (id === 'filtros') setTimeout(admLoadFiltros, 50);
@@ -5636,6 +5672,106 @@ async function carregarStats() {
       </div>
       ${rpgBadge(u.rpg)}
     </div>`).join('') || '<div style="color:var(--muted);font-size:13px">Nenhum usuário ainda.</div>';
+}
+
+// ── Vínculos de contas Pokégram (Kingdom Platinum) com players do KP ──
+let _kpvRows = [];      // contas KP com status calculado
+let _kpvFiltro = 'todas';
+
+async function carregarVinculosKp() {
+  const tbody = document.getElementById('tbody-kp-vinculos');
+  const load  = document.getElementById('kpv-loading');
+  tbody.innerHTML = ''; load.style.display = 'block'; load.textContent = 'Carregando...';
+
+  try {
+    const [{ data: users, error: usersErr }, kpPlayers] = await Promise.all([
+      db.from('users').select('id,username,name,color,avatar_url,created_at,is_npc,is_pokeet_secondary')
+        .eq('rpg', 'kingdom_platinum')
+        .order('created_at', { ascending: false }),
+      kpFetch('players?select=nome,pokegram_perfis'),
+    ]);
+    if (usersErr) throw usersErr;
+
+    // Só contas de jogador de verdade contam (fora NPCs e perfis secundários do Pokeet)
+    const contas = (users || []).filter(u => !u.is_npc && !u.is_pokeet_secondary);
+
+    // Mapa username -> nome do player que o vinculou
+    const linkByUsername = {};
+    (kpPlayers || []).forEach(p => {
+      (p.pokegram_perfis || []).forEach(username => { linkByUsername[username] = p.nome; });
+    });
+
+    _kpvRows = contas.map(u => ({
+      ...u,
+      linkedPlayer: linkByUsername[u.username] || null,
+    }));
+
+    // Cards de estatísticas
+    const total       = _kpvRows.length;
+    const vinculadas  = _kpvRows.filter(r => r.linkedPlayer).length;
+    const faltando    = total - vinculadas;
+    document.getElementById('kpv-total').textContent      = total;
+    document.getElementById('kpv-vinculadas').textContent = vinculadas;
+    document.getElementById('kpv-faltando').textContent   = faltando;
+    document.getElementById('kpv-players').textContent    = (kpPlayers || []).length;
+
+    // Lista de perfis por player
+    const playersList = document.getElementById('kpv-players-list');
+    if (!kpPlayers || !kpPlayers.length) {
+      playersList.innerHTML = '<div style="color:var(--muted)">Nenhum player do KP cadastrado.</div>';
+    } else {
+      const ordenados = [...kpPlayers].sort((a,b) => (b.pokegram_perfis||[]).length - (a.pokegram_perfis||[]).length);
+      playersList.innerHTML = ordenados.map(p => {
+        const qtd = (p.pokegram_perfis || []).length;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+          <div style="font-weight:700">${esc(p.nome)}</div>
+          <div style="color:${qtd ? 'var(--muted)' : 'var(--red)'};font-size:12px">${qtd ? qtd + ' perfil' + (qtd>1?'s':'') + ' vinculado' + (qtd>1?'s':'') : 'sem perfil vinculado'}</div>
+        </div>`;
+      }).join('');
+    }
+
+    load.style.display = 'none';
+    kpvRenderTabela();
+  } catch(e) {
+    console.error('[carregarVinculosKp]', e);
+    load.textContent = 'Erro ao carregar vínculos: ' + (e.message || e);
+    load.style.display = 'block';
+  }
+}
+
+function kpvFiltrar(filtro) {
+  _kpvFiltro = filtro;
+  ['todas','vinculadas','faltando'].forEach(f => {
+    const btn = document.getElementById('kpv-filtro-' + f);
+    btn.style.background = (f === filtro) ? 'var(--brand-light)' : 'var(--surface2)';
+    btn.style.color = (f === filtro) ? 'var(--brand-mid)' : 'var(--text)';
+  });
+  kpvRenderTabela();
+}
+
+function kpvRenderTabela() {
+  const tbody  = document.getElementById('tbody-kp-vinculos');
+  const termo  = (document.getElementById('kpv-search').value || '').toLowerCase().trim();
+
+  let rows = _kpvRows;
+  if (_kpvFiltro === 'vinculadas') rows = rows.filter(r => r.linkedPlayer);
+  if (_kpvFiltro === 'faltando')   rows = rows.filter(r => !r.linkedPlayer);
+  if (termo) rows = rows.filter(r =>
+    r.username.toLowerCase().includes(termo) ||
+    (r.name || '').toLowerCase().includes(termo) ||
+    (r.linkedPlayer || '').toLowerCase().includes(termo)
+  );
+
+  tbody.innerHTML = rows.map(u => `
+    <tr>
+      <td style="font-weight:700">${esc(u.username)}</td>
+      <td>${esc(u.name || '—')}</td>
+      <td>${u.linkedPlayer
+          ? '<span class="rpg-badge" style="background:#e0f0e0;color:var(--green)">✅ Vinculada</span>'
+          : '<span class="rpg-badge" style="background:#fde8e8;color:var(--red)">⚠️ Faltando</span>'}</td>
+      <td>${u.linkedPlayer ? esc(u.linkedPlayer) : '—'}</td>
+      <td>${fmtDate(u.created_at)}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhuma conta encontrada.</td></tr>';
 }
 
 // ── Log de uso dos stickers de evento ──────────────────────
