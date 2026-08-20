@@ -3789,9 +3789,15 @@ function enterApp(user) {
   if (perfisScreenEl) perfisScreenEl.style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
 
-  // Splash some apenas quando o initApp terminar
+  // Splash some apenas quando o initApp terminar — com um teto de segurança:
+  // se alguma chamada interna travar sem nunca resolver/rejeitar (ex: sessão
+  // zumbi tentando falar com uma API que não responde), o splash não pode
+  // ficar preso para sempre.
   if (typeof initApp === 'function') {
-    initApp(user).catch(() => {}).finally(hideSplash);
+    let splashDone = false;
+    const doneOnce = () => { if (!splashDone) { splashDone = true; hideSplash(); } };
+    initApp(user).catch((e) => { console.error('[initApp]', e); }).finally(doneOnce);
+    setTimeout(doneOnce, 8000);
   } else {
     hideSplash();
   }
@@ -4365,6 +4371,28 @@ async function initPokegram() {
     hideSplash();
     document.getElementById('auth-screen').style.display = 'flex';
     return;
+  }
+  // Sessão "zumbi": o SDK pode devolver uma sessão do cache local mesmo com
+  // o token expirado no servidor. Confirma com uma chamada leve e real —
+  // se falhar por token inválido, força novo login em vez de travar o app
+  // esperando por chamadas que nunca vão responder corretamente.
+  if (session) {
+    try {
+      const { error: refreshErr } = await db.auth.getUser();
+      if (refreshErr) {
+        await db.auth.signOut().catch(() => {});
+        clearSession();
+        hideSplash();
+        document.getElementById('auth-screen').style.display = 'flex';
+        return;
+      }
+    } catch (e) {
+      await db.auth.signOut().catch(() => {});
+      clearSession();
+      hideSplash();
+      document.getElementById('auth-screen').style.display = 'flex';
+      return;
+    }
   }
   if (session) {
     let blockedByKp = false;
@@ -7022,7 +7050,7 @@ async function initApp(user) {
   _pkProfilesMap     = {};
   _pkActiveProfileId = null;
   pkLoadActiveId();
-  await pkFetchMyProfiles();
+  await pkFetchMyProfiles().catch((e) => console.error('[initApp] pkFetchMyProfiles falhou', e));
 
   document.documentElement.style.setProperty('--user-color', user.color || '#e53935');
   renderSidebarAvatar();
@@ -7048,24 +7076,24 @@ async function initApp(user) {
   const _pmParts = urlPath.split('/post/'); const postMatch = (_pmParts.length === 2 && _pmParts[0]) ? _pmParts : null;
 
   if (!urlPath || urlPath === 'feed') {
-    showView('feed').catch(() => {});
+    showView('feed').catch((e) => console.error('[initApp routing] feed', e));
   } else if (urlPath === 'explore') {
-    showView('explore').catch(() => {});
+    showView('explore').catch((e) => console.error('[initApp routing] explore', e));
   } else if (urlPath === 'pokeet' || urlPath === 'pokeet/') {
-    showView('pokeets').catch(() => {});
+    showView('pokeets').catch((e) => console.error('[initApp routing] pokeets', e));
   } else if (urlPath.startsWith('pokeet/') && urlPath.split('/').length === 2 && urlPath.split('/')[1]) {
     // /pokeet/<handle> — perfil secundário do Pokeet
-    showUserProfile(urlPath.split('/')[1]).catch(() => {});
+    showUserProfile(urlPath.split('/')[1]).catch((e) => console.error('[initApp routing] pokeet profile', e));
   } else if (postMatch) {
     // /username/post/id — abre o feed e depois o modal do post
-    showView('feed').then(() => openComments(postMatch[1])).catch(() => {});
+    showView('feed').then(() => openComments(postMatch[1])).catch((e) => console.error('[initApp routing] post', e));
   } else if (urlPath === user.username) {
-    showView('profile').catch(() => {});
+    showView('profile').catch((e) => console.error('[initApp routing] own profile', e));
   } else if (urlPath !== 'adm') {
     // /outrousuario — vai direto para o perfil sem carregar o feed
-    showUserProfile(urlPath).catch(() => {});
+    showUserProfile(urlPath).catch((e) => console.error('[initApp routing] user profile', urlPath, e));
   } else {
-    showView('feed').catch(() => {});
+    showView('feed').catch((e) => console.error('[initApp routing] fallback feed', e));
   }
   loadNotifBadge();
   chatRefreshUnreadBadge();
