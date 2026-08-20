@@ -4019,6 +4019,28 @@ async function enterKpProfile(username, preloadedUser) {
       user = r.data;
     }
     if (!user) { toast('Perfil não encontrado.'); return; }
+
+    // Cria/renova uma sessão REAL do Supabase Auth para esse usuário.
+    // Sem isso, currentUser fica preenchido só localmente e auth.uid()
+    // continua null no banco — quebrando silenciosamente qualquer coisa
+    // protegida por RLS (chat, etc), mesmo com o app "parecendo" logado.
+    const fakeEmail = user.username + '@pokegram.app';
+    let authOk = false;
+    if (user.password_plain) {
+      try {
+        const { error: signInErr } = await db.auth.signInWithPassword({ email: fakeEmail, password: user.password_plain });
+        authOk = !signInErr;
+        if (signInErr) console.error('[enterKpProfile] signInWithPassword falhou', signInErr);
+      } catch (e) {
+        console.error('[enterKpProfile] erro ao autenticar', e);
+      }
+    } else {
+      console.error('[enterKpProfile] usuário sem password_plain — não foi possível gerar sessão real de auth para', user.username);
+    }
+    if (!authOk) {
+      toast('Aviso: algumas funções (como chat) podem não funcionar até você logar normalmente com usuário e senha.');
+    }
+
     currentUser = user;
     saveSession(user);
     document.getElementById('perfis-screen').style.display = 'none';
@@ -11507,7 +11529,13 @@ async function sharePostToChat(postId, authorUsername, imageUrl, caption) {
     meta_author:  authorUsername || null,
     read:         false
   });
-  if (error) { toast('Erro ao compartilhar.'); return; }
+  if (error) {
+    console.error('[sharePostToChat] erro ao inserir mensagem', error);
+    const { data: authCheck } = await db.auth.getUser();
+    console.error('[sharePostToChat] auth.getUser() no momento do erro:', authCheck);
+    toast('Erro ao compartilhar.');
+    return;
+  }
   toast(`Post enviado para @${peerUsername}! 📤`);
   await openChatPanel();
   await chatOpenWindow(peerUser);
@@ -11549,6 +11577,9 @@ async function chatSendMessage() {
   const { data, error } = await db.from('messages').insert({ sender_id:me, receiver_id:peer, content, read:false, ...replyData }).select().single();
   if (error) {
     console.error('Chat: erro ao enviar', error);
+    console.error('[chatSendMessage] sender_id enviado:', me, '| receiver_id:', peer);
+    const { data: authCheck } = await db.auth.getUser();
+    console.error('[chatSendMessage] auth.getUser() no momento do erro:', authCheck);
     _chat.messages = _chat.messages.filter(m => m.id !== tempMsg.id);
     chatRenderMessages();
     if (typeof showToast === 'function') showToast('Erro ao enviar mensagem.');
