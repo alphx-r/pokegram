@@ -4030,7 +4030,16 @@ async function enterKpProfile(username, preloadedUser) {
       try {
         const { error: signInErr } = await db.auth.signInWithPassword({ email: fakeEmail, password: user.password_plain });
         authOk = !signInErr;
-        if (signInErr) console.error('[enterKpProfile] signInWithPassword falhou', signInErr);
+        if (signInErr) {
+          console.error('[enterKpProfile] signInWithPassword falhou', signInErr);
+        } else {
+          const { data: sessCheck } = await db.auth.getSession();
+          console.log('[enterKpProfile] login real OK, sessão criada:', !!sessCheck?.session, sessCheck?.session?.user?.id);
+          // Marca que essa sessão foi criada pelo próprio fluxo do player —
+          // para que blockIfLinkedToKpPlayer() não a derrube num F5 futuro
+          // achando que é uma sessão antiga de login manual indevido.
+          try { sessionStorage.setItem('pg_via_kp_player', '1'); } catch(e) {}
+        }
       } catch (e) {
         console.error('[enterKpProfile] erro ao autenticar', e);
       }
@@ -4079,6 +4088,9 @@ async function getKpPlayerForPokegramUsername(username) {
 //    restauração automática de sessão (para fechar a brecha de sessões já salvas). ──
 async function blockIfLinkedToKpPlayer(user) {
   if (!user || user.rpg !== 'kingdom_platinum' || user.is_npc) return false;
+  // Sessão criada pelo próprio fluxo "Player" (enterKpProfile) é legítima —
+  // não faz sentido bloquear a pessoa que acabou de entrar corretamente.
+  try { if (sessionStorage.getItem('pg_via_kp_player') === '1') return false; } catch(e) {}
   const linkedPlayer = await getKpPlayerForPokegramUsername(user.username);
   if (!linkedPlayer) return false;
 
@@ -4222,6 +4234,7 @@ async function switchToAccount(username) {
   closeModal('modal-switch-account');
   const { data: user } = await db.from('users').select('*').eq('username', username).maybeSingle();
   if (!user) { toast('Perfil não encontrado.'); return; }
+  try { sessionStorage.removeItem('pg_via_kp_player'); } catch(e) {}
   currentUser = user;
   saveSession(user);
   if (typeof initApp === 'function') initApp(user).catch(() => {});
@@ -4240,6 +4253,7 @@ async function doLogout() {
     localStorage.removeItem('pg_pk_active_profile');
     localStorage.removeItem('pg_pk_profiles_cache');
     localStorage.removeItem('pg_pokeet_profiles_cache');
+    sessionStorage.removeItem('pg_via_kp_player');
   } catch(e) {}
   currentUser = null;
   location.reload();
