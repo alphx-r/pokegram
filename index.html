@@ -1303,9 +1303,15 @@
 
 /* Editor de itens no painel ADM */
 .instr-adm-row{display:flex;gap:8px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
-.instr-adm-row input.instr-icon{width:56px;text-align:center;font-size:16px}
+.instr-adm-row input.instr-icon{width:100%;text-align:center;font-size:15px;padding:5px 4px}
 .instr-adm-row .instr-fields{flex:1;display:flex;flex-direction:column;gap:6px}
 .instr-adm-row textarea{resize:vertical;min-height:44px}
+.instr-adm-icon-col{display:flex;flex-direction:column;gap:5px;align-items:center;width:78px;flex-shrink:0}
+.instr-adm-preview{width:42px;height:42px;border-radius:50%;background:#ffebee;display:flex;align-items:center;justify-content:center;font-size:17px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0}
+.instr-adm-preview img{width:100%;height:100%;object-fit:contain}
+.instr-sprite-sel{width:100%;font-size:10px;padding:4px 2px;border-radius:6px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;color:var(--text);background:#fff}
+.instr-adm-icon-col .adm-btn-sm{width:100%;justify-content:center;padding:5px 4px;font-size:10.5px}
+.instr-adm-icon-col label{display:block;width:100%}
 </style>
 </head>
 <body>
@@ -3875,25 +3881,39 @@ const INSTR_MOBILE_KEY  = 'instructions_mobile_json';
 
 function instrDefaultDesktop() {
   return [
-    { icon: '🔍', title: 'Buscar',        text: 'Use a barra de busca no topo para encontrar perfis e publicações.' },
-    { icon: '➕', title: 'Criar',          text: 'Publique uma nova foto ou vídeo no seu feed.' },
-    { icon: '⚡', title: 'Pokeets',        text: 'Acesse seus Pokeets — publicações curtas, no estilo microblog.' },
-    { icon: '🔔', title: 'Notificações',   text: 'Veja curtidas, comentários e novos seguidores.' },
-    { icon: '💬', title: 'Mensagens',      text: 'Converse diretamente com outros treinadores.' },
-    { icon: '🧭', title: 'Explorar',       text: 'Descubra novos perfis e publicações em alta.' },
-    { icon: '👤', title: 'Perfil',         text: 'Acesse e edite seu perfil, avatar e capa.' },
+    { icon: '🔍', sprite: 'nav_explore', imgUrl: null, title: 'Buscar',        text: 'Use a barra de busca no topo para encontrar perfis e publicações.' },
+    { icon: '➕', sprite: 'nav_create',  imgUrl: null, title: 'Criar',          text: 'Publique uma nova foto ou vídeo no seu feed.' },
+    { icon: '⚡', sprite: 'nav_pokeets', imgUrl: null, title: 'Pokeets',        text: 'Acesse seus Pokeets — publicações curtas, no estilo microblog.' },
+    { icon: '🔔', sprite: 'nav_notif',   imgUrl: null, title: 'Notificações',   text: 'Veja curtidas, comentários e novos seguidores.' },
+    { icon: '💬', sprite: 'nav_chat',    imgUrl: null, title: 'Mensagens',      text: 'Converse diretamente com outros treinadores.' },
+    { icon: '🧭', sprite: 'nav_explore', imgUrl: null, title: 'Explorar',       text: 'Descubra novos perfis e publicações em alta.' },
+    { icon: '👤', sprite: 'nav_profile', imgUrl: null, title: 'Perfil',         text: 'Acesse e edite seu perfil, avatar e capa.' },
   ];
 }
 function instrDefaultMobile() {
   return [
-    { icon: '🏠', title: 'Feed (barra inferior)',    text: 'Toque no logo, na barra inferior, para voltar ao feed principal.' },
-    { icon: '⚡', title: 'Pokeets (barra inferior)', text: 'Toque no ícone na barra inferior para ver seus Pokeets.' },
-    { icon: '➕', title: 'Criar',                    text: 'Publique uma nova foto ou vídeo pelos ícones no topo da tela.' },
-    { icon: '🔔', title: 'Notificações',             text: 'Veja curtidas, comentários e novos seguidores.' },
-    { icon: '💬', title: 'Mensagens',                text: 'Converse diretamente com outros treinadores.' },
-    { icon: '🧭', title: 'Explorar',                 text: 'Toque no ícone de lupa para buscar perfis e publicações.' },
-    { icon: '👤', title: 'Perfil',                   text: 'Acesse e edite seu perfil, avatar e capa.' },
+    { icon: '🏠', sprite: 'nav_home',    imgUrl: null, title: 'Feed (barra inferior)',    text: 'Toque no logo, na barra inferior, para voltar ao feed principal.' },
+    { icon: '⚡', sprite: 'nav_pokeets', imgUrl: null, title: 'Pokeets (barra inferior)', text: 'Toque no ícone na barra inferior para ver seus Pokeets.' },
+    { icon: '➕', sprite: 'nav_create',  imgUrl: null, title: 'Criar',                    text: 'Publique uma nova foto ou vídeo pelos ícones no topo da tela.' },
+    { icon: '🔔', sprite: 'nav_notif',   imgUrl: null, title: 'Notificações',             text: 'Veja curtidas, comentários e novos seguidores.' },
+    { icon: '💬', sprite: 'nav_chat',    imgUrl: null, title: 'Mensagens',                text: 'Converse diretamente com outros treinadores.' },
+    { icon: '🧭', sprite: 'nav_explore', imgUrl: null, title: 'Explorar',                 text: 'Toque no ícone de lupa para buscar perfis e publicações.' },
+    { icon: '👤', sprite: 'nav_profile', imgUrl: null, title: 'Perfil',                   text: 'Acesse e edite seu perfil, avatar e capa.' },
   ];
+}
+
+// Resolve o HTML interno do círculo do ícone de um item de instrução,
+// respeitando a prioridade: imagem própria > sprite do nav > emoji.
+function instrIconInner(it, spriteCache) {
+  if (it && it.imgUrl) {
+    return `<img src="${it.imgUrl}" style="width:100%;height:100%;object-fit:cover">`;
+  }
+  if (it && it.sprite && spriteCache) {
+    const def = SPRITE_DEFS.find(d => d.key === it.sprite);
+    const url = def && spriteCache[def.dbKey];
+    if (url) return `<img src="${url}" style="width:72%;height:72%;object-fit:contain">`;
+  }
+  return instrEsc((it && it.icon) || '✨');
 }
 
 function instrIsMobile() {
@@ -3927,11 +3947,12 @@ async function maybeShowInstructionsModal(user) {
     if (seen >= 2) return;
 
     const items = await getInstructionsContent();
+    const spriteCache = await getNavSpritesCache();
     const list = document.getElementById('instr-list-content');
     if (list) {
       list.innerHTML = items.map(it => `
         <div class="instr-item">
-          <div class="instr-item-icon">${instrEsc(it.icon || '✨')}</div>
+          <div class="instr-item-icon">${instrIconInner(it, spriteCache)}</div>
           <div class="instr-item-body">
             <div class="instr-item-title">${instrEsc(it.title)}</div>
             <div class="instr-item-text">${instrEsc(it.text)}</div>
@@ -5419,6 +5440,13 @@ function admTab(btn, id) {
 let _admInstrMode = 'desktop'; // 'desktop' | 'mobile'
 let _admInstrItems = { desktop: [], mobile: [] };
 let _admInstrLoaded = false;
+let _admInstrSpriteCache = null; // sprites do nav, carregados junto com a aba
+
+// Sprites do nav disponíveis para uso como ícone de instrução
+// (exclui story_add e profile_msg_btn, que não são botões do nav)
+function instrSpriteOptions() {
+  return SPRITE_DEFS.filter(d => d.key.startsWith('nav_'));
+}
 
 function admInstrTab(btn, mode) {
   document.querySelectorAll('.adm-instr-tab').forEach(b => {
@@ -5448,6 +5476,7 @@ async function admInstrLoad() {
     _admInstrItems.desktop = instrDefaultDesktop();
     _admInstrItems.mobile  = instrDefaultMobile();
   }
+  _admInstrSpriteCache = await getNavSpritesCache();
   _admInstrLoaded = true;
   admInstrRenderRows();
 }
@@ -5460,10 +5489,23 @@ function admInstrRenderRows() {
     wrap.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">Nenhum item — clique em "Adicionar item".</div>';
     return;
   }
+  const spriteOpts = instrSpriteOptions();
   wrap.innerHTML = items.map((it, i) => `
     <div class="instr-adm-row">
-      <input type="text" class="instr-icon" maxlength="4" value="${instrEsc(it.icon || '')}"
-        oninput="admInstrUpdateField(${i},'icon',this.value)" title="Ícone/emoji" placeholder="✨">
+      <div class="instr-adm-icon-col">
+        <div class="instr-adm-preview" id="instr-adm-prev-${i}">${instrIconInner(it, _admInstrSpriteCache)}</div>
+        <input type="text" class="instr-icon" maxlength="4" value="${instrEsc(it.icon || '')}"
+          oninput="admInstrUpdateField(${i},'icon',this.value)" title="Emoji (usado quando não há sprite nem imagem)" placeholder="✨">
+        <select class="instr-sprite-sel" onchange="admInstrSetSprite(${i}, this.value)" title="Usar sprite do nav como ícone">
+          <option value="">— sem sprite —</option>
+          ${spriteOpts.map(def => `<option value="${def.key}" ${it.sprite === def.key ? 'selected' : ''}>${instrEsc(def.label)}</option>`).join('')}
+        </select>
+        <label>
+          <input type="file" accept="image/png,image/webp,image/gif,image/jpeg" style="display:none" onchange="admInstrUploadImg(${i}, this)">
+          <span class="adm-btn adm-btn-warn adm-btn-sm" onclick="this.previousElementSibling.click()">🖼 Imagem</span>
+        </label>
+        ${it.imgUrl ? `<button class="adm-btn adm-btn-danger adm-btn-sm" onclick="admInstrClearImg(${i})">✕ Imagem</button>` : ''}
+      </div>
       <div class="instr-fields">
         <input type="text" value="${instrEsc(it.title || '')}"
           oninput="admInstrUpdateField(${i},'title',this.value)" placeholder="Título (ex: Notificações)">
@@ -5479,9 +5521,47 @@ function admInstrUpdateField(index, field, value) {
   if (items && items[index]) items[index][field] = value;
 }
 
+// Define/remove o sprite do nav usado como ícone deste item
+function admInstrSetSprite(index, value) {
+  const items = _admInstrItems[_admInstrMode];
+  if (!items || !items[index]) return;
+  items[index].sprite = value || '';
+  admInstrRenderRows();
+}
+
+// Upload de uma imagem própria para usar como ícone deste item
+// (tem prioridade sobre sprite do nav e emoji)
+function admInstrUploadImg(index, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const errEl = document.getElementById('instr-fb-err');
+  if (file.size > 150 * 1024) {
+    errEl.textContent = `"${file.name}" é muito grande. Máximo: 150 KB por ícone.`;
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const items = _admInstrItems[_admInstrMode];
+    if (items && items[index]) {
+      items[index].imgUrl = e.target.result;
+      admInstrRenderRows();
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function admInstrClearImg(index) {
+  const items = _admInstrItems[_admInstrMode];
+  if (!items || !items[index]) return;
+  items[index].imgUrl = null;
+  admInstrRenderRows();
+}
+
 function admInstrAddRow() {
   if (!_admInstrLoaded) return;
-  _admInstrItems[_admInstrMode].push({ icon: '✨', title: '', text: '' });
+  _admInstrItems[_admInstrMode].push({ icon: '✨', sprite: '', imgUrl: null, title: '', text: '' });
   admInstrRenderRows();
 }
 
@@ -5520,13 +5600,14 @@ async function admInstrSave() {
   }
 }
 
-function admInstrPreview() {
+async function admInstrPreview() {
   const items = (_admInstrItems[_admInstrMode] || []).filter(it => (it.title || '').trim() || (it.text || '').trim());
+  const spriteCache = await getNavSpritesCache();
   const list = document.getElementById('instr-list-content');
   if (list) {
     list.innerHTML = items.map(it => `
       <div class="instr-item">
-        <div class="instr-item-icon">${instrEsc(it.icon || '✨')}</div>
+        <div class="instr-item-icon">${instrIconInner(it, spriteCache)}</div>
         <div class="instr-item-body">
           <div class="instr-item-title">${instrEsc(it.title)}</div>
           <div class="instr-item-text">${instrEsc(it.text)}</div>
@@ -7247,6 +7328,19 @@ const SPRITE_DEFS = [
 ];
 let _pendingSprites = {}; // key → base64
 
+// Cache dos sprites salvos do topnav, reaproveitado pelo modal de
+// Instruções (e seu editor no ADM) para mostrar o mesmo ícone do nav.
+let _navSpritesCache = null; // { sprite_nav_home: url, ... }
+async function getNavSpritesCache(force) {
+  if (_navSpritesCache && !force) return _navSpritesCache;
+  const keys = SPRITE_DEFS.map(d => d.dbKey);
+  const { data: rows } = await db.from('settings').select('key,value').in('key', keys);
+  const saved = {};
+  (rows || []).forEach(r => { saved[r.key] = r.value; });
+  _navSpritesCache = saved;
+  return saved;
+}
+
 async function carregarSpritesAdm() {
   const grid = document.getElementById('sprites-grid');
   if (!grid) return;
@@ -7325,6 +7419,7 @@ async function salvarSprites() {
     }
   }
   _pendingSprites = {};
+  _navSpritesCache = null;
   await applyTopnavSprites();
   okEl.style.display = 'block';
   setTimeout(() => okEl.style.display = 'none', 3000);
@@ -7335,6 +7430,7 @@ async function resetarSprites() {
   const keys = SPRITE_DEFS.map(d => d.dbKey);
   await db.from('settings').delete().in('key', keys);
   _pendingSprites = {};
+  _navSpritesCache = null;
   await applyTopnavSprites();
   await carregarSpritesAdm();
   const okEl = document.getElementById('sprites-fb-ok');
@@ -7345,10 +7441,7 @@ async function resetarSprites() {
 
 // Aplica sprites salvos no topnav (chamada no initApp)
 async function applyTopnavSprites() {
-  const keys = SPRITE_DEFS.map(d => d.dbKey);
-  const { data: rows } = await db.from('settings').select('key,value').in('key', keys);
-  const saved = {};
-  (rows || []).forEach(r => { saved[r.key] = r.value; });
+  const saved = await getNavSpritesCache(true);
 
   SPRITE_DEFS.forEach(def => {
     const val = saved[def.dbKey];
