@@ -2816,11 +2816,12 @@
             </div>
             <div class="adm-table-wrap">
               <table class="adm-table">
-                <thead><tr><th>Conta (Pokégram)</th><th>Nome</th><th>Status</th><th>Player do KP</th><th>Cadastro</th></tr></thead>
+                <thead><tr><th>Conta (Pokégram)</th><th>Nome</th><th>Status</th><th>Player do KP</th><th>Cadastro</th><th>Ação</th></tr></thead>
                 <tbody id="tbody-kp-vinculos"></tbody>
               </table>
             </div>
             <div id="kpv-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
+            <div id="kpv-fb" class="adm-fb" style="display:none"></div>
           </div>
 
           <!-- CRESCIMENTO AUTOMÁTICO -->
@@ -3861,6 +3862,38 @@ async function kpFetch(path) {
   return data;
 }
 
+// ── Vínculo administrativo KP ↔ Pokégram (só pelo painel /adm) ──────────
+// Chave de serviço compartilhada com as RPCs *_admin do projeto KP.
+// Precisa bater com o valor colocado no SQL (player_link_pokegram_perfil_admin
+// e player_unlink_pokegram_perfil_admin). Troque os dois lados juntos.
+const KP_ADMIN_SERVICE_KEY = '054e5ce5-ff43-47fc-8c2b-192c027622d8';
+
+// Confirma que existe sessão real de Auth antes de liberar qualquer ação
+// administrativa sensível — não elimina a exposição da chave de serviço no
+// client, mas impede que a ação rode sem passar pelo login do admin.
+async function admRequireAuthSession() {
+  const { data } = await db.auth.getSession();
+  if (!data?.session) throw new Error('Sessão de admin expirada — faça login novamente.');
+}
+
+async function kpLinkPokegramPerfilAdmin(nomePlayer, username) {
+  await admRequireAuthSession();
+  return kpRpc('player_link_pokegram_perfil_admin', {
+    p_nome: nomePlayer,
+    p_username: username,
+    p_service_key: KP_ADMIN_SERVICE_KEY,
+  });
+}
+
+async function kpUnlinkPokegramPerfilAdmin(nomePlayer, username) {
+  await admRequireAuthSession();
+  return kpRpc('player_unlink_pokegram_perfil_admin', {
+    p_nome: nomePlayer,
+    p_username: username,
+    p_service_key: KP_ADMIN_SERVICE_KEY,
+  });
+}
+
 async function doKpLogin() {
   const errEl = document.getElementById('auth-kp-error');
   const btn   = document.getElementById('auth-kp-btn');
@@ -4681,8 +4714,21 @@ function admClearSession() { sessionStorage.removeItem('pg_adm'); }
 
 async function initAdm() {
   const saved = admLoadSession();
-  if (saved) { admLogado = saved; mostrarPainelAdm(); }
-  else { document.getElementById('adm-login-page').style.display = 'flex'; }
+  if (saved) {
+    // Confere se ainda existe uma sessão real de Supabase Auth (necessária
+    // pra qualquer operação protegida por RLS, incluindo as RPCs do KP).
+    // Se não existir (ex: sessão expirou, ou é sessão antiga pré-migração),
+    // desloga e pede login de novo — evita "parecer" logado sem estar.
+    const { data: sessCheck } = await db.auth.getSession();
+    if (sessCheck?.session) {
+      admLogado = saved; mostrarPainelAdm();
+    } else {
+      admClearSession();
+      document.getElementById('adm-login-page').style.display = 'flex';
+    }
+  } else {
+    document.getElementById('adm-login-page').style.display = 'flex';
+  }
   document.getElementById('adm-loading').style.display = 'none';
 }
 
@@ -4693,10 +4739,40 @@ async function fazerLoginAdm() {
   errEl.style.display = 'none';
   if (!username || !password) { errEl.textContent = 'Preencha todos os campos.'; errEl.style.display = 'block'; return; }
   try {
+    // 1) Valida contra a senha atual (hash bcrypt), como sempre foi feito.
     const { data, error } = await db.rpc('login_admin', { p_username: username, p_password: password });
     if (error) throw error;
     const admData = Array.isArray(data) ? data[0] : data;
     if (!admData) { errEl.textContent = 'Usuário ou senha incorretos.'; errEl.style.display = 'block'; return; }
+
+    // 2) Migração "de carona": cria/renova uma sessão REAL do Supabase Auth
+    //    pra esse admin, usando a senha que acabou de ser validada acima.
+    //    Sem isso, admLogado fica só local e auth.uid() nunca existe —
+    //    o mesmo problema que o login de jogador já teve e foi corrigido.
+    const fakeEmail = username + '@pokegram-admin.app';
+    let authOk = false;
+    try {
+      const { error: signInErr } = await db.auth.signInWithPassword({ email: fakeEmail, password });
+      if (!signInErr) {
+        authOk = true;
+      } else {
+        // Provavelmente é o primeiro login pós-migração: essa conta Auth
+        // ainda não existe. Cria agora, com a senha que já validamos.
+        const { error: signUpErr } = await db.auth.signUp({ email: fakeEmail, password });
+        if (!signUpErr) {
+          const { error: retrySignIn } = await db.auth.signInWithPassword({ email: fakeEmail, password });
+          authOk = !retrySignIn;
+        } else {
+          console.error('[fazerLoginAdm] signUp falhou', signUpErr);
+        }
+      }
+    } catch (e) {
+      console.error('[fazerLoginAdm] erro ao autenticar no Supabase Auth', e);
+    }
+    if (!authOk) {
+      console.warn('[fazerLoginAdm] login admin prosseguiu sem sessão real de Auth — operações protegidas por RLS podem falhar.');
+    }
+
     admLogado = admData; admSaveSession(admData); mostrarPainelAdm();
   } catch(e) { console.error(e); errEl.textContent = 'Erro de conexão.'; errEl.style.display = 'block'; }
 }
@@ -5140,7 +5216,7 @@ function admNpcCancelarPostEdit() {
   _npcPendingPostImgFile = null;
 }
 
-function admLogout() { admClearSession(); admLogado = null; location.reload(); }
+function admLogout() { admClearSession(); admLogado = null; db.auth.signOut().catch(() => {}); location.reload(); }
 
 function mostrarPainelAdm() {
   document.getElementById('adm-login-page').style.display = 'none';
@@ -5919,8 +5995,9 @@ async function carregarStats() {
 }
 
 // ── Vínculos de contas Pokégram (Kingdom Platinum) com players do KP ──
-let _kpvRows = [];      // contas KP com status calculado
+let _kpvRows = [];          // contas KP com status calculado
 let _kpvFiltro = 'todas';
+let _kpvPlayersNomes = [];  // nomes dos players do KP, pro autocomplete de vínculo
 
 async function carregarVinculosKp() {
   const tbody = document.getElementById('tbody-kp-vinculos');
@@ -5949,6 +6026,7 @@ async function carregarVinculosKp() {
       ...u,
       linkedPlayer: linkByUsername[u.username] || null,
     }));
+    _kpvPlayersNomes = (kpPlayers || []).map(p => p.nome);
 
     // Cards de estatísticas
     const total       = _kpvRows.length;
@@ -6006,6 +6084,9 @@ function kpvRenderTabela() {
     (r.linkedPlayer || '').toLowerCase().includes(termo)
   );
 
+  const opcoesPlayers = (_kpvPlayersNomes || [])
+    .map(nome => `<option value="${esc(nome)}"></option>`).join('');
+
   tbody.innerHTML = rows.map(u => `
     <tr>
       <td style="font-weight:700">${esc(u.username)}</td>
@@ -6015,7 +6096,57 @@ function kpvRenderTabela() {
           : '<span class="rpg-badge" style="background:#fde8e8;color:var(--red)">⚠️ Faltando</span>'}</td>
       <td>${u.linkedPlayer ? esc(u.linkedPlayer) : '—'}</td>
       <td>${fmtDate(u.created_at)}</td>
-    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhuma conta encontrada.</td></tr>';
+      <td>${u.linkedPlayer
+          ? `<button class="adm-btn adm-btn-sm adm-btn-danger" onclick="kpvDesvincular('${esc(u.linkedPlayer)}','${esc(u.username)}')">Desvincular</button>`
+          : `<div style="display:flex;gap:6px;align-items:center">
+               <input list="kpv-players-datalist" placeholder="Nome do player..." id="kpv-select-${esc(u.username)}"
+                 style="padding:6px 8px;border-radius:6px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;width:140px;outline:none;color:var(--text)"/>
+               <button class="adm-btn adm-btn-sm adm-btn-primary" onclick="kpvVincular('${esc(u.username)}')">Vincular</button>
+             </div>`}
+      </td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Nenhuma conta encontrada.</td></tr>';
+
+  // datalist compartilhado por todos os inputs da tabela (autocomplete)
+  let dl = document.getElementById('kpv-players-datalist');
+  if (!dl) {
+    dl = document.createElement('datalist');
+    dl.id = 'kpv-players-datalist';
+    document.body.appendChild(dl);
+  }
+  dl.innerHTML = opcoesPlayers;
+}
+
+function kpvFeedback(msg, ok) {
+  const fb = document.getElementById('kpv-fb');
+  fb.textContent = msg;
+  fb.className = 'adm-fb ' + (ok ? 'adm-fb-ok' : 'adm-fb-err');
+  fb.style.display = 'block';
+  setTimeout(() => { fb.style.display = 'none'; }, 4000);
+}
+
+async function kpvVincular(username) {
+  const input = document.getElementById('kpv-select-' + username);
+  const nome  = (input?.value || '').trim();
+  if (!nome) { kpvFeedback('Escolha um player antes de vincular.', false); return; }
+  if (!_kpvPlayersNomes.includes(nome)) { kpvFeedback('Esse nome não corresponde a um player do KP.', false); return; }
+  try {
+    await kpLinkPokegramPerfilAdmin(nome, username);
+    kpvFeedback(`Conta @${username} vinculada a ${nome}. ✅`, true);
+    carregarVinculosKp();
+  } catch(e) {
+    kpvFeedback('Erro ao vincular: ' + (e.message || e), false);
+  }
+}
+
+async function kpvDesvincular(nomePlayer, username) {
+  if (!confirm(`Desvincular @${username} de ${nomePlayer}?`)) return;
+  try {
+    await kpUnlinkPokegramPerfilAdmin(nomePlayer, username);
+    kpvFeedback(`Conta @${username} desvinculada. ✅`, true);
+    carregarVinculosKp();
+  } catch(e) {
+    kpvFeedback('Erro ao desvincular: ' + (e.message || e), false);
+  }
 }
 
 // ── Painel ADM: Crescimento Automático (seguidores/curtidas bônus) ──
