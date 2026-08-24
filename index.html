@@ -13,6 +13,22 @@
 
 <style>
 /* ══════════════════════════════════════
+   RESET GLOBAL — remove o destaque azul de
+   toque/clique (tap-highlight / outline) que
+   alguns navegadores aplicam em botões e links
+══════════════════════════════════════ */
+*{ -webkit-tap-highlight-color: transparent; }
+button, a, input, textarea, select, summary, [role="button"], [tabindex]{
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus, button:active,
+a:focus, a:active,
+[role="button"]:focus, [role="button"]:active{
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ══════════════════════════════════════
    ADM — estilos (só ativos em /adm)
 ══════════════════════════════════════ */
 #adm-root{
@@ -490,6 +506,10 @@
   .topnav-search { display: none !important; }
   nav.topnav { justify-content: center !important; }
   .topnav-actions { justify-content: center !important; }
+
+  /* Remove o botão de Pokeets do nav-top no mobile
+     (o acesso aos Pokeets já fica na barra inferior) */
+  #btn-pokeets { display: none !important; }
 
 
 
@@ -1292,12 +1312,20 @@
 .instr-modal-box{max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
 .instr-modal-title{font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:#e53935;text-align:center;padding:22px 20px 4px;letter-spacing:.3px}
 .instr-modal-sub{font-size:12.5px;color:#8e8e8e;text-align:center;padding:0 24px 16px;font-family:'Nunito',sans-serif;line-height:1.4}
-.instr-list{overflow-y:auto;padding:0 22px 6px;display:flex;flex-direction:column;gap:16px;flex:1}
-.instr-item{display:flex;gap:12px;align-items:flex-start}
-.instr-item-icon{width:38px;height:38px;border-radius:50%;background:#ffebee;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.instr-item-body{flex:1;min-width:0}
-.instr-item-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:13.5px;color:#262626;margin-bottom:2px}
-.instr-item-text{font-family:'Nunito',sans-serif;font-size:12.5px;color:#555;line-height:1.45}
+.instr-slider{display:flex;align-items:center;gap:4px;padding:0 8px;flex:1;min-height:0}
+.instr-nav-arrow{width:34px;height:34px;border-radius:50%;border:1.5px solid #efefef;background:#fff;color:#e53935;font-size:20px;line-height:1;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .15s,opacity .15s;font-family:'Nunito',sans-serif}
+.instr-nav-arrow:hover{background:#ffebee}
+.instr-nav-arrow.instr-nav-hidden{visibility:hidden}
+.instr-slide-viewport{flex:1;overflow:hidden;min-width:0}
+.instr-list{padding:6px 6px;display:flex;flex-direction:column}
+.instr-item{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:18px 6px 8px}
+.instr-item-icon{width:64px;height:64px;border-radius:50%;background:#ffebee;display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0}
+.instr-item-body{width:100%;min-width:0}
+.instr-item-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:15.5px;color:#262626;margin-bottom:6px}
+.instr-item-text{font-family:'Nunito',sans-serif;font-size:13px;color:#555;line-height:1.5}
+.instr-dots{display:flex;justify-content:center;align-items:center;gap:6px;padding:8px 0 2px}
+.instr-dot{width:6px;height:6px;border-radius:50%;background:#e0c0c0;cursor:pointer;transition:all .2s;border:none;padding:0}
+.instr-dot.active{background:#e53935;width:16px;border-radius:3px}
 .instr-modal-footer{padding:16px 22px;border-top:1px solid #efefef;margin-top:8px}
 .instr-modal-footer button{width:100%}
 
@@ -1312,8 +1340,12 @@
 .instr-sprite-sel{width:100%;font-size:10px;padding:4px 2px;border-radius:6px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;color:var(--text);background:#fff}
 .instr-adm-icon-col .adm-btn-sm{width:100%;justify-content:center;padding:5px 4px;font-size:10.5px}
 .instr-adm-icon-col label{display:block;width:100%}
+.instr-adm-order-col{display:flex;flex-direction:column;gap:4px;flex-shrink:0}
+.instr-adm-order-col .adm-btn-sm{padding:5px 9px;font-size:12px;line-height:1}
+.instr-adm-order-col .adm-btn-sm:disabled{opacity:.3;cursor:default}
 </style>
 </head>
+
 <body>
 
 <!-- SVG oculto com gradiente arco-íris para o coração Pride -->
@@ -1595,9 +1627,16 @@
     <div class="modal-box instr-modal-box">
       <div class="instr-modal-title">Instruções</div>
       <div class="instr-modal-sub">Conheça as principais funções do Pokégram</div>
-      <div class="instr-list" id="instr-list-content"></div>
+      <div class="instr-slider">
+        <button type="button" class="instr-nav-arrow" id="instr-btn-prev" onclick="instrGoTo(_instrIndex-1)" aria-label="Anterior">‹</button>
+        <div class="instr-slide-viewport" id="instr-viewport" ontouchstart="instrTouchStart(event)" ontouchend="instrTouchEnd(event)">
+          <div class="instr-list" id="instr-list-content"></div>
+        </div>
+        <button type="button" class="instr-nav-arrow" id="instr-btn-next" onclick="instrGoTo(_instrIndex+1)" aria-label="Próximo">›</button>
+      </div>
+      <div class="instr-dots" id="instr-dots"></div>
       <div class="instr-modal-footer">
-        <button class="btn-primary" onclick="closeInstructionsModal()">Entendi</button>
+        <button class="btn-primary" id="instr-footer-btn" onclick="instrFooterAction()">Entendi</button>
       </div>
     </div>
   </div>
@@ -2343,8 +2382,10 @@
           <div id="sv-more-wrap" style="display:none;position:relative">
             <button id="sv-more-btn" onclick="svToggleMenu(event)" style="width:40px;height:40px;background:rgba(0,0,0,0.5);border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-family:sans-serif;letter-spacing:1px">⋯</button>
             <!-- Dropdown -->
-            <div id="sv-menu-drop" style="display:none;position:absolute;top:48px;right:0;background:rgba(30,30,30,0.97);border-radius:12px;min-width:170px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:20;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
-              <button onclick="svMenuDelete()" style="width:100%;background:none;border:none;color:#ff4d4d;font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left">🗑 Apagar story</button>
+            <div id="sv-menu-drop" style="display:none;position:absolute;top:48px;right:0;background:rgba(30,30,30,0.97);border-radius:14px;min-width:0;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:20;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
+              <button onclick="svMenuDelete()" title="Apagar story" style="width:48px;height:48px;background:none;border:none;color:#ff4d4d;cursor:pointer;display:flex;align-items:center;justify-content:center">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+              </button>
             </div>
           </div>
           <!-- Botão X -->
@@ -3937,6 +3978,69 @@ function instrEsc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ── Slider do modal de Instruções (um item por vez) ──────────
+let _instrItems = [];
+let _instrIndex = 0;
+let _instrSpriteCacheForModal = null;
+let _instrTouchStartX = null;
+
+function instrRenderCurrent() {
+  const list = document.getElementById('instr-list-content');
+  const dots = document.getElementById('instr-dots');
+  const prevBtn = document.getElementById('instr-btn-prev');
+  const nextBtn = document.getElementById('instr-btn-next');
+  const footerBtn = document.getElementById('instr-footer-btn');
+  if (!list) return;
+
+  if (!_instrItems.length) { list.innerHTML = ''; if (dots) dots.innerHTML = ''; return; }
+  if (_instrIndex < 0) _instrIndex = 0;
+  if (_instrIndex > _instrItems.length - 1) _instrIndex = _instrItems.length - 1;
+
+  const it = _instrItems[_instrIndex];
+  list.innerHTML = `
+    <div class="instr-item">
+      <div class="instr-item-icon">${instrIconInner(it, _instrSpriteCacheForModal)}</div>
+      <div class="instr-item-body">
+        <div class="instr-item-title">${instrEsc(it.title)}</div>
+        <div class="instr-item-text">${instrEsc(it.text)}</div>
+      </div>
+    </div>`;
+
+  if (dots) {
+    dots.innerHTML = _instrItems.map((_, i) =>
+      `<button type="button" class="instr-dot ${i === _instrIndex ? 'active' : ''}" onclick="instrGoTo(${i})" aria-label="Item ${i + 1}"></button>`
+    ).join('');
+  }
+  if (prevBtn) prevBtn.classList.toggle('instr-nav-hidden', _instrIndex === 0);
+  if (nextBtn) nextBtn.classList.toggle('instr-nav-hidden', _instrIndex === _instrItems.length - 1);
+  if (footerBtn) footerBtn.textContent = _instrIndex === _instrItems.length - 1 ? 'Entendi' : 'Próximo';
+}
+
+function instrGoTo(i) {
+  if (!_instrItems.length || i < 0 || i > _instrItems.length - 1) return;
+  _instrIndex = i;
+  instrRenderCurrent();
+}
+
+function instrFooterAction() {
+  if (_instrIndex >= _instrItems.length - 1) {
+    closeInstructionsModal();
+  } else {
+    instrGoTo(_instrIndex + 1);
+  }
+}
+
+function instrTouchStart(e) {
+  _instrTouchStartX = e.changedTouches[0].clientX;
+}
+function instrTouchEnd(e) {
+  if (_instrTouchStartX === null) return;
+  const dx = e.changedTouches[0].clientX - _instrTouchStartX;
+  _instrTouchStartX = null;
+  if (Math.abs(dx) < 40) return;
+  if (dx < 0) instrGoTo(_instrIndex + 1); else instrGoTo(_instrIndex - 1);
+}
+
 async function maybeShowInstructionsModal(user) {
   if (!user || !user.id || user.is_npc) return;
   try {
@@ -3948,17 +4052,10 @@ async function maybeShowInstructionsModal(user) {
 
     const items = await getInstructionsContent();
     const spriteCache = await getNavSpritesCache();
-    const list = document.getElementById('instr-list-content');
-    if (list) {
-      list.innerHTML = items.map(it => `
-        <div class="instr-item">
-          <div class="instr-item-icon">${instrIconInner(it, spriteCache)}</div>
-          <div class="instr-item-body">
-            <div class="instr-item-title">${instrEsc(it.title)}</div>
-            <div class="instr-item-text">${instrEsc(it.text)}</div>
-          </div>
-        </div>`).join('');
-    }
+    _instrItems = items;
+    _instrIndex = 0;
+    _instrSpriteCacheForModal = spriteCache;
+    instrRenderCurrent();
     openModal('modal-instructions');
 
     const newCount = seen + 1;
@@ -5511,7 +5608,11 @@ function admInstrRenderRows() {
           oninput="admInstrUpdateField(${i},'title',this.value)" placeholder="Título (ex: Notificações)">
         <textarea oninput="admInstrUpdateField(${i},'text',this.value)" placeholder="Descrição da função">${instrEsc(it.text || '')}</textarea>
       </div>
-      <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="admInstrRemoveRow(${i})" title="Remover">🗑</button>
+      <div class="instr-adm-order-col">
+        <button class="adm-btn adm-btn-sm" onclick="admInstrMove(${i},-1)" ${i === 0 ? 'disabled' : ''} title="Mover para cima">▲</button>
+        <button class="adm-btn adm-btn-sm" onclick="admInstrMove(${i},1)" ${i === items.length - 1 ? 'disabled' : ''} title="Mover para baixo">▼</button>
+        <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="admInstrRemoveRow(${i})" title="Remover">🗑</button>
+      </div>
     </div>
   `).join('');
 }
@@ -5519,6 +5620,18 @@ function admInstrRenderRows() {
 function admInstrUpdateField(index, field, value) {
   const items = _admInstrItems[_admInstrMode];
   if (items && items[index]) items[index][field] = value;
+}
+
+// Reordena os itens dentro da lista (usado pelas setas ▲▼ do editor)
+function admInstrMove(index, dir) {
+  const items = _admInstrItems[_admInstrMode];
+  if (!items) return;
+  const newIndex = index + dir;
+  if (newIndex < 0 || newIndex >= items.length) return;
+  const tmp = items[index];
+  items[index] = items[newIndex];
+  items[newIndex] = tmp;
+  admInstrRenderRows();
 }
 
 // Define/remove o sprite do nav usado como ícone deste item
@@ -5603,17 +5716,10 @@ async function admInstrSave() {
 async function admInstrPreview() {
   const items = (_admInstrItems[_admInstrMode] || []).filter(it => (it.title || '').trim() || (it.text || '').trim());
   const spriteCache = await getNavSpritesCache();
-  const list = document.getElementById('instr-list-content');
-  if (list) {
-    list.innerHTML = items.map(it => `
-      <div class="instr-item">
-        <div class="instr-item-icon">${instrIconInner(it, spriteCache)}</div>
-        <div class="instr-item-body">
-          <div class="instr-item-title">${instrEsc(it.title)}</div>
-          <div class="instr-item-text">${instrEsc(it.text)}</div>
-        </div>
-      </div>`).join('');
-  }
+  _instrItems = items;
+  _instrIndex = 0;
+  _instrSpriteCacheForModal = spriteCache;
+  instrRenderCurrent();
   openModal('modal-instructions');
 }
 
@@ -10681,21 +10787,31 @@ function svToggleMenu(e) {
   const drop = document.getElementById('sv-menu-drop');
   if (!drop) return;
   const isOpen = drop.style.display === 'block';
-  drop.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) {
-    // fecha ao clicar fora
-    const handler = (ev) => {
-      if (!drop.contains(ev.target) && ev.target.id !== 'sv-more-btn') {
-        drop.style.display = 'none';
-      }
-      document.removeEventListener('click', handler);
-    };
-    setTimeout(() => document.addEventListener('click', handler), 0);
+  if (isOpen) {
+    drop.style.display = 'none';
+    _storyPaused = false;
+    storyRestartTimer();
+    return;
   }
+  drop.style.display = 'block';
+  storyClearTimer();
+  _storyPaused = true;
+  // fecha ao clicar fora — e retoma o tempo do story
+  const handler = (ev) => {
+    if (!drop.contains(ev.target) && ev.target.id !== 'sv-more-btn') {
+      drop.style.display = 'none';
+      _storyPaused = false;
+      storyRestartTimer();
+    }
+    document.removeEventListener('click', handler);
+  };
+  setTimeout(() => document.addEventListener('click', handler), 0);
 }
 
 async function svMenuDelete() {
   document.getElementById('sv-menu-drop').style.display = 'none';
+  _storyPaused = false;
+  storyRestartTimer();
   await deleteCurrentStory();
 }
 
