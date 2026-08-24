@@ -7385,16 +7385,19 @@ async function computeGrowthForUsers(usersMeta) {
   if (!eligibleIds.length) return map;
 
   try {
-    const [{ data: postsRows }, { data: storiesRows }, { data: followRows }] = await Promise.all([
+    // storiesCount vem do log permanente (stories_log), não da tabela
+    // "stories" em si — assim, quando um story expira (24h) ou é apagado,
+    // os seguidores bônus já ganhos por ele NÃO são perdidos.
+    const [{ data: postsRows }, { data: storiesLogRows }, { data: followRows }] = await Promise.all([
       db.from('posts').select('id,user_id').in('user_id', eligibleIds),
-      db.from('stories').select('id,user_id').in('user_id', eligibleIds),
+      db.from('stories_log').select('id,user_id').in('user_id', eligibleIds),
       db.from('follows').select('following_id').in('following_id', eligibleIds),
     ]);
 
     const postsByUser = {};
     (postsRows || []).forEach(p => { (postsByUser[p.user_id] ||= []).push(p.id); });
     const storiesCountByUser = {};
-    (storiesRows || []).forEach(s => { storiesCountByUser[s.user_id] = (storiesCountByUser[s.user_id] || 0) + 1; });
+    (storiesLogRows || []).forEach(s => { storiesCountByUser[s.user_id] = (storiesCountByUser[s.user_id] || 0) + 1; });
     const followersCountByUser = {};
     (followRows || []).forEach(f => { followersCountByUser[f.following_id] = (followersCountByUser[f.following_id] || 0) + 1; });
 
@@ -10719,6 +10722,13 @@ async function submitStory() {
       sticker_y: _storyEd.sticker ? _storyEd.sticker.cy : null
     });
     if (error) throw error;
+
+    // Log permanente de stories publicados — usado no cálculo do bônus de
+    // seguidores. Ao contrário da tabela "stories", esse log NUNCA é
+    // apagado (nem quando o story expira em 24h, nem quando o usuário
+    // apaga manualmente), então os seguidores ganhos com o story não somem.
+    db.from('stories_log').insert({ user_id: currentUser.id })
+      .then(({ error: logErr }) => { if (logErr) console.warn('Erro ao registrar story no log de crescimento:', logErr); });
 
     // Log de uso do sticker de evento — contabiliza quem usou e quantas vezes
     if (stickerKey) {
