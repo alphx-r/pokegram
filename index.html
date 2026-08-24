@@ -7938,11 +7938,16 @@ function bottomTab(name) {
 }
 
 // ── Overlay de loading ao trocar de aba (Pokégram, Pokeet, Explorar, Perfil) ──
-// Fica visível só enquanto os dados da aba realmente carregam — some assim
-// que o carregamento termina, sem tempo mínimo artificial.
+// Fica visível por no mínimo ~3s, mesmo que os dados carreguem mais rápido.
+// Se o carregamento demorar mais que isso, o overlay some assim que terminar.
+const TAB_LOADING_MIN_MS = 3000;
+let _tabLoadingShownAt = 0;
+
 function showTabLoadingOverlay() {
   const el = document.getElementById('tab-loading-overlay');
   if (!el) return;
+  _tabLoadingShownAt = Date.now();
+  el.style.transition = '';
   el.style.opacity = '1';
   el.style.display = 'flex';
 }
@@ -7950,9 +7955,13 @@ function showTabLoadingOverlay() {
 function hideTabLoadingOverlay() {
   const el = document.getElementById('tab-loading-overlay');
   if (!el) return;
-  el.style.transition = 'opacity .25s';
-  el.style.opacity = '0';
-  setTimeout(() => { el.style.display = 'none'; }, 260);
+  const elapsed   = Date.now() - _tabLoadingShownAt;
+  const remaining = Math.max(0, TAB_LOADING_MIN_MS - elapsed);
+  setTimeout(() => {
+    el.style.transition = 'opacity .25s';
+    el.style.opacity = '0';
+    setTimeout(() => { el.style.display = 'none'; }, 260);
+  }, remaining);
 }
 
 async function showView(name) {
