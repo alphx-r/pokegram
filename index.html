@@ -1285,6 +1285,27 @@
   100% { transform: scale(1); }
 }
 .sv-react-btn.sv-react-sent { animation: sv-react-pop .35s ease; }
+
+/* ══════════════════════════════════════════
+   MODAL DE INSTRUÇÕES (onboarding)
+══════════════════════════════════════════ */
+.instr-modal-box{max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
+.instr-modal-title{font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:#e53935;text-align:center;padding:22px 20px 4px;letter-spacing:.3px}
+.instr-modal-sub{font-size:12.5px;color:#8e8e8e;text-align:center;padding:0 24px 16px;font-family:'Nunito',sans-serif;line-height:1.4}
+.instr-list{overflow-y:auto;padding:0 22px 6px;display:flex;flex-direction:column;gap:16px;flex:1}
+.instr-item{display:flex;gap:12px;align-items:flex-start}
+.instr-item-icon{width:38px;height:38px;border-radius:50%;background:#ffebee;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.instr-item-body{flex:1;min-width:0}
+.instr-item-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:13.5px;color:#262626;margin-bottom:2px}
+.instr-item-text{font-family:'Nunito',sans-serif;font-size:12.5px;color:#555;line-height:1.45}
+.instr-modal-footer{padding:16px 22px;border-top:1px solid #efefef;margin-top:8px}
+.instr-modal-footer button{width:100%}
+
+/* Editor de itens no painel ADM */
+.instr-adm-row{display:flex;gap:8px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
+.instr-adm-row input.instr-icon{width:56px;text-align:center;font-size:16px}
+.instr-adm-row .instr-fields{flex:1;display:flex;flex-direction:column;gap:6px}
+.instr-adm-row textarea{resize:vertical;min-height:44px}
 </style>
 </head>
 <body>
@@ -1558,6 +1579,19 @@
         <button class="btn-primary" onclick="confirmarVincularKp()">Vincular</button>
         <button type="button" onclick="closeModal('modal-vincular-kp')"
           style="background:none;border:none;color:#8e8e8e;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Agora não</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Instruções (onboarding — 1º e 2º login) -->
+  <div id="modal-instructions" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box instr-modal-box">
+      <div class="instr-modal-title">Instruções</div>
+      <div class="instr-modal-sub">Conheça as principais funções do Pokégram</div>
+      <div class="instr-list" id="instr-list-content"></div>
+      <div class="instr-modal-footer">
+        <button class="btn-primary" onclick="closeInstructionsModal()">Entendi</button>
       </div>
     </div>
   </div>
@@ -2616,6 +2650,7 @@
           <div class="adm-sidebar-user" id="adm-sidebar-user"></div>
           <button class="adm-snav-btn active" onclick="admTab(this,'usuarios')">👥 Usuários</button>
           <button class="adm-snav-btn" onclick="admTab(this,'posts')">📸 Publicações</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'instrucoes')">📘 Instruções</button>
           <button class="adm-snav-btn" onclick="admTab(this,'stats')">📊 Estatísticas</button>
           <button class="adm-snav-btn" onclick="admTab(this,'kp-vinculos')">🔗 Vínculos KP</button>
           <button class="adm-snav-btn" onclick="admTab(this,'crescimento')">🚀 Crescimento Automático</button>
@@ -2771,6 +2806,29 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- INSTRUÇÕES (onboarding) -->
+          <div class="adm-section" id="sec-instrucoes">
+            <div class="adm-sec-title">Instruções</div>
+            <div class="adm-sec-sub">Conteúdo exibido no modal "Instruções" no 1º e 2º login de cada perfil, explicando os botões do top-nav. Edite as versões de Desktop e Mobile separadamente.</div>
+
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:2px solid var(--border);padding-bottom:14px">
+              <button class="adm-instr-tab active" onclick="admInstrTab(this,'desktop')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:var(--brand-mid);color:#fff;transition:all .2s">🖥 Desktop</button>
+              <button class="adm-instr-tab" onclick="admInstrTab(this,'mobile')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">📱 Mobile</button>
+            </div>
+
+            <div id="instr-adm-rows"></div>
+
+            <button class="adm-btn adm-btn-sm" onclick="admInstrAddRow()" style="background:var(--surface2);margin-bottom:14px">➕ Adicionar item</button>
+            <button class="adm-btn adm-btn-sm" onclick="admInstrResetDefault()" style="background:var(--surface2);margin-bottom:14px;margin-left:8px">↺ Restaurar padrão</button>
+
+            <div>
+              <button class="adm-btn adm-btn-primary" onclick="admInstrSave()">💾 Salvar</button>
+              <button class="adm-btn adm-btn-sm" onclick="admInstrPreview()" style="background:var(--surface2);margin-left:8px">👁 Pré-visualizar</button>
+            </div>
+            <div class="adm-fb adm-fb-ok" id="instr-fb-ok">✓ Instruções salvas com sucesso!</div>
+            <div class="adm-fb adm-fb-err" id="instr-fb-err">—</div>
           </div>
 
           <!-- STATS -->
@@ -3804,7 +3862,93 @@ function enterApp(user) {
   }
   initPushNotifications(user);
   checkKpLinkPrompt(user).catch(() => {});
+  maybeShowInstructionsModal(user).catch(() => {});
 }
+
+// ════════════════════════════════════════════════════════════
+// MODAL DE INSTRUÇÕES — exibido no 1º e 2º login de cada perfil
+// Conteúdo editável pelo ADM (aba "📘 Instruções"), com versões
+// separadas para desktop e mobile, guardadas na tabela `settings`.
+// ════════════════════════════════════════════════════════════
+const INSTR_DESKTOP_KEY = 'instructions_desktop_json';
+const INSTR_MOBILE_KEY  = 'instructions_mobile_json';
+
+function instrDefaultDesktop() {
+  return [
+    { icon: '🔍', title: 'Buscar',        text: 'Use a barra de busca no topo para encontrar perfis e publicações.' },
+    { icon: '➕', title: 'Criar',          text: 'Publique uma nova foto ou vídeo no seu feed.' },
+    { icon: '⚡', title: 'Pokeets',        text: 'Acesse seus Pokeets — publicações curtas, no estilo microblog.' },
+    { icon: '🔔', title: 'Notificações',   text: 'Veja curtidas, comentários e novos seguidores.' },
+    { icon: '💬', title: 'Mensagens',      text: 'Converse diretamente com outros treinadores.' },
+    { icon: '🧭', title: 'Explorar',       text: 'Descubra novos perfis e publicações em alta.' },
+    { icon: '👤', title: 'Perfil',         text: 'Acesse e edite seu perfil, avatar e capa.' },
+  ];
+}
+function instrDefaultMobile() {
+  return [
+    { icon: '🏠', title: 'Feed (barra inferior)',    text: 'Toque no logo, na barra inferior, para voltar ao feed principal.' },
+    { icon: '⚡', title: 'Pokeets (barra inferior)', text: 'Toque no ícone na barra inferior para ver seus Pokeets.' },
+    { icon: '➕', title: 'Criar',                    text: 'Publique uma nova foto ou vídeo pelos ícones no topo da tela.' },
+    { icon: '🔔', title: 'Notificações',             text: 'Veja curtidas, comentários e novos seguidores.' },
+    { icon: '💬', title: 'Mensagens',                text: 'Converse diretamente com outros treinadores.' },
+    { icon: '🧭', title: 'Explorar',                 text: 'Toque no ícone de lupa para buscar perfis e publicações.' },
+    { icon: '👤', title: 'Perfil',                   text: 'Acesse e edite seu perfil, avatar e capa.' },
+  ];
+}
+
+function instrIsMobile() {
+  return window.matchMedia('(max-width:768px)').matches;
+}
+
+async function getInstructionsContent() {
+  const key = instrIsMobile() ? INSTR_MOBILE_KEY : INSTR_DESKTOP_KEY;
+  try {
+    const { data } = await db.from('settings').select('value').eq('key', key).maybeSingle();
+    if (data && data.value) {
+      const parsed = JSON.parse(data.value);
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch (e) {}
+  return instrIsMobile() ? instrDefaultMobile() : instrDefaultDesktop();
+}
+
+function instrEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function maybeShowInstructionsModal(user) {
+  if (!user || !user.id || user.is_npc) return;
+  try {
+    // Busca a contagem sempre fresca no banco (evita duplicar exibição
+    // quando a sessão salva localmente ainda está desatualizada).
+    const { data: row } = await db.from('users').select('instructions_seen_count').eq('id', user.id).maybeSingle();
+    const seen = (row && row.instructions_seen_count) || 0;
+    if (seen >= 2) return;
+
+    const items = await getInstructionsContent();
+    const list = document.getElementById('instr-list-content');
+    if (list) {
+      list.innerHTML = items.map(it => `
+        <div class="instr-item">
+          <div class="instr-item-icon">${instrEsc(it.icon || '✨')}</div>
+          <div class="instr-item-body">
+            <div class="instr-item-title">${instrEsc(it.title)}</div>
+            <div class="instr-item-text">${instrEsc(it.text)}</div>
+          </div>
+        </div>`).join('');
+    }
+    openModal('modal-instructions');
+
+    const newCount = seen + 1;
+    await db.from('users').update({ instructions_seen_count: newCount }).eq('id', user.id);
+    user.instructions_seen_count = newCount;
+    if (currentUser && currentUser.id === user.id) currentUser.instructions_seen_count = newCount;
+    saveSession(user);
+  } catch (e) { console.warn('[instructions]', e); }
+}
+
+function closeInstructionsModal() { closeModal('modal-instructions'); }
 
 // ════════════════════════════════════════════════════════════
 // LOGIN POR PLAYER DO KP (kingdom platinum) + tela /perfis
@@ -5266,6 +5410,130 @@ function admTab(btn, id) {
   if (id === 'npcs')    admNpcLoad();
   if (id === 'gerador') geradorInit();
   if (id === 'automacao') automacaoInit();
+  if (id === 'instrucoes') admInstrLoad();
+}
+
+// ══════════════════════════════════════════════════════════
+//  ABA ADM — INSTRUÇÕES (editor do modal de onboarding)
+// ══════════════════════════════════════════════════════════
+let _admInstrMode = 'desktop'; // 'desktop' | 'mobile'
+let _admInstrItems = { desktop: [], mobile: [] };
+let _admInstrLoaded = false;
+
+function admInstrTab(btn, mode) {
+  document.querySelectorAll('.adm-instr-tab').forEach(b => {
+    b.style.background = '#fff';
+    b.style.color      = 'var(--text)';
+    b.classList.remove('active');
+  });
+  btn.style.background = 'var(--brand-mid)';
+  btn.style.color      = '#fff';
+  btn.classList.add('active');
+  _admInstrMode = mode;
+  admInstrRenderRows();
+}
+
+async function admInstrLoad() {
+  if (_admInstrLoaded) { admInstrRenderRows(); return; }
+  const rowsWrap = document.getElementById('instr-adm-rows');
+  if (rowsWrap) rowsWrap.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>';
+  try {
+    const [{ data: dDesk }, { data: dMob }] = await Promise.all([
+      db.from('settings').select('value').eq('key', INSTR_DESKTOP_KEY).maybeSingle(),
+      db.from('settings').select('value').eq('key', INSTR_MOBILE_KEY).maybeSingle(),
+    ]);
+    _admInstrItems.desktop = (dDesk && dDesk.value) ? JSON.parse(dDesk.value) : instrDefaultDesktop();
+    _admInstrItems.mobile  = (dMob  && dMob.value)  ? JSON.parse(dMob.value)  : instrDefaultMobile();
+  } catch (e) {
+    _admInstrItems.desktop = instrDefaultDesktop();
+    _admInstrItems.mobile  = instrDefaultMobile();
+  }
+  _admInstrLoaded = true;
+  admInstrRenderRows();
+}
+
+function admInstrRenderRows() {
+  const wrap = document.getElementById('instr-adm-rows');
+  if (!wrap) return;
+  const items = _admInstrItems[_admInstrMode] || [];
+  if (!items.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">Nenhum item — clique em "Adicionar item".</div>';
+    return;
+  }
+  wrap.innerHTML = items.map((it, i) => `
+    <div class="instr-adm-row">
+      <input type="text" class="instr-icon" maxlength="4" value="${instrEsc(it.icon || '')}"
+        oninput="admInstrUpdateField(${i},'icon',this.value)" title="Ícone/emoji" placeholder="✨">
+      <div class="instr-fields">
+        <input type="text" value="${instrEsc(it.title || '')}"
+          oninput="admInstrUpdateField(${i},'title',this.value)" placeholder="Título (ex: Notificações)">
+        <textarea oninput="admInstrUpdateField(${i},'text',this.value)" placeholder="Descrição da função">${instrEsc(it.text || '')}</textarea>
+      </div>
+      <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="admInstrRemoveRow(${i})" title="Remover">🗑</button>
+    </div>
+  `).join('');
+}
+
+function admInstrUpdateField(index, field, value) {
+  const items = _admInstrItems[_admInstrMode];
+  if (items && items[index]) items[index][field] = value;
+}
+
+function admInstrAddRow() {
+  if (!_admInstrLoaded) return;
+  _admInstrItems[_admInstrMode].push({ icon: '✨', title: '', text: '' });
+  admInstrRenderRows();
+}
+
+function admInstrRemoveRow(index) {
+  const items = _admInstrItems[_admInstrMode];
+  if (!items) return;
+  items.splice(index, 1);
+  admInstrRenderRows();
+}
+
+function admInstrResetDefault() {
+  if (!confirm('Restaurar o conteúdo padrão desta versão (' + (_admInstrMode === 'desktop' ? 'Desktop' : 'Mobile') + ')? As alterações não salvas serão perdidas.')) return;
+  _admInstrItems[_admInstrMode] = _admInstrMode === 'desktop' ? instrDefaultDesktop() : instrDefaultMobile();
+  admInstrRenderRows();
+}
+
+async function admInstrSave() {
+  const okEl  = document.getElementById('instr-fb-ok');
+  const errEl = document.getElementById('instr-fb-err');
+  okEl.style.display = 'none'; errEl.style.display = 'none';
+  try {
+    const cleanDesktop = (_admInstrItems.desktop || []).filter(it => (it.title || '').trim() || (it.text || '').trim());
+    const cleanMobile  = (_admInstrItems.mobile  || []).filter(it => (it.title || '').trim() || (it.text || '').trim());
+    await Promise.all([
+      db.from('settings').upsert({ key: INSTR_DESKTOP_KEY, value: JSON.stringify(cleanDesktop) }, { onConflict: 'key' }),
+      db.from('settings').upsert({ key: INSTR_MOBILE_KEY,  value: JSON.stringify(cleanMobile)  }, { onConflict: 'key' }),
+    ]);
+    _admInstrItems.desktop = cleanDesktop;
+    _admInstrItems.mobile  = cleanMobile;
+    admInstrRenderRows();
+    okEl.style.display = 'block';
+    setTimeout(() => { okEl.style.display = 'none'; }, 2500);
+  } catch (e) {
+    errEl.textContent = 'Erro ao salvar: ' + (e.message || e);
+    errEl.style.display = 'block';
+  }
+}
+
+function admInstrPreview() {
+  const items = (_admInstrItems[_admInstrMode] || []).filter(it => (it.title || '').trim() || (it.text || '').trim());
+  const list = document.getElementById('instr-list-content');
+  if (list) {
+    list.innerHTML = items.map(it => `
+      <div class="instr-item">
+        <div class="instr-item-icon">${instrEsc(it.icon || '✨')}</div>
+        <div class="instr-item-body">
+          <div class="instr-item-title">${instrEsc(it.title)}</div>
+          <div class="instr-item-text">${instrEsc(it.text)}</div>
+        </div>
+      </div>`).join('');
+  }
+  openModal('modal-instructions');
 }
 
 // ══════════════════════════════════════════════════════════
