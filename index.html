@@ -7938,15 +7938,14 @@ function bottomTab(name) {
 }
 
 // ── Overlay de loading ao trocar de aba (Pokégram, Pokeet, Explorar, Perfil) ──
-// Fica visível por no mínimo ~3s, mesmo que os dados carreguem mais rápido.
-// Se o carregamento demorar mais que isso, o overlay some assim que terminar.
-const TAB_LOADING_MIN_MS = 3000;
-let _tabLoadingShownAt = 0;
+// Fica visível só enquanto os dados da aba realmente carregam — some assim
+// que o carregamento termina, sem tempo mínimo artificial. Abas já
+// carregadas antes (pré-carregadas / em cache) não exibem o overlay de novo.
+const _tabViewsLoaded = new Set();
 
 function showTabLoadingOverlay() {
   const el = document.getElementById('tab-loading-overlay');
   if (!el) return;
-  _tabLoadingShownAt = Date.now();
   el.style.transition = '';
   el.style.opacity = '1';
   el.style.display = 'flex';
@@ -7955,13 +7954,9 @@ function showTabLoadingOverlay() {
 function hideTabLoadingOverlay() {
   const el = document.getElementById('tab-loading-overlay');
   if (!el) return;
-  const elapsed   = Date.now() - _tabLoadingShownAt;
-  const remaining = Math.max(0, TAB_LOADING_MIN_MS - elapsed);
-  setTimeout(() => {
-    el.style.transition = 'opacity .25s';
-    el.style.opacity = '0';
-    setTimeout(() => { el.style.display = 'none'; }, 260);
-  }, remaining);
+  el.style.transition = 'opacity .25s';
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 260);
 }
 
 async function showView(name) {
@@ -7970,10 +7965,13 @@ async function showView(name) {
   if (mc && !mc.classList.contains('hidden')) mc.classList.add('hidden');
 
   // Só mostra o GIF de loading ao trocar de fato de aba (não no primeiro
-  // carregamento do app, que já tem sua própria splash de login).
-  const isTabSwitch = _appEntered && _lastShownView !== null && _lastShownView !== name;
+  // carregamento do app, que já tem sua própria splash de login) e só se
+  // essa aba ainda não foi carregada antes (pré-carregadas não exibem).
+  const isTabSwitch  = _appEntered && _lastShownView !== null && _lastShownView !== name;
+  const alreadyLoaded = _tabViewsLoaded.has(name);
+  const shouldShowOverlay = isTabSwitch && !alreadyLoaded;
   _lastShownView = name;
-  if (isTabSwitch) showTabLoadingOverlay();
+  if (shouldShowOverlay) showTabLoadingOverlay();
 
   // Sync bottom tab bar
   document.querySelectorAll('.btab').forEach(b => b.classList.remove('active'));
@@ -7998,8 +7996,9 @@ async function showView(name) {
     if (name === 'profile') await renderProfile(currentUser.username);
     if (name === 'pokeets') { history.replaceState(null,'','/pokeet');
       await renderPokeets(); }
+    _tabViewsLoaded.add(name);
   } finally {
-    if (isTabSwitch) hideTabLoadingOverlay();
+    if (shouldShowOverlay) hideTabLoadingOverlay();
   }
 
   currentViewHistory.push(name);
