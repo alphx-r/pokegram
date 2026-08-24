@@ -1419,6 +1419,14 @@ a:focus, a:active,
         gifEl.src           = data.value;
         gifEl.style.display = 'block';
       }
+      // Mesmo GIF usado no overlay de troca de aba (Pokégram, Pokeet, etc)
+      const tabGifEl = document.getElementById('tab-loading-gif');
+      const tabPokeEl = document.getElementById('tab-loading-pokeball');
+      if (data && data.value && tabGifEl) {
+        tabGifEl.src           = data.value;
+        tabGifEl.style.display = 'block';
+        if (tabPokeEl) tabPokeEl.style.display = 'none';
+      }
     } catch(e) { /* silencioso — pokeball padrão permanece */ }
   }
   async function applyLogos() {
@@ -1465,6 +1473,12 @@ a:focus, a:active,
   // Estado de autenticação — declarado aqui para evitar "before initialization"
   var isRegisterMode = false;
   var currentUser    = null;
+
+  // Controla o overlay de loading ao trocar de aba (Pokégram, Pokeet, etc) —
+  // declarado aqui (primeiro <script> do arquivo) para ficar disponível a
+  // todos os blocos de script seguintes sem risco de redeclaração.
+  var _appEntered    = false; // true assim que a tela inicial (login) termina
+  var _lastShownView = null;
 </script>
 
 <!-- ════════════════════════════════════════════════════════
@@ -1477,6 +1491,16 @@ a:focus, a:active,
     <!-- GIF customizado (se configurado no ADM) -->
     <img id="splash-custom-gif" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain">
     <span style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
+  </div>
+
+  <!-- LOADING AO TROCAR DE ABA (Pokégram, Pokeet, Explorar, Perfil...) -->
+  <div id="tab-loading-overlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:6500;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+    <img id="tab-loading-gif" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain">
+    <div id="tab-loading-pokeball" class="pokeball-logo" style="width:56px;height:56px;animation:spin .8s linear infinite">
+      <div class="pb-top"></div>
+      <div class="pb-band"><div class="pb-btn"></div></div>
+      <div class="pb-bottom"></div>
+    </div>
   </div>
 
   <!-- OVERLAY DE MANUTENÇÃO -->
@@ -2869,13 +2893,16 @@ a:focus, a:active,
 
             <button class="adm-btn adm-btn-sm" onclick="admInstrAddRow()" style="background:var(--surface2);margin-bottom:14px">➕ Adicionar item</button>
             <button class="adm-btn adm-btn-sm" onclick="admInstrResetDefault()" style="background:var(--surface2);margin-bottom:14px;margin-left:8px">↺ Restaurar padrão</button>
+            <button class="adm-btn adm-btn-warn adm-btn-sm" onclick="admInstrResetSeenCount()" style="margin-bottom:14px;margin-left:8px">🔁 Resetar aparição p/ todos os usuários</button>
 
             <div>
               <button class="adm-btn adm-btn-primary" onclick="admInstrSave()">💾 Salvar</button>
               <button class="adm-btn adm-btn-sm" onclick="admInstrPreview()" style="background:var(--surface2);margin-left:8px">👁 Pré-visualizar</button>
             </div>
             <div class="adm-fb adm-fb-ok" id="instr-fb-ok">✓ Instruções salvas com sucesso!</div>
+            <div class="adm-fb adm-fb-ok" id="instr-reset-fb-ok">✓ Aparição resetada — todos os perfis verão o modal de instruções novamente no próximo login!</div>
             <div class="adm-fb adm-fb-err" id="instr-fb-err">—</div>
+            <div class="adm-fb adm-fb-err" id="instr-reset-fb-err">—</div>
           </div>
 
           <!-- STATS -->
@@ -3880,6 +3907,9 @@ async function doAuth() {
 }
 
 function hideSplash() {
+  // A partir daqui o app já está "dentro" — trocas de aba passam a mostrar
+  // o overlay de loading (GIF) em vez de ficarem silenciosas.
+  _appEntered = true;
   const s = document.getElementById('pg-splash');
   if (!s || s.style.display === 'none') return;
   s.style.transition = 'opacity .35s';
@@ -4156,6 +4186,49 @@ async function kpUnlinkPokegramPerfilAdmin(nomePlayer, username) {
   });
 }
 
+// ── Gera uma senha aleatória forte para perfis que entram via KP e não
+//    escolhem senha própria — usada para criar uma conta REAL no Supabase
+//    Auth, sem a qual funções protegidas por RLS (chat, etc) não funcionam. ──
+function generateSecurePassword(length = 24) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+  const bytes = new Uint8Array(length);
+  (window.crypto || window.msCrypto).getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < length; i++) out += chars[bytes[i] % chars.length];
+  return out;
+}
+
+// ── Garante que o usuário tenha uma conta real no Supabase Auth, criando
+//    (ou recriando) uma senha quando o perfil não tiver uma (password_plain
+//    vazio). Isso corrige o caso de perfis criados pelo fluxo do KP sem
+//    senha própria, que antes ficavam permanentemente com chat e outras
+//    funções que exigem auth.uid() quebradas. Retorna a senha em texto puro
+//    a ser usada no signInWithPassword logo em seguida, ou null se não foi
+//    possível reparar (ex.: já existe conta real com outra senha). ──
+async function ensureKpProfileAuthAccount(user, fakeEmail) {
+  if (user.password_plain) return user.password_plain;
+  const generated = generateSecurePassword();
+  try {
+    const { error: signUpErr } = await db.auth.signUp({ email: fakeEmail, password: generated });
+    if (signUpErr) {
+      const msg = (signUpErr.message || '').toLowerCase();
+      // Conta já existe no Auth com outra senha — não dá pra reparar sem
+      // saber a senha original; usuário precisa logar normalmente uma vez.
+      if (!msg.includes('already registered') && !msg.includes('already been registered')) {
+        console.error('[ensureKpProfileAuthAccount] signUp falhou', signUpErr);
+      }
+      return null;
+    }
+    const { error: updErr } = await db.from('users').update({ password_plain: generated }).eq('id', user.id);
+    if (updErr) { console.error('[ensureKpProfileAuthAccount] falha ao salvar senha gerada', updErr); return null; }
+    user.password_plain = generated;
+    return generated;
+  } catch (e) {
+    console.error('[ensureKpProfileAuthAccount] erro inesperado', e);
+    return null;
+  }
+}
+
 async function doKpLogin() {
   const errEl = document.getElementById('auth-kp-error');
   const btn   = document.getElementById('auth-kp-btn');
@@ -4282,11 +4355,20 @@ async function criarNovoPerfilKp() {
     const exists = await dbCheckUserExists(username);
     if (exists) { errEl.textContent = 'Este username já está em uso.'; errEl.style.display = 'block'; return; }
 
-    // Cria o perfil no Pokégram sem senha própria — login sempre via player do KP daqui pra frente
+    // Gera uma senha real (aleatória) para o perfil — o login continua sendo
+    // sempre via player do KP, mas agora existe uma conta de verdade no
+    // Supabase Auth por trás, o que evita que chat e outras funções que
+    // dependem de auth.uid() fiquem quebradas silenciosamente.
+    const generatedPassword = generateSecurePassword();
     const { data: newUser, error: insErr } = await db.from('users').insert({
-      username, name: username, rpg, pronoun, password_plain: ''
+      username, name: username, rpg, pronoun, password_plain: generatedPassword
     }).select('*').single();
     if (insErr || !newUser) throw new Error(insErr?.message || 'Erro ao criar perfil.');
+
+    try {
+      const { error: signUpErr } = await db.auth.signUp({ email: username + '@pokegram.app', password: generatedPassword });
+      if (signUpErr) console.error('[criarNovoPerfilKp] falha ao criar conta de Auth', signUpErr);
+    } catch (e) { console.error('[criarNovoPerfilKp] erro inesperado ao criar conta de Auth', e); }
 
     // A vinculação ao player do KP é obrigatória: se falhar, o cadastro é considerado
     // incompleto e o usuário não entra no perfil (evita perfis "fantasmas" sem vínculo).
@@ -4321,6 +4403,15 @@ async function enterKpProfile(username, preloadedUser) {
     // protegida por RLS (chat, etc), mesmo com o app "parecendo" logado.
     const fakeEmail = user.username + '@pokegram.app';
     let authOk = false;
+
+    // Perfis antigos criados sem senha própria (password_plain vazio) nunca
+    // tiveram uma conta real no Supabase Auth — em vez de só avisar que o
+    // chat não funciona, repara isso na hora gerando uma senha e criando a
+    // conta agora, para que o login real abaixo tenha como funcionar.
+    if (!user.password_plain) {
+      await ensureKpProfileAuthAccount(user, fakeEmail);
+    }
+
     if (user.password_plain) {
       try {
         const { error: signInErr } = await db.auth.signInWithPassword({ email: fakeEmail, password: user.password_plain });
@@ -4669,6 +4760,37 @@ async function loadManutencaoStatus() {
   } catch(e) {}
 }
 
+// ── Decide se um erro do Supabase Auth indica de fato uma credencial
+//    inválida/expirada (motivo legítimo pra deslogar) ou se é só uma falha
+//    de rede/instabilidade momentânea (nesse caso NÃO deve deslogar ninguém —
+//    essa distinção é o que evita perder a sessão só porque um F5 pegou uma
+//    resposta lenta ou uma instabilidade passageira do Supabase). ──
+function isAuthInvalidError(err) {
+  if (!err) return false;
+  const status = err.status || 0;
+  const msg = (err.message || '').toLowerCase();
+  if (status === 401 || status === 403) return true;
+  return msg.includes('invalid') || msg.includes('expired') || msg.includes('jwt')
+      || msg.includes('not authenticated') || msg.includes('refresh_token_not_found');
+}
+
+// ── Tenta restabelecer uma sessão real de Auth em segundo plano quando o
+//    app abre de forma otimista (usando o usuário salvo localmente, sem
+//    conseguir confirmar a sessão do Supabase Auth). Não bloqueia nem
+//    interrompe o uso do app — só melhora silenciosamente o estado de
+//    autenticação assim que a rede permitir. ──
+async function reestablishAuthSessionInBackground(user) {
+  if (!user || !user.password_plain) return;
+  const fakeEmail = user.username + '@pokegram.app';
+  try {
+    const { error } = await db.auth.signInWithPassword({ email: fakeEmail, password: user.password_plain });
+    if (!error) {
+      const { data: fresh } = await db.from('users').select('*').eq('id', user.id).maybeSingle();
+      if (fresh) { currentUser = fresh; saveSession(fresh); renderSidebarAvatar(); }
+    }
+  } catch (e) { /* silencioso — o app já está funcionando com os dados salvos localmente */ }
+}
+
 async function initPokegram() {
   // Verifica manutenção antes de qualquer coisa (exceto ADM)
   if (!IS_ADM) {
@@ -4680,37 +4802,37 @@ async function initPokegram() {
   // a tela de escolher perfil e pula toda a lógica normal de login/sessão.
   if (await tryKpHandoff()) return;
 
+  // Usuário salvo localmente (última sessão conhecida) — serve de fallback
+  // otimista caso a confirmação da sessão do Supabase Auth falhe por algum
+  // motivo que não seja realmente uma credencial inválida (ex.: rede).
+  const saved = loadSession();
+
   // tenta restaurar sessão pelo Supabase Auth primeiro
   let session = null;
+  let sessionCheckFailed = false; // falha ao confirmar — NÃO é prova de sessão inválida
   try {
     const { data, error } = await db.auth.getSession();
     if (error) {
-      const msg = error.message || '';
-      // Erro de schema interno do Supabase — limpa sessão e pede novo login
-      if (msg.toLowerCase().includes('schema') || msg.toLowerCase().includes('database error')) {
-        await db.auth.signOut().catch(() => {});
-        clearSession();
-        hideSplash();
-        document.getElementById('auth-screen').style.display = 'flex';
-        return;
-      }
-      throw error;
+      // Qualquer erro aqui (schema interno, instabilidade, etc) é tratado
+      // como indisponibilidade momentânea de verificação — não decide
+      // sozinho se o usuário deve ser deslogado.
+      sessionCheckFailed = true;
+    } else {
+      session = data?.session || null;
     }
-    session = data?.session || null;
   } catch (e) {
-    clearSession();
-    hideSplash();
-    document.getElementById('auth-screen').style.display = 'flex';
-    return;
+    sessionCheckFailed = true;
   }
+
   // Sessão "zumbi": o SDK pode devolver uma sessão do cache local mesmo com
   // o token expirado no servidor. Confirma com uma chamada leve e real —
-  // se falhar por token inválido, força novo login em vez de travar o app
-  // esperando por chamadas que nunca vão responder corretamente.
-  if (session) {
+  // mas só força novo login quando o erro indicar de fato uma credencial
+  // inválida/expirada. Falhas de rede/instabilidade na verificação NÃO
+  // derrubam a sessão: seguimos com o que já temos.
+  if (session && !sessionCheckFailed) {
     try {
       const { error: refreshErr } = await db.auth.getUser();
-      if (refreshErr) {
+      if (refreshErr && isAuthInvalidError(refreshErr)) {
         await db.auth.signOut().catch(() => {});
         clearSession();
         hideSplash();
@@ -4718,20 +4840,31 @@ async function initPokegram() {
         return;
       }
     } catch (e) {
-      await db.auth.signOut().catch(() => {});
-      clearSession();
-      hideSplash();
-      document.getElementById('auth-screen').style.display = 'flex';
-      return;
+      // Falha de rede na verificação — não invalida a sessão local, só
+      // significa que não conseguimos confirmar agora.
     }
   }
+
   if (session) {
     let blockedByKp = false;
-    const saved = loadSession();
     if (saved) {
       currentUser = saved;
       blockedByKp = await blockIfLinkedToKpPlayer(currentUser);
       if (!blockedByKp) enterApp(currentUser);
+    } else {
+      // Sessão de Auth válida mas sem cache local (ex.: 1º acesso neste
+      // dispositivo/navegador) — busca o perfil e entra normalmente.
+      const { data: fresh } = await db.from('users').select('*').eq('id', session.user.id).maybeSingle();
+      if (fresh) {
+        blockedByKp = await blockIfLinkedToKpPlayer(fresh);
+        if (!blockedByKp) { currentUser = fresh; saveSession(fresh); enterApp(fresh); }
+      } else {
+        db.auth.signOut().catch(() => {});
+        clearSession();
+        hideSplash();
+        document.getElementById('auth-screen').style.display = 'flex';
+        return;
+      }
     }
     if (blockedByKp) return; // sessão já encerrada — não segue com o refetch em background
     // Re-fetch em background para atualizar dados frescos
@@ -4740,15 +4873,22 @@ async function initPokegram() {
         if (fresh) {
           if (await blockIfLinkedToKpPlayer(fresh)) return; // vinculado nesse meio-tempo — encerra
           currentUser = fresh; saveSession(fresh);
-          if (saved) renderSidebarAvatar(); else enterApp(fresh);
+          if (saved) renderSidebarAvatar();
         }
-        else {
-          // Auth existe mas não tem perfil na tabela users — limpa e pede login
-          db.auth.signOut().catch(() => {});
-          clearSession();
-          if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; }
-        }
-      }).catch(() => { if (!saved) { hideSplash(); document.getElementById('auth-screen').style.display = 'flex'; } });
+        // Se não achar o perfil aqui, não faz nada destrutivo — pode ser só
+        // uma falha de rede momentânea; o app já está aberto normalmente.
+      }).catch(() => {});
+  } else if (saved) {
+    // Não foi possível confirmar uma sessão de Auth agora (rede instável,
+    // token expirado sem refresh válido, etc), mas existe um usuário salvo
+    // localmente — entra de forma otimista em vez de forçar logout, e tenta
+    // restabelecer a sessão real de Auth em segundo plano.
+    currentUser = saved;
+    const blockedByKp = await blockIfLinkedToKpPlayer(currentUser);
+    if (!blockedByKp) {
+      enterApp(currentUser);
+      reestablishAuthSessionInBackground(currentUser).catch(() => {});
+    }
   } else {
     clearSession();
     hideSplash();
@@ -5721,6 +5861,28 @@ async function admInstrPreview() {
   _instrSpriteCacheForModal = spriteCache;
   instrRenderCurrent();
   openModal('modal-instructions');
+}
+
+// ── Reseta a contagem de exibição das instruções para todos os perfis —
+//    zera "instructions_seen_count" no banco, fazendo o modal de instruções
+//    aparecer novamente (1º e 2º login) para todo mundo, útil depois de
+//    atualizar o conteúdo e querer que os usuários vejam de novo. ──
+async function admInstrResetSeenCount() {
+  const okEl  = document.getElementById('instr-reset-fb-ok');
+  const errEl = document.getElementById('instr-reset-fb-err');
+  okEl.style.display = 'none'; errEl.style.display = 'none';
+
+  if (!confirm('Resetar a exibição das instruções para TODOS os usuários? Isso fará o modal de instruções aparecer novamente (1º e 2º login) para todo mundo.')) return;
+
+  try {
+    const { error } = await db.from('users').update({ instructions_seen_count: 0 }).not('id', 'is', null);
+    if (error) throw error;
+    okEl.style.display = 'block';
+    setTimeout(() => { okEl.style.display = 'none'; }, 3000);
+  } catch (e) {
+    errEl.textContent = 'Erro ao resetar: ' + (e.message || e);
+    errEl.style.display = 'block';
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -7775,10 +7937,34 @@ function bottomTab(name) {
   showView(name);
 }
 
+// ── Overlay de loading ao trocar de aba (Pokégram, Pokeet, Explorar, Perfil) ──
+// Fica visível só enquanto os dados da aba realmente carregam — some assim
+// que o carregamento termina, sem tempo mínimo artificial.
+function showTabLoadingOverlay() {
+  const el = document.getElementById('tab-loading-overlay');
+  if (!el) return;
+  el.style.opacity = '1';
+  el.style.display = 'flex';
+}
+
+function hideTabLoadingOverlay() {
+  const el = document.getElementById('tab-loading-overlay');
+  if (!el) return;
+  el.style.transition = 'opacity .25s';
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 260);
+}
+
 async function showView(name) {
   // Fecha modal de comentários ao navegar
   const mc = document.getElementById('modal-comments');
   if (mc && !mc.classList.contains('hidden')) mc.classList.add('hidden');
+
+  // Só mostra o GIF de loading ao trocar de fato de aba (não no primeiro
+  // carregamento do app, que já tem sua própria splash de login).
+  const isTabSwitch = _appEntered && _lastShownView !== null && _lastShownView !== name;
+  _lastShownView = name;
+  if (isTabSwitch) showTabLoadingOverlay();
 
   // Sync bottom tab bar
   document.querySelectorAll('.btab').forEach(b => b.classList.remove('active'));
@@ -7795,13 +7981,17 @@ async function showView(name) {
   const bn = document.getElementById('bn-' + name);
   if (bn) bn.classList.add('active');
 
-  if (name === 'feed')    { history.replaceState(null,'','/');
-    await renderFeed(); }
-  if (name === 'explore') { history.replaceState(null,'','/explore');
-    await renderExplore(); }
-  if (name === 'profile') await renderProfile(currentUser.username);
-  if (name === 'pokeets') { history.replaceState(null,'','/pokeet');
-    await renderPokeets(); }
+  try {
+    if (name === 'feed')    { history.replaceState(null,'','/');
+      await renderFeed(); }
+    if (name === 'explore') { history.replaceState(null,'','/explore');
+      await renderExplore(); }
+    if (name === 'profile') await renderProfile(currentUser.username);
+    if (name === 'pokeets') { history.replaceState(null,'','/pokeet');
+      await renderPokeets(); }
+  } finally {
+    if (isTabSwitch) hideTabLoadingOverlay();
+  }
 
   currentViewHistory.push(name);
   window.scrollTo(0, 0);
