@@ -34,16 +34,23 @@ function gAvatarBg(u) {
   return (u && u.avatar_url) ? 'transparent' : ((u && u.color) || '#e53935');
 }
 
-// Confirma que existe sessão real no Supabase Auth (compartilhada com o
-// app principal via localStorage no mesmo domínio) e retorna os dados
-// em cache do usuário (pg_user). Redireciona para "/" se não houver sessão.
+// Confirma que existe login válido (mesma fonte da verdade que o app
+// principal: pg_user em localStorage) e retorna os dados em cache do
+// usuário. A sessão real do Supabase Auth é só um bônus — quando existe,
+// permite escrita em tabelas protegidas por RLS (ex.: game_scores); quando
+// não existe (NPCs e alguns perfis KP-linked não têm conta real no Auth),
+// o jogo funciona normalmente mesmo assim, só a gravação de pontuação no
+// ranking é que pode falhar silenciosamente contra a policy de RLS.
 async function gRequireSession() {
-  const { data: { session } } = await gdb.auth.getSession();
   const cached = gLoadSession();
-  if (!session || !cached) {
+  if (!cached) {
     window.location.href = '/';
     return null;
   }
+  try {
+    const { data: { session } } = await gdb.auth.getSession();
+    if (!session) console.warn('[gRequireSession] sem sessão real do Supabase Auth — pontuação pode não ser gravada no ranking');
+  } catch (e) { /* falha ao verificar não derruba o jogador */ }
   return cached;
 }
 
