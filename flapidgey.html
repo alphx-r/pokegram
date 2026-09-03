@@ -28,13 +28,13 @@
 
   .gf-wrap{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:10px;height:calc(100% - 52px);
+    padding:0;height:calc(100% - 52px);overflow:hidden;
   }
   #gf-canvas{
-    background:linear-gradient(#8fc8f7,#c9e8ff);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.2);
+    background:linear-gradient(#8fc8f7,#c9e8ff);
     touch-action:none;max-width:100%;display:block;
   }
-  .gf-canvas-wrap{position:relative;max-width:100%;max-height:100%}
+  .gf-canvas-wrap{position:relative;max-width:100%;max-height:100%;line-height:0}
   #gf-bird-sprite{
     position:absolute;pointer-events:none;display:none;
     image-rendering:pixelated;transform-origin:center center;
@@ -174,7 +174,8 @@ function updateBirdSpritePosition() {
   birdSpriteEl.style.transform = `translate(${x}px, ${y}px) rotate(${bird.rot}rad)`;
 }
 
-const BASE_W = 320;
+const BASE_W_MIN = 260, BASE_H_MIN = 380;
+let BASE_W = 320;
 let BASE_H = 480;
 let scale = 1;
 
@@ -516,32 +517,32 @@ document.getElementById('gf-restart-btn').addEventListener('click', resetGame);
 let baseSized = false;
 
 function computeBaseDims(maxW, maxH) {
-  // Recalcula a altura lógica do jogo (BASE_H) pra bater com a proporção
-  // real da área disponível, evitando sobras/faixas em branco em cima e
-  // embaixo do canvas. Só roda antes do jogo começar pra não distorcer
-  // uma partida em andamento.
-  const ratio = maxH / maxW;
-  BASE_H = Math.round(Math.max(420, Math.min(900, BASE_W * ratio)));
+  // O canvas lógico passa a ocupar exatamente a área disponível (largura
+  // e altura), então não sobra faixa cinza nem em telas estreitas (celular)
+  // nem em telas largas (desktop). Só roda antes do jogo começar pra não
+  // distorcer uma partida em andamento.
+  BASE_W = Math.max(BASE_W_MIN, Math.round(maxW));
+  BASE_H = Math.max(BASE_H_MIN, Math.round(maxH));
 }
 
 function resize() {
   const nav = document.querySelector('.gf-nav');
   const navH = nav ? nav.getBoundingClientRect().height : 52;
-  const wrapPadding = 20;
 
-  const maxW = window.innerWidth - wrapPadding;
-  const maxH = window.innerHeight - navH - wrapPadding;
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - navH;
 
   if (!baseSized || (!started && !gameOver)) {
     computeBaseDims(maxW, maxH);
     baseSized = true;
   }
 
-  scale = Math.min(maxW / BASE_W, maxH / BASE_H);
-  scale = Math.max(0.5, scale);
+  // Escala sempre 1:1 — o canvas lógico já é do tamanho exato da área
+  // disponível, então não precisa reduzir/ampliar via CSS.
+  scale = 1;
   canvas.width = BASE_W; canvas.height = BASE_H;
-  canvas.style.width = (BASE_W * scale) + 'px';
-  canvas.style.height = (BASE_H * scale) + 'px';
+  canvas.style.width = BASE_W + 'px';
+  canvas.style.height = BASE_H + 'px';
 
   if (birdSpriteReady) {
     birdSpriteEl.style.width = BIRD_SPRITE_SIZE * scale + 'px';
