@@ -27,23 +27,34 @@
   .gf-title span{color:var(--accent)}
 
   .gf-wrap{
-    display:flex;flex-direction:column;align-items:center;gap:10px;
-    padding:14px;height:calc(100% - 52px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:10px;height:calc(100% - 52px);
   }
   #gf-canvas{
     background:linear-gradient(#8fc8f7,#c9e8ff);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.2);
-    touch-action:none;max-width:100%;
+    touch-action:none;max-width:100%;display:block;
   }
-  .gf-canvas-wrap{position:relative;max-width:100%}
+  .gf-canvas-wrap{position:relative;max-width:100%;max-height:100%}
   #gf-bird-sprite{
     position:absolute;pointer-events:none;display:none;
     image-rendering:pixelated;transform-origin:center center;
   }
-  .gf-hud{display:flex;gap:22px;align-items:center}
-  .gf-hud-item{text-align:center}
-  .gf-hud-label{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-  .gf-hud-value{font-family:'Cinzel',serif;font-size:20px;color:var(--brand);font-weight:700}
-  .gf-hint{font-size:11.5px;color:var(--muted);text-align:center}
+  .gf-hud{
+    position:absolute;top:10px;left:10px;right:10px;z-index:20;
+    display:flex;gap:10px;align-items:center;justify-content:center;
+    pointer-events:none;
+  }
+  .gf-hud-item{
+    text-align:center;background:rgba(255,255,255,.8);border-radius:8px;
+    padding:3px 10px;box-shadow:0 1px 4px rgba(0,0,0,.18);
+  }
+  .gf-hud-label{font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .gf-hud-value{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);font-weight:700}
+  .gf-hint{
+    position:absolute;bottom:10px;left:10px;right:10px;z-index:20;
+    font-size:11.5px;color:rgba(26,26,26,.7);text-align:center;font-weight:700;
+    text-shadow:0 1px 3px rgba(255,255,255,.6);pointer-events:none;
+  }
 
   .gf-lb{width:100%;max-width:340px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px}
   .gf-lb-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
@@ -81,26 +92,25 @@
 </nav>
 
 <div class="gf-wrap">
-  <div class="gf-hud">
-    <div class="gf-hud-item">
-      <div class="gf-hud-label">Pontos</div>
-      <div class="gf-hud-value" id="gf-score">0</div>
-    </div>
-    <div class="gf-hud-item">
-      <div class="gf-hud-label">Recorde</div>
-      <div class="gf-hud-value" id="gf-best" style="font-size:16px">–</div>
-    </div>
-    <div class="gf-hud-item">
-      <div class="gf-hud-label">Vidas</div>
-      <div class="gf-hud-value" id="gf-lives" style="font-size:16px">🛡 0</div>
-    </div>
-  </div>
-
   <div class="gf-canvas-wrap">
     <canvas id="gf-canvas"></canvas>
     <img id="gf-bird-sprite" alt="">
+    <div class="gf-hud">
+      <div class="gf-hud-item">
+        <div class="gf-hud-label">Pontos</div>
+        <div class="gf-hud-value" id="gf-score">0</div>
+      </div>
+      <div class="gf-hud-item">
+        <div class="gf-hud-label">Recorde</div>
+        <div class="gf-hud-value" id="gf-best" style="font-size:14px">–</div>
+      </div>
+      <div class="gf-hud-item">
+        <div class="gf-hud-label">Vidas</div>
+        <div class="gf-hud-value" id="gf-lives" style="font-size:14px">🛡 0</div>
+      </div>
+    </div>
+    <div class="gf-hint">Toque na tela ou aperte espaço para bater as asas</div>
   </div>
-  <div class="gf-hint">Toque na tela ou aperte espaço para bater as asas</div>
 </div>
 
 <div class="gf-overlay" id="gf-overlay">
@@ -503,16 +513,12 @@ document.getElementById('gf-restart-btn').addEventListener('click', resetGame);
 // ── Sizing responsivo (canvas lógico fixo, escala visual via CSS) ──
 function resize() {
   const nav = document.querySelector('.gf-nav');
-  const hud = document.querySelector('.gf-hud');
-  const hint = document.querySelector('.gf-hint');
   const navH = nav ? nav.getBoundingClientRect().height : 52;
-  const hudH = hud ? hud.getBoundingClientRect().height + 10 : 0;
-  const hintH = hint ? hint.getBoundingClientRect().height + 10 : 0;
-  const wrapPadding = 28;
+  const wrapPadding = 20;
 
-  const maxW = Math.min(window.innerWidth - 20, 380);
-  const maxH = window.innerHeight - navH - hudH - hintH - wrapPadding;
-  scale = Math.min(maxW / BASE_W, maxH / BASE_H, 1.3);
+  const maxW = window.innerWidth - wrapPadding;
+  const maxH = window.innerHeight - navH - wrapPadding;
+  scale = Math.min(maxW / BASE_W, maxH / BASE_H, 1.6);
   scale = Math.max(0.5, scale);
   canvas.width = BASE_W; canvas.height = BASE_H;
   canvas.style.width = (BASE_W * scale) + 'px';
