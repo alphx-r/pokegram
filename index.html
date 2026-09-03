@@ -3097,6 +3097,7 @@ a:focus, a:active,
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-favicon')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">🌐 Favicon</button>
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-pokeet-logo')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">💭 Logo Pokeet</button>
               <button class="adm-img-tab"         onclick="admImgTab(this,'img-whatsapp')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">📱 Ícone WhatZapp</button>
+              <button class="adm-img-tab"         onclick="admImgTab(this,'img-flapidgey')" style="padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:var(--text);transition:all .2s">🐦 Sprite flaPidgey</button>
             </div>
 
             <!-- ── LOGO DA REDE ── -->
@@ -3148,6 +3149,33 @@ a:focus, a:active,
                 </div>
                 <div class="adm-fb adm-fb-ok" id="loading-gif-fb-ok">✓ GIF salvo com sucesso!</div>
                 <div class="adm-fb adm-fb-err" id="loading-gif-fb-err">—</div>
+              </div>
+            </div>
+
+            <!-- ── SPRITE DO flaPidgey ── -->
+            <div id="img-flapidgey" style="display:none">
+              <div class="adm-box" style="max-width:480px">
+                <div class="adm-box-title">Sprite atual (jogo flaPidgey)</div>
+                <div id="flapidgey-gif-preview-wrap" style="margin-bottom:16px;min-height:80px;display:flex;align-items:center;gap:12px">
+                  <img id="flapidgey-gif-preview-adm" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                  <span id="flapidgey-gif-preview-empty" style="font-size:13px;color:var(--muted)">Nenhum sprite cadastrado — desenho vetorial padrão será usado.</span>
+                </div>
+                <div class="adm-field">
+                  <label>Selecionar GIF/imagem animada (máx 2 MB)</label>
+                  <input type="file" id="flapidgey-gif-file-input" accept="image/gif,image/png,image/webp"
+                    style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
+                    onchange="previewFlapidgeySpriteUpload(this)"/>
+                </div>
+                <div id="flapidgey-gif-new-preview-wrap" style="display:none;margin-bottom:14px">
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
+                  <img id="flapidgey-gif-new-preview" src="" alt="" style="width:80px;height:80px;object-fit:contain;border:1.5px solid var(--border);border-radius:8px;padding:8px;background:#fff"/>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarFlapidgeySprite()">💾 Salvar Sprite</button>
+                  <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="removerFlapidgeySprite()">🗑 Remover Sprite</button>
+                </div>
+                <div class="adm-fb adm-fb-ok" id="flapidgey-gif-fb-ok">✓ Sprite salvo com sucesso!</div>
+                <div class="adm-fb adm-fb-err" id="flapidgey-gif-fb-err">—</div>
               </div>
             </div>
 
@@ -5644,7 +5672,7 @@ function admImgTab(btn, id) {
   btn.style.background = 'var(--brand-mid)';
   btn.style.color      = '#fff';
   btn.classList.add('active');
-  ['img-logo','img-gif','img-sprites','img-favicon','img-pokeet-logo','img-whatsapp'].forEach(s => {
+  ['img-logo','img-gif','img-sprites','img-favicon','img-pokeet-logo','img-whatsapp','img-flapidgey'].forEach(s => {
     const el = document.getElementById(s);
     if (el) el.style.display = (s === id) ? 'block' : 'none';
   });
@@ -5654,6 +5682,7 @@ function admImgTab(btn, id) {
   if (id === 'img-favicon')      carregarFaviconAdm();
   if (id === 'img-pokeet-logo')  carregarPokeetLogoAdm();
   if (id === 'img-whatsapp')     carregarWhatsappIconAdm();
+  if (id === 'img-flapidgey')    carregarFlapidgeySpriteAdm();
 }
 
 function admTab(btn, id) {
@@ -7582,6 +7611,70 @@ async function removerLoadingGif() {
   okEl.textContent = '✓ GIF removido. Pokeball padrão restaurada.';
   okEl.style.display = 'block';
   setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ GIF salvo com sucesso!'; }, 3500);
+}
+
+// ── Sprite do flaPidgey ────────────────────────────────────
+let _pendingFlapidgeySpriteBase64 = null;
+
+async function carregarFlapidgeySpriteAdm() {
+  const { data } = await db.from('settings').select('value').eq('key', 'flapidgey_sprite').maybeSingle();
+  const previewImg   = document.getElementById('flapidgey-gif-preview-adm');
+  const previewEmpty = document.getElementById('flapidgey-gif-preview-empty');
+  if (data && data.value) {
+    previewImg.src          = data.value;
+    previewImg.style.display = 'block';
+    previewEmpty.style.display = 'none';
+  } else {
+    previewImg.style.display   = 'none';
+    previewEmpty.style.display = 'inline';
+  }
+}
+
+function previewFlapidgeySpriteUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const errEl = document.getElementById('flapidgey-gif-fb-err');
+  if (!['image/gif', 'image/png', 'image/webp'].includes(file.type)) { errEl.textContent = 'Apenas GIF, PNG ou WebP são aceitos.'; errEl.style.display = 'block'; return; }
+  if (file.size > 2 * 1024 * 1024) { errEl.textContent = 'Arquivo muito grande. Máximo: 2 MB.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => {
+    _pendingFlapidgeySpriteBase64 = e.target.result;
+    const wrap = document.getElementById('flapidgey-gif-new-preview-wrap');
+    const img  = document.getElementById('flapidgey-gif-new-preview');
+    img.src = _pendingFlapidgeySpriteBase64;
+    wrap.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function salvarFlapidgeySprite() {
+  const okEl  = document.getElementById('flapidgey-gif-fb-ok');
+  const errEl = document.getElementById('flapidgey-gif-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+  if (!_pendingFlapidgeySpriteBase64) { errEl.textContent = 'Selecione um arquivo primeiro.'; errEl.style.display = 'block'; return; }
+  const { error } = await db.from('settings').upsert({ key: 'flapidgey_sprite', value: _pendingFlapidgeySpriteBase64 }, { onConflict: 'key' });
+  if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
+  _pendingFlapidgeySpriteBase64 = null;
+  document.getElementById('flapidgey-gif-file-input').value = '';
+  document.getElementById('flapidgey-gif-new-preview-wrap').style.display = 'none';
+  carregarFlapidgeySpriteAdm();
+  okEl.style.display = 'block';
+  setTimeout(() => okEl.style.display = 'none', 3000);
+}
+
+async function removerFlapidgeySprite() {
+  if (!confirm('Remover o sprite? O desenho vetorial padrão voltará a ser usado.')) return;
+  const okEl  = document.getElementById('flapidgey-gif-fb-ok');
+  const errEl = document.getElementById('flapidgey-gif-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+  const { error } = await db.from('settings').delete().eq('key', 'flapidgey_sprite');
+  if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
+  _pendingFlapidgeySpriteBase64 = null;
+  carregarFlapidgeySpriteAdm();
+  okEl.textContent = '✓ Sprite removido. Desenho padrão restaurado.';
+  okEl.style.display = 'block';
+  setTimeout(() => { okEl.style.display = 'none'; okEl.textContent = '✓ Sprite salvo com sucesso!'; }, 3500);
 }
 </script>
 
