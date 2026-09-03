@@ -1710,6 +1710,9 @@ a:focus, a:active,
         <button class="tn-btn" id="btn-explore" onclick="showView('explore')" title="Explorar">
           <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
+        <button class="tn-btn" id="btn-games" onclick="window.location.href='jogos.html'" title="Jogos">
+          <svg class="tn-default-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="20" height="9" rx="4.5"/><line x1="7" y1="10.5" x2="7" y2="14.5"/><line x1="5" y1="12.5" x2="9" y2="12.5"/><circle cx="15" cy="11" r="1"/><circle cx="17.5" cy="13.5" r="1"/></svg>
+        </button>
 
         <button class="tn-btn" id="btn-profile" onclick="showView('profile')" title="Perfil">
           <div class="tn-avatar" id="sn-avatar"></div>
@@ -7589,6 +7592,7 @@ const SPRITE_DEFS = [
   { key: 'nav_home',    label: 'Início (casa)',        sel: '#btn-feed svg',                              dbKey: 'sprite_nav_home' },
   { key: 'nav_create',  label: 'Criar publicação',     sel: '.tn-btn[onclick="showNewPost()"] svg',        dbKey: 'sprite_nav_create' },
   { key: 'nav_explore', label: 'Explorar (lupa)',      sel: '#btn-explore svg',                           dbKey: 'sprite_nav_explore' },
+  { key: 'nav_games',   label: 'Jogos (controle)',     sel: '#btn-games svg',                             dbKey: 'sprite_nav_games' },
   { key: 'nav_pokeets', label: 'Pokeets (avião)',      sel: '#btn-pokeets svg',                           dbKey: 'sprite_nav_pokeets' },
   { key: 'nav_notif',   label: 'Notificações (sino)',  sel: '#btn-notif svg',                             dbKey: 'sprite_nav_notif' },
   { key: 'nav_chat',    label: 'Chat (mensagens)',     sel: '#btn-chat svg',                              dbKey: 'sprite_nav_chat' },
