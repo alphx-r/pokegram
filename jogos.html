@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jogos · Pokégram</title>
+<link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  button,a{-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
+    min-height:100vh;
+  }
+  :root{
+    --brand:#b71c1c;--brand-mid:#e53935;--brand-light:#ffebee;
+    --accent:#fdd835;--surface:#fff;--border:#e0e0e0;--muted:#6b7280;
+  }
+
+  /* NAV — mesma linguagem visual do Pokégram */
+  .gj-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 20px;height:58px;background:var(--brand);
+    position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .gj-nav-left{display:flex;align-items:center;gap:14px}
+  .gj-back{
+    display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;
+    font-weight:700;font-size:13px;opacity:.9;transition:opacity .15s;
+  }
+  .gj-back:hover{opacity:1}
+  .gj-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .gj-nav-title{font-family:'Cinzel',serif;font-size:16px;color:#fff;letter-spacing:.5px}
+  .gj-nav-title span{color:var(--accent)}
+  .gj-nav-user{display:flex;align-items:center;gap:8px}
+  .gj-avatar{
+    width:30px;height:30px;border-radius:50%;overflow:hidden;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;
+    border:1.5px solid rgba(255,255,255,.5);
+  }
+  .gj-avatar img{width:100%;height:100%;object-fit:cover}
+
+  .gj-wrap{max-width:840px;margin:0 auto;padding:28px 20px 60px}
+  .gj-intro{text-align:center;margin-bottom:28px}
+  .gj-intro h1{font-family:'Cinzel',serif;font-size:24px;color:var(--brand);margin:0 0 6px}
+  .gj-intro p{color:var(--muted);font-size:14px;margin:0}
+
+  .gj-games{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:640px){.gj-games{grid-template-columns:1fr}}
+
+  .gj-card{
+    background:var(--surface);border:1.5px solid var(--border);border-radius:14px;
+    overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:0 2px 10px rgba(0,0,0,.05);transition:transform .15s, box-shadow .15s;
+  }
+  .gj-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.09)}
+  .gj-card-banner{
+    height:120px;display:flex;align-items:center;justify-content:center;font-size:44px;
+  }
+  .gj-card-banner.tetris{background:linear-gradient(135deg,#b71c1c,#e53935)}
+  .gj-card-banner.flapidgey{background:linear-gradient(135deg,#5b9bd5,#8fc8f7)}
+  .gj-card-body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:10px;flex:1}
+  .gj-card-title{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);margin:0}
+  .gj-card-desc{font-size:13px;color:var(--muted);margin:0;line-height:1.4}
+  .gj-play-btn{
+    margin-top:auto;padding:10px 14px;border:none;border-radius:8px;
+    background:var(--brand-mid);color:#fff;font-family:'Nunito',sans-serif;
+    font-size:13px;font-weight:800;cursor:pointer;text-align:center;text-decoration:none;
+    transition:background .15s;
+  }
+  .gj-play-btn:hover{background:var(--brand)}
+
+  .gj-lb{border-top:1px solid var(--border);padding-top:10px;margin-top:2px}
+  .gj-lb-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .gj-lb-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px}
+  .gj-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .gj-lb-av{width:20px;height:20px;border-radius:50%;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:800}
+  .gj-lb-av img{width:100%;height:100%;object-fit:cover}
+  .gj-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  .gj-lb-score{font-weight:800;color:var(--text,#1a1a1a)}
+  .gj-lb-empty{font-size:12px;color:var(--muted);font-style:italic}
+
+  .gj-loading{
+    display:flex;align-items:center;justify-content:center;min-height:60vh;
+  }
+  .gj-spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--brand-mid);border-radius:50%;animation:gj-spin .7s linear infinite}
+  @keyframes gj-spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="gj-loading" class="gj-loading"><div class="gj-spinner"></div></div>
+
+<div id="gj-app" style="display:none">
+  <nav class="gj-nav">
+    <div class="gj-nav-left">
+      <a class="gj-back" href="/">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Voltar
+      </a>
+      <div class="gj-nav-title">Poké<span>games</span></div>
+    </div>
+    <div class="gj-nav-user">
+      <div class="gj-avatar" id="gj-avatar"></div>
+    </div>
+  </nav>
+
+  <div class="gj-wrap">
+    <div class="gj-intro">
+      <h1>🎮 Área de Jogos</h1>
+      <p>Encare os melhores treinadores nos rankings abaixo</p>
+    </div>
+
+    <div class="gj-games">
+      <div class="gj-card">
+        <div class="gj-card-banner tetris">🧩</div>
+        <div class="gj-card-body">
+          <h2 class="gj-card-title">Pokémon Tetris</h2>
+          <p class="gj-card-desc">O clássico dos blocos, com uma casca Pokémon. Encaixe as peças e bata seu recorde.</p>
+          <a class="gj-play-btn" href="tetris.html">Jogar</a>
+          <div class="gj-lb">
+            <div class="gj-lb-title">Top treinadores</div>
+            <div id="gj-lb-tetris"><div class="gj-lb-empty">Carregando...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gj-card">
+        <div class="gj-card-banner flapidgey">🐦</div>
+        <div class="gj-card-body">
+          <h2 class="gj-card-title">flaPidgey</h2>
+          <p class="gj-card-desc">Um Pidgey decidido a voar entre os canos. Toque para bater as asas e não esbarrar em nada.</p>
+          <a class="gj-play-btn" href="flapidgey.html">Jogar</a>
+          <div class="gj-lb">
+            <div class="gj-lb-title">Top treinadores</div>
+            <div id="gj-lb-flapidgey"><div class="gj-lb-empty">Carregando...</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function initials(name) {
+    if (!name) return '?';
+    const parts = name.trim().split(/[\s_]+/);
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+  function loadSession() {
+    try {
+      const val = JSON.parse(localStorage.getItem('pg_user'));
+      if (!val) return null;
+      if (Array.isArray(val)) return val[0] || null;
+      return val;
+    } catch (e) { return null; }
+  }
+  function avatarHtml(u, size) {
+    if (u && u.avatar_url) return `<img src="${esc(u.avatar_url)}">`;
+    return initials(u ? u.username : '?');
+  }
+  function avatarBg(u) {
+    return (u && u.avatar_url) ? 'transparent' : ((u && u.color) || '#e53935');
+  }
+
+  async function boot() {
+    // Confirma sessão real no Supabase Auth (mesma sessão do app principal,
+    // compartilhada por localStorage no mesmo domínio)
+    const { data: { session } } = await db.auth.getSession();
+    const cached = loadSession();
+    if (!session || !cached) {
+      window.location.href = '/';
+      return;
+    }
+
+    const avEl = document.getElementById('gj-avatar');
+    avEl.style.background = avatarBg(cached);
+    avEl.innerHTML = avatarHtml(cached);
+
+    document.getElementById('gj-loading').style.display = 'none';
+    document.getElementById('gj-app').style.display = 'block';
+
+    loadLeaderboard('tetris', 'gj-lb-tetris');
+    loadLeaderboard('flapidgey', 'gj-lb-flapidgey');
+  }
+
+  async function loadLeaderboard(game, elId) {
+    const el = document.getElementById(elId);
+    try {
+      // Melhor score de cada jogador para este jogo
+      const { data, error } = await db
+        .from('game_scores')
+        .select('score, author_name, author_color, author_avatar, user_id')
+        .eq('game', game)
+        .order('score', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="gj-lb-empty">Nenhum recorde ainda. Seja o primeiro!</div>';
+        return;
+      }
+
+      // Mantém só o melhor score por usuário, preservando a ordem (já vem ordenado)
+      const seen = new Set();
+      const top = [];
+      for (const row of data) {
+        if (seen.has(row.user_id)) continue;
+        seen.add(row.user_id);
+        top.push(row);
+        if (top.length >= 3) break;
+      }
+
+      el.innerHTML = top.map((row, i) => {
+        const bg = row.author_avatar ? 'transparent' : (row.author_color || '#e53935');
+        const av = row.author_avatar
+          ? `<img src="${esc(row.author_avatar)}">`
+          : initials(row.author_name);
+        return `<div class="gj-lb-row">
+          <span class="gj-lb-pos">${i + 1}º</span>
+          <span class="gj-lb-av" style="background:${bg}">${av}</span>
+          <span class="gj-lb-name">${esc(row.author_name || '???')}</span>
+          <span class="gj-lb-score">${row.score}</span>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      console.warn('[loadLeaderboard]', game, e);
+      el.innerHTML = '<div class="gj-lb-empty">Não foi possível carregar o ranking.</div>';
+    }
+  }
+
+  boot();
+</script>
+</body>
+</html>

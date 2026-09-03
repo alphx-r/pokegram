@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pokémon Tetris · Pokégram</title>
+<link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{
+    margin:0;height:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
+    overflow:hidden;
+  }
+  :root{
+    --brand:#b71c1c;--brand-mid:#e53935;--accent:#fdd835;--border:#e0e0e0;--muted:#6b7280;
+  }
+  .gt-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .gt-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .gt-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .gt-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .gt-title span{color:var(--accent)}
+
+  .gt-wrap{
+    display:flex;align-items:flex-start;justify-content:center;gap:18px;
+    padding:16px;height:calc(100% - 52px);overflow:auto;
+  }
+  .gt-board-col{display:flex;flex-direction:column;align-items:center;gap:10px}
+  #gt-canvas{
+    background:#1a1a2e;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.25);
+    touch-action:none;
+  }
+  .gt-side{display:flex;flex-direction:column;gap:14px;width:150px;flex-shrink:0}
+  .gt-panel{
+    background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px;
+  }
+  .gt-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .gt-stat{font-family:'Cinzel',serif;font-size:22px;color:var(--brand);font-weight:700}
+  #gt-next-canvas{display:block;margin:0 auto;background:#1a1a2e;border-radius:8px}
+  .gt-lb-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11.5px}
+  .gt-lb-pos{width:14px;font-weight:800;color:var(--brand-mid)}
+  .gt-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gt-lb-score{font-weight:800}
+  .gt-lb-empty{font-size:11px;color:var(--muted);font-style:italic}
+
+  .gt-controls-hint{font-size:11px;color:var(--muted);text-align:center;max-width:340px}
+
+  .gt-mobile-controls{display:none;gap:8px;margin-top:6px}
+  .gt-mbtn{
+    width:52px;height:52px;border-radius:12px;border:1.5px solid var(--border);
+    background:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.08);user-select:none;
+  }
+  @media (max-width:760px){
+    .gt-wrap{flex-direction:column;align-items:center;padding:10px}
+    .gt-side{flex-direction:row;width:100%;max-width:340px;flex-wrap:wrap}
+    .gt-panel{flex:1;min-width:100px}
+    .gt-mobile-controls{display:flex}
+  }
+
+  .gt-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .gt-overlay.show{display:flex}
+  .gt-modal{
+    background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
+  }
+  .gt-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .gt-modal p{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .gt-modal .gt-final-score{font-family:'Cinzel',serif;font-size:32px;color:var(--brand-mid);margin-bottom:16px}
+  .gt-btn{
+    padding:10px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
+  }
+  .gt-btn:hover{background:var(--brand)}
+</style>
+</head>
+<body>
+
+<nav class="gt-nav">
+  <a class="gt-back" href="jogos.html">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="gt-title">Pokémon <span>Tetris</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="gt-wrap">
+  <div class="gt-board-col">
+    <canvas id="gt-canvas"></canvas>
+    <div class="gt-controls-hint">← → mover · ↑ girar · ↓ acelerar · espaço soltar</div>
+    <div class="gt-mobile-controls">
+      <div class="gt-mbtn" id="gt-m-left">◀</div>
+      <div class="gt-mbtn" id="gt-m-rotate">⟳</div>
+      <div class="gt-mbtn" id="gt-m-down">▼</div>
+      <div class="gt-mbtn" id="gt-m-right">▶</div>
+      <div class="gt-mbtn" id="gt-m-drop">⤓</div>
+    </div>
+  </div>
+
+  <div class="gt-side">
+    <div class="gt-panel">
+      <div class="gt-panel-title">Próxima peça</div>
+      <canvas id="gt-next-canvas" width="80" height="80"></canvas>
+    </div>
+    <div class="gt-panel">
+      <div class="gt-panel-title">Pontuação</div>
+      <div class="gt-stat" id="gt-score">0</div>
+    </div>
+    <div class="gt-panel">
+      <div class="gt-panel-title">Nível</div>
+      <div class="gt-stat" id="gt-level">1</div>
+    </div>
+    <div class="gt-panel">
+      <div class="gt-panel-title">Seu recorde</div>
+      <div class="gt-stat" id="gt-best" style="font-size:18px">–</div>
+    </div>
+    <div class="gt-panel">
+      <div class="gt-panel-title">Top treinadores</div>
+      <div id="gt-leaderboard"><div class="gt-lb-empty">Carregando...</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="gt-overlay" id="gt-overlay">
+  <div class="gt-modal">
+    <h2>Game Over!</h2>
+    <p id="gt-overlay-msg">Sua pontuação foi registrada no ranking.</p>
+    <div class="gt-final-score" id="gt-final-score">0</div>
+    <button class="gt-btn" id="gt-restart-btn">Jogar novamente</button>
+  </div>
+</div>
+
+<script src="games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// PÓKEMON TETRIS — engine clássico com skin temática
+// ════════════════════════════════════════════════════════
+
+const COLS = 10, ROWS = 20;
+let CELL = 26; // recalculado em resize()
+
+const canvas = document.getElementById('gt-canvas');
+const ctx = canvas.getContext('2d');
+const nextCanvas = document.getElementById('gt-next-canvas');
+const nextCtx = nextCanvas.getContext('2d');
+
+// Peças temáticas: cada tipo de Pokémon vira uma cor de peça
+const PIECES = {
+  I: { shape: [[1,1,1,1]], color: '#78C850' /* grass */ },
+  O: { shape: [[1,1],[1,1]], color: '#F8D030' /* electric */ },
+  T: { shape: [[0,1,0],[1,1,1]], color: '#A040A0' /* poison */ },
+  S: { shape: [[0,1,1],[1,1,0]], color: '#EE8130' /* fire-ish */ },
+  Z: { shape: [[1,1,0],[0,1,1]], color: '#C03028' /* fighting/fire */ },
+  J: { shape: [[1,0,0],[1,1,1]], color: '#6890F0' /* water */ },
+  L: { shape: [[0,0,1],[1,1,1]], color: '#E0C068' /* ground */ },
+};
+const PIECE_KEYS = Object.keys(PIECES);
+
+let board, current, next, score, level, linesCleared, gameOver, dropInterval, lastDrop, rafId;
+let user = null;
+
+function emptyBoard() {
+  return Array.from({length: ROWS}, () => Array(COLS).fill(null));
+}
+
+function randomPiece() {
+  const key = PIECE_KEYS[Math.floor(Math.random() * PIECE_KEYS.length)];
+  const p = PIECES[key];
+  return {
+    shape: p.shape.map(r => r.slice()),
+    color: p.color,
+    row: 0,
+    col: Math.floor((COLS - p.shape[0].length) / 2),
+  };
+}
+
+function rotate(shape) {
+  const rows = shape.length, cols = shape[0].length;
+  const out = Array.from({length: cols}, () => Array(rows).fill(0));
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      out[c][rows - 1 - r] = shape[r][c];
+  return out;
+}
+
+function collides(piece, dRow, dCol, shape) {
+  shape = shape || piece.shape;
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const nr = piece.row + r + dRow;
+      const nc = piece.col + c + dCol;
+      if (nc < 0 || nc >= COLS || nr >= ROWS) return true;
+      if (nr >= 0 && board[nr][nc]) return true;
+    }
+  }
+  return false;
+}
+
+function lockPiece() {
+  current.shape.forEach((r, ri) => r.forEach((v, ci) => {
+    if (v) {
+      const rr = current.row + ri, cc = current.col + ci;
+      if (rr >= 0) board[rr][cc] = current.color;
+    }
+  }));
+  clearLines();
+  current = next;
+  next = randomPiece();
+  drawNext();
+  if (collides(current, 0, 0)) {
+    endGame();
+  }
+}
+
+function clearLines() {
+  let cleared = 0;
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (board[r].every(cell => cell)) {
+      board.splice(r, 1);
+      board.unshift(Array(COLS).fill(null));
+      cleared++;
+      r++;
+    }
+  }
+  if (cleared > 0) {
+    const points = [0, 100, 300, 500, 800][cleared] * level;
+    score += points;
+    linesCleared += cleared;
+    level = 1 + Math.floor(linesCleared / 10);
+    dropInterval = Math.max(120, 800 - (level - 1) * 60);
+    updateStats();
+  }
+}
+
+function updateStats() {
+  document.getElementById('gt-score').textContent = score;
+  document.getElementById('gt-level').textContent = level;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // grid de fundo
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  for (let c = 0; c <= COLS; c++) {
+    ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, ROWS * CELL); ctx.stroke();
+  }
+  for (let r = 0; r <= ROWS; r++) {
+    ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(COLS * CELL, r * CELL); ctx.stroke();
+  }
+  // board fixo
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (board[r][c]) drawCell(ctx, c, r, board[r][c]);
+  // peça atual
+  current.shape.forEach((row, ri) => row.forEach((v, ci) => {
+    if (v && current.row + ri >= 0) drawCell(ctx, current.col + ci, current.row + ri, current.color);
+  }));
+}
+
+function drawCell(context, col, row, color) {
+  const x = col * CELL, y = row * CELL;
+  context.fillStyle = color;
+  context.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+  context.fillStyle = 'rgba(255,255,255,0.25)';
+  context.fillRect(x + 1, y + 1, CELL - 2, 4);
+  context.fillStyle = 'rgba(0,0,0,0.18)';
+  context.fillRect(x + 1, y + CELL - 5, CELL - 2, 4);
+}
+
+function drawNext() {
+  nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+  const size = 16;
+  const shape = next.shape;
+  const w = shape[0].length * size, h = shape.length * size;
+  const ox = (nextCanvas.width - w) / 2, oy = (nextCanvas.height - h) / 2;
+  shape.forEach((row, ri) => row.forEach((v, ci) => {
+    if (!v) return;
+    nextCtx.fillStyle = next.color;
+    nextCtx.fillRect(ox + ci * size + 1, oy + ri * size + 1, size - 2, size - 2);
+  }));
+}
+
+function tryMove(dRow, dCol) {
+  if (gameOver) return;
+  if (!collides(current, dRow, dCol)) {
+    current.row += dRow;
+    current.col += dCol;
+    draw();
+    return true;
+  }
+  if (dRow > 0) lockPiece();
+  draw();
+  return false;
+}
+
+function tryRotate() {
+  if (gameOver) return;
+  const rotated = rotate(current.shape);
+  const kicks = [0, -1, 1, -2, 2];
+  for (const k of kicks) {
+    if (!collides(current, 0, k, rotated)) {
+      current.shape = rotated;
+      current.col += k;
+      draw();
+      return;
+    }
+  }
+}
+
+function hardDrop() {
+  if (gameOver) return;
+  while (!collides(current, 1, 0)) current.row++;
+  lockPiece();
+  draw();
+}
+
+function loop(ts) {
+  if (gameOver) return;
+  if (!lastDrop) lastDrop = ts;
+  if (ts - lastDrop > dropInterval) {
+    tryMove(1, 0);
+    lastDrop = ts;
+  }
+  rafId = requestAnimationFrame(loop);
+}
+
+async function endGame() {
+  gameOver = true;
+  cancelAnimationFrame(rafId);
+  document.getElementById('gt-final-score').textContent = score;
+  document.getElementById('gt-overlay').classList.add('show');
+  await gSaveScore('tetris', score, user);
+  refreshLeaderboard();
+  refreshBest();
+}
+
+function startGame() {
+  board = emptyBoard();
+  current = randomPiece();
+  next = randomPiece();
+  score = 0; level = 1; linesCleared = 0; gameOver = false;
+  dropInterval = 800; lastDrop = 0;
+  updateStats();
+  drawNext();
+  draw();
+  document.getElementById('gt-overlay').classList.remove('show');
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── Controles ──────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key)) e.preventDefault();
+  if (gameOver) return;
+  if (e.key === 'ArrowLeft') tryMove(0, -1);
+  else if (e.key === 'ArrowRight') tryMove(0, 1);
+  else if (e.key === 'ArrowDown') tryMove(1, 0);
+  else if (e.key === 'ArrowUp') tryRotate();
+  else if (e.key === ' ') hardDrop();
+});
+
+function bindHold(id, fn) {
+  const el = document.getElementById(id);
+  let interval;
+  const start = (e) => { e.preventDefault(); fn(); interval = setInterval(fn, 140); };
+  const stop = () => clearInterval(interval);
+  el.addEventListener('touchstart', start, {passive:false});
+  el.addEventListener('touchend', stop);
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', stop);
+  el.addEventListener('mouseleave', stop);
+}
+bindHold('gt-m-left', () => tryMove(0, -1));
+bindHold('gt-m-right', () => tryMove(0, 1));
+bindHold('gt-m-down', () => tryMove(1, 0));
+document.getElementById('gt-m-rotate').addEventListener('click', tryRotate);
+document.getElementById('gt-m-drop').addEventListener('click', hardDrop);
+
+document.getElementById('gt-restart-btn').addEventListener('click', startGame);
+
+// ── Canvas sizing responsivo ─────────────────────────────
+function resize() {
+  const maxH = window.innerHeight - 52 - 90;
+  const maxW = Math.min(window.innerWidth - 20, 340);
+  CELL = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
+  CELL = Math.max(14, CELL);
+  canvas.width = CELL * COLS;
+  canvas.height = CELL * ROWS;
+  if (board) draw();
+}
+window.addEventListener('resize', resize);
+
+// ── Ranking lateral ──────────────────────────────────────
+async function refreshLeaderboard() {
+  const el = document.getElementById('gt-leaderboard');
+  const top = await gLoadTopScores('tetris', 5);
+  if (top.length === 0) {
+    el.innerHTML = '<div class="gt-lb-empty">Nenhum recorde ainda.</div>';
+    return;
+  }
+  el.innerHTML = top.map((row, i) => `
+    <div class="gt-lb-row">
+      <span class="gt-lb-pos">${i+1}º</span>
+      <span class="gt-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="gt-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+
+async function refreshBest() {
+  if (!user) return;
+  const best = await gLoadMyBest('tetris', user.id);
+  document.getElementById('gt-best').textContent = best || '–';
+}
+
+// ── Boot ──────────────────────────────────────────────────
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  resize();
+  startGame();
+  refreshLeaderboard();
+  refreshBest();
+})();
+</script>
+</body>
+</html>

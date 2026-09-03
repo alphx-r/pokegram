@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>flaPidgey · Pokégram</title>
+<link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{
+    margin:0;height:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
+    overflow:hidden;
+  }
+  :root{
+    --brand:#b71c1c;--brand-mid:#e53935;--accent:#fdd835;--border:#e0e0e0;--muted:#6b7280;
+  }
+  .gf-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .gf-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .gf-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .gf-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .gf-title span{color:var(--accent)}
+
+  .gf-wrap{
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    padding:14px;height:calc(100% - 52px);
+  }
+  #gf-canvas{
+    background:linear-gradient(#8fc8f7,#c9e8ff);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.2);
+    touch-action:none;max-width:100%;
+  }
+  .gf-hud{display:flex;gap:22px;align-items:center}
+  .gf-hud-item{text-align:center}
+  .gf-hud-label{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .gf-hud-value{font-family:'Cinzel',serif;font-size:20px;color:var(--brand);font-weight:700}
+  .gf-hint{font-size:11.5px;color:var(--muted);text-align:center}
+
+  .gf-lb{width:100%;max-width:340px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px}
+  .gf-lb-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .gf-lb-row{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:12px}
+  .gf-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .gf-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gf-lb-score{font-weight:800}
+  .gf-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
+
+  .gf-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .gf-overlay.show{display:flex}
+  .gf-modal{background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center}
+  .gf-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .gf-modal p{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .gf-final-score{font-family:'Cinzel',serif;font-size:32px;color:var(--brand-mid);margin-bottom:16px}
+  .gf-btn{
+    padding:10px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
+  }
+  .gf-btn:hover{background:var(--brand)}
+</style>
+</head>
+<body>
+
+<nav class="gf-nav">
+  <a class="gf-back" href="jogos.html">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="gf-title">fla<span>Pidgey</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="gf-wrap">
+  <div class="gf-hud">
+    <div class="gf-hud-item">
+      <div class="gf-hud-label">Pontos</div>
+      <div class="gf-hud-value" id="gf-score">0</div>
+    </div>
+    <div class="gf-hud-item">
+      <div class="gf-hud-label">Recorde</div>
+      <div class="gf-hud-value" id="gf-best" style="font-size:16px">–</div>
+    </div>
+  </div>
+
+  <canvas id="gf-canvas"></canvas>
+  <div class="gf-hint">Toque na tela ou aperte espaço para bater as asas</div>
+
+  <div class="gf-lb">
+    <div class="gf-lb-title">Top treinadores</div>
+    <div id="gf-leaderboard"><div class="gf-lb-empty">Carregando...</div></div>
+  </div>
+</div>
+
+<div class="gf-overlay" id="gf-overlay">
+  <div class="gf-modal">
+    <h2 id="gf-overlay-title">Ele bateu num cano!</h2>
+    <p>Sua pontuação foi registrada no ranking.</p>
+    <div class="gf-final-score" id="gf-final-score">0</div>
+    <button class="gf-btn" id="gf-restart-btn">Jogar novamente</button>
+  </div>
+</div>
+
+<script src="games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// FLAPIDGEY — Flappy Bird com um Pidgey no lugar do pássaro
+// ════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('gf-canvas');
+const ctx = canvas.getContext('2d');
+
+const BASE_W = 320, BASE_H = 480;
+let scale = 1;
+
+const GRAVITY = 1400;      // px/s²
+const FLAP_VELOCITY = -380;
+const PIPE_GAP = 130;
+const PIPE_WIDTH = 52;
+const PIPE_SPEED = 130;    // px/s
+const PIPE_INTERVAL = 1500; // ms
+
+let bird, pipes, score, best, gameOver, started, user, lastTs, pipeTimer, rafId;
+
+function resetGame() {
+  bird = { x: 70, y: BASE_H / 2, vy: 0, rot: 0 };
+  pipes = [];
+  score = 0;
+  gameOver = false;
+  started = false;
+  pipeTimer = 0;
+  lastTs = 0;
+  document.getElementById('gf-score').textContent = '0';
+  document.getElementById('gf-overlay').classList.remove('show');
+  cancelAnimationFrame(rafId);
+  draw();
+  rafId = requestAnimationFrame(loop);
+}
+
+function flap() {
+  if (gameOver) return;
+  started = true;
+  bird.vy = FLAP_VELOCITY;
+}
+
+function spawnPipe() {
+  const margin = 50;
+  const gapY = margin + Math.random() * (BASE_H - margin * 2 - PIPE_GAP);
+  pipes.push({ x: BASE_W, gapY, passed: false });
+}
+
+function update(dt) {
+  if (!started) return;
+  bird.vy += GRAVITY * dt;
+  bird.y += bird.vy * dt;
+  bird.rot = Math.max(-0.5, Math.min(1.1, bird.vy / 500));
+
+  pipeTimer += dt * 1000;
+  if (pipeTimer > PIPE_INTERVAL) {
+    pipeTimer = 0;
+    spawnPipe();
+  }
+
+  pipes.forEach(p => p.x -= PIPE_SPEED * dt);
+  pipes = pipes.filter(p => p.x > -PIPE_WIDTH);
+
+  // pontuação
+  pipes.forEach(p => {
+    if (!p.passed && p.x + PIPE_WIDTH < bird.x) {
+      p.passed = true;
+      score++;
+      document.getElementById('gf-score').textContent = score;
+    }
+  });
+
+  // colisão com chão/teto
+  if (bird.y < -10 || bird.y > BASE_H - 10) {
+    triggerGameOver();
+    return;
+  }
+
+  // colisão com canos
+  const BIRD_R = 12;
+  for (const p of pipes) {
+    const withinX = bird.x + BIRD_R > p.x && bird.x - BIRD_R < p.x + PIPE_WIDTH;
+    if (withinX) {
+      const hitsTop = bird.y - BIRD_R < p.gapY;
+      const hitsBottom = bird.y + BIRD_R > p.gapY + PIPE_GAP;
+      if (hitsTop || hitsBottom) { triggerGameOver(); return; }
+    }
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+  // nuvens simples de fundo
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  [[40,60,18],[220,90,24],[120,40,14]].forEach(([x,y,r]) => {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  });
+
+  // canos
+  pipes.forEach(p => {
+    ctx.fillStyle = '#78C850';
+    ctx.strokeStyle = '#4d8a2e';
+    ctx.lineWidth = 3;
+    // cano de cima
+    ctx.fillRect(p.x, 0, PIPE_WIDTH, p.gapY);
+    ctx.strokeRect(p.x, 0, PIPE_WIDTH, p.gapY);
+    ctx.fillRect(p.x - 4, p.gapY - 18, PIPE_WIDTH + 8, 18);
+    ctx.strokeRect(p.x - 4, p.gapY - 18, PIPE_WIDTH + 8, 18);
+    // cano de baixo
+    const bottomY = p.gapY + PIPE_GAP;
+    ctx.fillRect(p.x, bottomY, PIPE_WIDTH, BASE_H - bottomY);
+    ctx.strokeRect(p.x, bottomY, PIPE_WIDTH, BASE_H - bottomY);
+    ctx.fillRect(p.x - 4, bottomY, PIPE_WIDTH + 8, 18);
+    ctx.strokeRect(p.x - 4, bottomY, PIPE_WIDTH + 8, 18);
+  });
+
+  // Pidgey (formas simples, sem sprite externo)
+  ctx.save();
+  ctx.translate(bird.x, bird.y);
+  ctx.rotate(bird.rot);
+  // corpo
+  ctx.fillStyle = '#C9A66B';
+  ctx.beginPath(); ctx.ellipse(0, 0, 14, 11, 0, 0, Math.PI*2); ctx.fill();
+  // barriga
+  ctx.fillStyle = '#F5E6C8';
+  ctx.beginPath(); ctx.ellipse(-2, 3, 9, 6, 0, 0, Math.PI*2); ctx.fill();
+  // asa
+  const wingFlap = started ? Math.sin(performance.now() / 60) * 6 : 0;
+  ctx.fillStyle = '#A9835A';
+  ctx.beginPath();
+  ctx.ellipse(-2, wingFlap, 8, 5, 0.3, 0, Math.PI*2);
+  ctx.fill();
+  // cabeça
+  ctx.fillStyle = '#C9A66B';
+  ctx.beginPath(); ctx.arc(10, -6, 8, 0, Math.PI*2); ctx.fill();
+  // crista
+  ctx.fillStyle = '#8B5E3C';
+  ctx.beginPath();
+  ctx.moveTo(8, -13); ctx.lineTo(11, -20); ctx.lineTo(13, -12);
+  ctx.fill();
+  // olho
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(13, -7, 1.8, 0, Math.PI*2); ctx.fill();
+  // bico
+  ctx.fillStyle = '#E8A93C';
+  ctx.beginPath();
+  ctx.moveTo(17, -5); ctx.lineTo(24, -3); ctx.lineTo(17, -1);
+  ctx.fill();
+  ctx.restore();
+
+  if (!started && !gameOver) {
+    ctx.fillStyle = 'rgba(26,26,26,0.55)';
+    ctx.font = "600 13px 'Nunito', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText('Toque para começar', BASE_W/2, BASE_H/2 - 30);
+  }
+}
+
+async function triggerGameOver() {
+  if (gameOver) return;
+  gameOver = true;
+  cancelAnimationFrame(rafId);
+  document.getElementById('gf-final-score').textContent = score;
+  document.getElementById('gf-overlay').classList.add('show');
+  await gSaveScore('flapidgey', score, user);
+  refreshLeaderboard();
+  refreshBest();
+}
+
+function loop(ts) {
+  if (gameOver) return;
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.033, (ts - lastTs) / 1000);
+  lastTs = ts;
+  update(dt);
+  draw();
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── Controles ──────────────────────────────────────────
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (gameOver) return;
+  flap();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (gameOver) return;
+    flap();
+  }
+});
+document.getElementById('gf-restart-btn').addEventListener('click', resetGame);
+
+// ── Sizing responsivo (canvas lógico fixo, escala visual via CSS) ──
+function resize() {
+  const maxW = Math.min(window.innerWidth - 20, 380);
+  const maxH = window.innerHeight - 52 - 190;
+  scale = Math.min(maxW / BASE_W, maxH / BASE_H, 1.3);
+  scale = Math.max(0.6, scale);
+  canvas.width = BASE_W; canvas.height = BASE_H;
+  canvas.style.width = (BASE_W * scale) + 'px';
+  canvas.style.height = (BASE_H * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+
+// ── Ranking ────────────────────────────────────────────
+async function refreshLeaderboard() {
+  const el = document.getElementById('gf-leaderboard');
+  const top = await gLoadTopScores('flapidgey', 5);
+  if (top.length === 0) {
+    el.innerHTML = '<div class="gf-lb-empty">Nenhum recorde ainda.</div>';
+    return;
+  }
+  el.innerHTML = top.map((row, i) => `
+    <div class="gf-lb-row">
+      <span class="gf-lb-pos">${i+1}º</span>
+      <span class="gf-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="gf-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+
+async function refreshBest() {
+  if (!user) return;
+  best = await gLoadMyBest('flapidgey', user.id);
+  document.getElementById('gf-best').textContent = best || '–';
+}
+
+// ── Boot ─────────────────────────────────────────────────
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  resize();
+  resetGame();
+  refreshLeaderboard();
+  refreshBest();
+})();
+</script>
+</body>
+</html>
