@@ -10,8 +10,8 @@
 <style>
   *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
   html,body{
-    margin:0;height:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
-    overflow:hidden;
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
+    overflow:hidden;position:fixed;inset:0;
   }
   :root{
     --brand:#b71c1c;--brand-mid:#e53935;--accent:#fdd835;--border:#e0e0e0;--muted:#6b7280;
@@ -33,6 +33,11 @@
   #gf-canvas{
     background:linear-gradient(#8fc8f7,#c9e8ff);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.2);
     touch-action:none;max-width:100%;
+  }
+  .gf-canvas-wrap{position:relative;max-width:100%}
+  #gf-bird-sprite{
+    position:absolute;pointer-events:none;display:none;
+    image-rendering:pixelated;transform-origin:center center;
   }
   .gf-hud{display:flex;gap:22px;align-items:center}
   .gf-hud-item{text-align:center}
@@ -67,7 +72,7 @@
 <body>
 
 <nav class="gf-nav">
-  <a class="gf-back" href="jogos.html">
+  <a class="gf-back" href="jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     Jogos
   </a>
@@ -85,15 +90,17 @@
       <div class="gf-hud-label">Recorde</div>
       <div class="gf-hud-value" id="gf-best" style="font-size:16px">–</div>
     </div>
+    <div class="gf-hud-item">
+      <div class="gf-hud-label">Vidas</div>
+      <div class="gf-hud-value" id="gf-lives" style="font-size:16px">🛡 0</div>
+    </div>
   </div>
 
-  <canvas id="gf-canvas"></canvas>
+  <div class="gf-canvas-wrap">
+    <canvas id="gf-canvas"></canvas>
+    <img id="gf-bird-sprite" alt="">
+  </div>
   <div class="gf-hint">Toque na tela ou aperte espaço para bater as asas</div>
-
-  <div class="gf-lb">
-    <div class="gf-lb-title">Top treinadores</div>
-    <div id="gf-leaderboard"><div class="gf-lb-empty">Carregando...</div></div>
-  </div>
 </div>
 
 <div class="gf-overlay" id="gf-overlay">
@@ -101,6 +108,10 @@
     <h2 id="gf-overlay-title">Ele bateu num cano!</h2>
     <p>Sua pontuação foi registrada no ranking.</p>
     <div class="gf-final-score" id="gf-final-score">0</div>
+    <div class="gf-lb" style="text-align:left;margin-bottom:16px">
+      <div class="gf-lb-title">Top treinadores</div>
+      <div id="gf-leaderboard"><div class="gf-lb-empty">Carregando...</div></div>
+    </div>
     <button class="gf-btn" id="gf-restart-btn">Jogar novamente</button>
   </div>
 </div>
@@ -113,6 +124,45 @@
 
 const canvas = document.getElementById('gf-canvas');
 const ctx = canvas.getContext('2d');
+const birdSpriteEl = document.getElementById('gf-bird-sprite');
+
+// ── Sprite do Pidgey (customizável) ─────────────────────
+// Pra trocar a imagem/GIF do pássaro, troca a URL abaixo OU, sem editar
+// código, guarda a URL na tabela `settings` do Supabase com a chave
+// 'flapidgey_sprite' (mesmo padrão usado por network_logo/splash_gif):
+//   insert into settings (key, value) values ('flapidgey_sprite', 'https://.../pidgey.gif')
+//   on conflict (key) do update set value = excluded.value;
+// Se nenhuma das duas estiver definida, cai no desenho vetorial original.
+const FLAPIDGEY_SPRITE_URL = ''; // ex: 'https://.../pidgey.gif' — deixe vazio para usar o Supabase ou o desenho padrão
+const BIRD_SPRITE_SIZE = 34; // tamanho do sprite em px (na resolução lógica do canvas)
+let birdSpriteReady = false;
+
+async function loadBirdSprite() {
+  let url = FLAPIDGEY_SPRITE_URL;
+  if (!url) {
+    try {
+      const { data, error } = await gdb.from('settings').select('value').eq('key', 'flapidgey_sprite').maybeSingle();
+      if (error) console.warn('[loadBirdSprite] erro ao buscar sprite', error);
+      if (data && data.value) url = data.value;
+    } catch (e) { console.warn('[loadBirdSprite]', e); }
+  }
+  if (!url) return; // sem sprite configurado: mantém o desenho vetorial
+  birdSpriteEl.src = url;
+  birdSpriteEl.onload = () => {
+    birdSpriteEl.style.display = 'block';
+    birdSpriteEl.style.width = BIRD_SPRITE_SIZE * scale + 'px';
+    birdSpriteEl.style.height = BIRD_SPRITE_SIZE * scale + 'px';
+    birdSpriteReady = true;
+  };
+  birdSpriteEl.onerror = () => { birdSpriteReady = false; birdSpriteEl.style.display = 'none'; };
+}
+
+function updateBirdSpritePosition() {
+  if (!birdSpriteReady) return;
+  const x = bird.x * scale - (BIRD_SPRITE_SIZE * scale) / 2;
+  const y = bird.y * scale - (BIRD_SPRITE_SIZE * scale) / 2;
+  birdSpriteEl.style.transform = `translate(${x}px, ${y}px) rotate(${bird.rot}rad)`;
+}
 
 const BASE_W = 320, BASE_H = 480;
 let scale = 1;
@@ -123,18 +173,96 @@ const PIPE_GAP = 130;
 const PIPE_WIDTH = 52;
 const PIPE_SPEED = 130;    // px/s
 const PIPE_INTERVAL = 1500; // ms
+const PIPE_SCORE = 5;      // pontos ganhos ao passar de cada cano
+const HIT_INVULN_TIME = 1; // segundos de proteção após usar uma vida da sitrus berry
 
-let bird, pipes, score, best, gameOver, started, user, lastTs, pipeTimer, rafId;
+// ── Berries coletáveis ──────────────────────────────────
+// "chance" = probabilidade de aparecer em cada "slot" de spawn (a cada
+// ~1.5s, defasado dos canos). Raridade: enigma (raríssima) < sitrus
+// (rara) < oran (incomum). Ajuste os números aqui pra recalibrar.
+const BERRY_TYPES = {
+  oran:   { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png',   color: '#3f7fd1', chance: 0.12, points: 10 },
+  sitrus: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png', color: '#f2a33c', chance: 0.04, life: 1   },
+  enigma: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/enigma-berry.png', color: '#6b3fa0', chance: 0.01, points: 25 },
+};
+const BERRY_SIZE = 22;
+const BERRY_R = 11;
+const BERRY_SLOT_INTERVAL = PIPE_INTERVAL;
+
+const berryImgs = {};
+Object.keys(BERRY_TYPES).forEach(key => {
+  const img = new Image();
+  berryImgs[key] = { img, ready: false };
+  img.onload  = () => { berryImgs[key].ready = true; };
+  img.onerror = () => { berryImgs[key].ready = false; };
+  img.src = BERRY_TYPES[key].sprite;
+});
+
+// Sorteia, na ordem mais rara → mais comum, qual berry aparece nesse
+// slot (ou nenhuma). Ex.: r < 0.01 → enigma; r < 0.05 → sitrus;
+// r < 0.17 → oran; senão, nada aparece nesse slot.
+function rollBerryType() {
+  const r = Math.random();
+  let acc = 0;
+  for (const key of ['enigma', 'sitrus', 'oran']) {
+    acc += BERRY_TYPES[key].chance;
+    if (r < acc) return key;
+  }
+  return null;
+}
+
+function drawBerryFallback(b) {
+  const color = BERRY_TYPES[b.type].color;
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.ellipse(0, 2, BERRY_R, BERRY_R - 1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath(); ctx.ellipse(-3, -1, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#3d7a2e';
+  ctx.beginPath(); ctx.ellipse(0, -BERRY_R + 1, 3, 5, 0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function updateLivesHUD() {
+  document.getElementById('gf-lives').textContent = `🛡 ${lives}`;
+}
+
+function addPopup(x, y, text, color) {
+  popups.push({ x, y, text, color, life: 0.9 });
+}
+
+function collectBerry(b) {
+  const info = BERRY_TYPES[b.type];
+  if (info.points) {
+    score += info.points;
+    document.getElementById('gf-score').textContent = score;
+    addPopup(b.x, b.y, `+${info.points}`, info.color);
+  }
+  if (info.life) {
+    lives += info.life;
+    updateLivesHUD();
+    addPopup(b.x, b.y, `+${info.life} 🛡`, info.color);
+  }
+}
+
+let bird, pipes, berries, popups, score, lives, invulnerable, best, gameOver, started, user, lastTs, pipeTimer, berryTimer, rafId;
 
 function resetGame() {
   bird = { x: 70, y: BASE_H / 2, vy: 0, rot: 0 };
   pipes = [];
+  berries = [];
+  popups = [];
   score = 0;
+  lives = 0;
+  invulnerable = 0;
   gameOver = false;
   started = false;
   pipeTimer = 0;
+  berryTimer = -BERRY_SLOT_INTERVAL / 2; // defasa o spawn de berries em relação ao dos canos
   lastTs = 0;
   document.getElementById('gf-score').textContent = '0';
+  updateLivesHUD();
   document.getElementById('gf-overlay').classList.remove('show');
   cancelAnimationFrame(rafId);
   draw();
@@ -153,11 +281,21 @@ function spawnPipe() {
   pipes.push({ x: BASE_W, gapY, passed: false });
 }
 
+function maybeSpawnBerry() {
+  const type = rollBerryType();
+  if (!type) return;
+  const margin = 46;
+  const y = margin + Math.random() * (BASE_H - margin * 2);
+  berries.push({ x: BASE_W, y, type });
+}
+
 function update(dt) {
   if (!started) return;
   bird.vy += GRAVITY * dt;
   bird.y += bird.vy * dt;
   bird.rot = Math.max(-0.5, Math.min(1.1, bird.vy / 500));
+
+  if (invulnerable > 0) invulnerable -= dt;
 
   pipeTimer += dt * 1000;
   if (pipeTimer > PIPE_INTERVAL) {
@@ -165,32 +303,67 @@ function update(dt) {
     spawnPipe();
   }
 
+  berryTimer += dt * 1000;
+  if (berryTimer > BERRY_SLOT_INTERVAL) {
+    berryTimer -= BERRY_SLOT_INTERVAL;
+    maybeSpawnBerry();
+  }
+
   pipes.forEach(p => p.x -= PIPE_SPEED * dt);
   pipes = pipes.filter(p => p.x > -PIPE_WIDTH);
 
-  // pontuação
+  berries.forEach(b => b.x -= PIPE_SPEED * dt);
+  berries = berries.filter(b => b.x > -BERRY_SIZE);
+
+  popups.forEach(p => { p.y -= 40 * dt; p.life -= dt; });
+  popups = popups.filter(p => p.life > 0);
+
+  // pontuação dos canos
   pipes.forEach(p => {
     if (!p.passed && p.x + PIPE_WIDTH < bird.x) {
       p.passed = true;
-      score++;
+      score += PIPE_SCORE;
       document.getElementById('gf-score').textContent = score;
     }
   });
 
-  // colisão com chão/teto
+  // coleta de berries
+  const BIRD_R = 12;
+  for (let i = berries.length - 1; i >= 0; i--) {
+    const b = berries[i];
+    const dx = bird.x - b.x, dy = bird.y - b.y;
+    if (Math.hypot(dx, dy) < BIRD_R + BERRY_R) {
+      collectBerry(b);
+      berries.splice(i, 1);
+    }
+  }
+
+  // colisão com chão/teto — sempre fatal, mesmo com vidas da sitrus berry
   if (bird.y < -10 || bird.y > BASE_H - 10) {
     triggerGameOver();
     return;
   }
 
   // colisão com canos
-  const BIRD_R = 12;
-  for (const p of pipes) {
-    const withinX = bird.x + BIRD_R > p.x && bird.x - BIRD_R < p.x + PIPE_WIDTH;
-    if (withinX) {
-      const hitsTop = bird.y - BIRD_R < p.gapY;
-      const hitsBottom = bird.y + BIRD_R > p.gapY + PIPE_GAP;
-      if (hitsTop || hitsBottom) { triggerGameOver(); return; }
+  if (invulnerable <= 0) {
+    for (const p of pipes) {
+      const withinX = bird.x + BIRD_R > p.x && bird.x - BIRD_R < p.x + PIPE_WIDTH;
+      if (withinX) {
+        const hitsTop = bird.y - BIRD_R < p.gapY;
+        const hitsBottom = bird.y + BIRD_R > p.gapY + PIPE_GAP;
+        if (hitsTop || hitsBottom) {
+          if (lives > 0) {
+            lives--;
+            updateLivesHUD();
+            invulnerable = HIT_INVULN_TIME;
+            bird.vy = FLAP_VELOCITY * 0.6;
+            addPopup(bird.x, bird.y - 16, 'Protegido!', '#f2a33c');
+          } else {
+            triggerGameOver();
+          }
+          return;
+        }
+      }
     }
   }
 }
@@ -222,39 +395,65 @@ function draw() {
     ctx.strokeRect(p.x - 4, bottomY, PIPE_WIDTH + 8, 18);
   });
 
-  // Pidgey (formas simples, sem sprite externo)
-  ctx.save();
-  ctx.translate(bird.x, bird.y);
-  ctx.rotate(bird.rot);
-  // corpo
-  ctx.fillStyle = '#C9A66B';
-  ctx.beginPath(); ctx.ellipse(0, 0, 14, 11, 0, 0, Math.PI*2); ctx.fill();
-  // barriga
-  ctx.fillStyle = '#F5E6C8';
-  ctx.beginPath(); ctx.ellipse(-2, 3, 9, 6, 0, 0, Math.PI*2); ctx.fill();
-  // asa
-  const wingFlap = started ? Math.sin(performance.now() / 60) * 6 : 0;
-  ctx.fillStyle = '#A9835A';
-  ctx.beginPath();
-  ctx.ellipse(-2, wingFlap, 8, 5, 0.3, 0, Math.PI*2);
-  ctx.fill();
-  // cabeça
-  ctx.fillStyle = '#C9A66B';
-  ctx.beginPath(); ctx.arc(10, -6, 8, 0, Math.PI*2); ctx.fill();
-  // crista
-  ctx.fillStyle = '#8B5E3C';
-  ctx.beginPath();
-  ctx.moveTo(8, -13); ctx.lineTo(11, -20); ctx.lineTo(13, -12);
-  ctx.fill();
-  // olho
-  ctx.fillStyle = '#1a1a1a';
-  ctx.beginPath(); ctx.arc(13, -7, 1.8, 0, Math.PI*2); ctx.fill();
-  // bico
-  ctx.fillStyle = '#E8A93C';
-  ctx.beginPath();
-  ctx.moveTo(17, -5); ctx.lineTo(24, -3); ctx.lineTo(17, -1);
-  ctx.fill();
-  ctx.restore();
+  // berries coletáveis
+  berries.forEach(b => {
+    const spriteInfo = berryImgs[b.type];
+    if (spriteInfo && spriteInfo.ready) {
+      ctx.drawImage(spriteInfo.img, b.x - BERRY_SIZE / 2, b.y - BERRY_SIZE / 2, BERRY_SIZE, BERRY_SIZE);
+    } else {
+      drawBerryFallback(b);
+    }
+  });
+
+  // Pidgey — desenho vetorial padrão (só usado quando não há sprite/gif
+  // customizado configurado; ver loadBirdSprite() e updateBirdSpritePosition())
+  if (!birdSpriteReady) {
+    ctx.save();
+    ctx.translate(bird.x, bird.y);
+    ctx.rotate(bird.rot);
+    // corpo
+    ctx.fillStyle = '#C9A66B';
+    ctx.beginPath(); ctx.ellipse(0, 0, 14, 11, 0, 0, Math.PI*2); ctx.fill();
+    // barriga
+    ctx.fillStyle = '#F5E6C8';
+    ctx.beginPath(); ctx.ellipse(-2, 3, 9, 6, 0, 0, Math.PI*2); ctx.fill();
+    // asa
+    const wingFlap = started ? Math.sin(performance.now() / 60) * 6 : 0;
+    ctx.fillStyle = '#A9835A';
+    ctx.beginPath();
+    ctx.ellipse(-2, wingFlap, 8, 5, 0.3, 0, Math.PI*2);
+    ctx.fill();
+    // cabeça
+    ctx.fillStyle = '#C9A66B';
+    ctx.beginPath(); ctx.arc(10, -6, 8, 0, Math.PI*2); ctx.fill();
+    // crista
+    ctx.fillStyle = '#8B5E3C';
+    ctx.beginPath();
+    ctx.moveTo(8, -13); ctx.lineTo(11, -20); ctx.lineTo(13, -12);
+    ctx.fill();
+    // olho
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(13, -7, 1.8, 0, Math.PI*2); ctx.fill();
+    // bico
+    ctx.fillStyle = '#E8A93C';
+    ctx.beginPath();
+    ctx.moveTo(17, -5); ctx.lineTo(24, -3); ctx.lineTo(17, -1);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    updateBirdSpritePosition();
+  }
+
+  // popups de feedback ("+10", "Protegido!" etc)
+  popups.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life / 0.9);
+    ctx.fillStyle = p.color || '#1a1a1a';
+    ctx.font = "800 13px 'Nunito', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText(p.text, p.x, p.y);
+    ctx.restore();
+  });
 
   if (!started && !gameOver) {
     ctx.fillStyle = 'rgba(26,26,26,0.55)';
@@ -263,6 +462,7 @@ function draw() {
     ctx.fillText('Toque para começar', BASE_W/2, BASE_H/2 - 30);
   }
 }
+
 
 async function triggerGameOver() {
   if (gameOver) return;
@@ -302,15 +502,31 @@ document.getElementById('gf-restart-btn').addEventListener('click', resetGame);
 
 // ── Sizing responsivo (canvas lógico fixo, escala visual via CSS) ──
 function resize() {
+  const nav = document.querySelector('.gf-nav');
+  const hud = document.querySelector('.gf-hud');
+  const hint = document.querySelector('.gf-hint');
+  const navH = nav ? nav.getBoundingClientRect().height : 52;
+  const hudH = hud ? hud.getBoundingClientRect().height + 10 : 0;
+  const hintH = hint ? hint.getBoundingClientRect().height + 10 : 0;
+  const wrapPadding = 28;
+
   const maxW = Math.min(window.innerWidth - 20, 380);
-  const maxH = window.innerHeight - 52 - 190;
+  const maxH = window.innerHeight - navH - hudH - hintH - wrapPadding;
   scale = Math.min(maxW / BASE_W, maxH / BASE_H, 1.3);
-  scale = Math.max(0.6, scale);
+  scale = Math.max(0.5, scale);
   canvas.width = BASE_W; canvas.height = BASE_H;
   canvas.style.width = (BASE_W * scale) + 'px';
   canvas.style.height = (BASE_H * scale) + 'px';
+
+  if (birdSpriteReady) {
+    birdSpriteEl.style.width = BIRD_SPRITE_SIZE * scale + 'px';
+    birdSpriteEl.style.height = BIRD_SPRITE_SIZE * scale + 'px';
+    updateBirdSpritePosition();
+  }
 }
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
 
 // ── Ranking ────────────────────────────────────────────
 async function refreshLeaderboard() {
@@ -335,12 +551,22 @@ async function refreshBest() {
 }
 
 // ── Boot ─────────────────────────────────────────────────
+function tryEnterFullscreenNow() {
+  try {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen) return;
+    el.requestFullscreen().catch(() => {}); // sem gesto de usuário disponível: ignora, cai no fallback do 1º toque
+  } catch (e) {}
+}
+
 (async function boot() {
   user = await gRequireSession();
   if (!user) return;
+  tryEnterFullscreenNow();
+  gSetupFullscreenOnFirstInteraction();
   resize();
   resetGame();
-  refreshLeaderboard();
+  loadBirdSprite();
   refreshBest();
 })();
 </script>
