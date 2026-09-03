@@ -174,7 +174,8 @@ function updateBirdSpritePosition() {
   birdSpriteEl.style.transform = `translate(${x}px, ${y}px) rotate(${bird.rot}rad)`;
 }
 
-const BASE_W = 320, BASE_H = 480;
+const BASE_W = 320;
+let BASE_H = 480;
 let scale = 1;
 
 const GRAVITY = 1400;      // px/s²
@@ -510,7 +511,19 @@ document.addEventListener('keydown', (e) => {
 });
 document.getElementById('gf-restart-btn').addEventListener('click', resetGame);
 
-// ── Sizing responsivo (canvas lógico fixo, escala visual via CSS) ──
+// ── Sizing responsivo (canvas lógico se adapta à proporção da tela,
+// escala visual via CSS) ──
+let baseSized = false;
+
+function computeBaseDims(maxW, maxH) {
+  // Recalcula a altura lógica do jogo (BASE_H) pra bater com a proporção
+  // real da área disponível, evitando sobras/faixas em branco em cima e
+  // embaixo do canvas. Só roda antes do jogo começar pra não distorcer
+  // uma partida em andamento.
+  const ratio = maxH / maxW;
+  BASE_H = Math.round(Math.max(420, Math.min(900, BASE_W * ratio)));
+}
+
 function resize() {
   const nav = document.querySelector('.gf-nav');
   const navH = nav ? nav.getBoundingClientRect().height : 52;
@@ -518,7 +531,13 @@ function resize() {
 
   const maxW = window.innerWidth - wrapPadding;
   const maxH = window.innerHeight - navH - wrapPadding;
-  scale = Math.min(maxW / BASE_W, maxH / BASE_H, 1.6);
+
+  if (!baseSized || (!started && !gameOver)) {
+    computeBaseDims(maxW, maxH);
+    baseSized = true;
+  }
+
+  scale = Math.min(maxW / BASE_W, maxH / BASE_H);
   scale = Math.max(0.5, scale);
   canvas.width = BASE_W; canvas.height = BASE_H;
   canvas.style.width = (BASE_W * scale) + 'px';
