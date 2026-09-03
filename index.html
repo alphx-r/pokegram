@@ -2729,6 +2729,7 @@ a:focus, a:active,
           <button class="adm-snav-btn" onclick="admTab(this,'kp-vinculos')">🔗 Vínculos KP</button>
           <button class="adm-snav-btn" onclick="admTab(this,'crescimento')">🚀 Crescimento Automático</button>
           <button class="adm-snav-btn" onclick="admTab(this,'sticker-log')">🎉 Stickers Evento</button>
+          <button class="adm-snav-btn" onclick="admTab(this,'jogos')">🎮 Jogos</button>
           <div class="adm-snav-sep"></div>
           <button class="adm-snav-btn" onclick="admTab(this,'senha-adm')">🔑 Minha Senha</button>
           <button class="adm-snav-btn" onclick="admTab(this,'imagens')">🖼 Imagens Pokégram</button>
@@ -3049,6 +3050,19 @@ a:focus, a:active,
               </table>
             </div>
             <div id="sticker-log-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Carregando...</div>
+          </div>
+
+          <!-- JOGOS -->
+          <div class="adm-section" id="sec-jogos">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <div>
+                <div class="adm-sec-title">Jogos</div>
+                <div class="adm-sec-sub">Campeões da semana e ranking geral dos minijogos do Pokégram. A semana começa todo domingo, 00:00 (horário de Brasília).</div>
+              </div>
+              <button class="adm-btn adm-btn-sm" onclick="carregarJogosAdm()" style="background:var(--surface2)">↺ Atualizar</button>
+            </div>
+
+            <div id="jg-games-wrap"></div>
           </div>
 
           <!-- MINHA SENHA -->
@@ -5701,6 +5715,7 @@ function admTab(btn, id) {
   if (id === 'gerador') geradorInit();
   if (id === 'automacao') automacaoInit();
   if (id === 'instrucoes') admInstrLoad();
+  if (id === 'jogos') carregarJogosAdm();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -6887,6 +6902,151 @@ async function salvarCrescimento() {
   } catch(e) {
     errEl.textContent = 'Erro ao salvar: ' + (e.message || e);
     errEl.style.display = 'block';
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  ABA ADM — JOGOS (campeões semanais + ranking geral)
+// ══════════════════════════════════════════════════════════
+
+// Lista de jogos exibidos na aba. Para adicionar um novo jogo (ex.: um
+// futuro "flapidgey"), basta incluir aqui — desde que ele grave suas
+// pontuações na tabela game_scores com esse mesmo valor em "game".
+const JG_GAMES = [
+  { key: 'tetris',    label: '🧱 Tetris'    },
+  { key: 'flapidgey', label: '🐦 flaPidgey' },
+];
+
+// Brasília não usa mais horário de verão desde 2019, então o offset
+// fixo (UTC-3) é seguro para calcular os limites da semana.
+const JG_BRT_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+// Retorna { start, end } (objetos Date, em UTC) da semana que contém
+// refDate, considerando que a semana começa no domingo 00:00 no
+// horário de Brasília. "end" é exclusivo.
+function jgWeekBoundsBrasilia(refDate) {
+  const shifted = new Date((refDate || new Date()).getTime() - JG_BRT_OFFSET_MS);
+  const weekday = shifted.getUTCDay(); // 0 = domingo
+  const startShifted = new Date(Date.UTC(
+    shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate() - weekday, 0, 0, 0, 0
+  ));
+  const start = new Date(startShifted.getTime() + JG_BRT_OFFSET_MS);
+  const end   = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return { start, end };
+}
+
+function jgFmtWeekRange(bounds) {
+  const opts = { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' };
+  const fim = new Date(bounds.end.getTime() - 1);
+  return `${bounds.start.toLocaleDateString('pt-BR', opts)} – ${fim.toLocaleDateString('pt-BR', opts)}`;
+}
+
+// Maior pontuação registrada para um jogo dentro de um intervalo [start, end).
+async function jgTopScoreInRange(game, startISO, endISO) {
+  const { data, error } = await db
+    .from('game_scores')
+    .select('score, author_name, author_color, author_avatar, user_id, created_at')
+    .eq('game', game)
+    .gte('created_at', startISO)
+    .lt('created_at', endISO)
+    .order('score', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return (data && data[0]) || null;
+}
+
+// Top N (por jogador único, melhor score) de todos os tempos.
+async function jgTopAllTime(game, limit) {
+  limit = limit || 10;
+  const { data, error } = await db
+    .from('game_scores')
+    .select('score, author_name, author_color, author_avatar, user_id')
+    .eq('game', game)
+    .order('score', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  const seen = new Set(); const top = [];
+  for (const row of (data || [])) {
+    if (seen.has(row.user_id)) continue;
+    seen.add(row.user_id);
+    top.push(row);
+    if (top.length >= limit) break;
+  }
+  return top;
+}
+
+function jgChampionCardHTML(row) {
+  if (!row) return `<div style="padding:14px;color:var(--muted);font-size:13px;text-align:center;background:var(--surface2);border-radius:12px">Ninguém pontuou nesse período ainda.</div>`;
+  const u = { username: row.author_name || 'Jogador', color: row.author_color, avatar_url: row.author_avatar };
+  return `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:12px">
+      ${avatarHTML(u, 44)}
+      <div style="min-width:0">
+        <div style="font-weight:800;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.username)}</div>
+        <div style="font-size:12px;color:var(--muted)">🏆 ${row.score.toLocaleString('pt-BR')} pontos</div>
+      </div>
+    </div>`;
+}
+
+function jgTop10RowsHTML(rows) {
+  if (!rows.length) return `<tr><td colspan="3" style="text-align:center;color:var(--muted)">Sem pontuações registradas ainda.</td></tr>`;
+  return rows.map((row, i) => {
+    const u = { username: row.author_name || 'Jogador', color: row.author_color, avatar_url: row.author_avatar };
+    return `<tr>
+      <td style="font-weight:800;color:var(--muted);width:30px">#${i + 1}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">${avatarHTML(u, 26)}<span>${esc(u.username)}</span></div></td>
+      <td style="font-weight:700">${row.score.toLocaleString('pt-BR')}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function carregarJogosAdm() {
+  const wrap = document.getElementById('jg-games-wrap');
+  wrap.innerHTML = JG_GAMES.map(g => `
+    <div class="adm-box" id="jg-box-${g.key}">
+      <div class="adm-box-title">${g.label}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🏆 Campeão da semana atual <span id="jg-${g.key}-cur-range"></span></div>
+          <div id="jg-${g.key}-current">Carregando...</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📅 Campeão da semana passada <span id="jg-${g.key}-last-range"></span></div>
+          <div id="jg-${g.key}-last">Carregando...</div>
+        </div>
+      </div>
+      <div class="adm-table-wrap">
+        <table class="adm-table">
+          <thead><tr><th></th><th>Jogador</th><th>Pontuação</th></tr></thead>
+          <tbody id="jg-${g.key}-top10"><tr><td colspan="3" style="text-align:center;color:var(--muted)">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  `).join('');
+
+  const now = new Date();
+  const thisWeek = jgWeekBoundsBrasilia(now);
+  const lastWeek  = jgWeekBoundsBrasilia(new Date(thisWeek.start.getTime() - 1));
+
+  document.querySelectorAll('[id^="jg-"][id$="-cur-range"]').forEach(el => el.textContent = `(${jgFmtWeekRange(thisWeek)})`);
+  document.querySelectorAll('[id^="jg-"][id$="-last-range"]').forEach(el => el.textContent = `(${jgFmtWeekRange(lastWeek)})`);
+
+  for (const g of JG_GAMES) {
+    try {
+      const [current, last, top10] = await Promise.all([
+        jgTopScoreInRange(g.key, thisWeek.start.toISOString(), thisWeek.end.toISOString()),
+        jgTopScoreInRange(g.key, lastWeek.start.toISOString(), lastWeek.end.toISOString()),
+        jgTopAllTime(g.key, 10),
+      ]);
+      document.getElementById(`jg-${g.key}-current`).innerHTML = jgChampionCardHTML(current);
+      document.getElementById(`jg-${g.key}-last`).innerHTML    = jgChampionCardHTML(last);
+      document.getElementById(`jg-${g.key}-top10`).innerHTML   = jgTop10RowsHTML(top10);
+    } catch (e) {
+      console.warn('[carregarJogosAdm]', g.key, e);
+      document.getElementById(`jg-${g.key}-current`).innerHTML = `<div style="color:var(--muted);font-size:13px">Erro ao carregar.</div>`;
+      document.getElementById(`jg-${g.key}-last`).innerHTML    = `<div style="color:var(--muted);font-size:13px">Erro ao carregar.</div>`;
+      document.getElementById(`jg-${g.key}-top10`).innerHTML   = `<tr><td colspan="3" style="text-align:center;color:var(--muted)">Erro ao carregar.</td></tr>`;
+    }
   }
 }
 
