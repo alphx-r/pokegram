@@ -90,6 +90,7 @@
   .gj-avatar{cursor:pointer}
 
   .gj-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px}
+  .gj-modal-overlay[hidden]{display:none}
   .gj-modal{background:#fff;border-radius:16px;max-width:360px;width:100%;padding:22px 20px;max-height:80vh;overflow-y:auto;position:relative}
   .gj-modal-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1}
   .gj-modal-title{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);margin:0 0 4px;text-align:center}
@@ -221,11 +222,18 @@
     return { start, end };
   }
 
+  // O botão "Ranking" (por jogo) só faz sentido no dia em que a semana
+  // vira/anuncia os vencedores — só aparece aos domingos, resto da
+  // semana fica escondido.
+  function isSundayBrasilia() {
+    const shifted = new Date(Date.now() - GJ_BRT_OFFSET_MS);
+    return shifted.getUTCDay() === 0;
+  }
+
   // Esconde da tela os jogos marcados como "escondido" no admin (aba
   // Jogos → botão "Esconder jogo"). Mesma chave usada lá: settings.hidden_games,
   // um array JSON de chaves de jogo (ex: ["tetris"]).
-  async function applyHiddenGames() {
-    try {
+  async function applyHiddenGames() {    try {
       const { data, error } = await db.from('settings').select('value').eq('key', 'hidden_games').maybeSingle();
       if (error) throw error;
       const hidden = (data && data.value) ? JSON.parse(data.value) : [];
@@ -275,6 +283,10 @@
 
     await applyHiddenGames();
     await applyGameCovers();
+
+    if (!isSundayBrasilia()) {
+      document.querySelectorAll('.gj-rank-btn').forEach(btn => btn.hidden = true);
+    }
 
     document.getElementById('gj-loading').style.display = 'none';
     document.getElementById('gj-app').style.display = 'block';
