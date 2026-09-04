@@ -1306,6 +1306,13 @@ a:focus, a:active,
 }
 .sv-react-btn.sv-react-sent { animation: sv-react-pop .35s ease; }
 
+@keyframes sv-cta-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.sv-cta-btn { animation: sv-cta-bounce 1.7s ease-in-out infinite; }
+.sv-cta-btn:active { animation: none; transform: scale(.96); }
+
 /* ══════════════════════════════════════════
    MODAL DE INSTRUÇÕES (onboarding)
 ══════════════════════════════════════════ */
@@ -2452,6 +2459,13 @@ a:focus, a:active,
           <div id="sv-reply-sent-emoji" style="font-size:36px;line-height:1"></div>
           <div id="sv-reply-sent-text" style="color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;text-align:center;opacity:.92"></div>
         </div>
+      </div>
+
+      <!-- CTA de link — aparece quando o story tem um link anexado (ex: convite pra jogar) -->
+      <div id="sv-cta-wrap" style="display:none;position:absolute;left:0;right:0;bottom:96px;z-index:9;justify-content:center;pointer-events:none">
+        <button id="sv-cta-btn" class="sv-cta-btn" onclick="storyGoToLink()" style="pointer-events:auto;background:rgba(255,255,255,.96);color:#111;border:none;border-radius:999px;padding:12px 22px;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.35)">
+          <span>🎮</span><span id="sv-cta-label">Jogar agora</span>
+        </button>
       </div>
 
       <!-- Barra de comentário — dentro do sv-container, sempre dentro da área do story -->
@@ -7005,7 +7019,13 @@ async function carregarJogosAdm() {
   const wrap = document.getElementById('jg-games-wrap');
   wrap.innerHTML = JG_GAMES.map(g => `
     <div class="adm-box" id="jg-box-${g.key}">
-      <div class="adm-box-title">${g.label}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="adm-box-title" style="margin-bottom:0">
+          ${g.label}
+          <span id="jg-hidden-badge-${g.key}" style="display:none;font-size:11px;font-weight:700;color:#c0392b;background:#fdecea;padding:2px 9px;border-radius:10px;margin-left:8px;vertical-align:middle">Escondido</span>
+        </div>
+        <button class="adm-btn adm-btn-sm" id="jg-hide-btn-${g.key}" onclick="jgToggleHidden('${g.key}')">🙈 Esconder jogo</button>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🏆 Campeão da semana atual <span id="jg-${g.key}-cur-range"></span></div>
@@ -7024,6 +7044,9 @@ async function carregarJogosAdm() {
       </div>
     </div>
   `).join('');
+
+  await jgLoadHiddenGames();
+  JG_GAMES.forEach(g => jgUpdateHiddenUI(g.key));
 
   const now = new Date();
   const thisWeek = jgWeekBoundsBrasilia(now);
@@ -7048,6 +7071,58 @@ async function carregarJogosAdm() {
       document.getElementById(`jg-${g.key}-last`).innerHTML    = `<div style="color:var(--muted);font-size:13px">Erro ao carregar.</div>`;
       document.getElementById(`jg-${g.key}-top10`).innerHTML   = `<tr><td colspan="3" style="text-align:center;color:var(--muted)">Erro ao carregar.</td></tr>`;
     }
+  }
+}
+
+// ── Visibilidade dos jogos (esconder/reexibir na aba Jogos) ─
+// Guarda a lista de jogos escondidos em settings.hidden_games (JSON
+// array de chaves, ex: ["tetris"]). Jogos escondidos continuam com
+// dados normalmente (ranking, campeões) — o botão só marca o jogo
+// como indisponível para os jogadores; a tela pública dos jogos
+// (jogos.html) precisa checar essa mesma chave para de fato ocultar
+// o card do jogo para os usuários.
+let _jgHiddenGames = new Set();
+
+async function jgLoadHiddenGames() {
+  try {
+    const { data } = await db.from('settings').select('value').eq('key', 'hidden_games').maybeSingle();
+    const arr = (data && data.value) ? JSON.parse(data.value) : [];
+    _jgHiddenGames = new Set(Array.isArray(arr) ? arr : []);
+  } catch (e) {
+    console.warn('[jgLoadHiddenGames]', e);
+    _jgHiddenGames = new Set();
+  }
+}
+
+function jgUpdateHiddenUI(key) {
+  const hidden = _jgHiddenGames.has(key);
+  const box   = document.getElementById(`jg-box-${key}`);
+  const btn   = document.getElementById(`jg-hide-btn-${key}`);
+  const badge = document.getElementById(`jg-hidden-badge-${key}`);
+  if (box)   box.style.opacity = hidden ? '.55' : '1';
+  if (badge) badge.style.display = hidden ? 'inline-block' : 'none';
+  if (btn) {
+    btn.textContent = hidden ? '👁 Reexibir jogo' : '🙈 Esconder jogo';
+    btn.style.background = hidden ? 'var(--surface2)' : '';
+  }
+}
+
+async function jgToggleHidden(key) {
+  const wasHidden = _jgHiddenGames.has(key);
+  if (wasHidden) _jgHiddenGames.delete(key); else _jgHiddenGames.add(key);
+  jgUpdateHiddenUI(key);
+
+  const { error } = await db.from('settings')
+    .upsert({ key: 'hidden_games', value: JSON.stringify([..._jgHiddenGames]) }, { onConflict: 'key' });
+
+  if (error) {
+    console.warn('[jgToggleHidden] falha ao salvar', error);
+    // reverte a UI se não conseguiu salvar
+    if (wasHidden) _jgHiddenGames.add(key); else _jgHiddenGames.delete(key);
+    jgUpdateHiddenUI(key);
+    toast('Erro ao salvar visibilidade do jogo.');
+  } else {
+    toast(wasHidden ? `${key} reexibido.` : `${key} escondido.`);
   }
 }
 
@@ -10390,6 +10465,7 @@ function switchPostTab() {} // mantido para compatibilidade, sem uso
 
 // ── Stories ───────────────────────────────────────────────
 let _storyPendingFile = null;
+let _storyPendingLink = null; // link de CTA (ex: resultado de jogo) a anexar ao story publicado
 let _storyViewList    = [];
 let _storyViewIdx     = 0;
 let _storyTimer       = null;
@@ -10405,6 +10481,7 @@ const _storyEd = {
 
 function showNewStory() {
   _storyPendingFile = null;
+  _storyPendingLink = null;
   if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
   _storyEd.img = null;
 
@@ -10923,7 +11000,7 @@ function checkPendingGameShare() {
   } catch (e) { console.warn('[checkPendingGameShare] falha ao ler', e); }
   sessionStorage.removeItem('pg_pending_story_image');
   if (!pending || !pending.image) return;
-  openStoryEditorWithImage(pending.image);
+  openStoryEditorWithImage(pending.image, pending.gameLink || null);
 }
 
 function dataUrlToBlob(dataUrl) {
@@ -10936,8 +11013,9 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([u8], { type: mime });
 }
 
-function openStoryEditorWithImage(dataUrl) {
+function openStoryEditorWithImage(dataUrl, link) {
   showNewStory();
+  _storyPendingLink = link || null;
   const img = new Image();
   img.onload = () => {
     if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
@@ -11031,7 +11109,8 @@ async function submitStory() {
       expires_at: expiresAt,
       sticker: stickerKey,
       sticker_x: _storyEd.sticker ? _storyEd.sticker.cx : null,
-      sticker_y: _storyEd.sticker ? _storyEd.sticker.cy : null
+      sticker_y: _storyEd.sticker ? _storyEd.sticker.cy : null,
+      link_url: _storyPendingLink || null
     });
     if (error) throw error;
 
@@ -11049,6 +11128,7 @@ async function submitStory() {
     }
 
     _storyPendingFile = null;
+    _storyPendingLink = null;
     if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
     _storyEd.img = null;
     _storyEd.sticker = null;
@@ -11117,6 +11197,19 @@ function showStory(idx) {
 
   document.getElementById('sv-username').textContent = u.username || '?';
   document.getElementById('sv-time').textContent     = fmtTimeAgo(story.created_at) + ' atrás';
+
+  // CTA de link — aparece quando o story tem um link anexado (ex: resultado
+  // de jogo compartilhado, ver shareResultToStories() em flapidgey.html)
+  const ctaWrap = document.getElementById('sv-cta-wrap');
+  if (ctaWrap) {
+    if (story.link_url) {
+      ctaWrap.style.display = 'flex';
+      ctaWrap.dataset.link = story.link_url;
+    } else {
+      ctaWrap.style.display = 'none';
+      ctaWrap.dataset.link = '';
+    }
+  }
 
   // botão ... (só dono)
   const isOwn = u.id === currentUser.id;
@@ -11228,6 +11321,15 @@ async function storyNav(dir) {
   }
   _storyViewIdx = next;
   showStory(_storyViewIdx);
+}
+
+// Navega para o link anexado ao story atual (ex: convite pra jogar
+// flaPidgey vindo de shareResultToStories()). O link fica em
+// sv-cta-wrap.dataset.link, atualizado a cada showStory().
+function storyGoToLink() {
+  const link = document.getElementById('sv-cta-wrap')?.dataset.link;
+  if (!link) return;
+  window.location.href = link;
 }
 
 function closeStoryViewer() {
