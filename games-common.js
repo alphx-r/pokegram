@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════
 // POKÉGRAM — utilitários compartilhados entre os jogos
-// (tetris.html, flapidgey.html). Requer supabase-js já
-// carregado na página antes deste script.
+// (tetris.html, flapidgey.html, voltorbolha.html). Requer
+// supabase-js já carregado na página antes deste script.
 // ════════════════════════════════════════════════════════
 
 const GAMES_SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
@@ -39,8 +39,8 @@ function gAvatarBg(u) {
 // usuário. A sessão real do Supabase Auth é só um bônus — quando existe,
 // permite escrita em tabelas protegidas por RLS (ex.: game_scores); quando
 // não existe (NPCs e alguns perfis KP-linked não têm conta real no Auth),
-// o jogo funciona normalmente mesmo assim, só a gravação de pontuação no
-// ranking é que pode falhar silenciosamente contra a policy de RLS.
+// o jogo funciona normalmente mesmo assim graças à policy de INSERT em
+// game_scores não exigir mais auth.uid() (ver histórico do projeto).
 async function gRequireSession() {
   const cached = gLoadSession();
   if (!cached) {
@@ -49,50 +49,109 @@ async function gRequireSession() {
   }
   try {
     const { data: { session } } = await gdb.auth.getSession();
-    if (!session) console.warn('[gRequireSession] sem sessão real do Supabase Auth — pontuação pode não ser gravada no ranking');
+    if (!session) console.warn('[gRequireSession] sem sessão real do Supabase Auth — jogo segue normal, gravação de pontuação usa a anon key');
   } catch (e) { /* falha ao verificar não derruba o jogador */ }
+  // Aproveita todo boot de jogo (chamado por tetris/flapidgey/voltorbolha)
+  // pra tentar reenviar silenciosamente qualquer pontuação que ficou
+  // presa localmente por falha de rede/servidor numa sessão anterior.
+  gFlushPendingScores();
   return cached;
+}
+
+const GM_PENDING_KEY = 'gm_pending_scores';
+const GM_PENDING_MAX = 20; // evita crescimento infinito se o Supabase ficar fora do ar por muito tempo
+
+function gReadPendingScores() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(GM_PENDING_KEY));
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+function gWritePendingScores(arr) {
+  try {
+    localStorage.setItem(GM_PENDING_KEY, JSON.stringify(arr.slice(-GM_PENDING_MAX)));
+  } catch (e) { /* localStorage indisponível/cheio — não há muito a fazer aqui */ }
+}
+
+function gQueuePendingScore(payload) {
+  const arr = gReadPendingScores();
+  arr.push(payload);
+  gWritePendingScores(arr);
+}
+
+// Faz o POST cru pro PostgREST. Usado tanto por gSaveScore quanto pelo
+// retry de pontuações pendentes, pra não duplicar a lógica de request.
+async function gPostScore(payload) {
+  const { data: { session } } = await gdb.auth.getSession().catch(() => ({ data: { session: null } }));
+  const res = await fetch(`${GAMES_SUPABASE_URL}/rest/v1/game_scores`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': GAMES_SUPABASE_ANON,
+      'Authorization': `Bearer ${(session && session.access_token) || GAMES_SUPABASE_ANON}`,
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`status ${res.status} — ${body}`);
+  }
+}
+
+// Tenta reenviar todas as pontuações que ficaram presas em localStorage
+// por falha de rede/servidor em uma tentativa anterior de gSaveScore.
+// Silencioso por design (não bloqueia nem avisa o jogador) — roda no
+// boot de qualquer jogo via gRequireSession. Reentrância é evitada com
+// gFlushingPending pra não disparar duas rodadas em paralelo (ex.: se
+// gRequireSession for chamado mais de uma vez rapidamente).
+let gFlushingPending = false;
+async function gFlushPendingScores() {
+  if (gFlushingPending) return;
+  const pending = gReadPendingScores();
+  if (pending.length === 0) return;
+  gFlushingPending = true;
+  const stillPending = [];
+  for (const payload of pending) {
+    try {
+      await gPostScore(payload);
+    } catch (e) {
+      console.warn('[gFlushPendingScores] ainda falhando, mantendo na fila —', payload.game, e);
+      stillPending.push(payload);
+    }
+  }
+  gWritePendingScores(stillPending);
+  gFlushingPending = false;
 }
 
 // Salva uma pontuação no ranking. 'game' é 'tetris', 'flapidgey' ou
 // 'voltorbolha'. Usa fetch cru pro PostgREST (em vez do client supabase-js)
 // porque o client engolia qualquer erro de RLS em silêncio (só um
-// console.warn), e boa parte dos jogadores não tem sessão real no
-// Supabase Auth (só a sessão em cache via bcrypt/RPC) — se a policy de
-// INSERT exigir auth.uid(), o insert falha pra esses jogadores e a
-// pontuação simplesmente nunca aparecia no ranking, sem nenhum aviso.
-// Com fetch cru, um erro assim aparece completo no console (status +
-// corpo da resposta do PostgREST, ex.: "new row violates row-level
-// security policy"), em vez de sumir.
+// console.warn) — com fetch cru, um erro aparece completo no console
+// (status + corpo da resposta do PostgREST), em vez de sumir.
+//
+// Se o insert falhar (rede fora do ar, Supabase indisponível, etc.), o
+// payload é guardado em localStorage (gm_pending_scores) e reenviado
+// automaticamente no próximo boot de qualquer jogo (ver gFlushPendingScores,
+// chamada dentro de gRequireSession) — assim uma pontuação não se perde
+// só porque a conexão falhou no momento exato do game over.
 async function gSaveScore(game, score, user) {
   if (!user || !user.id || !Number.isFinite(score)) return false;
+  const payload = {
+    user_id: user.id,
+    game,
+    score: Math.max(0, Math.round(score)),
+    author_name: user.username || null,
+    author_color: user.color || null,
+    author_avatar: user.avatar_url || null,
+  };
   try {
-    const { data: { session } } = await gdb.auth.getSession().catch(() => ({ data: { session: null } }));
-    const res = await fetch(`${GAMES_SUPABASE_URL}/rest/v1/game_scores`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': GAMES_SUPABASE_ANON,
-        'Authorization': `Bearer ${(session && session.access_token) || GAMES_SUPABASE_ANON}`,
-        'Prefer': 'return=minimal',
-      },
-      body: JSON.stringify({
-        user_id: user.id,
-        game,
-        score: Math.max(0, Math.round(score)),
-        author_name: user.username || null,
-        author_color: user.color || null,
-        author_avatar: user.avatar_url || null,
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      console.error('[gSaveScore] falha ao salvar pontuação —', game, 'status', res.status, body);
-      return false;
-    }
+    await gPostScore(payload);
     return true;
   } catch (e) {
-    console.error('[gSaveScore]', game, e);
+    console.error('[gSaveScore] falha ao salvar pontuação — guardando pra reenviar depois —', game, e);
+    gQueuePendingScore(payload);
     return false;
   }
 }
