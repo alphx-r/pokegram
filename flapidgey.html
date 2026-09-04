@@ -224,6 +224,46 @@ const FLAP_VELOCITY = -380;
 const PIPE_GAP = 130;
 const PIPE_WIDTH = 52;
 const PIPE_SPEED = 130;    // px/s
+const CLOUD_SPEED = PIPE_SPEED * 0.3; // px/s — mais lenta que os canos (parallax)
+const CLOUD_WIDTH_MAX = 60; // px — largura aprox. máx. de uma nuvem, usada pra saber quando ela saiu da tela
+
+// ── Céu dinâmico conforme a pontuação ───────────────────
+// dia → entardecer (troca seca ao atingir DUSK_SCORE) → noite (transição
+// suave entre NIGHT_START_SCORE e NIGHT_FULL_SCORE, depois fica na noite).
+const DUSK_SCORE = 250;
+const NIGHT_START_SCORE = 500;
+const NIGHT_FULL_SCORE = 1000;
+const SKY_DAY   = ['#8fc8f7', '#c9e8ff'];
+const SKY_DUSK  = ['#6b4984', '#f2a33c'];
+const SKY_NIGHT = ['#050914', '#16213e'];
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function lerpColor(a, b, t) {
+  const pa = hexToRgb(a), pb = hexToRgb(b);
+  const r = Math.round(pa.r + (pb.r - pa.r) * t);
+  const g = Math.round(pa.g + (pb.g - pa.g) * t);
+  const bl = Math.round(pa.b + (pb.b - pa.b) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function updateSkyBackground() {
+  let top, bottom;
+  if (score < DUSK_SCORE) {
+    [top, bottom] = SKY_DAY;
+  } else if (score < NIGHT_START_SCORE) {
+    [top, bottom] = SKY_DUSK;
+  } else if (score < NIGHT_FULL_SCORE) {
+    const t = (score - NIGHT_START_SCORE) / (NIGHT_FULL_SCORE - NIGHT_START_SCORE);
+    top = lerpColor(SKY_DUSK[0], SKY_NIGHT[0], t);
+    bottom = lerpColor(SKY_DUSK[1], SKY_NIGHT[1], t);
+  } else {
+    [top, bottom] = SKY_NIGHT;
+  }
+  canvas.style.background = `linear-gradient(${top}, ${bottom})`;
+}
 const PIPE_INTERVAL_BASE = 1150;   // ms — distância "padrão" entre canos
 const PIPE_INTERVAL_VARIANCE = 250; // ms — variação aleatória pra mais/menos a cada cano
 const PIPE_INTERVAL_FLOOR = 1100;   // ms — piso mínimo: nunca deixa os canos mais próximos que isso, mesmo com a variação negativa
@@ -338,6 +378,19 @@ function updateEnigmaResultUI() {
   }
 }
 
+// Nuvem de fundo, desenhada como um agrupado de elipses sobrepostas
+// (formato de nuvem de verdade, em vez de uma bola única). c.scale ajusta
+// o tamanho geral da nuvem.
+function drawCloud(c) {
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.scale(c.scale, c.scale);
+  [[0, 0, 13, 9], [-14, 3, 10, 7], [14, 4, 11, 7], [-4, -6, 10, 8], [10, -5, 9, 7]].forEach(([dx, dy, rx, ry]) => {
+    ctx.beginPath(); ctx.ellipse(dx, dy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.restore();
+}
+
 // Auréola branca brilhante que envolve o corpo do pidgey enquanto ele
 // tem carga(s) de escudo (vidas ganhas de sitrus berry) — centralizada
 // no próprio pássaro (não mais deslocada pro lado) e pulsa suavemente
@@ -409,7 +462,17 @@ function collectBerry(b) {
   }
 }
 
-let bird, pipes, berries, popups, bubblePops, score, lives, invulnerable, enigmaInvuln, enigmaResultTimer, enigmaResultText, enigmaResultColor, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
+let bird, pipes, berries, popups, bubblePops, clouds, score, lives, invulnerable, enigmaInvuln, enigmaResultTimer, enigmaResultText, enigmaResultColor, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
+
+// Cria uma nuvem em x (ou fora da tela à direita, se x for omitido), com
+// y e escala sorteados dentro de faixas que mantêm elas no céu, no fundo.
+function makeCloud(x) {
+  return {
+    x: x !== undefined ? x : BASE_W + 20 + Math.random() * 40,
+    y: 25 + Math.random() * 60,
+    scale: 0.7 + Math.random() * 0.6,
+  };
+}
 
 function rollNextOranAt(fromCount) {
   return fromCount + ORAN_MIN_GAP + Math.floor(Math.random() * (ORAN_MAX_GAP - ORAN_MIN_GAP + 1));
@@ -421,6 +484,7 @@ function resetGame() {
   berries = [];
   popups = [];
   bubblePops = [];
+  clouds = [makeCloud(40), makeCloud(160), makeCloud(260)];
   score = 0;
   lives = 0;
   invulnerable = 0;
@@ -437,6 +501,7 @@ function resetGame() {
   document.getElementById('gf-score').textContent = '0';
   updateLivesHUD();
   document.getElementById('gf-enigma-result').classList.remove('show');
+  updateSkyBackground();
   document.getElementById('gf-overlay').classList.remove('show');
   document.querySelector('.gf-hint').style.display = '';
   cancelAnimationFrame(rafId);
@@ -519,6 +584,7 @@ function update(dt) {
   if (enigmaInvuln > 0) enigmaInvuln -= dt;
   if (enigmaResultTimer > 0) enigmaResultTimer -= dt;
   updateEnigmaResultUI();
+  updateSkyBackground();
 
   pipeTimer += dt * 1000;
   if (pipeTimer > nextPipeInterval) {
@@ -528,6 +594,14 @@ function update(dt) {
 
   pipes.forEach(p => p.x -= PIPE_SPEED * dt);
   pipes = pipes.filter(p => p.x > -PIPE_WIDTH);
+
+  // nuvens de fundo (parallax): se movem mais devagar que os canos, na
+  // mesma direção — dão a sensação de avanço conforme o pidgey voa. Ao
+  // sair pela esquerda, a nuvem reaparece à direita com nova altura/escala.
+  clouds.forEach(c => {
+    c.x -= CLOUD_SPEED * dt;
+    if (c.x < -CLOUD_WIDTH_MAX) Object.assign(c, makeCloud());
+  });
 
   berries.forEach(b => b.x -= PIPE_SPEED * dt);
   berries = berries.filter(b => b.x > -BERRY_BUBBLE_R * 2);
@@ -598,11 +672,9 @@ function update(dt) {
 function draw() {
   ctx.clearRect(0, 0, BASE_W, BASE_H);
 
-  // nuvens simples de fundo
+  // nuvens de fundo (parallax, ver update())
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  [[40,60,18],[220,90,24],[120,40,14]].forEach(([x,y,r]) => {
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
-  });
+  clouds.forEach(drawCloud);
 
   // canos
   pipes.forEach(p => {
