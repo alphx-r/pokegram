@@ -287,6 +287,7 @@ function resetGame() {
   document.getElementById('gf-score').textContent = '0';
   updateLivesHUD();
   document.getElementById('gf-overlay').classList.remove('show');
+  document.querySelector('.gf-hint').style.display = '';
   cancelAnimationFrame(rafId);
   draw();
   rafId = requestAnimationFrame(loop);
@@ -294,6 +295,7 @@ function resetGame() {
 
 function flap() {
   if (gameOver) return;
+  if (!started) document.querySelector('.gf-hint').style.display = 'none';
   started = true;
   bird.vy = FLAP_VELOCITY;
 }
@@ -556,9 +558,21 @@ function resize() {
   // no primeiro boot pra sempre, mesmo que a tela realmente disponível
   // mude (rotação, barra de endereço, fullscreen, etc).
   const midFlight = started && !gameOver;
+  const prevW = BASE_W, prevH = BASE_H;
   if (!baseSized || !midFlight) {
     computeBaseDims(maxW, maxH);
     baseSized = true;
+  }
+  const dimsChanged = BASE_W !== prevW || BASE_H !== prevH;
+  // Se o tamanho mudou fora de uma partida em andamento, o pidgey (e o
+  // spawn dos canos) precisam ser recentralizados no novo canvas — senão
+  // ele fica com a posição calculada pro tamanho antigo, podendo sobrar
+  // fora da área visível (ex.: y calculado pra uma tela maior, agora
+  // maior que a altura real do canvas novo, menor).
+  if (dimsChanged && !midFlight && bird && !started) {
+    bird.y = BASE_H / 2;
+    bird.vy = 0;
+    bird.rot = 0;
   }
 
   // Escala sempre 1:1 — o canvas lógico já é do tamanho exato da área
