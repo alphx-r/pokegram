@@ -57,14 +57,14 @@
   .vb-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
 
   .vb-next-wrap{
-    position:absolute;top:0;right:0;z-index:20;margin:5px 8px 0 0;
+    position:absolute;bottom:0;right:0;z-index:20;margin:0 8px 26px 0;
     display:flex;flex-direction:column;align-items:center;gap:2px;
     pointer-events:none;
   }
   .vb-next-label{font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
     background:rgba(255,255,255,.86);border-radius:6px;padding:2px 6px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
-  .vb-next-ball{width:26px;height:26px;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
-  .vb-next-ball img{width:65%;height:65%;object-fit:contain}
+  .vb-next-ball{width:26px;height:26px;border-radius:50%;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
+  .vb-next-ball img{width:100%;height:100%;object-fit:cover;display:block}
 
   .vb-hint{
     position:absolute;bottom:6px;left:10px;right:10px;z-index:20;
@@ -172,16 +172,21 @@ function typeIconSrc(t) {
     : `https://cdn.jsdelivr.net/gh/partywhale/pokemon-type-icons@main/icons/${t}.svg`;
 }
 
+// Cores extraídas diretamente do círculo de fundo de cada SVG oficial
+// (partywhale/pokemon-type-icons) — mantidas aqui só como fallback
+// (usadas antes do ícone carregar); quando o ícone já carregou, a bola
+// usa o próprio círculo do SVG, então essas cores ficam idênticas ao
+// que é desenhado (ver drawBall).
 const TYPES = [
-  { key: 'normal',   bg: '#c8c8a0' }, { key: 'fire',     bg: '#ff9b4a' },
-  { key: 'water',    bg: '#6ab8ff' }, { key: 'electric', bg: '#ffe030' },
-  { key: 'grass',    bg: '#78d878' }, { key: 'ice',      bg: '#96d8d8' },
-  { key: 'fighting', bg: '#c03030' }, { key: 'poison',   bg: '#a060c0' },
-  { key: 'ground',   bg: '#e0c060' }, { key: 'flying',   bg: '#88aaee' },
-  { key: 'psychic',  bg: '#ff8fb0' }, { key: 'bug',      bg: '#a0c020' },
-  { key: 'rock',     bg: '#b8a050' }, { key: 'ghost',    bg: '#9090c0' },
-  { key: 'dragon',   bg: '#7060f0' }, { key: 'dark',     bg: '#705040' },
-  { key: 'steel',    bg: '#aababb' }, { key: 'fairy',    bg: '#ffaad8' },
+  { key: 'normal',   bg: '#828282' }, { key: 'fire',     bg: '#e4613e' },
+  { key: 'water',    bg: '#3099e1' }, { key: 'electric', bg: '#dfbc28' },
+  { key: 'grass',    bg: '#439837' }, { key: 'ice',      bg: '#47c8c8' },
+  { key: 'fighting', bg: '#e49021' }, { key: 'poison',   bg: '#9354cb' },
+  { key: 'ground',   bg: '#a4733c' }, { key: 'flying',   bg: '#74aad0' },
+  { key: 'psychic',  bg: '#e96c8c' }, { key: 'bug',      bg: '#9f9f28' },
+  { key: 'rock',     bg: '#a9a481' }, { key: 'ghost',    bg: '#6f4570' },
+  { key: 'dragon',   bg: '#576fbc' }, { key: 'dark',     bg: '#4f4747' },
+  { key: 'steel',    bg: '#74b0cb' }, { key: 'fairy',    bg: '#e18ce1' },
   { key: 'light',    bg: '#e5d38a' }, { key: 'scent',    bg: '#3cc492' },
 ];
 const TYPE_ICONS = {}; // key -> { img, ready }
@@ -216,25 +221,47 @@ function darken(hex, amt) {
 
 function drawBall(x, y, r, type, alpha) {
   const info = typeInfo(type);
+  const icon = TYPE_ICONS[type];
   ctx.save();
   if (alpha !== undefined) ctx.globalAlpha = alpha;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = info.bg;
-  ctx.fill();
-  ctx.lineWidth = Math.max(1.5, r * 0.09);
-  ctx.strokeStyle = darken(info.bg, 60);
-  ctx.stroke();
-  // brilho
-  ctx.beginPath();
-  ctx.ellipse(x - r * 0.32, y - r * 0.35, r * 0.32, r * 0.2, -0.5, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,.45)';
-  ctx.fill();
-  const icon = TYPE_ICONS[type];
+
   if (icon && icon.ready) {
-    const s = r * 1.15;
-    ctx.drawImage(icon.img, x - s / 2, y - s / 2, s, s);
+    // Cada SVG de tipo já vem com seu próprio círculo de fundo (a cor
+    // oficial daquele tipo). Antes desenhávamos um círculo colorido
+    // aproximado por baixo e o ícone só cobria 65% dele, sobrando um
+    // anel de cor diferente da do SVG. Agora o ícone preenche a bolha
+    // inteira, então a cor da bolha é exatamente a cor do SVG.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(icon.img, x - r, y - r, r * 2, r * 2);
+    ctx.restore();
+    // brilho sutil por cima
+    ctx.beginPath();
+    ctx.ellipse(x - r * 0.32, y - r * 0.35, r * 0.32, r * 0.2, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.fill();
+    // contorno fino pra separar bolhas vizinhas
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.lineWidth = Math.max(1.5, r * 0.09);
+    ctx.strokeStyle = darken(info.bg, 60);
+    ctx.stroke();
   } else {
+    // Fallback enquanto o SVG ainda não carregou (ou falhou): usa a
+    // cor aproximada + inicial da letra, igual antes.
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = info.bg;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.5, r * 0.09);
+    ctx.strokeStyle = darken(info.bg, 60);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(x - r * 0.32, y - r * 0.35, r * 0.32, r * 0.2, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.45)';
+    ctx.fill();
     ctx.fillStyle = darken(info.bg, 90);
     ctx.font = `800 ${Math.round(r * 0.9)}px 'Nunito',sans-serif`;
     ctx.textAlign = 'center';
@@ -353,10 +380,20 @@ function updateNextBallUI() {
   el.innerHTML = (icon && icon.ready) ? `<img src="${typeIconSrc(nextType)}">` : '';
 }
 
+// Esconde o hint de controles assim que o jogador dá o primeiro tiro
+// (ou seja, quando o jogo "começa" de verdade) — antes ele ficava na
+// tela o jogo inteiro, atrapalhando a mira perto do canhão.
+function hideHintOnce() {
+  const hint = document.getElementById('vb-hint');
+  if (hint) hint.style.display = 'none';
+}
+
 function resetGame() {
   document.getElementById('vb-overlay').classList.remove('show');
   score = 0; gameOver = false; started = true;
   aimAngle = 0; projectile = null; poppingFx = []; fallingBalls = []; shotsSinceRow = 0;
+  const hint = document.getElementById('vb-hint');
+  if (hint) hint.style.display = '';
   document.getElementById('vb-score').textContent = '0';
   updateTypesUI();
   initGrid();
@@ -379,6 +416,13 @@ function fire() {
     vy: -PROJECTILE_SPEED * Math.cos(aimAngle),
     type: currentType,
   };
+  // A bolha que estava marcada como "Próxima" agora vira a bolha atual,
+  // e sorteamos uma nova "Próxima" — antes isso nunca acontecia, então
+  // o indicador nunca batia com o que de fato saía do canhão.
+  currentType = nextType;
+  nextType = randomActiveType();
+  updateNextBallUI();
+  hideHintOnce();
 }
 
 function findLandingNearCeiling(x) {
@@ -767,10 +811,12 @@ function shareResultToStories() {
 }
 
 // ── Sizing responsivo ─────────────────────────────────────
+const DESKTOP_MAX_W = 480; // largura confortável tipo "celular" pra quem joga no navegador do PC
 function resize() {
   const nav = document.querySelector('.vb-nav');
   const navH = nav ? nav.getBoundingClientRect().height : 52;
-  const maxW = window.innerWidth;
+  let maxW = window.innerWidth;
+  if (!isMobileLike()) maxW = Math.min(maxW, DESKTOP_MAX_W);
   const maxH = window.innerHeight - navH;
   const midGame = started && !gameOver;
   if (!midGame) {
@@ -823,8 +869,13 @@ function tryEnterFullscreenNow() {
 (async function boot() {
   user = await gRequireSession();
   if (!user) return;
-  tryEnterFullscreenNow();
-  gSetupFullscreenOnFirstInteraction();
+  // Fullscreen automático (e no primeiro toque) só faz sentido em
+  // celular/tablet — no desktop isso fazia qualquer clique no canvas
+  // jogar a tela inteira em fullscreen, o que ninguém pediu.
+  if (isMobileLike()) {
+    tryEnterFullscreenNow();
+    gSetupFullscreenOnFirstInteraction();
+  }
   recomputeMetrics();
   resize();
   resetGame();
