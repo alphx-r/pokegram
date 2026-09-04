@@ -63,6 +63,45 @@
     align-items:center;justify-content:center;z-index:300;
   }
   .gt-overlay.show{display:flex}
+
+  /* Hint de "como jogar", exibido no centro na primeira partida */
+  .gt-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:100;pointer-events:none;
+    opacity:1;transition:opacity .35s ease;
+  }
+  .gt-hint.hide{opacity:0;pointer-events:none}
+  .gt-hint-card{
+    background:rgba(20,20,38,0.88);
+    border:1.5px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:20px 22px;
+    max-width:260px;
+    text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+    pointer-events:auto;
+  }
+  .gt-hint-title{
+    font-family:'Cinzel',serif;color:var(--accent);font-size:15px;font-weight:700;
+    margin:0 0 12px;
+  }
+  .gt-hint-row{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:10px;text-align:left;
+  }
+  .gt-hint-row:last-of-type{margin-bottom:0}
+  .gt-hint-icon{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .gt-hint-text{font-size:12px;color:#fff;line-height:1.35}
+  .gt-hint-text b{color:var(--accent)}
+  .gt-hint-dismiss{
+    margin-top:14px;font-size:11px;color:rgba(255,255,255,0.55);
+    font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  }
   .gt-modal{
     background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
     max-height:86vh;overflow:auto;
@@ -101,6 +140,25 @@
   <canvas id="gt-canvas"></canvas>
   <div class="gt-level-badge" id="gt-level-badge">1</div>
   <div class="gt-next-wrap"><canvas id="gt-next-canvas" width="64" height="64"></canvas></div>
+
+  <div class="gt-hint" id="gt-hint">
+    <div class="gt-hint-card">
+      <div class="gt-hint-title">Como jogar</div>
+      <div class="gt-hint-row">
+        <div class="gt-hint-icon">↔️</div>
+        <div class="gt-hint-text"><b>Arraste</b> pra esquerda/direita <span style="opacity:.7">(ou setas ←→)</span> para mover a peça</div>
+      </div>
+      <div class="gt-hint-row">
+        <div class="gt-hint-icon">👆</div>
+        <div class="gt-hint-text"><b>Toque</b> na tela <span style="opacity:.7">(ou espaço)</span> para girar a peça</div>
+      </div>
+      <div class="gt-hint-row">
+        <div class="gt-hint-icon">⬇️</div>
+        <div class="gt-hint-text"><b>Segure</b> pra baixo <span style="opacity:.7">(ou seta ↓)</span> para acelerar a queda</div>
+      </div>
+      <div class="gt-hint-dismiss">Toque em qualquer lugar para começar</div>
+    </div>
+  </div>
 </div>
 
 <div class="gt-overlay" id="gt-overlay">
@@ -133,8 +191,10 @@ const nextCanvas = document.getElementById('gt-next-canvas');
 const nextCtx = nextCanvas.getContext('2d');
 const levelBadge = document.getElementById('gt-level-badge');
 
-// Peças temáticas: cada tipo de Pokémon vira uma cor de peça
-const PIECES = {
+// Peças temáticas: cada tipo de Pokémon vira uma cor de peça.
+// Estas são as peças padrão (fallback), usadas caso o admin não
+// tenha salvo uma customização em settings.tetris_pieces.
+const DEFAULT_PIECES = {
   I: { shape: [[1,1,1,1]], color: '#78C850' /* grass */ },
   O: { shape: [[1,1],[1,1]], color: '#F8D030' /* electric */ },
   T: { shape: [[0,1,0],[1,1,1]], color: '#A040A0' /* poison */ },
@@ -143,7 +203,45 @@ const PIECES = {
   J: { shape: [[1,0,0],[1,1,1]], color: '#6890F0' /* water */ },
   L: { shape: [[0,0,1],[1,1,1]], color: '#E0C068' /* ground */ },
 };
-const PIECE_KEYS = Object.keys(PIECES);
+
+let PIECES = DEFAULT_PIECES;
+let PIECE_KEYS = Object.keys(PIECES);
+
+// Valida a estrutura de um conjunto de peças vindo de settings antes
+// de usar — se algo estiver malformado, cai no padrão pra não travar o jogo.
+function validatePieces(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const out = {};
+  for (const key of Object.keys(obj)) {
+    const p = obj[key];
+    if (!p || !Array.isArray(p.shape) || !p.shape.length) continue;
+    if (!p.shape.every(row => Array.isArray(row) && row.length)) continue;
+    if (typeof p.color !== 'string' || !p.color) continue;
+    out[key] = {
+      shape: p.shape.map(row => row.map(v => v ? 1 : 0)),
+      color: p.color,
+    };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+// Carrega peças customizadas salvas pelo admin (settings.tetris_pieces).
+// Se não existir ou for inválido, mantém o padrão.
+async function loadCustomPieces() {
+  try {
+    if (typeof db === 'undefined' || !db) return;
+    const { data } = await db.from('settings').select('value').eq('key', 'tetris_pieces').maybeSingle();
+    if (!data || !data.value) return;
+    const parsed = JSON.parse(data.value);
+    const valid = validatePieces(parsed);
+    if (valid) {
+      PIECES = valid;
+      PIECE_KEYS = Object.keys(PIECES);
+    }
+  } catch (e) {
+    console.warn('[loadCustomPieces] usando peças padrão:', e);
+  }
+}
 
 let board, current, next, score, level, linesCleared, gameOver, dropInterval, lastDrop, rafId;
 let user = null;
@@ -258,9 +356,10 @@ function drawCell(context, col, row, color) {
 
 function drawNext() {
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-  const size = 12;
   const shape = next.shape;
-  const w = shape[0].length * size, h = shape.length * size;
+  const cols = shape[0].length, rows = shape.length;
+  const size = Math.floor(Math.min((nextCanvas.width - 4) / cols, (nextCanvas.height - 4) / rows, 12));
+  const w = cols * size, h = rows * size;
   const ox = (nextCanvas.width - w) / 2, oy = (nextCanvas.height - h) / 2;
   shape.forEach((row, ri) => row.forEach((v, ci) => {
     if (!v) return;
@@ -299,6 +398,7 @@ function tryRotate() {
 function loop(ts) {
   if (gameOver) return;
   if (!lastDrop) lastDrop = ts;
+  if (hintActive) { lastDrop = ts; rafId = requestAnimationFrame(loop); return; }
   const interval = fastDropActive ? Math.min(dropInterval, 55) : dropInterval;
   if (ts - lastDrop > interval) {
     tryMove(1, 0);
@@ -331,12 +431,33 @@ function startGame() {
   rafId = requestAnimationFrame(loop);
 }
 
+// ── Hint "como jogar" (só na primeira partida do jogador) ──
+const GT_HINT_KEY = 'gt_tetris_hint_seen';
+let hintActive = false;
+
+function maybeShowHint() {
+  let seen = false;
+  try { seen = localStorage.getItem(GT_HINT_KEY) === '1'; } catch (e) {}
+  if (seen) return;
+  hintActive = true;
+  document.getElementById('gt-hint').classList.remove('hide');
+}
+
+function dismissHint() {
+  if (!hintActive) return;
+  hintActive = false;
+  lastDrop = 0; // não penaliza o tempo gasto lendo o hint
+  document.getElementById('gt-hint').classList.add('hide');
+  try { localStorage.setItem(GT_HINT_KEY, '1'); } catch (e) {}
+}
+
 // ── Controles: teclado ──────────────────────────────────
 let fastDropActive = false;
 
 document.addEventListener('keydown', (e) => {
   if (['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key)) e.preventDefault();
   if (gameOver) return;
+  if (hintActive) dismissHint();
   if (e.key === 'ArrowLeft') tryMove(0, -1);
   else if (e.key === 'ArrowRight') tryMove(0, 1);
   else if (e.key === 'ArrowDown') fastDropActive = true;
@@ -359,6 +480,7 @@ function cellPx() { return CELL; }
 
 stage.addEventListener('touchstart', (e) => {
   if (gameOver) return;
+  if (hintActive) { dismissHint(); return; } // primeiro toque só fecha o hint
   const t = e.touches[0];
   touchActive = true;
   touchDragged = false;
@@ -403,6 +525,7 @@ stage.addEventListener('touchend', touchEndHandler);
 stage.addEventListener('touchcancel', touchEndHandler);
 
 document.getElementById('gt-restart-btn').addEventListener('click', startGame);
+document.getElementById('gt-hint').addEventListener('click', dismissHint);
 
 // ── Canvas sizing responsivo (ocupa toda a área disponível) ──
 function resize() {
@@ -443,9 +566,11 @@ async function refreshBest() {
 (async function boot() {
   user = await gRequireSession();
   if (!user) return;
+  await loadCustomPieces();
   gSetupFullscreenOnFirstInteraction();
   resize();
   startGame();
+  maybeShowHint();
 })();
 </script>
 </body>
