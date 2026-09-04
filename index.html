@@ -3976,11 +3976,12 @@ function enterApp(user) {
   // ficar preso para sempre.
   if (typeof initApp === 'function') {
     let splashDone = false;
-    const doneOnce = () => { if (!splashDone) { splashDone = true; hideSplash(); } };
+    const doneOnce = () => { if (!splashDone) { splashDone = true; hideSplash(); checkPendingGameShare(); } };
     initApp(user).catch((e) => { console.error('[initApp]', e); }).finally(doneOnce);
     setTimeout(doneOnce, 8000);
   } else {
     hideSplash();
+    checkPendingGameShare();
   }
   initPushNotifications(user);
   checkKpLinkPrompt(user).catch(() => {});
@@ -10904,6 +10905,60 @@ function triggerStickerBurst(container, xPct = 50, yPct = 50, key = null) {
 
   container.appendChild(wrap);
   setTimeout(() => wrap.remove(), 1500);
+}
+
+// ── Compartilhamento de resultado de jogos (flaPidgey etc.) ──────
+// Os jogos guardam uma imagem de resultado pronta em sessionStorage sob
+// 'pg_pending_story_image' (ver shareResultToStories() em flapidgey.html)
+// e voltam pra cá (/). No boot (ver checkPendingGameShare() chamada em
+// enterApp), se essa chave existir, abrimos o editor de story já com
+// essa imagem carregada, prontinha pra publicar — sem passar pelo input
+// de arquivo nem pelo cropper, já que a imagem já vem no formato certo
+// (1080×1920).
+function checkPendingGameShare() {
+  let pending = null;
+  try {
+    const raw = sessionStorage.getItem('pg_pending_story_image');
+    if (raw) pending = JSON.parse(raw);
+  } catch (e) { console.warn('[checkPendingGameShare] falha ao ler', e); }
+  sessionStorage.removeItem('pg_pending_story_image');
+  if (!pending || !pending.image) return;
+  openStoryEditorWithImage(pending.image);
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, b64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)[1];
+  const bstr = atob(b64);
+  let n = bstr.length;
+  const u8 = new Uint8Array(n);
+  while (n--) u8[n] = bstr.charCodeAt(n);
+  return new Blob([u8], { type: mime });
+}
+
+function openStoryEditorWithImage(dataUrl) {
+  showNewStory();
+  const img = new Image();
+  img.onload = () => {
+    if (_storyEd.img?.src) URL.revokeObjectURL(_storyEd.img.src);
+    _storyEd.img = img;
+    _storyPendingFile = dataUrlToBlob(dataUrl);
+
+    const ph = document.getElementById('story-upload-placeholder');
+    const cb = document.getElementById('story-change-photo-btn');
+    if (ph) ph.style.display = 'none';
+    if (cb) cb.style.display = 'block';
+
+    const snapToggle = document.getElementById('snap-text-toggle-btn');
+    if (snapToggle) snapToggle.style.display = 'block';
+    const stickerBtn = document.getElementById('story-sticker-btn');
+    if (stickerBtn) stickerBtn.style.display = 'block';
+
+    storyDrawCanvas();
+    if (_storyEd.sticker) _stickerRender();
+  };
+  img.onerror = () => console.warn('[openStoryEditorWithImage] falha ao carregar imagem pendente');
+  img.src = dataUrl;
 }
 
 function previewStoryImage(input) {
