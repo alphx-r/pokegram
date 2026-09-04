@@ -115,7 +115,7 @@
     </div>
 
     <div class="gj-games">
-      <div class="gj-card">
+      <div class="gj-card" id="gj-card-tetris">
         <a class="gj-tile tetris" href="tetris.html" aria-label="Jogar Pokémon Tetris">🧩</a>
         <a class="gj-card-name" href="tetris.html">Pokémon Tetris</a>
         <button class="gj-rank-btn" onclick="toggleRanking('tetris', this)">🏆 Ranking</button>
@@ -125,7 +125,7 @@
         </div>
       </div>
 
-      <div class="gj-card">
+      <div class="gj-card" id="gj-card-flapidgey">
         <a class="gj-tile flapidgey" href="flapidgey.html" aria-label="Jogar flaPidgey">🐦</a>
         <a class="gj-card-name" href="flapidgey.html">flaPidgey</a>
         <button class="gj-rank-btn" onclick="toggleRanking('flapidgey', this)">🏆 Ranking</button>
@@ -173,6 +173,23 @@
     btn.textContent = open ? '🏆 Fechar ranking' : '🏆 Ranking';
   }
 
+  // Esconde da tela os jogos marcados como "escondido" no admin (aba
+  // Jogos → botão "Esconder jogo"). Mesma chave usada lá: settings.hidden_games,
+  // um array JSON de chaves de jogo (ex: ["tetris"]).
+  async function applyHiddenGames() {
+    try {
+      const { data, error } = await db.from('settings').select('value').eq('key', 'hidden_games').maybeSingle();
+      if (error) throw error;
+      const hidden = (data && data.value) ? JSON.parse(data.value) : [];
+      (Array.isArray(hidden) ? hidden : []).forEach(key => {
+        const card = document.getElementById(`gj-card-${key}`);
+        if (card) card.style.display = 'none';
+      });
+    } catch (e) {
+      console.warn('[applyHiddenGames]', e);
+    }
+  }
+
   async function boot() {
     // Confirma sessão real no Supabase Auth (mesma sessão do app principal,
     // compartilhada por localStorage no mesmo domínio)
@@ -186,6 +203,8 @@
     const avEl = document.getElementById('gj-avatar');
     avEl.style.background = avatarBg(cached);
     avEl.innerHTML = avatarHtml(cached);
+
+    await applyHiddenGames();
 
     document.getElementById('gj-loading').style.display = 'none';
     document.getElementById('gj-app').style.display = 'block';
