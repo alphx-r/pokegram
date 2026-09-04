@@ -3122,6 +3122,14 @@ a:focus, a:active,
                     <label>Pré-visualização</label>
                     <div id="tp-preview" style="display:inline-grid;gap:2px;background:#16162a;padding:8px;border-radius:8px"></div>
                   </div>
+                  <div class="adm-field">
+                    <label>Esta peça</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <button class="adm-btn adm-btn-sm" onclick="tpExportarPeca()" style="background:var(--surface2)">⬇️ Exportar peça</button>
+                      <button class="adm-btn adm-btn-sm" onclick="document.getElementById('tp-import-piece-file').click()" style="background:var(--surface2)">⬆️ Importar peça</button>
+                      <input type="file" id="tp-import-piece-file" accept="application/json,.json" style="display:none" onchange="tpImportarPeca(this)" />
+                    </div>
+                  </div>
                   <button class="adm-btn adm-btn-sm" onclick="tpRemovePiece()" style="background:#fdecea;color:#c0392b">🗑 Remover esta peça</button>
                 </div>
               </div>
@@ -7528,6 +7536,122 @@ function tpImportarPecas(inputEl) {
   reader.readAsText(file);
 }
 
+// ── Importar / Exportar de UMA peça só ─────────────────────────
+// Exporta { CHAVE: {shape,color} } com só a peça selecionada — o
+// arquivo gerado é reimportável tanto aqui (individual) quanto no
+// import em lote (aqui e no editor standalone), mesmo formato.
+function tpExportarPeca() {
+  const okEl  = document.getElementById('tp-fb-ok');
+  const errEl = document.getElementById('tp-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  if (!_tpCurrentKey || !_tpPieces[_tpCurrentKey]) {
+    errEl.textContent = 'Nenhuma peça selecionada.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const piece = _tpPieces[_tpCurrentKey];
+  const hasCell = piece.shape.some(row => row.some(v => v));
+  if (!hasCell) {
+    errEl.textContent = `A peça "${_tpCurrentKey}" está vazia — pinte ao menos uma célula.`;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const payload = { [_tpCurrentKey]: piece };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `tetris-peca-pokemon-${_tpCurrentKey.toLowerCase()}-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  okEl.textContent = `✓ Peça "${_tpCurrentKey}" exportada.`;
+  okEl.style.display = 'block';
+  setTimeout(() => okEl.style.display = 'none', 2500);
+}
+
+// Importa um JSON de peça pra dentro da peça atualmente selecionada.
+// Aceita tanto { CHAVE: {shape,color} } (usa a primeira chave, ignora
+// o nome) quanto {shape,color} direto — em ambos os casos só troca
+// a forma/cor da peça selecionada, mantendo o nome dela. Só atualiza
+// o conjunto em edição na tela — ainda precisa clicar "Salvar peças".
+function tpImportarPeca(inputEl) {
+  const okEl  = document.getElementById('tp-fb-ok');
+  const errEl = document.getElementById('tp-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  if (!_tpCurrentKey || !_tpPieces[_tpCurrentKey]) {
+    errEl.textContent = 'Nenhuma peça selecionada.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    inputEl.value = '';
+    let parsed;
+    try {
+      parsed = JSON.parse(reader.result);
+    } catch (e) {
+      errEl.textContent = 'Arquivo inválido: não é um JSON válido.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      errEl.textContent = 'Formato inválido: esperado um objeto de peça.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const rawPiece = ('shape' in parsed && 'color' in parsed) ? parsed : parsed[Object.keys(parsed)[0]];
+    const rawKey = ('shape' in parsed && 'color' in parsed) ? null : Object.keys(parsed)[0];
+    const { piece, error } = tpValidateSinglePiece(rawPiece, rawKey);
+    if (error) {
+      errEl.textContent = error;
+      errEl.style.display = 'block';
+      return;
+    }
+
+    _tpPieces[_tpCurrentKey] = piece;
+    tpRenderTabs();
+    tpRenderEditor();
+    okEl.textContent = `✓ Peça importada para "${_tpCurrentKey}". Clique em "Salvar peças" para aplicar.`;
+    okEl.style.display = 'block';
+  };
+  reader.onerror = () => {
+    errEl.textContent = 'Erro ao ler o arquivo.';
+    errEl.style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+
+// ou um erro. rawKey é só pra mensagem de erro ficar mais clara.
+function tpValidateSinglePiece(p, rawKey) {
+  const label = rawKey ? `"${rawKey}"` : 'importada';
+  if (!p || typeof p !== 'object') return { piece: null, error: `Peça ${label} está mal formatada.` };
+  if (!Array.isArray(p.shape) || !p.shape.length || p.shape.length > TP_MAX_DIM) {
+    return { piece: null, error: `Peça ${label} tem um formato inválido (linhas).` };
+  }
+  const cols = p.shape[0].length;
+  if (!cols || cols > TP_MAX_DIM) return { piece: null, error: `Peça ${label} tem um formato inválido (colunas).` };
+  if (!p.shape.every(row => Array.isArray(row) && row.length === cols)) {
+    return { piece: null, error: `Peça ${label} tem linhas de tamanhos diferentes.` };
+  }
+  if (typeof p.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(p.color.trim())) {
+    return { piece: null, error: `Peça ${label} tem uma cor inválida (use formato #RRGGBB).` };
+  }
+  const shape = p.shape.map(row => row.map(v => v ? 1 : 0));
+  if (!shape.some(row => row.some(v => v))) return { piece: null, error: `Peça ${label} está vazia.` };
+  return { piece: { shape, color: p.color.trim() }, error: null };
+}
+
 // Valida a estrutura de um JSON importado, normalizando o que for
 // possível e rejeitando o que não for seguro para o jogo usar.
 function tpValidateImportedPieces(obj) {
@@ -7546,33 +7670,11 @@ function tpValidateImportedPieces(obj) {
   for (const rawKey of keys) {
     const key = String(rawKey).trim().toUpperCase().slice(0, 12);
     if (!key) continue;
-    const p = obj[rawKey];
-    if (!p || typeof p !== 'object') {
-      return { pieces: null, error: `Peça "${rawKey}" está mal formatada.` };
-    }
-    if (!Array.isArray(p.shape) || !p.shape.length || p.shape.length > TP_MAX_DIM) {
-      return { pieces: null, error: `Peça "${rawKey}" tem um formato inválido (linhas).` };
-    }
-    const cols = p.shape[0].length;
-    if (!cols || cols > TP_MAX_DIM) {
-      return { pieces: null, error: `Peça "${rawKey}" tem um formato inválido (colunas).` };
-    }
-    if (!p.shape.every(row => Array.isArray(row) && row.length === cols)) {
-      return { pieces: null, error: `Peça "${rawKey}" tem linhas de tamanhos diferentes.` };
-    }
-    if (typeof p.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(p.color.trim())) {
-      return { pieces: null, error: `Peça "${rawKey}" tem uma cor inválida (use formato #RRGGBB).` };
-    }
-    const shape = p.shape.map(row => row.map(v => v ? 1 : 0));
-    if (!shape.some(row => row.some(v => v))) {
-      return { pieces: null, error: `Peça "${rawKey}" está vazia.` };
-    }
-    out[key] = { shape, color: p.color.trim() };
+    const { piece, error } = tpValidateSinglePiece(obj[rawKey], rawKey);
+    if (error) return { pieces: null, error };
+    out[key] = piece;
   }
-
-  if (!Object.keys(out).length) {
-    return { pieces: null, error: 'Nenhuma peça válida encontrada no arquivo.' };
-  }
+  if (!Object.keys(out).length) return { pieces: null, error: 'Nenhuma peça válida encontrada no arquivo.' };
   return { pieces: out, error: null };
 }
 
