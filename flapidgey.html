@@ -87,12 +87,13 @@
     font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
   }
   .gf-btn:hover{background:var(--brand)}
+  #gf-share-btn:hover{background:#d98a1f}
 </style>
 </head>
 <body>
 
 <nav class="gf-nav">
-  <a class="gf-back" href="jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+  <a class="gf-back" href="/jogos" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     Jogos
   </a>
@@ -126,7 +127,7 @@
 
 <div class="gf-overlay" id="gf-overlay">
   <div class="gf-modal">
-    <h2 id="gf-overlay-title">Ele bateu num cano!</h2>
+    <h2 id="gf-overlay-title">Você perdeu!</h2>
     <p>Sua pontuação foi registrada no ranking.</p>
     <div class="gf-final-score" id="gf-final-score">0</div>
     <div class="gf-lb" style="text-align:left;margin-bottom:16px">
@@ -134,6 +135,7 @@
       <div id="gf-leaderboard"><div class="gf-lb-empty">Carregando...</div></div>
     </div>
     <button class="gf-btn" id="gf-restart-btn">Jogar novamente</button>
+    <button class="gf-btn" id="gf-share-btn" style="background:#f2a33c;margin-top:8px">Compartilhar no Stories</button>
   </div>
 </div>
 
@@ -195,7 +197,9 @@ const FLAP_VELOCITY = -380;
 const PIPE_GAP = 130;
 const PIPE_WIDTH = 52;
 const PIPE_SPEED = 130;    // px/s
-const PIPE_INTERVAL = 1150; // ms (reduzido de 1500 — canos mais próximos entre si)
+const PIPE_INTERVAL_BASE = 1150;   // ms — distância "padrão" entre canos
+const PIPE_INTERVAL_VARIANCE = 250; // ms — variação aleatória pra mais/menos a cada cano
+const PIPE_INTERVAL_GAP_SWITCH_BONUS = 350; // ms extras quando a boca deste cano fica bem longe da boca do anterior (ex.: um vão lá em cima, outro lá embaixo)
 const PIPE_SCORE = 5;      // pontos ganhos ao passar de cada cano
 const HIT_INVULN_TIME = 1; // segundos de proteção após usar uma vida da sitrus berry
 
@@ -289,7 +293,7 @@ function collectBerry(b) {
   }
 }
 
-let bird, pipes, berries, popups, score, lives, invulnerable, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId;
+let bird, pipes, berries, popups, score, lives, invulnerable, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
 
 function rollNextOranAt(fromCount) {
   return fromCount + ORAN_MIN_GAP + Math.floor(Math.random() * (ORAN_MAX_GAP - ORAN_MIN_GAP + 1));
@@ -307,6 +311,8 @@ function resetGame() {
   started = false;
   pipeTimer = 0;
   pipeCount = 0;
+  nextPipeInterval = PIPE_INTERVAL_BASE;
+  lastGapY = null;
   nextOranAt = rollNextOranAt(0);
   lastTs = 0;
   document.getElementById('gf-score').textContent = '0';
@@ -331,6 +337,20 @@ function spawnPipe() {
   pipes.push({ x: BASE_W, gapY, passed: false });
   pipeCount++;
   maybeSpawnBerryInGap(gapY);
+
+  // Distância até o PRÓXIMO cano: varia aleatoriamente e ganha um bônus
+  // quando a boca deste cano está bem longe (verticalmente) da boca do
+  // cano anterior — ex.: um vão lá em cima (boca virada pra baixo) e o
+  // seguinte lá embaixo (boca virada pra cima) — pra dar mais espaço
+  // pro jogador se reposicionar em vez de sempre a mesma distância.
+  let interval = PIPE_INTERVAL_BASE + (Math.random() * 2 - 1) * PIPE_INTERVAL_VARIANCE;
+  if (lastGapY !== null) {
+    const usableRange = BASE_H - margin * 2 - PIPE_GAP;
+    const flipAmount = usableRange > 0 ? Math.abs(gapY - lastGapY) / usableRange : 0; // 0–1
+    interval += flipAmount * PIPE_INTERVAL_GAP_SWITCH_BONUS;
+  }
+  lastGapY = gapY;
+  nextPipeInterval = interval;
 }
 
 // Berry nasce dentro do vão aberto do cano que acabou de aparecer —
@@ -361,7 +381,7 @@ function update(dt) {
   if (invulnerable > 0) invulnerable -= dt;
 
   pipeTimer += dt * 1000;
-  if (pipeTimer > PIPE_INTERVAL) {
+  if (pipeTimer > nextPipeInterval) {
     pipeTimer = 0;
     spawnPipe();
   }
@@ -553,6 +573,98 @@ document.addEventListener('keydown', (e) => {
   }
 });
 document.getElementById('gf-restart-btn').addEventListener('click', resetGame);
+document.getElementById('gf-share-btn').addEventListener('click', shareResultToStories);
+
+// ── Compartilhar resultado no Stories ──────────────────────
+// Desenha um card de resultado no formato de story (1080×1920), guarda
+// como imagem pendente em sessionStorage sob a chave
+// 'pg_pending_story_image' e sai do jogo direto pro index.html do
+// PokéGram — que lê essa chave no boot (checkPendingGameShare) e já
+// abre o editor de story com essa imagem carregada.
+function buildResultCanvas() {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  // fundo — mesmo gradiente de céu do jogo
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#8fc8f7');
+  bg.addColorStop(1, '#c9e8ff');
+  c2.fillStyle = bg;
+  c2.fillRect(0, 0, W, H);
+
+  // nuvens decorativas
+  c2.fillStyle = 'rgba(255,255,255,0.6)';
+  [[160, 260, 70], [820, 420, 95], [420, 160, 55], [700, 1500, 80], [220, 1650, 60]].forEach(([x, y, r]) => {
+    c2.beginPath(); c2.arc(x, y, r, 0, Math.PI * 2); c2.fill();
+  });
+
+  // título
+  c2.textAlign = 'center';
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 74px 'Cinzel', serif";
+  c2.fillText('flaPidgey', W / 2, 320);
+
+  // pidgey (sprite atual, se carregado; senão desenho vetorial simples)
+  const birdY = 620, birdSize = 260;
+  c2.save();
+  if (birdSpriteReady && birdSpriteEl.complete) {
+    c2.drawImage(birdSpriteEl, W / 2 - birdSize / 2, birdY - birdSize / 2, birdSize, birdSize);
+  } else {
+    c2.translate(W / 2, birdY);
+    c2.scale(9, 9);
+    c2.fillStyle = '#C9A66B';
+    c2.beginPath(); c2.ellipse(0, 0, 14, 11, 0, 0, Math.PI * 2); c2.fill();
+    c2.fillStyle = '#F5E6C8';
+    c2.beginPath(); c2.ellipse(-2, 3, 9, 6, 0, 0, Math.PI * 2); c2.fill();
+    c2.fillStyle = '#C9A66B';
+    c2.beginPath(); c2.arc(10, -6, 8, 0, Math.PI * 2); c2.fill();
+    c2.fillStyle = '#8B5E3C';
+    c2.beginPath(); c2.moveTo(8, -13); c2.lineTo(11, -20); c2.lineTo(13, -12); c2.fill();
+    c2.fillStyle = '#1a1a1a';
+    c2.beginPath(); c2.arc(13, -7, 1.8, 0, Math.PI * 2); c2.fill();
+    c2.fillStyle = '#E8A93C';
+    c2.beginPath(); c2.moveTo(17, -5); c2.lineTo(24, -3); c2.lineTo(17, -1); c2.fill();
+  }
+  c2.restore();
+
+  // pontuação
+  c2.fillStyle = 'rgba(255,255,255,.88)';
+  const cardW = 760, cardH = 260, cardX = (W - cardW) / 2, cardY = 940;
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+  c2.fill();
+
+  c2.fillStyle = '#6b7280';
+  c2.font = "800 34px 'Nunito', sans-serif";
+  c2.fillText('PONTOS', W / 2, cardY + 70);
+
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 130px 'Cinzel', serif";
+  c2.fillText(String(score), W / 2, cardY + 210);
+
+  // recorde, se houver
+  if (best) {
+    c2.fillStyle = 'rgba(255,255,255,.82)';
+    c2.font = "700 40px 'Nunito', sans-serif";
+    c2.fillText(`Recorde: ${best}`, W / 2, cardY + cardH + 90);
+  }
+
+  return c;
+}
+
+function shareResultToStories() {
+  try {
+    const canvas = buildResultCanvas();
+    const dataUrl = canvas.toDataURL('image/png');
+    sessionStorage.setItem('pg_pending_story_image', dataUrl);
+  } catch (e) {
+    console.warn('[shareResultToStories] falhou ao gerar/guardar imagem do resultado', e);
+  }
+  window.location.href = 'index.html';
+}
+
 
 // ── Sizing responsivo (canvas lógico se adapta à proporção da tela,
 // escala visual via CSS) ──
