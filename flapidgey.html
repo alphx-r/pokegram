@@ -117,7 +117,7 @@
         </div>
         <div class="gf-hud-item">
           <div class="gf-hud-label">Vidas</div>
-          <div class="gf-hud-value gf-hud-sm" id="gf-lives">🛡 0</div>
+          <div class="gf-hud-value gf-hud-sm" id="gf-lives">0</div>
         </div>
       </div>
     </div>
@@ -192,6 +192,15 @@ function updateBirdSpritePosition() {
   const x = bird.x * scale - (BIRD_SPRITE_SIZE * scale) / 2;
   const y = bird.y * scale - (BIRD_SPRITE_SIZE * scale) / 2;
   birdSpriteEl.style.transform = `translate(${x}px, ${y}px) rotate(${bird.rot}rad)`;
+  birdSpriteEl.style.opacity = getBirdOpacity();
+}
+
+// Enquanto a invulnerabilidade da enigma está ativa, o Pidgey pisca
+// alternando entre 100% e 50% de opacidade (fora disso, opacidade normal).
+const ENIGMA_BLINK_INTERVAL = 120; // ms — velocidade do piscar
+function getBirdOpacity() {
+  if (enigmaInvuln <= 0) return 1;
+  return (Math.floor(performance.now() / ENIGMA_BLINK_INTERVAL) % 2 === 0) ? 1 : 0.5;
 }
 
 const BASE_W_MIN = 260, BASE_H_MIN = 380;
@@ -220,14 +229,25 @@ const HIT_INVULN_TIME = 1; // segundos de proteção após usar uma vida da sitr
 
 // ── Berries coletáveis ──────────────────────────────────
 // oran agora é garantida (aparece a cada 5-10 canos, sorteado a cada
-// vez — ver nextOranAt/spawnPipe). "chance" nas outras duas ainda é a
+// vez — ver nextOranAt/spawnPipe). "chance" nas outras três ainda é a
 // probabilidade de aparecer a cada cano, fora da oran garantida.
-// Raridade: enigma (raríssima) < sitrus (rara).
+// Raridade: enigma (raríssima) < starf (rara) < sitrus (menos rara).
+// enigma dá um bônus aleatório (ver ENIGMA_BONUSES/collectBerry); starf
+// dá pontos fixos (assumiu o papel que a enigma tinha antes).
 const BERRY_TYPES = {
   oran:   { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png',   color: '#3f7fd1', chance: 0, points: 10 },
   sitrus: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png', color: '#f2a33c', chance: 0.06, life: 1   },
-  enigma: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/enigma-berry.png', color: '#6b3fa0', chance: 0.015, points: 25 },
+  starf:  { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/starf-berry.png',  color: '#6b3fa0', chance: 0.015, points: 25 },
+  enigma: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/enigma-berry.png', color: '#c94f7c', chance: 0.01, random: true },
 };
+
+// Os três bônus possíveis da enigma, sorteados com chance igual entre si
+// ao coletar (ver collectBerry).
+const ENIGMA_BONUSES = [
+  { type: 'invuln', seconds: 5 },
+  { type: 'points', amount: 50 },
+  { type: 'points', amount: -15 },
+];
 const BERRY_SIZE = 33; // 41.25 * 0.8 (20% menor)
 const BERRY_R = 16.5;  // 20.625 * 0.8 (20% menor)
 const BERRY_BUBBLE_PADDING = 6; // px de "respiro" branco ao redor da fruta, dentro da bolha
@@ -244,13 +264,14 @@ Object.keys(BERRY_TYPES).forEach(key => {
   img.src = BERRY_TYPES[key].sprite;
 });
 
-// Sorteia, na ordem mais rara → mais comum, se aparece sitrus ou enigma
-// nesse cano (a oran é tratada à parte, de forma garantida — ver
-// spawnPipe). r < 0.015 → enigma; r < 0.075 → sitrus; senão nada.
+// Sorteia, na ordem mais rara → mais comum, se aparece enigma, starf ou
+// sitrus nesse cano (a oran é tratada à parte, de forma garantida — ver
+// spawnPipe). r < 0.01 → enigma; r < 0.025 → starf; r < 0.085 → sitrus;
+// senão nada.
 function rollBerryType() {
   const r = Math.random();
   let acc = 0;
-  for (const key of ['enigma', 'sitrus']) {
+  for (const key of ['enigma', 'starf', 'sitrus']) {
     acc += BERRY_TYPES[key].chance;
     if (r < acc) return key;
   }
@@ -284,7 +305,7 @@ function drawBerryFallback(b) {
 }
 
 function updateLivesHUD() {
-  document.getElementById('gf-lives').textContent = `🛡 ${lives}`;
+  document.getElementById('gf-lives').textContent = `${lives}`;
 }
 
 // Auréola branca brilhante que envolve o corpo do pidgey enquanto ele
@@ -340,11 +361,24 @@ function collectBerry(b) {
   if (info.life) {
     lives += info.life;
     updateLivesHUD();
-    addPopup(b.x, b.y, `+${info.life} 🛡`, info.color);
+    addPopup(b.x, b.y, `+${info.life}`, info.color);
+  }
+  if (info.random) {
+    const bonus = ENIGMA_BONUSES[Math.floor(Math.random() * ENIGMA_BONUSES.length)];
+    if (bonus.type === 'invuln') {
+      invulnerable = Math.max(invulnerable, bonus.seconds);
+      enigmaInvuln = Math.max(enigmaInvuln, bonus.seconds);
+      addPopup(b.x, b.y, `${bonus.seconds}s intangível!`, '#3fc9d1');
+    } else {
+      score = Math.max(0, score + bonus.amount);
+      document.getElementById('gf-score').textContent = score;
+      const sign = bonus.amount > 0 ? '+' : '';
+      addPopup(b.x, b.y, `${sign}${bonus.amount}`, bonus.amount > 0 ? '#3fd15b' : '#d1453f');
+    }
   }
 }
 
-let bird, pipes, berries, popups, bubblePops, score, lives, invulnerable, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
+let bird, pipes, berries, popups, bubblePops, score, lives, invulnerable, enigmaInvuln, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
 
 function rollNextOranAt(fromCount) {
   return fromCount + ORAN_MIN_GAP + Math.floor(Math.random() * (ORAN_MAX_GAP - ORAN_MIN_GAP + 1));
@@ -359,6 +393,7 @@ function resetGame() {
   score = 0;
   lives = 0;
   invulnerable = 0;
+  enigmaInvuln = 0;
   gameOver = false;
   started = false;
   pipeTimer = 0;
@@ -448,6 +483,7 @@ function update(dt) {
   bird.rot = Math.max(-0.5, Math.min(1.1, bird.vy / 500));
 
   if (invulnerable > 0) invulnerable -= dt;
+  if (enigmaInvuln > 0) enigmaInvuln -= dt;
 
   pipeTimer += dt * 1000;
   if (pipeTimer > nextPipeInterval) {
@@ -568,6 +604,7 @@ function draw() {
   // customizado configurado; ver loadBirdSprite() e updateBirdSpritePosition())
   if (!birdSpriteReady) {
     ctx.save();
+    ctx.globalAlpha = getBirdOpacity();
     ctx.translate(bird.x, bird.y);
     ctx.rotate(bird.rot);
     // corpo
