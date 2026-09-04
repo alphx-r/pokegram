@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voltorbolha · Pokégram</title>
+<link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
+    overflow:hidden;position:fixed;inset:0;
+    display:flex;flex-direction:column;
+  }
+  :root{
+    --brand:#b71c1c;--brand-mid:#e53935;--accent:#fdd835;--border:#e0e0e0;--muted:#6b7280;
+  }
+  .vb-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;flex:0 0 52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .vb-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .vb-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .vb-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .vb-title span{color:var(--accent)}
+
+  .vb-wrap{
+    flex:1 1 auto;min-height:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    padding:0;overflow:hidden;position:relative;
+  }
+  #vb-canvas{
+    background:linear-gradient(#fdeeee,#fff6de);
+    touch-action:none;max-width:100%;display:block;
+  }
+  .vb-canvas-wrap{position:relative;max-width:100%;max-height:100%;line-height:0}
+
+  .vb-hud{
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:5px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    pointer-events:none;
+  }
+  .vb-hud-box{
+    display:flex;flex-wrap:wrap;row-gap:4px;gap:clamp(14px,5vw,28px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.86);border-radius:10px;
+    padding:10px clamp(20px,5vw,30px);box-shadow:0 2px 8px rgba(0,0,0,.2);
+    max-width:calc(100% - 20px);
+  }
+  .vb-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  }
+  .vb-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .vb-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
+
+  .vb-next-wrap{
+    position:absolute;top:0;right:0;z-index:20;margin:5px 8px 0 0;
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    pointer-events:none;
+  }
+  .vb-next-label{font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
+    background:rgba(255,255,255,.86);border-radius:6px;padding:2px 6px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  .vb-next-ball{width:26px;height:26px;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
+  .vb-next-ball img{width:65%;height:65%;object-fit:contain}
+
+  .vb-hint{
+    position:absolute;bottom:6px;left:10px;right:10px;z-index:20;
+    font-size:12px;color:rgba(26,26,26,.55);text-align:center;font-weight:600;
+    text-shadow:0 1px 3px rgba(255,255,255,.6);pointer-events:none;
+  }
+
+  .vb-lb{width:100%;max-width:340px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px}
+  .vb-lb-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .vb-lb-row{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:12px}
+  .vb-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .vb-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vb-lb-score{font-weight:800}
+  .vb-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
+
+  .vb-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .vb-overlay.show{display:flex}
+  .vb-modal{background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;max-height:88vh;overflow-y:auto}
+  .vb-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .vb-modal p{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .vb-final-score{font-family:'Cinzel',serif;font-size:32px;color:var(--brand-mid);margin-bottom:16px}
+  .vb-btn{
+    padding:10px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
+  }
+  .vb-btn:hover{background:var(--brand)}
+  #vb-share-btn:hover{background:#d98a1f}
+</style>
+</head>
+<body>
+
+<nav class="vb-nav">
+  <a class="vb-back" href="/jogos" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="vb-title">Voltor<span>bolha</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="vb-wrap">
+  <div class="vb-canvas-wrap">
+    <canvas id="vb-canvas"></canvas>
+    <div class="vb-hud">
+      <div class="vb-hud-box">
+        <div class="vb-hud-item">
+          <div class="vb-hud-label">Pontos</div>
+          <div class="vb-hud-value" id="vb-score">0</div>
+        </div>
+        <div class="vb-hud-item">
+          <div class="vb-hud-label">Recorde</div>
+          <div class="vb-hud-value" id="vb-best">–</div>
+        </div>
+        <div class="vb-hud-item">
+          <div class="vb-hud-label">Tipos</div>
+          <div class="vb-hud-value" id="vb-types-count">5/20</div>
+        </div>
+      </div>
+    </div>
+    <div class="vb-next-wrap">
+      <div class="vb-next-label">Próxima</div>
+      <div class="vb-next-ball" id="vb-next-ball"></div>
+    </div>
+    <div class="vb-hint" id="vb-hint">Arraste pra mirar e solte pra atirar · ← → e espaço no teclado</div>
+  </div>
+</div>
+
+<div class="vb-overlay" id="vb-overlay">
+  <div class="vb-modal">
+    <h2>Encurralado!</h2>
+    <p>Sua pontuação foi registrada no ranking.</p>
+    <div class="vb-final-score" id="vb-final-score">0</div>
+    <div class="vb-lb" style="text-align:left;margin-bottom:16px">
+      <div class="vb-lb-title">Top treinadores</div>
+      <div id="vb-leaderboard"><div class="vb-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="vb-btn" id="vb-restart-btn">Jogar novamente</button>
+    <button class="vb-btn" id="vb-share-btn" style="background:#f2a33c;margin-top:8px">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// VOLTORBOLHA — bubble shooter com os 20 tipos de Pokémon
+// (os 18 canônicos + Light e Scent, homebrew do RPG)
+// ════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('vb-canvas');
+const ctx = canvas.getContext('2d');
+
+// ── Tipos ────────────────────────────────────────────────
+// Ícones dos 18 canônicos vêm do repo partywhale/pokemon-type-icons
+// (mesmo usado no nationaldex.html); Light e Scent são homebrew e
+// vêm do Storage do Supabase do Kingdom Platinum (mesmo lugar de onde
+// o nationaldex.html busca os SVGs customizados desses dois tipos).
+const KP_SUPA_URL = 'https://vnccljhhexlsthjaaorr.supabase.co';
+const CUSTOM_TYPE_ICONS = new Set(['light', 'scent']);
+function typeIconSrc(t) {
+  return CUSTOM_TYPE_ICONS.has(t)
+    ? `${KP_SUPA_URL}/storage/v1/object/public/pokemons/types/${t}.svg`
+    : `https://cdn.jsdelivr.net/gh/partywhale/pokemon-type-icons@main/icons/${t}.svg`;
+}
+
+const TYPES = [
+  { key: 'normal',   bg: '#c8c8a0' }, { key: 'fire',     bg: '#ff9b4a' },
+  { key: 'water',    bg: '#6ab8ff' }, { key: 'electric', bg: '#ffe030' },
+  { key: 'grass',    bg: '#78d878' }, { key: 'ice',      bg: '#96d8d8' },
+  { key: 'fighting', bg: '#c03030' }, { key: 'poison',   bg: '#a060c0' },
+  { key: 'ground',   bg: '#e0c060' }, { key: 'flying',   bg: '#88aaee' },
+  { key: 'psychic',  bg: '#ff8fb0' }, { key: 'bug',      bg: '#a0c020' },
+  { key: 'rock',     bg: '#b8a050' }, { key: 'ghost',    bg: '#9090c0' },
+  { key: 'dragon',   bg: '#7060f0' }, { key: 'dark',     bg: '#705040' },
+  { key: 'steel',    bg: '#aababb' }, { key: 'fairy',    bg: '#ffaad8' },
+  { key: 'light',    bg: '#e5d38a' }, { key: 'scent',    bg: '#3cc492' },
+];
+const TYPE_ICONS = {}; // key -> { img, ready }
+TYPES.forEach(t => {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  TYPE_ICONS[t.key] = { img, ready: false };
+  img.onload = () => { TYPE_ICONS[t.key].ready = true; };
+  img.onerror = () => { TYPE_ICONS[t.key].ready = false; };
+  img.src = typeIconSrc(t.key);
+});
+
+// Quantos tipos entram no sorteio, crescendo conforme a pontuação —
+// jogar com os 20 de cara tornaria quase impossível formar trincas.
+const ACTIVE_TYPES_START = 5;
+const POINTS_PER_NEW_TYPE = 220;
+function activeTypeCount() {
+  return Math.min(TYPES.length, ACTIVE_TYPES_START + Math.floor(score / POINTS_PER_NEW_TYPE));
+}
+function randomActiveType() {
+  return TYPES[Math.floor(Math.random() * activeTypeCount())].key;
+}
+function typeInfo(key) { return TYPES.find(t => t.key === key); }
+
+function darken(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, ((n >> 16) & 255) - amt);
+  const g = Math.max(0, ((n >> 8) & 255) - amt);
+  const b = Math.max(0, (n & 255) - amt);
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawBall(x, y, r, type, alpha) {
+  const info = typeInfo(type);
+  ctx.save();
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = info.bg;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.5, r * 0.09);
+  ctx.strokeStyle = darken(info.bg, 60);
+  ctx.stroke();
+  // brilho
+  ctx.beginPath();
+  ctx.ellipse(x - r * 0.32, y - r * 0.35, r * 0.32, r * 0.2, -0.5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,.45)';
+  ctx.fill();
+  const icon = TYPE_ICONS[type];
+  if (icon && icon.ready) {
+    const s = r * 1.15;
+    ctx.drawImage(icon.img, x - s / 2, y - s / 2, s, s);
+  } else {
+    ctx.fillStyle = darken(info.bg, 90);
+    ctx.font = `800 ${Math.round(r * 0.9)}px 'Nunito',sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(type[0].toUpperCase(), x, y + 1);
+  }
+  ctx.restore();
+}
+
+// ── Dimensões ────────────────────────────────────────────
+const BASE_W_MIN = 280, BASE_H_MIN = 440;
+let BASE_W = 320, BASE_H = 520, scale = 1;
+const COLS = 8;
+const TOTAL_ROWS = 24;      // buffer fixo — jamais chega perto disso (game over acontece bem antes)
+const INITIAL_ROWS = 5;
+let R = 20, rowHeight = R * Math.sqrt(3);
+let shooterX = 160, shooterY = 460, dangerY = 400;
+
+function recomputeMetrics() {
+  R = BASE_W / (COLS * 2);
+  rowHeight = R * Math.sqrt(3);
+  shooterX = BASE_W / 2;
+  shooterY = BASE_H - R * 2.4;
+  dangerY = shooterY - R * 2.4;
+}
+
+// ── Grid (linhas com offset fixo, nunca recalculado por índice —
+// evita o grid "trocar de padrão" visualmente quando uma linha nova
+// entra no topo e empurra as outras pra baixo) ─────────────
+let grid = []; // array de TOTAL_ROWS objetos {offset:0|R, cells:[type|null,...]}
+
+function makeRow(offset) {
+  const cols = offset === 0 ? COLS : COLS - 1;
+  return { offset, cells: new Array(cols).fill(null) };
+}
+
+function initGrid() {
+  grid = [];
+  for (let i = 0; i < TOTAL_ROWS; i++) grid.push(makeRow(i % 2 === 0 ? 0 : R));
+  for (let i = 0; i < INITIAL_ROWS; i++) {
+    const row = grid[i];
+    for (let c = 0; c < row.cells.length; c++) {
+      if (Math.random() < 0.88) row.cells[c] = randomActiveType();
+    }
+  }
+}
+
+function cellCenter(rowIdx, col) {
+  const row = grid[rowIdx];
+  const x = row.offset === 0 ? R + col * 2 * R : 2 * R + col * 2 * R;
+  const y = R + rowIdx * rowHeight;
+  return { x, y };
+}
+
+// Vizinhos de (rowIdx,col), respeitando o offset fixo de cada linha
+// (ver comentário acima de `grid`).
+function neighborsOf(rowIdx, col) {
+  const row = grid[rowIdx];
+  const out = [];
+  const push = (r, c) => { if (r >= 0 && r < TOTAL_ROWS && grid[r] && c >= 0 && c < grid[r].cells.length) out.push([r, c]); };
+  push(rowIdx, col - 1); push(rowIdx, col + 1);
+  if (row.offset === 0) { // linha "longa" — vizinhas de cima/baixo (curtas) em col-1 e col
+    push(rowIdx - 1, col - 1); push(rowIdx - 1, col);
+    push(rowIdx + 1, col - 1); push(rowIdx + 1, col);
+  } else { // linha "curta" — vizinhas de cima/baixo (longas) em col e col+1
+    push(rowIdx - 1, col); push(rowIdx - 1, col + 1);
+    push(rowIdx + 1, col); push(rowIdx + 1, col + 1);
+  }
+  return out;
+}
+
+function addRowAtTop() {
+  const newOffset = grid[0].offset === 0 ? R : 0;
+  const row = makeRow(newOffset);
+  for (let c = 0; c < row.cells.length; c++) {
+    if (Math.random() < 0.85) row.cells[c] = randomActiveType();
+  }
+  grid.unshift(row);
+  grid.pop(); // buffer de tamanho fixo — a última linha está sempre vazia nesse ponto do jogo
+}
+
+function lowestOccupiedY() {
+  for (let r = TOTAL_ROWS - 1; r >= 0; r--) {
+    if (grid[r].cells.some(c => c !== null)) return R + r * rowHeight + R;
+  }
+  return -1;
+}
+
+// ── Estado do jogo ───────────────────────────────────────
+let score = 0, best = 0, user = null, gameOver = false, started = false;
+let aimAngle = 0;
+const AIM_LIMIT = 1.25; // rad (~72°)
+const ROTATE_SPEED = 2.6; // rad/s
+let keyLeft = false, keyRight = false;
+let dragging = false;
+let currentType = null, nextType = null;
+let projectile = null; // {x,y,vx,vy,type}
+const PROJECTILE_SPEED = 620;
+let poppingFx = []; // efeitos de estouro {x,y,life,color}
+let fallingBalls = []; // bolhas soltas caindo {x,y,vy,type,life}
+let shotsSinceRow = 0;
+const SHOTS_PER_ROW = 5;
+let rafId = null, lastTs = null;
+
+function newBallPair() {
+  currentType = randomActiveType();
+  nextType = randomActiveType();
+  updateNextBallUI();
+}
+
+function updateNextBallUI() {
+  const el = document.getElementById('vb-next-ball');
+  const info = typeInfo(nextType);
+  el.style.background = info.bg;
+  const icon = TYPE_ICONS[nextType];
+  el.innerHTML = (icon && icon.ready) ? `<img src="${typeIconSrc(nextType)}">` : '';
+}
+
+function resetGame() {
+  document.getElementById('vb-overlay').classList.remove('show');
+  score = 0; gameOver = false; started = true;
+  aimAngle = 0; projectile = null; poppingFx = []; fallingBalls = []; shotsSinceRow = 0;
+  document.getElementById('vb-score').textContent = '0';
+  updateTypesUI();
+  initGrid();
+  newBallPair();
+  lastTs = null;
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
+}
+
+function updateTypesUI() {
+  document.getElementById('vb-types-count').textContent = `${activeTypeCount()}/${TYPES.length}`;
+}
+
+// ── Disparo / física ─────────────────────────────────────
+function fire() {
+  if (projectile || gameOver || !started) return;
+  projectile = {
+    x: shooterX, y: shooterY,
+    vx: PROJECTILE_SPEED * Math.sin(aimAngle),
+    vy: -PROJECTILE_SPEED * Math.cos(aimAngle),
+    type: currentType,
+  };
+}
+
+function findLandingNearCeiling(x) {
+  const row = grid[0];
+  const raw = row.offset === 0 ? (x - R) / (2 * R) : (x - 2 * R) / (2 * R);
+  let col = Math.round(raw);
+  col = Math.max(0, Math.min(row.cells.length - 1, col));
+  if (row.cells[col] === null) return [0, col];
+  // vizinho livre mais próximo na própria linha
+  for (let d = 1; d < row.cells.length; d++) {
+    if (col - d >= 0 && row.cells[col - d] === null) return [0, col - d];
+    if (col + d < row.cells.length && row.cells[col + d] === null) return [0, col + d];
+  }
+  return null;
+}
+
+function findEmptyNeighborNear(rowIdx, col, x, y) {
+  const candidates = neighborsOf(rowIdx, col).filter(([r, c]) => grid[r].cells[c] === null);
+  if (candidates.length === 0) {
+    // busca em anel: vizinhos dos vizinhos
+    const seen = new Set();
+    const ring = [];
+    neighborsOf(rowIdx, col).forEach(([r, c]) => {
+      neighborsOf(r, c).forEach(([r2, c2]) => {
+        const key = r2 + '_' + c2;
+        if (!seen.has(key) && grid[r2].cells[c2] === null) { seen.add(key); ring.push([r2, c2]); }
+      });
+    });
+    if (ring.length === 0) return null;
+    candidates.push(...ring);
+  }
+  let best = null, bestD = Infinity;
+  candidates.forEach(([r, c]) => {
+    const p = cellCenter(r, c);
+    const d = (p.x - x) ** 2 + (p.y - y) ** 2;
+    if (d < bestD) { bestD = d; best = [r, c]; }
+  });
+  return best;
+}
+
+function settleProjectile() {
+  const p = projectile;
+  let landed = null;
+  if (p.y <= R) {
+    landed = findLandingNearCeiling(p.x);
+  } else {
+    let hitRow = -1, hitCol = -1, hitD = Infinity;
+    for (let r = 0; r < TOTAL_ROWS; r++) {
+      const row = grid[r];
+      for (let c = 0; c < row.cells.length; c++) {
+        if (row.cells[c] === null) continue;
+        const cc = cellCenter(r, c);
+        const d = (cc.x - p.x) ** 2 + (cc.y - p.y) ** 2;
+        if (d < (2 * R - 2) ** 2 && d < hitD) { hitD = d; hitRow = r; hitCol = c; }
+      }
+    }
+    if (hitRow >= 0) landed = findEmptyNeighborNear(hitRow, hitCol, p.x, p.y);
+    if (!landed) landed = findLandingNearCeiling(p.x);
+  }
+  projectile = null;
+  if (!landed) return;
+  const [lr, lc] = landed;
+  grid[lr].cells[lc] = p.type;
+  resolveMatches(lr, lc);
+  shotsSinceRow++;
+  if (shotsSinceRow >= SHOTS_PER_ROW) { shotsSinceRow = 0; addRowAtTop(); }
+  checkGameOver();
+}
+
+// ── Trincas e queda de bolhas soltas ─────────────────────
+function resolveMatches(rowIdx, col) {
+  const type = grid[rowIdx].cells[col];
+  const seen = new Set([rowIdx + '_' + col]);
+  const stack = [[rowIdx, col]];
+  const group = [[rowIdx, col]];
+  while (stack.length) {
+    const [r, c] = stack.pop();
+    neighborsOf(r, c).forEach(([nr, nc]) => {
+      const key = nr + '_' + nc;
+      if (seen.has(key)) return;
+      if (grid[nr].cells[nc] === type) {
+        seen.add(key); stack.push([nr, nc]); group.push([nr, nc]);
+      }
+    });
+  }
+  if (group.length >= 3) {
+    group.forEach(([r, c]) => {
+      const p = cellCenter(r, c);
+      poppingFx.push({ x: p.x, y: p.y, life: 0.3, color: typeInfo(type).bg });
+      grid[r].cells[c] = null;
+    });
+    score += group.length * 15 + Math.max(0, group.length - 3) * 10;
+    updateScoreUI();
+    dropFloating();
+  }
+}
+
+function dropFloating() {
+  const reached = new Set();
+  const stack = [];
+  grid[0].cells.forEach((v, c) => { if (v !== null) { reached.add('0_' + c); stack.push([0, c]); } });
+  while (stack.length) {
+    const [r, c] = stack.pop();
+    neighborsOf(r, c).forEach(([nr, nc]) => {
+      const key = nr + '_' + nc;
+      if (!reached.has(key) && grid[nr].cells[nc] !== null) { reached.add(key); stack.push([nr, nc]); }
+    });
+  }
+  let dropped = 0;
+  for (let r = 0; r < TOTAL_ROWS; r++) {
+    const row = grid[r];
+    for (let c = 0; c < row.cells.length; c++) {
+      if (row.cells[c] === null) continue;
+      const key = r + '_' + c;
+      if (!reached.has(key)) {
+        const p = cellCenter(r, c);
+        fallingBalls.push({ x: p.x, y: p.y, vy: 60, type: row.cells[c], life: 1.4 });
+        row.cells[c] = null;
+        dropped++;
+      }
+    }
+  }
+  if (dropped > 0) { score += dropped * 25; updateScoreUI(); }
+}
+
+function updateScoreUI() {
+  document.getElementById('vb-score').textContent = score;
+  updateTypesUI();
+}
+
+function checkGameOver() {
+  const y = lowestOccupiedY();
+  if (y >= 0 && y >= dangerY) triggerGameOver();
+}
+
+async function triggerGameOver() {
+  if (gameOver) return;
+  gameOver = true;
+  cancelAnimationFrame(rafId);
+  document.getElementById('vb-final-score').textContent = score;
+  document.getElementById('vb-overlay').classList.add('show');
+  await gSaveScore('voltorbolha', score, user);
+  refreshLeaderboard();
+  refreshBest();
+}
+
+// ── Update / desenho ──────────────────────────────────────
+function update(dt) {
+  if (keyLeft) aimAngle = Math.max(-AIM_LIMIT, aimAngle - ROTATE_SPEED * dt);
+  if (keyRight) aimAngle = Math.min(AIM_LIMIT, aimAngle + ROTATE_SPEED * dt);
+
+  if (projectile) {
+    const p = projectile;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.x < R) { p.x = R; p.vx = -p.vx; }
+    if (p.x > BASE_W - R) { p.x = BASE_W - R; p.vx = -p.vx; }
+    if (p.y <= R) { settleProjectile(); }
+    else {
+      for (let r = 0; r < TOTAL_ROWS && projectile; r++) {
+        const row = grid[r];
+        for (let c = 0; c < row.cells.length; c++) {
+          if (row.cells[c] === null) continue;
+          const cc = cellCenter(r, c);
+          const d2 = (cc.x - p.x) ** 2 + (cc.y - p.y) ** 2;
+          if (d2 < (2 * R - 2) ** 2) { settleProjectile(); break; }
+        }
+      }
+    }
+  }
+
+  poppingFx.forEach(f => f.life -= dt);
+  poppingFx = poppingFx.filter(f => f.life > 0);
+
+  fallingBalls.forEach(b => { b.vy += 900 * dt; b.y += b.vy * dt; b.life -= dt; });
+  fallingBalls = fallingBalls.filter(b => b.life > 0 && b.y < BASE_H + R * 2);
+}
+
+function computeAimGuide() {
+  // linha pontilhada simples até a primeira parede/topo, com um reflexo
+  let x = shooterX, y = shooterY;
+  let vx = Math.sin(aimAngle), vy = -Math.cos(aimAngle);
+  const pts = [[x, y]];
+  for (let bounce = 0; bounce < 2; bounce++) {
+    let tTop = vy < 0 ? (R - y) / vy : Infinity;
+    let tWall = vx > 0 ? (BASE_W - R - x) / vx : (vx < 0 ? (R - x) / vx : Infinity);
+    const t = Math.min(tTop, tWall);
+    if (!isFinite(t) || t < 0) break;
+    x += vx * t; y += vy * t;
+    pts.push([x, y]);
+    if (t === tTop) break;
+    vx = -vx;
+  }
+  return pts;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+  // linha de perigo
+  ctx.save();
+  ctx.strokeStyle = 'rgba(183,28,28,.35)';
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.moveTo(0, dangerY); ctx.lineTo(BASE_W, dangerY); ctx.stroke();
+  ctx.restore();
+
+  for (let r = 0; r < TOTAL_ROWS; r++) {
+    const row = grid[r];
+    for (let c = 0; c < row.cells.length; c++) {
+      if (row.cells[c] === null) continue;
+      const p = cellCenter(r, c);
+      if (p.y > BASE_H + R) continue;
+      drawBall(p.x, p.y, R - 1.2, row.cells[c]);
+    }
+  }
+
+  poppingFx.forEach(f => {
+    const t = 1 - f.life / 0.3;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - t);
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, R * (1 + t * 0.8), 0, Math.PI * 2);
+    ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.stroke();
+    ctx.restore();
+  });
+
+  fallingBalls.forEach(b => drawBall(b.x, b.y, R - 1.2, b.type, Math.min(1, b.life)));
+
+  // canhão
+  ctx.save();
+  ctx.translate(shooterX, shooterY);
+  ctx.rotate(aimAngle);
+  ctx.fillStyle = '#5a5a5a';
+  ctx.fillRect(-R * 0.35, -R * 2.2, R * 0.7, R * 1.6);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(shooterX, shooterY, R * 0.9, 0, Math.PI * 2);
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fill();
+
+  if (!gameOver && started) {
+    ctx.save();
+    ctx.setLineDash([5, 6]);
+    ctx.strokeStyle = 'rgba(26,26,26,.32)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const pts = computeAimGuide();
+    pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (currentType && !gameOver) drawBall(shooterX, shooterY, R - 1.2, currentType);
+  if (projectile) drawBall(projectile.x, projectile.y, R - 1.2, projectile.type);
+}
+
+function loop(ts) {
+  if (gameOver) return;
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.033, (ts - lastTs) / 1000);
+  lastTs = ts;
+  update(dt);
+  draw();
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── Controles ──────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (gameOver || !started) return;
+  if (e.key === 'ArrowLeft') { keyLeft = true; e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { keyRight = true; e.preventDefault(); }
+  else if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); fire(); }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft') keyLeft = false;
+  else if (e.key === 'ArrowRight') keyRight = false;
+});
+
+function angleFromPointer(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (clientX - rect.left) * (BASE_W / rect.width);
+  const y = (clientY - rect.top) * (BASE_H / rect.height);
+  const dx = x - shooterX, dy = shooterY - y;
+  let a = Math.atan2(dx, Math.max(1, dy));
+  return Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, a));
+}
+canvas.addEventListener('pointerdown', (e) => {
+  if (gameOver || !started) return;
+  e.preventDefault();
+  dragging = true;
+  aimAngle = angleFromPointer(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  aimAngle = angleFromPointer(e.clientX, e.clientY);
+});
+window.addEventListener('pointerup', (e) => {
+  if (!dragging) return;
+  dragging = false;
+  if (!gameOver && started) fire();
+});
+
+document.getElementById('vb-restart-btn').addEventListener('click', resetGame);
+document.getElementById('vb-share-btn').addEventListener('click', shareResultToStories);
+
+// ── Compartilhar resultado ────────────────────────────────
+function buildResultCanvas() {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#fdeeee'); bg.addColorStop(1, '#fff6de');
+  c2.fillStyle = bg; c2.fillRect(0, 0, W, H);
+
+  c2.textAlign = 'center';
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 74px 'Cinzel', serif";
+  c2.fillText('Voltorbolha', W / 2, 320);
+
+  // bolhas decorativas com algumas das cores de tipo já desbloqueadas
+  const shown = TYPES.slice(0, activeTypeCount());
+  shown.slice(0, 6).forEach((t, i) => {
+    const cx = 160 + (i % 3) * 380, cy = 560 + Math.floor(i / 3) * 220;
+    c2.beginPath(); c2.arc(cx, cy, 80, 0, Math.PI * 2);
+    c2.fillStyle = t.bg; c2.fill();
+    c2.lineWidth = 6; c2.strokeStyle = darken(t.bg, 60); c2.stroke();
+  });
+
+  c2.fillStyle = 'rgba(255,255,255,.9)';
+  const cardW = 760, cardH = 260, cardX = (W - cardW) / 2, cardY = 1080;
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+  c2.fill();
+
+  c2.fillStyle = '#6b7280';
+  c2.font = "800 34px 'Nunito', sans-serif";
+  c2.fillText('PONTOS', W / 2, cardY + 70);
+
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 130px 'Cinzel', serif";
+  c2.fillText(String(score), W / 2, cardY + 210);
+
+  if (best) {
+    c2.fillStyle = 'rgba(26,26,26,.7)';
+    c2.font = "700 40px 'Nunito', sans-serif";
+    c2.fillText(`Recorde: ${best}`, W / 2, cardY + cardH + 90);
+  }
+
+  c2.fillStyle = '#1a1a1a';
+  c2.font = "800 56px 'Nunito', sans-serif";
+  c2.shadowColor = 'rgba(0,0,0,.25)'; c2.shadowBlur = 10; c2.shadowOffsetY = 2;
+  const ctaLines = wrapCanvasText(c2, `Eu fiz ${score} pontos, venha jogar Voltorbolha também!`, W - 140);
+  const lh = 68;
+  let ctaY = cardY + cardH + (best ? 200 : 140);
+  ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += lh; });
+  c2.shadowColor = 'transparent'; c2.shadowBlur = 0; c2.shadowOffsetY = 0;
+
+  return c;
+}
+
+function wrapCanvasText(ctx2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = []; let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx2d.measureText(test).width > maxWidth && current) { lines.push(current); current = word; }
+    else current = test;
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function shareResultToStories() {
+  let dataUrl = null;
+  try { dataUrl = buildResultCanvas().toDataURL('image/png'); }
+  catch (e) { console.warn('[shareResultToStories] falhou ao gerar imagem do resultado', e); }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl, gameLink: '/jogos/voltorbolha',
+      }));
+    } catch (e) { console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e); }
+  }
+  window.location.href = '/';
+}
+
+// ── Sizing responsivo ─────────────────────────────────────
+function resize() {
+  const nav = document.querySelector('.vb-nav');
+  const navH = nav ? nav.getBoundingClientRect().height : 52;
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - navH;
+  const midGame = started && !gameOver;
+  if (!midGame) {
+    BASE_W = Math.max(BASE_W_MIN, Math.round(maxW));
+    BASE_H = Math.max(BASE_H_MIN, Math.round(maxH));
+    recomputeMetrics();
+  }
+  canvas.width = BASE_W; canvas.height = BASE_H;
+  canvas.style.width = BASE_W + 'px';
+  canvas.style.height = BASE_H + 'px';
+  if (!midGame && grid.length) draw();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+window.addEventListener('load', () => resize());
+setTimeout(resize, 300);
+
+// ── Ranking ────────────────────────────────────────────
+async function refreshLeaderboard() {
+  const el = document.getElementById('vb-leaderboard');
+  const top = await gLoadTopScores('voltorbolha', 5);
+  if (top.length === 0) { el.innerHTML = '<div class="vb-lb-empty">Nenhum recorde ainda.</div>'; return; }
+  el.innerHTML = top.map((row, i) => `
+    <div class="vb-lb-row">
+      <span class="vb-lb-pos">${i + 1}º</span>
+      <span class="vb-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="vb-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+async function refreshBest() {
+  if (!user) return;
+  best = await gLoadMyBest('voltorbolha', user.id);
+  document.getElementById('vb-best').textContent = best || '–';
+}
+
+// ── Boot ───────────────────────────────────────────────
+function isMobileLike() {
+  return window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
+}
+function tryEnterFullscreenNow() {
+  try {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen || !isMobileLike()) return;
+    el.requestFullscreen().catch(() => {});
+  } catch (e) {}
+}
+
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  tryEnterFullscreenNow();
+  gSetupFullscreenOnFirstInteraction();
+  recomputeMetrics();
+  resize();
+  resetGame();
+  refreshBest();
+})();
+</script>
+</body>
+</html>
