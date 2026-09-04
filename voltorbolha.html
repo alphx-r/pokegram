@@ -269,6 +269,54 @@ function drawBall(targetCtx, x, y, r, type, alpha) {
   targetCtx.restore();
 }
 
+// Desenha o canhão como um Voltorb: esfera vermelha em cima / creme
+// embaixo, com uma faixa preta no meio e dois "olhos". O cano continua
+// existindo (pra deixar claro pra onde a mira aponta) mas agora nasce
+// de dentro da bolinha, igual uma antena, e gira junto com aimAngle.
+function drawVoltorbCannon() {
+  const cx = shooterX, cy = shooterY, rad = R * 0.95;
+
+  // cano de mira, rotaciona com o ângulo
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(aimAngle);
+  ctx.fillStyle = '#7a1c1c';
+  ctx.fillRect(-R * 0.26, -R * 2.05, R * 0.52, R * 1.35);
+  ctx.restore();
+
+  // corpo (esfera vermelha em cima, creme embaixo — clip circular)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#e0393a';
+  ctx.fillRect(cx - rad, cy - rad, rad * 2, rad);
+  ctx.fillStyle = '#f4efe2';
+  ctx.fillRect(cx - rad, cy, rad * 2, rad);
+  // faixa preta central
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(cx - rad, cy - rad * 0.14, rad * 2, rad * 0.28);
+  ctx.restore();
+
+  // contorno
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+  ctx.lineWidth = Math.max(1.5, rad * 0.09);
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.stroke();
+
+  // olhinhos
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(cx - rad * 0.34, cy - rad * 0.34, rad * 0.11, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + rad * 0.34, cy - rad * 0.34, rad * 0.11, 0, Math.PI * 2); ctx.fill();
+
+  // brilho
+  ctx.beginPath();
+  ctx.ellipse(cx - rad * 0.36, cy - rad * 0.58, rad * 0.22, rad * 0.13, -0.4, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,.4)';
+  ctx.fill();
+}
+
 // ── Dimensões ────────────────────────────────────────────
 const BASE_W_MIN = 280, BASE_H_MIN = 440;
 let BASE_W = 320, BASE_H = 520, scale = 1;
@@ -339,6 +387,7 @@ function addRowAtTop() {
   }
   grid.unshift(row);
   grid.pop(); // buffer de tamanho fixo — a última linha está sempre vazia nesse ponto do jogo
+  gridAnimRemaining = GRID_ANIM_DURATION;
 }
 
 function lowestOccupiedY() {
@@ -363,6 +412,15 @@ let fallingBalls = []; // bolhas soltas caindo {x,y,vy,type,life}
 let shotsSinceRow = 0;
 const SHOTS_PER_ROW = 5;
 let rafId = null, lastTs = null;
+
+// Animação da linha nova "descendo" no topo do grid em vez de aparecer
+// tudo de uma vez: addRowAtTop() já empurra os dados instantaneamente
+// (a lógica do jogo — game over, colisão — usa a posição real), mas o
+// desenho usa gridAnimRemaining pra deslizar visualmente a linha nova
+// (e todas as outras, empurradas junto) de -rowHeight até a posição
+// final ao longo de GRID_ANIM_DURATION segundos.
+let gridAnimRemaining = 0;
+const GRID_ANIM_DURATION = 0.5;
 
 function newBallPair() {
   currentType = randomActiveType();
@@ -390,6 +448,7 @@ function resetGame() {
   document.getElementById('vb-overlay').classList.remove('show');
   score = 0; gameOver = false; started = true;
   aimAngle = 0; projectile = null; poppingFx = []; fallingBalls = []; shotsSinceRow = 0;
+  gridAnimRemaining = 0;
   hideHintOnce();
   document.getElementById('vb-score').textContent = '0';
   updateTypesUI();
@@ -595,6 +654,8 @@ function update(dt) {
 
   fallingBalls.forEach(b => { b.vy += 900 * dt; b.y += b.vy * dt; b.life -= dt; });
   fallingBalls = fallingBalls.filter(b => b.life > 0 && b.y < BASE_H + R * 2);
+
+  if (gridAnimRemaining > 0) gridAnimRemaining = Math.max(0, gridAnimRemaining - dt);
 }
 
 function computeAimGuide() {
@@ -625,13 +686,20 @@ function draw() {
   ctx.beginPath(); ctx.moveTo(0, dangerY); ctx.lineTo(BASE_W, dangerY); ctx.stroke();
   ctx.restore();
 
+  // Enquanto uma linha nova está "descendo" (ver addRowAtTop), desenha
+  // todo o grid deslocado pra cima por uma fração de rowHeight que
+  // encolhe suavemente até 0 — dá a sensação de as bolhas escorregando
+  // pra baixo aos poucos, em vez de saltarem pra posição final de uma vez.
+  const gridAnimT = gridAnimRemaining > 0 ? gridAnimRemaining / GRID_ANIM_DURATION : 0;
+  const gridOffsetY = -rowHeight * (gridAnimT * gridAnimT * gridAnimT);
   for (let r = 0; r < TOTAL_ROWS; r++) {
     const row = grid[r];
     for (let c = 0; c < row.cells.length; c++) {
       if (row.cells[c] === null) continue;
       const p = cellCenter(r, c);
-      if (p.y > BASE_H + R) continue;
-      drawBall(ctx, p.x, p.y, R - 1.2, row.cells[c]);
+      const y = p.y + gridOffsetY;
+      if (y > BASE_H + R) continue;
+      drawBall(ctx, p.x, y, R - 1.2, row.cells[c]);
     }
   }
 
@@ -647,17 +715,9 @@ function draw() {
 
   fallingBalls.forEach(b => drawBall(ctx, b.x, b.y, R - 1.2, b.type, Math.min(1, b.life)));
 
-  // canhão
-  ctx.save();
-  ctx.translate(shooterX, shooterY);
-  ctx.rotate(aimAngle);
-  ctx.fillStyle = '#5a5a5a';
-  ctx.fillRect(-R * 0.35, -R * 2.2, R * 0.7, R * 1.6);
-  ctx.restore();
-  ctx.beginPath();
-  ctx.arc(shooterX, shooterY, R * 0.9, 0, Math.PI * 2);
-  ctx.fillStyle = '#3a3a3a';
-  ctx.fill();
+  // canhão — corpo com cara de Voltorb (bolinha vermelha/creme) com um
+  // pequeno cano por cima, que gira com a mira igual ao canhão original.
+  drawVoltorbCannon();
 
   if (!gameOver && started) {
     ctx.save();
