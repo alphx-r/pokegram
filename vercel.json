@@ -1,9 +1,13 @@
 {
   "rewrites": [
-    { "source": "/jogos/?", "destination": "/jogos.html" },
-    { "source": "/jogos/flapidgey/?", "destination": "/flapidgey.html" },
-    { "source": "/jogos/tetris/?", "destination": "/tetris.html" },
-    { "source": "/jogos/voltorbolha/?", "destination": "/voltorbolha.html" },
+    { "source": "/jogos", "destination": "/jogos.html" },
+    { "source": "/jogos/", "destination": "/jogos.html" },
+    { "source": "/jogos/flapidgey", "destination": "/flapidgey.html" },
+    { "source": "/jogos/flapidgey/", "destination": "/flapidgey.html" },
+    { "source": "/jogos/tetris", "destination": "/tetris.html" },
+    { "source": "/jogos/tetris/", "destination": "/tetris.html" },
+    { "source": "/jogos/voltorbolha", "destination": "/voltorbolha.html" },
+    { "source": "/jogos/voltorbolha/", "destination": "/voltorbolha.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
