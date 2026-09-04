@@ -269,6 +269,40 @@ function drawBall(targetCtx, x, y, r, type, alpha) {
   targetCtx.restore();
 }
 
+// Bolinhas do tipo atual orbitando ao redor do canhão (em vez de uma
+// única bola tampando o Voltorb). Algumas passam atrás do canhão e
+// outras na frente, dependendo do ângulo da órbita naquele instante —
+// por isso a função é chamada duas vezes no draw(): uma antes de
+// drawVoltorbCannon() (só as de trás) e outra depois (só as da frente).
+const ORBIT_COUNT = 5;
+const ORBIT_RADIUS_FACTOR = 1.75; // distância do centro do canhão, em raios de bolha
+const ORBIT_BALL_R_FACTOR = 0.52; // tamanho de cada bolinha orbitando, em raios de bolha
+const ORBIT_SPEED = 0.7; // rad/s
+
+function drawOrbitingBalls(frontLayer) {
+  if (!currentType || gameOver) return;
+  const orbitR = R * ORBIT_RADIUS_FACTOR;
+  const ballR = Math.max(4, R * ORBIT_BALL_R_FACTOR);
+  for (let i = 0; i < ORBIT_COUNT; i++) {
+    const angle = orbitTime * ORBIT_SPEED + (i / ORBIT_COUNT) * Math.PI * 2;
+    // depthFactor > 0 quando a bolinha está "na frente" do canhão
+    // (metade de baixo da órbita, mais perto de quem olha).
+    const depthFactor = Math.sin(angle);
+    const isFront = depthFactor > 0;
+    if (isFront !== frontLayer) continue;
+
+    const x = shooterX + Math.cos(angle) * orbitR;
+    // achata a órbita verticalmente (elipse) pra dar sensação de
+    // profundidade em vez de um círculo reto sobre o canhão.
+    const y = shooterY + depthFactor * orbitR * 0.42;
+    // bolinhas de trás ficam levemente menores e mais transparentes,
+    // reforçando a ideia de estarem mais longe.
+    const depthScale = 0.82 + 0.18 * (depthFactor * 0.5 + 0.5);
+    const alpha = isFront ? 1 : 0.75;
+    drawBall(ctx, x, y, ballR * depthScale, currentType, alpha);
+  }
+}
+
 // Desenha o canhão como um Voltorb: esfera vermelha em cima / creme
 // embaixo, com uma faixa preta no meio e dois "olhos". O cano continua
 // existindo (pra deixar claro pra onde a mira aponta) mas agora nasce
@@ -400,6 +434,7 @@ function lowestOccupiedY() {
 // ── Estado do jogo ───────────────────────────────────────
 let score = 0, best = 0, user = null, gameOver = false, started = false;
 let aimAngle = 0;
+let orbitTime = 0; // acumulado para animar as bolas orbitando o canhão
 const AIM_LIMIT = 1.25; // rad (~72°)
 const ROTATE_SPEED = 2.6; // rad/s
 let keyLeft = false, keyRight = false;
@@ -627,6 +662,7 @@ async function triggerGameOver() {
 
 // ── Update / desenho ──────────────────────────────────────
 function update(dt) {
+  orbitTime += dt;
   if (keyLeft) aimAngle = Math.max(-AIM_LIMIT, aimAngle - ROTATE_SPEED * dt);
   if (keyRight) aimAngle = Math.min(AIM_LIMIT, aimAngle + ROTATE_SPEED * dt);
 
@@ -717,7 +753,12 @@ function draw() {
 
   // canhão — corpo com cara de Voltorb (bolinha vermelha/creme) com um
   // pequeno cano por cima, que gira com a mira igual ao canhão original.
+  // As bolinhas do tipo atual orbitam ao redor dele: as de trás são
+  // desenhadas antes do canhão, as da frente depois — assim o Voltorb
+  // nunca fica tapado.
+  drawOrbitingBalls(false); // atrás
   drawVoltorbCannon();
+  drawOrbitingBalls(true);  // frente
 
   if (!gameOver && started) {
     ctx.save();
@@ -731,7 +772,6 @@ function draw() {
     ctx.restore();
   }
 
-  if (currentType && !gameOver) drawBall(ctx, shooterX, shooterY, R - 1.2, currentType);
   if (projectile) drawBall(ctx, projectile.x, projectile.y, R - 1.2, projectile.type);
 }
 
