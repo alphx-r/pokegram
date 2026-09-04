@@ -540,10 +540,23 @@ function resize() {
   const nav = document.querySelector('.gf-nav');
   const navH = nav ? nav.getBoundingClientRect().height : 52;
 
+  // window.innerWidth/innerHeight refletem o viewport visual real (o
+  // mesmo que o 100dvh do CSS persegue), então são a fonte confiável do
+  // tamanho de tela "que está sendo exibido" no momento da chamada —
+  // inclusive depois que a barra de endereço do navegador mobile
+  // esconde/aparece.
   const maxW = window.innerWidth;
   const maxH = window.innerHeight - navH;
 
-  if (!baseSized || (!started && !gameOver)) {
+  // Só trava o recálculo enquanto o pidgey está em pleno voo (started
+  // && !gameOver): nesse momento redimensionar o canvas lógico
+  // distorceria canos/posição do pássaro em andamento. Antes de começar
+  // OU depois de morrer (tela de "Jogar novamente") é seguro — e
+  // necessário — recalcular, senão o jogo fica preso no tamanho medido
+  // no primeiro boot pra sempre, mesmo que a tela realmente disponível
+  // mude (rotação, barra de endereço, fullscreen, etc).
+  const midFlight = started && !gameOver;
+  if (!baseSized || !midFlight) {
     computeBaseDims(maxW, maxH);
     baseSized = true;
   }
@@ -555,7 +568,8 @@ function resize() {
   // sempre limpa o desenho atual, então fazer isso à toa (ex.: em eventos
   // de resize espúrios disparados pela troca pra fullscreen no meio de uma
   // partida) apagava o pidgey por um frame.
-  if (canvas.width !== BASE_W || canvas.height !== BASE_H) {
+  const sizeChanged = canvas.width !== BASE_W || canvas.height !== BASE_H;
+  if (sizeChanged) {
     canvas.width = BASE_W; canvas.height = BASE_H;
   }
   canvas.style.width = BASE_W + 'px';
@@ -566,10 +580,30 @@ function resize() {
     birdSpriteEl.style.height = BIRD_SPRITE_SIZE * scale + 'px';
     updateBirdSpritePosition();
   }
+
+  // Fora de uma partida em andamento não há loop de animação rodando
+  // (rAF só existe entre resetGame() e o game over), então se o
+  // redimensionamento limpou o canvas (sizeChanged) é preciso repintar
+  // manualmente — senão o pidgey/fundo somem até o próximo "Jogar
+  // novamente".
+  if (!midFlight && sizeChanged && bird) draw();
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 150));
 document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
+// Barra de endereço/teclado mobile mudam o viewport visual sem
+// necessariamente disparar 'resize' na window a tempo — visualViewport
+// captura isso de forma mais confiável em navegadores que o suportam.
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize);
+}
+// No boot, o innerHeight pode não refletir ainda o valor final (barra de
+// endereço do mobile recolhendo, fontes carregando e mudando a altura do
+// nav, etc.), então recalcula de novo logo após o load e mais uma vez
+// pouco depois, garantindo que o jogo se adapte ao tamanho real da tela
+// mesmo quando o boot inicial mediu errado.
+window.addEventListener('load', () => resize());
+setTimeout(resize, 300);
 
 // ── Ranking ────────────────────────────────────────────
 async function refreshLeaderboard() {
