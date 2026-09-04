@@ -40,16 +40,23 @@
     image-rendering:pixelated;transform-origin:center center;
   }
   .gf-hud{
-    position:absolute;top:10px;left:10px;right:10px;z-index:20;
-    display:flex;gap:10px;align-items:center;justify-content:center;
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:5px;
+    display:flex;justify-content:center;
     pointer-events:none;
   }
-  .gf-hud-item{
-    text-align:center;background:rgba(255,255,255,.8);border-radius:8px;
-    padding:3px 10px;box-shadow:0 1px 4px rgba(0,0,0,.18);
+  .gf-hud-box{
+    display:flex;flex-wrap:wrap;row-gap:4px;gap:clamp(14px,5vw,28px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.82);border-radius:10px;
+    padding:13.5px clamp(26.5px,5vw,34.5px);box-shadow:0 2px 8px rgba(0,0,0,.2);
+    max-width:calc(100% - 20px);
   }
-  .gf-hud-label{font-size:8px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-  .gf-hud-value{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);font-weight:700}
+  .gf-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  }
+  .gf-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .gf-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
+  .gf-hud-value.gf-hud-sm{font-size:clamp(11px,3.4vw,15px)}
   .gf-hint{
     position:absolute;bottom:10px;left:10px;right:10px;z-index:20;
     font-size:11.5px;color:rgba(26,26,26,.7);text-align:center;font-weight:700;
@@ -96,17 +103,19 @@
     <canvas id="gf-canvas"></canvas>
     <img id="gf-bird-sprite" alt="">
     <div class="gf-hud">
-      <div class="gf-hud-item">
-        <div class="gf-hud-label">Pontos</div>
-        <div class="gf-hud-value" id="gf-score">0</div>
-      </div>
-      <div class="gf-hud-item">
-        <div class="gf-hud-label">Recorde</div>
-        <div class="gf-hud-value" id="gf-best" style="font-size:14px">–</div>
-      </div>
-      <div class="gf-hud-item">
-        <div class="gf-hud-label">Vidas</div>
-        <div class="gf-hud-value" id="gf-lives" style="font-size:14px">🛡 0</div>
+      <div class="gf-hud-box">
+        <div class="gf-hud-item">
+          <div class="gf-hud-label">Pontos</div>
+          <div class="gf-hud-value" id="gf-score">0</div>
+        </div>
+        <div class="gf-hud-item">
+          <div class="gf-hud-label">Recorde</div>
+          <div class="gf-hud-value gf-hud-sm" id="gf-best">–</div>
+        </div>
+        <div class="gf-hud-item">
+          <div class="gf-hud-label">Vidas</div>
+          <div class="gf-hud-value gf-hud-sm" id="gf-lives">🛡 0</div>
+        </div>
       </div>
     </div>
     <div class="gf-hint">Toque na tela ou aperte espaço para bater as asas</div>
