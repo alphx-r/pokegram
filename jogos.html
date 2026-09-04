@@ -198,7 +198,7 @@
   }
   function loadSession() {
     try {
-      const val = JSON.parse(localStorage.getItem('pg_user'));
+      const val = JSON.parse(sessionStorage.getItem('pg_user'));
       if (!val) return null;
       if (Array.isArray(val)) return val[0] || null;
       return val;
@@ -282,7 +282,7 @@
 
   async function boot() {
     // Confirma sessão real no Supabase Auth (mesma sessão do app principal,
-    // compartilhada por localStorage no mesmo domínio)
+    // compartilhada por sessionStorage no mesmo domínio)
     const { data: { session } } = await db.auth.getSession();
     const cached = loadSession();
     if (!session || !cached) {
@@ -372,8 +372,7 @@
         if (idx === -1) {
           resultEl.textContent = 'Sem pontuação essa semana';
         } else {
-          const prize = idx < PRIZES.length ? ` · ${PRIZES[idx]}C$` : '';
-          resultEl.textContent = `${idx + 1}º lugar (${ranked[idx].score} pts)${prize}`;
+          resultEl.textContent = `${idx + 1}º lugar`;
         }
       } catch (e) {
         console.warn('[openMyRanking]', g.key, e);
@@ -445,7 +444,6 @@
           <span class="gj-lb-pos">${i + 1}º</span>
           <span class="gj-lb-av" style="background:${bg}">${av}</span>
           <span class="gj-lb-name">${esc(row.author_name || '???')}</span>
-          <span class="gj-lb-score">${row.score}</span>
           <span class="gj-lb-prize">${PRIZES[i]}C$</span>
         </div>`;
       }).join('');
