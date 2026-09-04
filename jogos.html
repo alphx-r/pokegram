@@ -51,7 +51,7 @@
 
   .gj-card{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
   .gj-tile{
-    width:100%;aspect-ratio:1/1;border-radius:16px;
+    width:100%;aspect-ratio:1/1;border-radius:16px;position:relative;overflow:hidden;
     display:flex;align-items:center;justify-content:center;font-size:44px;
     text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.08);
     transition:transform .15s, box-shadow .15s;
@@ -59,6 +59,7 @@
   .gj-tile:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.14)}
   .gj-tile.tetris{background:linear-gradient(135deg,#b71c1c,#e53935)}
   .gj-tile.flapidgey{background:linear-gradient(135deg,#5b9bd5,#8fc8f7)}
+  .gj-tile-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .gj-card-name{
     font-family:'Cinzel',serif;font-size:14px;color:var(--brand);font-weight:700;
     text-decoration:none;line-height:1.25;
@@ -70,8 +71,7 @@
     transition:background .15s,color .15s,border-color .15s;
     font-family:'Nunito',sans-serif;
   }
-  .gj-rank-btn:hover{background:var(--brand-light);color:var(--brand);border-color:var(--brand-mid)}
-  .gj-rank-btn.active{background:var(--brand-light);color:var(--brand);border-color:var(--brand-mid)}
+  .gj-rank-btn:hover,.gj-rank-btn.active{background:var(--brand-light);color:var(--brand);border-color:var(--brand-mid)}
 
   .gj-lb{width:100%;border-top:1px solid var(--border);padding-top:10px;margin-top:2px;text-align:left}
   .gj-lb-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
@@ -81,7 +81,23 @@
   .gj-lb-av img{width:100%;height:100%;object-fit:cover}
   .gj-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
   .gj-lb-score{font-weight:800;color:var(--text,#1a1a1a)}
+  .gj-lb-prize{font-size:10.5px;font-weight:800;color:#e8a400;margin-left:2px;white-space:nowrap}
   .gj-lb-empty{font-size:12px;color:var(--muted);font-style:italic}
+
+  .gj-week-title{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);text-align:center;margin:0 0 4px}
+  .gj-week-sub{font-size:12px;color:var(--muted);text-align:center;margin:0 0 18px}
+
+  .gj-avatar{cursor:pointer}
+
+  .gj-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px}
+  .gj-modal{background:#fff;border-radius:16px;max-width:360px;width:100%;padding:22px 20px;max-height:80vh;overflow-y:auto;position:relative}
+  .gj-modal-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;line-height:1}
+  .gj-modal-title{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);margin:0 0 4px;text-align:center}
+  .gj-modal-sub{font-size:12px;color:var(--muted);text-align:center;margin:0 0 18px}
+  .gj-my-rank-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-radius:12px;background:var(--brand-light);margin-bottom:10px;font-size:13px}
+  .gj-my-rank-row:last-child{margin-bottom:0}
+  .gj-my-rank-game{font-weight:700;color:var(--text,#1a1a1a)}
+  .gj-my-rank-result{font-weight:800;color:var(--brand);white-space:nowrap;text-align:right}
 
   .gj-loading{
     display:flex;align-items:center;justify-content:center;min-height:60vh;
@@ -101,10 +117,9 @@
         <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
         Voltar
       </a>
-      <div class="gj-nav-title">Poké<span>games</span></div>
     </div>
     <div class="gj-nav-user">
-      <div class="gj-avatar" id="gj-avatar"></div>
+      <div class="gj-avatar" id="gj-avatar" onclick="openMyRanking()" title="Ver minha classificação"></div>
     </div>
   </nav>
 
@@ -114,27 +129,45 @@
       <p>Encare os melhores treinadores nos rankings abaixo</p>
     </div>
 
+    <div class="gj-week-title">🏆 Vencedores da Semana</div>
+    <div class="gj-week-sub">1º lugar: 500C$ · 2º lugar: 300C$ · 3º lugar: 100C$ — ranking reseta todo domingo</div>
+
     <div class="gj-games">
       <div class="gj-card" id="gj-card-tetris">
-        <a class="gj-tile tetris" href="tetris.html" aria-label="Jogar Pokémon Tetris">🧩</a>
+        <a class="gj-tile tetris" href="tetris.html" aria-label="Jogar Pokémon Tetris">
+          <img class="gj-tile-cover" id="gj-cover-tetris" src="" alt="" hidden>
+          🧩
+        </a>
         <a class="gj-card-name" href="tetris.html">Pokémon Tetris</a>
         <button class="gj-rank-btn" onclick="toggleRanking('tetris', this)">🏆 Ranking</button>
         <div class="gj-lb" id="gj-lb-tetris-wrap" hidden>
-          <div class="gj-lb-title">Top treinadores</div>
+          <div class="gj-lb-title">Vencedores da semana</div>
           <div id="gj-lb-tetris"><div class="gj-lb-empty">Carregando...</div></div>
         </div>
       </div>
 
       <div class="gj-card" id="gj-card-flapidgey">
-        <a class="gj-tile flapidgey" href="flapidgey.html" aria-label="Jogar flaPidgey">🐦</a>
+        <a class="gj-tile flapidgey" href="flapidgey.html" aria-label="Jogar flaPidgey">
+          <img class="gj-tile-cover" id="gj-cover-flapidgey" src="" alt="" hidden>
+          🐦
+        </a>
         <a class="gj-card-name" href="flapidgey.html">flaPidgey</a>
         <button class="gj-rank-btn" onclick="toggleRanking('flapidgey', this)">🏆 Ranking</button>
         <div class="gj-lb" id="gj-lb-flapidgey-wrap" hidden>
-          <div class="gj-lb-title">Top treinadores</div>
+          <div class="gj-lb-title">Vencedores da semana</div>
           <div id="gj-lb-flapidgey"><div class="gj-lb-empty">Carregando...</div></div>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="gj-modal-overlay" id="gj-my-rank-modal" hidden onclick="if(event.target===this) closeMyRanking()">
+  <div class="gj-modal">
+    <button class="gj-modal-close" onclick="closeMyRanking()" aria-label="Fechar">✕</button>
+    <div class="gj-modal-title">🏆 Minha Classificação</div>
+    <div class="gj-modal-sub">Sua posição no ranking da semana atual</div>
+    <div id="gj-my-rank-body"></div>
   </div>
 </div>
 
@@ -165,12 +198,27 @@
     return (u && u.avatar_url) ? 'transparent' : ((u && u.color) || '#e53935');
   }
 
-  function toggleRanking(game, btn) {
-    const wrap = document.getElementById(`gj-lb-${game}-wrap`);
-    const open = wrap.hidden;
-    wrap.hidden = !open;
-    btn.classList.toggle('active', open);
-    btn.textContent = open ? '🏆 Fechar ranking' : '🏆 Ranking';
+  const PRIZES = [500, 300, 100]; // C$ — 1º, 2º, 3º lugar
+
+  // Lista de jogos considerados na classificação pessoal (modal do avatar).
+  // Mesmas chaves de game_scores.game usadas no restante da página.
+  const GJ_GAMES = [
+    { key: 'tetris',    label: '🧩 Pokémon Tetris' },
+    { key: 'flapidgey', label: '🐦 flaPidgey' },
+  ];
+
+  // Brasília não usa mais horário de verão desde 2019, então o offset
+  // fixo (UTC-3) é seguro — mesmo cálculo usado no admin (aba Jogos).
+  const GJ_BRT_OFFSET_MS = 3 * 60 * 60 * 1000;
+  function gjWeekBoundsBrasilia() {
+    const shifted = new Date(Date.now() - GJ_BRT_OFFSET_MS);
+    const weekday = shifted.getUTCDay(); // 0 = domingo
+    const startShifted = new Date(Date.UTC(
+      shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate() - weekday, 0, 0, 0, 0
+    ));
+    const start = new Date(startShifted.getTime() + GJ_BRT_OFFSET_MS);
+    const end   = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return { start, end };
   }
 
   // Esconde da tela os jogos marcados como "escondido" no admin (aba
@@ -190,6 +238,27 @@
     }
   }
 
+  // Aplica as capas cadastradas no admin (aba Jogos → Capas dos Jogos).
+  // Uma query só busca todas as chaves settings.game_cover_<key> de uma
+  // vez (mesmo padrão de settings.game_cover_ usado no admin), então
+  // jogos futuros funcionam sem precisar mexer aqui.
+  async function applyGameCovers() {
+    try {
+      const { data, error } = await db.from('settings').select('key, value').like('key', 'game_cover_%');
+      if (error) throw error;
+      (data || []).forEach(row => {
+        if (!row.value) return;
+        const key = row.key.replace('game_cover_', '');
+        const img = document.getElementById(`gj-cover-${key}`);
+        if (!img) return;
+        img.src = row.value;
+        img.hidden = false;
+      });
+    } catch (e) {
+      console.warn('[applyGameCovers]', e);
+    }
+  }
+
   async function boot() {
     // Confirma sessão real no Supabase Auth (mesma sessão do app principal,
     // compartilhada por localStorage no mesmo domínio)
@@ -205,6 +274,7 @@
     avEl.innerHTML = avatarHtml(cached);
 
     await applyHiddenGames();
+    await applyGameCovers();
 
     document.getElementById('gj-loading').style.display = 'none';
     document.getElementById('gj-app').style.display = 'block';
@@ -213,20 +283,88 @@
     loadLeaderboard('flapidgey', 'gj-lb-flapidgey');
   }
 
+  function toggleRanking(game, btn) {
+    const wrap = document.getElementById(`gj-lb-${game}-wrap`);
+    const open = wrap.hidden;
+    wrap.hidden = !open;
+    btn.classList.toggle('active', open);
+  }
+
+  function closeMyRanking() {
+    document.getElementById('gj-my-rank-modal').hidden = true;
+  }
+
+  // Mostra, pra cada jogo, a posição do jogador logado no ranking da
+  // semana atual (mesmo recorte de data usado nos cards). Reaproveita
+  // o mesmo cálculo de "melhor score por jogador" do loadLeaderboard.
+  async function openMyRanking() {
+    const modal = document.getElementById('gj-my-rank-modal');
+    const body  = document.getElementById('gj-my-rank-body');
+    const cached = loadSession();
+
+    body.innerHTML = GJ_GAMES.map(g => `
+      <div class="gj-my-rank-row" id="gj-my-rank-${g.key}">
+        <span class="gj-my-rank-game">${g.label}</span>
+        <span class="gj-my-rank-result">Carregando...</span>
+      </div>`).join('');
+    modal.hidden = false;
+
+    if (!cached) return;
+
+    const { start, end } = gjWeekBoundsBrasilia();
+
+    await Promise.all(GJ_GAMES.map(async g => {
+      const resultEl = document.querySelector(`#gj-my-rank-${g.key} .gj-my-rank-result`);
+      try {
+        const { data, error } = await db
+          .from('game_scores')
+          .select('score, user_id')
+          .eq('game', g.key)
+          .gte('created_at', start.toISOString())
+          .lt('created_at', end.toISOString())
+          .order('score', { ascending: false })
+          .limit(500);
+        if (error) throw error;
+
+        const seen = new Set();
+        const ranked = [];
+        for (const row of (data || [])) {
+          if (seen.has(row.user_id)) continue;
+          seen.add(row.user_id);
+          ranked.push(row);
+        }
+        const idx = ranked.findIndex(r => r.user_id === cached.id);
+        if (idx === -1) {
+          resultEl.textContent = 'Sem pontuação essa semana';
+        } else {
+          const prize = idx < PRIZES.length ? ` · ${PRIZES[idx]}C$` : '';
+          resultEl.textContent = `${idx + 1}º lugar (${ranked[idx].score} pts)${prize}`;
+        }
+      } catch (e) {
+        console.warn('[openMyRanking]', g.key, e);
+        resultEl.textContent = 'Erro ao carregar';
+      }
+    }));
+  }
+
   async function loadLeaderboard(game, elId) {
     const el = document.getElementById(elId);
     try {
-      // Melhor score de cada jogador para este jogo
+      const { start, end } = gjWeekBoundsBrasilia();
+
+      // Melhor score de cada jogador para este jogo, só dentro da semana atual
       const { data, error } = await db
         .from('game_scores')
         .select('score, author_name, author_color, author_avatar, user_id')
         .eq('game', game)
+        .gte('created_at', start.toISOString())
+        .lt('created_at', end.toISOString())
         .order('score', { ascending: false })
         .limit(50);
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        el.innerHTML = '<div class="gj-lb-empty">Nenhum recorde ainda. Seja o primeiro!</div>';
+        el.innerHTML = '<div class="gj-lb-empty">Ninguém pontuou essa semana ainda. Seja o primeiro!</div>';
         return;
       }
 
@@ -250,6 +388,7 @@
           <span class="gj-lb-av" style="background:${bg}">${av}</span>
           <span class="gj-lb-name">${esc(row.author_name || '???')}</span>
           <span class="gj-lb-score">${row.score}</span>
+          <span class="gj-lb-prize">${PRIZES[i]}C$</span>
         </div>`;
       }).join('');
     } catch (e) {
