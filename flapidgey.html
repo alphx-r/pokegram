@@ -332,12 +332,9 @@ function spawnPipe() {
   maybeSpawnBerryInGap(gapY);
 }
 
-// Berry nasce perto da "boca" do cano que acabou de aparecer — não
-// necessariamente dentro do vão seguro (o jogador pode ter que se
-// desviar um pouco pra pegar), mas nunca longe o bastante pra ficar
-// fora de alcance. Se o vão estiver perto do topo/fundo da tela, a
-// berry pode acabar nascendo perto dessas bordas também.
-const BERRY_NEAR_RANGE = 40; // px pra além de cada borda do vão do cano
+// Berry nasce dentro do vão aberto do cano que acabou de aparecer —
+// nunca em cima da parte sólida do cano — mas perto das bordas desse
+// vão (perto da "boca"), em vez de sempre grudada no centro.
 function maybeSpawnBerryInGap(gapY) {
   let type = null;
   if (pipeCount >= nextOranAt) {
@@ -347,11 +344,9 @@ function maybeSpawnBerryInGap(gapY) {
     type = rollBerryType();
   }
   if (!type) return;
-  const edgeMargin = BERRY_R + 6; // não deixa a berry colar nas bordas do jogo
-  let minY = gapY - BERRY_NEAR_RANGE;
-  let maxY = gapY + PIPE_GAP + BERRY_NEAR_RANGE;
-  minY = Math.max(edgeMargin, minY);
-  maxY = Math.min(BASE_H - edgeMargin, maxY);
+  const innerMargin = BERRY_R + 4; // não deixa a berry colar na parte sólida do cano
+  const minY = gapY + innerMargin;
+  const maxY = gapY + PIPE_GAP - innerMargin;
   const y = maxY > minY ? (minY + Math.random() * (maxY - minY)) : (gapY + PIPE_GAP / 2);
   berries.push({ x: BASE_W + PIPE_WIDTH * 0.6, y, type });
 }
