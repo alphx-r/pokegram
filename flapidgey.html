@@ -231,7 +231,8 @@ const BERRY_TYPES = {
 const BERRY_SIZE = 33; // 41.25 * 0.8 (20% menor)
 const BERRY_R = 16.5;  // 20.625 * 0.8 (20% menor)
 const BERRY_BUBBLE_PADDING = 6; // px de "respiro" branco ao redor da fruta, dentro da bolha
-const BERRY_BUBBLE_R = BERRY_R + BERRY_BUBBLE_PADDING; // raio da bolha branca atrás de cada fruta
+const BERRY_BUBBLE_R = (BERRY_R + BERRY_BUBBLE_PADDING) * 0.7; // raio da bolha, 30% menor que o original
+const BERRY_BUBBLE_OPACITY = 0.6; // opacidade da bolha, desenhada por cima da fruta
 const ORAN_MIN_GAP = 5, ORAN_MAX_GAP = 10; // a oran aparece a cada 5-10 canos
 
 const berryImgs = {};
@@ -256,17 +257,15 @@ function rollBerryType() {
   return null;
 }
 
-// Bolha branca atrás de cada fruta, pra destacá-la contra o fundo do céu
-// (funciona tanto com o sprite real quanto com o desenho vetorial de
-// fallback, já que é desenhada antes de ambos).
+// Bolha branca translúcida por CIMA de cada fruta (desenhada depois do
+// sprite/fallback), pra dar aquele efeito de fruta "flutuando dentro" da
+// bolha sem esconder ela por completo.
 function drawBerryBubble(b) {
   ctx.save();
+  ctx.globalAlpha = BERRY_BUBBLE_OPACITY;
   ctx.beginPath();
   ctx.arc(b.x, b.y, BERRY_BUBBLE_R, 0, Math.PI * 2);
   ctx.fillStyle = '#fff';
-  ctx.shadowColor = 'rgba(0,0,0,.18)';
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 2;
   ctx.fill();
   ctx.restore();
 }
@@ -311,7 +310,27 @@ function addPopup(x, y, text, color) {
   popups.push({ x, y, text, color, life: 0.9 });
 }
 
+const BUBBLE_POP_LIFE = 0.35; // s — duração da animação de estouro
+
+// Efeito de "bolha de sabão estourando": um anel se expandindo e sumindo
+// + gotinhas se espalhando em várias direções, tudo com fade-out.
+function spawnBubblePop(x, y, radius) {
+  const fragments = [];
+  const fragCount = 7;
+  for (let i = 0; i < fragCount; i++) {
+    const angle = (Math.PI * 2 * i) / fragCount + (Math.random() - 0.5) * 0.5;
+    fragments.push({
+      angle,
+      speed: 70 + Math.random() * 50, // px/s
+      r: radius * 0.16 + Math.random() * 1.5,
+      x: 0, y: 0,
+    });
+  }
+  bubblePops.push({ x, y, radius, life: BUBBLE_POP_LIFE, fragments });
+}
+
 function collectBerry(b) {
+  spawnBubblePop(b.x, b.y, BERRY_BUBBLE_R);
   const info = BERRY_TYPES[b.type];
   if (info.points) {
     score += info.points;
@@ -325,7 +344,7 @@ function collectBerry(b) {
   }
 }
 
-let bird, pipes, berries, popups, score, lives, invulnerable, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
+let bird, pipes, berries, popups, bubblePops, score, lives, invulnerable, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
 
 function rollNextOranAt(fromCount) {
   return fromCount + ORAN_MIN_GAP + Math.floor(Math.random() * (ORAN_MAX_GAP - ORAN_MIN_GAP + 1));
@@ -336,6 +355,7 @@ function resetGame() {
   pipes = [];
   berries = [];
   popups = [];
+  bubblePops = [];
   score = 0;
   lives = 0;
   invulnerable = 0;
@@ -444,6 +464,15 @@ function update(dt) {
   popups.forEach(p => { p.y -= 40 * dt; p.life -= dt; });
   popups = popups.filter(p => p.life > 0);
 
+  bubblePops.forEach(p => {
+    p.life -= dt;
+    p.fragments.forEach(f => {
+      f.x += Math.cos(f.angle) * f.speed * dt;
+      f.y += Math.sin(f.angle) * f.speed * dt;
+    });
+  });
+  bubblePops = bubblePops.filter(p => p.life > 0);
+
   // pontuação dos canos
   pipes.forEach(p => {
     if (!p.passed && p.x + PIPE_WIDTH < bird.x) {
@@ -459,7 +488,7 @@ function update(dt) {
   for (let i = berries.length - 1; i >= 0; i--) {
     const b = berries[i];
     const dx = bird.x - b.x, dy = bird.y - b.y;
-    if (Math.hypot(dx, dy) < BIRD_R + BERRY_R) {
+    if (Math.hypot(dx, dy) < BIRD_R + BERRY_BUBBLE_R) {
       collectBerry(b);
       berries.splice(i, 1);
     }
@@ -524,13 +553,13 @@ function draw() {
 
   // berries coletáveis
   berries.forEach(b => {
-    drawBerryBubble(b);
     const spriteInfo = berryImgs[b.type];
     if (spriteInfo && spriteInfo.ready) {
       ctx.drawImage(spriteInfo.img, b.x - BERRY_SIZE / 2, b.y - BERRY_SIZE / 2, BERRY_SIZE, BERRY_SIZE);
     } else {
       drawBerryFallback(b);
     }
+    drawBerryBubble(b);
   });
 
   drawShieldGlow();
@@ -582,6 +611,27 @@ function draw() {
     ctx.font = "800 16px 'Nunito', sans-serif";
     ctx.textAlign = 'center';
     ctx.fillText(p.text, p.x, p.y);
+    ctx.restore();
+  });
+
+  // efeito de bolha de sabão estourando (ver spawnBubblePop/collectBerry)
+  bubblePops.forEach(p => {
+    const t = 1 - p.life / BUBBLE_POP_LIFE; // 0 → 1
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - t);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius * (1 + t * 0.9), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    p.fragments.forEach(f => {
+      const r = Math.max(0, f.r * (1 - t));
+      if (r <= 0) return;
+      ctx.beginPath();
+      ctx.arc(p.x + f.x, p.y + f.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
     ctx.restore();
   });
 
