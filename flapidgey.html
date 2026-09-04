@@ -225,14 +225,21 @@ const PIPE_GAP = 130;
 const PIPE_WIDTH = 52;
 const PIPE_SPEED = 130;    // px/s
 const CLOUD_SPEED = PIPE_SPEED * 0.3; // px/s — mais lenta que os canos (parallax)
-const CLOUD_WIDTH_MAX = 60; // px — largura aprox. máx. de uma nuvem, usada pra saber quando ela saiu da tela
+const CLOUD_WIDTH_MAX = 120; // px — largura aprox. máx. de uma nuvem, usada pra saber quando ela saiu da tela (ajustado para as nuvens maiores)
 
-// ── Céu dinâmico conforme a pontuação ───────────────────
-// dia → entardecer (troca seca ao atingir DUSK_SCORE) → noite (transição
-// suave entre NIGHT_START_SCORE e NIGHT_FULL_SCORE, depois fica na noite).
-const DUSK_SCORE = 250;
-const NIGHT_START_SCORE = 500;
-const NIGHT_FULL_SCORE = 1000;
+// ── Céu dinâmico conforme a pontuação (ciclo de dia/noite) ─
+// Ciclo de CYCLE_LENGTH pontos, que se repete indefinidamente via
+// (score % CYCLE_LENGTH):
+//   0–149    dia (fixo)
+//   150–299  transição dia → entardecer
+//   300–599  transição entardecer → noite
+//   600–899  noite (fixo)
+//   900–999  transição noite → manhã (amanhece de volta pro dia)
+const CYCLE_LENGTH   = 1000;
+const DAY_END        = 150;
+const DUSK_END       = 300;
+const NIGHT_START     = 600;
+const DAWN_START     = 900;
 const SKY_DAY   = ['#8fc8f7', '#c9e8ff'];
 const SKY_DUSK  = ['#6b4984', '#f2a33c'];
 const SKY_NIGHT = ['#050914', '#16213e'];
@@ -248,20 +255,30 @@ function lerpColor(a, b, t) {
   const bl = Math.round(pa.b + (pb.b - pa.b) * t);
   return `rgb(${r},${g},${bl})`;
 }
+function lerpSky(skyA, skyB, t) {
+  return [lerpColor(skyA[0], skyB[0], t), lerpColor(skyA[1], skyB[1], t)];
+}
+
+// smoothstep: suaviza início/fim da transição em vez de andar linear
+function easeInOut(t) {
+  return t * t * (3 - 2 * t);
+}
+
+// Fases do ciclo, em ordem: from/to = degradê de origem/destino (to = null quando é fase fixa, sem transição)
+const SKY_PHASES = [
+  { start: 0,           end: DAY_END,      from: SKY_DAY,   to: null      },
+  { start: DAY_END,     end: DUSK_END,     from: SKY_DAY,   to: SKY_DUSK  },
+  { start: DUSK_END,    end: NIGHT_START,  from: SKY_DUSK,  to: SKY_NIGHT },
+  { start: NIGHT_START, end: DAWN_START,   from: SKY_NIGHT, to: null      },
+  { start: DAWN_START,  end: CYCLE_LENGTH, from: SKY_NIGHT, to: SKY_DAY   },
+];
 
 function updateSkyBackground() {
-  let top, bottom;
-  if (score < DUSK_SCORE) {
-    [top, bottom] = SKY_DAY;
-  } else if (score < NIGHT_START_SCORE) {
-    [top, bottom] = SKY_DUSK;
-  } else if (score < NIGHT_FULL_SCORE) {
-    const t = (score - NIGHT_START_SCORE) / (NIGHT_FULL_SCORE - NIGHT_START_SCORE);
-    top = lerpColor(SKY_DUSK[0], SKY_NIGHT[0], t);
-    bottom = lerpColor(SKY_DUSK[1], SKY_NIGHT[1], t);
-  } else {
-    [top, bottom] = SKY_NIGHT;
-  }
+  const s = score % CYCLE_LENGTH;
+  const phase = SKY_PHASES.find(p => s < p.end) || SKY_PHASES[SKY_PHASES.length - 1];
+  const [top, bottom] = phase.to
+    ? lerpSky(phase.from, phase.to, easeInOut((s - phase.start) / (phase.end - phase.start)))
+    : phase.from;
   canvas.style.background = `linear-gradient(${top}, ${bottom})`;
 }
 const PIPE_INTERVAL_BASE = 1150;   // ms — distância "padrão" entre canos
@@ -469,8 +486,8 @@ let bird, pipes, berries, popups, bubblePops, clouds, score, lives, invulnerable
 function makeCloud(x) {
   return {
     x: x !== undefined ? x : BASE_W + 20 + Math.random() * 40,
-    y: 25 + Math.random() * 60,
-    scale: 0.7 + Math.random() * 0.6,
+    y: 30 + Math.random() * 55,
+    scale: 1.3 + Math.random() * 1.1,
   };
 }
 
