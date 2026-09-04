@@ -117,13 +117,28 @@ async function gLoadMyBest(game, userId) {
   }
 }
 
+// Detecta dispositivo "tipo mobile" de verdade (celular/tablet sem
+// ponteiro fino disponível). "pointer:coarse" sozinho dá falso positivo
+// em notebooks Windows com tela touch (o digitalizador touch conta como
+// "coarse" mesmo quando o jogador está usando mouse/trackpad) — por isso
+// exigimos também "hover:none", que só é verdade quando NENHUM ponteiro
+// de precisão está disponível (celulares/tablets de verdade).
+function gIsMobileLike() {
+  try {
+    return window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  } catch (e) { return false; }
+}
+
 // Tenta entrar em fullscreen assim que o usuário interagir pela primeira
 // vez com a página (toque, clique ou tecla). Navegadores bloqueiam
 // requestFullscreen() sem um gesto do usuário, então isso serve de
 // fallback pro tryEnterFullscreenNow() que roda no boot (que só funciona
 // se já houver um gesto pendente, ex.: o toque que abriu a página).
+// Só entra em ação em dispositivos mobile-like — no desktop, nunca força
+// fullscreen automático.
 function gSetupFullscreenOnFirstInteraction() {
   if (document.fullscreenElement) return;
+  if (!gIsMobileLike()) return;
   let done = false;
   const tryFs = () => {
     if (done) return;
