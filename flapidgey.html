@@ -43,7 +43,7 @@
   }
   .gf-hud{
     position:absolute;top:0;left:0;right:0;z-index:20;margin-top:5px;
-    display:flex;justify-content:center;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
     pointer-events:none;
   }
   .gf-hud-box{
@@ -59,6 +59,14 @@
   .gf-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
   .gf-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
   .gf-hud-value.gf-hud-sm{font-size:clamp(11px,3.4vw,15px)}
+  .gf-enigma-result{
+    background:rgba(255,255,255,.9);border-radius:8px;
+    padding:4px 14px;box-shadow:0 2px 6px rgba(0,0,0,.18);
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;
+    white-space:nowrap;opacity:0;transform:translateY(-4px);
+    transition:opacity .2s ease,transform .2s ease;pointer-events:none;
+  }
+  .gf-enigma-result.show{opacity:1;transform:translateY(0)}
   .gf-hint{
     position:absolute;top:calc(50% - 30px);left:10px;right:10px;z-index:20;
     font-size:13px;color:rgba(26,26,26,.55);text-align:center;font-weight:600;
@@ -120,6 +128,7 @@
           <div class="gf-hud-value gf-hud-sm" id="gf-lives">0</div>
         </div>
       </div>
+      <div class="gf-enigma-result" id="gf-enigma-result"></div>
     </div>
     <div class="gf-hint">Toque na tela ou aperte espaço para bater as asas</div>
   </div>
@@ -198,8 +207,10 @@ function updateBirdSpritePosition() {
 // Enquanto a invulnerabilidade da enigma está ativa, o Pidgey pisca
 // alternando entre 100% e 50% de opacidade (fora disso, opacidade normal).
 const ENIGMA_BLINK_INTERVAL = 120; // ms — velocidade do piscar
+const ENIGMA_BLINK_START = 1; // s restantes de intangibilidade a partir dos quais começa a piscar
 function getBirdOpacity() {
   if (enigmaInvuln <= 0) return 1;
+  if (enigmaInvuln > ENIGMA_BLINK_START) return 0.5; // opacidade fixa até faltar o último segundo
   return (Math.floor(performance.now() / ENIGMA_BLINK_INTERVAL) % 2 === 0) ? 1 : 0.5;
 }
 
@@ -248,6 +259,7 @@ const ENIGMA_BONUSES = [
   { type: 'points', amount: 50 },
   { type: 'points', amount: -15 },
 ];
+const ENIGMA_RESULT_DISPLAY_TIME = 1.5; // s — quanto tempo o resultado de pontos fica visível no badge
 const BERRY_SIZE = 33; // 41.25 * 0.8 (20% menor)
 const BERRY_R = 16.5;  // 20.625 * 0.8 (20% menor)
 const BERRY_BUBBLE_PADDING = 6; // px de "respiro" branco ao redor da fruta, dentro da bolha
@@ -306,6 +318,24 @@ function drawBerryFallback(b) {
 
 function updateLivesHUD() {
   document.getElementById('gf-lives').textContent = `${lives}`;
+}
+
+// Badge abaixo do container do HUD com o resultado da última enigma
+// coletada: contagem regressiva enquanto a intangibilidade estiver ativa,
+// ou o texto de pontos por um tempo curto (ver ENIGMA_RESULT_DISPLAY_TIME).
+function updateEnigmaResultUI() {
+  const el = document.getElementById('gf-enigma-result');
+  if (enigmaInvuln > 0) {
+    el.textContent = `Intangível: ${Math.ceil(enigmaInvuln)}s`;
+    el.style.color = '#2a9aa1';
+    el.classList.add('show');
+  } else if (enigmaResultTimer > 0) {
+    el.textContent = enigmaResultText;
+    el.style.color = enigmaResultColor;
+    el.classList.add('show');
+  } else {
+    el.classList.remove('show');
+  }
 }
 
 // Auréola branca brilhante que envolve o corpo do pidgey enquanto ele
@@ -368,17 +398,18 @@ function collectBerry(b) {
     if (bonus.type === 'invuln') {
       invulnerable = Math.max(invulnerable, bonus.seconds);
       enigmaInvuln = Math.max(enigmaInvuln, bonus.seconds);
-      addPopup(b.x, b.y, `${bonus.seconds}s intangível!`, '#3fc9d1');
     } else {
       score = Math.max(0, score + bonus.amount);
       document.getElementById('gf-score').textContent = score;
       const sign = bonus.amount > 0 ? '+' : '';
-      addPopup(b.x, b.y, `${sign}${bonus.amount}`, bonus.amount > 0 ? '#3fd15b' : '#d1453f');
+      enigmaResultText = `${sign}${bonus.amount}`;
+      enigmaResultColor = bonus.amount > 0 ? '#2e9e4f' : '#c0392b';
+      enigmaResultTimer = ENIGMA_RESULT_DISPLAY_TIME;
     }
   }
 }
 
-let bird, pipes, berries, popups, bubblePops, score, lives, invulnerable, enigmaInvuln, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
+let bird, pipes, berries, popups, bubblePops, score, lives, invulnerable, enigmaInvuln, enigmaResultTimer, enigmaResultText, enigmaResultColor, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId, nextPipeInterval, lastGapY;
 
 function rollNextOranAt(fromCount) {
   return fromCount + ORAN_MIN_GAP + Math.floor(Math.random() * (ORAN_MAX_GAP - ORAN_MIN_GAP + 1));
@@ -394,6 +425,7 @@ function resetGame() {
   lives = 0;
   invulnerable = 0;
   enigmaInvuln = 0;
+  enigmaResultTimer = 0;
   gameOver = false;
   started = false;
   pipeTimer = 0;
@@ -404,6 +436,7 @@ function resetGame() {
   lastTs = 0;
   document.getElementById('gf-score').textContent = '0';
   updateLivesHUD();
+  document.getElementById('gf-enigma-result').classList.remove('show');
   document.getElementById('gf-overlay').classList.remove('show');
   document.querySelector('.gf-hint').style.display = '';
   cancelAnimationFrame(rafId);
@@ -484,6 +517,8 @@ function update(dt) {
 
   if (invulnerable > 0) invulnerable -= dt;
   if (enigmaInvuln > 0) enigmaInvuln -= dt;
+  if (enigmaResultTimer > 0) enigmaResultTimer -= dt;
+  updateEnigmaResultUI();
 
   pipeTimer += dt * 1000;
   if (pipeTimer > nextPipeInterval) {
