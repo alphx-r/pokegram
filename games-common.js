@@ -116,3 +116,25 @@ async function gLoadMyBest(game, userId) {
     return 0;
   }
 }
+
+// Tenta entrar em fullscreen assim que o usuário interagir pela primeira
+// vez com a página (toque, clique ou tecla). Navegadores bloqueiam
+// requestFullscreen() sem um gesto do usuário, então isso serve de
+// fallback pro tryEnterFullscreenNow() que roda no boot (que só funciona
+// se já houver um gesto pendente, ex.: o toque que abriu a página).
+function gSetupFullscreenOnFirstInteraction() {
+  if (document.fullscreenElement) return;
+  let done = false;
+  const tryFs = () => {
+    if (done) return;
+    done = true;
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) {
+      el.requestFullscreen().catch(() => {});
+    }
+    document.removeEventListener('pointerdown', tryFs);
+    document.removeEventListener('keydown', tryFs);
+  };
+  document.addEventListener('pointerdown', tryFs, { once: true });
+  document.addEventListener('keydown', tryFs, { once: true });
+}
