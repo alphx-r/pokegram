@@ -70,6 +70,7 @@
   .gj-tile:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.14)}
   .gj-tile.tetris{background:linear-gradient(135deg,#b71c1c,#e53935)}
   .gj-tile.flapidgey{background:linear-gradient(135deg,#5b9bd5,#8fc8f7)}
+  .gj-tile.voltorbolha{background:linear-gradient(135deg,#b71c1c,#f4efe2)}
   .gj-tile-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .gj-card-name{
     font-family:'Cinzel',serif;font-size:14px;color:var(--brand);font-weight:700;
@@ -168,6 +169,19 @@
           <div id="gj-lb-flapidgey"><div class="gj-lb-empty">Carregando...</div></div>
         </div>
       </div>
+
+      <div class="gj-card" id="gj-card-voltorbolha">
+        <a class="gj-tile voltorbolha" href="/voltorbolha.html" aria-label="Jogar Voltorbolha">
+          <img class="gj-tile-cover" id="gj-cover-voltorbolha" src="" alt="" hidden>
+          🫧
+        </a>
+        <a class="gj-card-name" href="/voltorbolha.html">Voltorbolha</a>
+        <button class="gj-rank-btn" onclick="toggleRanking('voltorbolha', this)">🏆 Ranking</button>
+        <div class="gj-lb" id="gj-lb-voltorbolha-wrap" hidden>
+          <div class="gj-lb-title">Vencedores da semana</div>
+          <div id="gj-lb-voltorbolha"><div class="gj-lb-empty">Carregando...</div></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -211,8 +225,9 @@
   // Lista de jogos considerados na classificação pessoal (modal do avatar).
   // Mesmas chaves de game_scores.game usadas no restante da página.
   const GJ_GAMES = [
-    { key: 'tetris',    label: '🧩 Pokémon Tetris' },
-    { key: 'flapidgey', label: '🐦 flaPidgey' },
+    { key: 'tetris',      label: '🧩 Pokémon Tetris' },
+    { key: 'flapidgey',   label: '🐦 flaPidgey' },
+    { key: 'voltorbolha', label: '🫧 Voltorbolha' },
   ];
 
   // Brasília não usa mais horário de verão desde 2019, então o offset
@@ -306,6 +321,7 @@
 
     loadLeaderboard('tetris', 'gj-lb-tetris');
     loadLeaderboard('flapidgey', 'gj-lb-flapidgey');
+    loadLeaderboard('voltorbolha', 'gj-lb-voltorbolha');
   }
 
   // O troféu na nav só fica clicável aos domingos (ver classe "active"
