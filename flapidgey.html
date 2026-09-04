@@ -38,7 +38,7 @@
   }
   .gf-canvas-wrap{position:relative;max-width:100%;max-height:100%;line-height:0}
   #gf-bird-sprite{
-    position:absolute;pointer-events:none;display:none;
+    position:absolute;top:0;left:0;pointer-events:none;display:none;
     image-rendering:pixelated;transform-origin:center center;
   }
   .gf-hud{
@@ -60,8 +60,8 @@
   .gf-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
   .gf-hud-value.gf-hud-sm{font-size:clamp(11px,3.4vw,15px)}
   .gf-hint{
-    position:absolute;bottom:10px;left:10px;right:10px;z-index:20;
-    font-size:11.5px;color:rgba(26,26,26,.7);text-align:center;font-weight:700;
+    position:absolute;top:calc(50% - 30px);left:10px;right:10px;z-index:20;
+    font-size:13px;color:rgba(26,26,26,.55);text-align:center;font-weight:600;
     text-shadow:0 1px 3px rgba(255,255,255,.6);pointer-events:none;
   }
 
@@ -480,12 +480,6 @@ function draw() {
     ctx.restore();
   });
 
-  if (!started && !gameOver) {
-    ctx.fillStyle = 'rgba(26,26,26,0.55)';
-    ctx.font = "600 13px 'Nunito', sans-serif";
-    ctx.textAlign = 'center';
-    ctx.fillText('Toque para começar', BASE_W/2, BASE_H/2 - 30);
-  }
 }
 
 
