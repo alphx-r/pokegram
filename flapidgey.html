@@ -199,6 +199,7 @@ const PIPE_WIDTH = 52;
 const PIPE_SPEED = 130;    // px/s
 const PIPE_INTERVAL_BASE = 1150;   // ms — distância "padrão" entre canos
 const PIPE_INTERVAL_VARIANCE = 250; // ms — variação aleatória pra mais/menos a cada cano
+const PIPE_INTERVAL_FLOOR = 1100;   // ms — piso mínimo: nunca deixa os canos mais próximos que isso, mesmo com a variação negativa
 const PIPE_INTERVAL_GAP_SWITCH_BONUS = 350; // ms extras quando a boca deste cano fica bem longe da boca do anterior (ex.: um vão lá em cima, outro lá embaixo)
 const PIPE_SCORE = 5;      // pontos ganhos ao passar de cada cano
 const HIT_INVULN_TIME = 1; // segundos de proteção após usar uma vida da sitrus berry
@@ -331,9 +332,22 @@ function flap() {
   bird.vy = FLAP_VELOCITY;
 }
 
+const PIPE_GAP_MAX_SHIFT = 340; // px — deslocamento vertical máximo entre a boca de um cano e a do seguinte, pra nunca pedir uma subida/descida impossível de fazer a tempo
+
 function spawnPipe() {
   const margin = 50;
-  const gapY = margin + Math.random() * (BASE_H - margin * 2 - PIPE_GAP);
+  let gapY;
+  if (lastGapY === null) {
+    // primeiro cano da partida — pode nascer em qualquer altura
+    gapY = margin + Math.random() * (BASE_H - margin * 2 - PIPE_GAP);
+  } else {
+    // canos seguintes — a boca só pode se deslocar até PIPE_GAP_MAX_SHIFT
+    // px pra cima/baixo em relação ao cano anterior, mantendo a altura
+    // sempre alcançável independente de quão alta for a tela
+    const minY = Math.max(margin, lastGapY - PIPE_GAP_MAX_SHIFT);
+    const maxY = Math.min(BASE_H - margin - PIPE_GAP, lastGapY + PIPE_GAP_MAX_SHIFT);
+    gapY = maxY > minY ? (minY + Math.random() * (maxY - minY)) : lastGapY;
+  }
   pipes.push({ x: BASE_W, gapY, passed: false });
   pipeCount++;
   maybeSpawnBerryInGap(gapY);
@@ -349,6 +363,7 @@ function spawnPipe() {
     const flipAmount = usableRange > 0 ? Math.abs(gapY - lastGapY) / usableRange : 0; // 0–1
     interval += flipAmount * PIPE_INTERVAL_GAP_SWITCH_BONUS;
   }
+  interval = Math.max(PIPE_INTERVAL_FLOOR, interval); // nunca abaixo do piso, mesmo com variação bem negativa
   lastGapY = gapY;
   nextPipeInterval = interval;
 }
@@ -658,11 +673,14 @@ function shareResultToStories() {
   try {
     const canvas = buildResultCanvas();
     const dataUrl = canvas.toDataURL('image/png');
-    sessionStorage.setItem('pg_pending_story_image', dataUrl);
+    sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+      image: dataUrl,
+      gameLink: '/jogos/flapidgey'
+    }));
   } catch (e) {
     console.warn('[shareResultToStories] falhou ao gerar/guardar imagem do resultado', e);
   }
-  window.location.href = 'index.html';
+  window.location.href = '/';
 }
 
 
