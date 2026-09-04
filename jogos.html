@@ -81,23 +81,9 @@
   .gj-lb-av img{width:100%;height:100%;object-fit:cover}
   .gj-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
   .gj-lb-score{font-weight:800;color:var(--text,#1a1a1a)}
-  .gj-lb-prize{font-size:10.5px;font-weight:800;color:#e8a400;margin-left:2px;white-space:nowrap}
   .gj-lb-empty{font-size:12px;color:var(--muted);font-style:italic}
 
-  .gj-week-title{font-family:'Cinzel',serif;font-size:17px;color:var(--brand);text-align:center;margin:0 0 14px}
-  .gj-week-game{max-width:340px;margin:0 auto 14px}
-  .gj-week-game-label{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;text-align:center;margin-bottom:6px}
-  .gj-week-game-row{font-size:13px;text-align:center;color:var(--text,#1a1a1a);padding:2px 0}
-  .gj-week-game-row b{color:var(--brand)}
-
   .gj-avatar{cursor:pointer}
-
-  .gj-week-trophy-btn{
-    border:none;background:transparent;font-size:19px;line-height:1;padding:4px 2px;
-    cursor:not-allowed;opacity:.35;filter:grayscale(1);
-    transition:opacity .15s, filter .15s;
-  }
-  .gj-week-trophy-btn.active{cursor:pointer;opacity:1;filter:none}
 
   .gj-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px}
   .gj-modal-overlay[hidden]{display:none}
@@ -130,7 +116,6 @@
       </a>
     </div>
     <div class="gj-nav-user">
-      <button class="gj-week-trophy-btn" id="gj-week-trophy-btn" onclick="toggleWeekBlock()" aria-label="Vencedores da semana" title="Vencedores da semana">🏆</button>
       <div class="gj-avatar" id="gj-avatar" onclick="openMyRanking()" title="Ver minha classificação"></div>
     </div>
   </nav>
@@ -139,11 +124,6 @@
     <div class="gj-intro">
       <h1>Jogos</h1>
       <p>Encare os melhores treinadores nos rankings abaixo</p>
-    </div>
-
-    <div id="gj-week-block" hidden>
-      <div class="gj-week-title">🏆 Vencedores da Semana</div>
-      <div id="gj-week-winners"><div class="gj-lb-empty" id="gj-week-winners-empty">Ninguém pontuou essa semana ainda.</div></div>
     </div>
 
     <div class="gj-games">
@@ -211,8 +191,6 @@
   function avatarBg(u) {
     return (u && u.avatar_url) ? 'transparent' : ((u && u.color) || '#e53935');
   }
-
-  const PRIZES = [500, 300, 100]; // C$ — 1º, 2º, 3º lugar
 
   // Lista de jogos considerados na classificação pessoal (modal do avatar).
   // Mesmas chaves de game_scores.game usadas no restante da página.
@@ -299,8 +277,6 @@
 
     if (!isSundayBrasilia()) {
       document.querySelectorAll('.gj-rank-btn').forEach(btn => btn.hidden = true);
-    } else {
-      document.getElementById('gj-week-trophy-btn').classList.add('active');
     }
 
     document.getElementById('gj-loading').style.display = 'none';
@@ -308,14 +284,6 @@
 
     loadLeaderboard('tetris', 'gj-lb-tetris');
     loadLeaderboard('flapidgey', 'gj-lb-flapidgey');
-  }
-
-  // O troféu na nav só fica clicável aos domingos (ver classe "active"
-  // aplicada em boot()); durante a semana fica cinza/opaco e não faz nada.
-  function toggleWeekBlock() {
-    if (!isSundayBrasilia()) return;
-    const block = document.getElementById('gj-week-block');
-    block.hidden = !block.hidden;
   }
 
   function toggleRanking(game, btn) {
@@ -381,29 +349,6 @@
     }));
   }
 
-  // Monta, dentro do bloco "🏆 Vencedores da Semana" (topo da página, só
-  // aos domingos), a lista de vencedores de um jogo — ex: "1º lugar:
-  // Fulano (+500C$)". Reaproveita o "top" já calculado em loadLeaderboard.
-  function renderWeekWinners(game, top) {
-    const label = (GJ_GAMES.find(g => g.key === game) || {}).label || game;
-    const rows = top.map((row, i) =>
-      `<div class="gj-week-game-row">${i + 1}º lugar: <b>${esc(row.author_name || '???')}</b> (+${PRIZES[i]}C$)</div>`
-    ).join('');
-    const block = `
-      <div class="gj-week-game" id="gj-week-game-${game}">
-        <div class="gj-week-game-label">${label}</div>
-        ${rows}
-      </div>`;
-    document.getElementById('gj-week-winners-empty')?.remove();
-    const existing = document.getElementById(`gj-week-game-${game}`);
-    const wrap = document.getElementById('gj-week-winners');
-    if (existing) {
-      existing.outerHTML = block;
-    } else {
-      wrap.insertAdjacentHTML('beforeend', block);
-    }
-  }
-
   async function loadLeaderboard(game, elId) {
     const el = document.getElementById(elId);
     try {
@@ -444,11 +389,9 @@
           <span class="gj-lb-pos">${i + 1}º</span>
           <span class="gj-lb-av" style="background:${bg}">${av}</span>
           <span class="gj-lb-name">${esc(row.author_name || '???')}</span>
-          <span class="gj-lb-prize">${PRIZES[i]}C$</span>
         </div>`;
       }).join('');
 
-      if (isSundayBrasilia()) renderWeekWinners(game, top);
       return true;
     } catch (e) {
       console.warn('[loadLeaderboard]', game, e);
