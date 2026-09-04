@@ -195,7 +195,7 @@ const FLAP_VELOCITY = -380;
 const PIPE_GAP = 130;
 const PIPE_WIDTH = 52;
 const PIPE_SPEED = 130;    // px/s
-const PIPE_INTERVAL = 1500; // ms
+const PIPE_INTERVAL = 1150; // ms (reduzido de 1500 — canos mais próximos entre si)
 const PIPE_SCORE = 5;      // pontos ganhos ao passar de cada cano
 const HIT_INVULN_TIME = 1; // segundos de proteção após usar uma vida da sitrus berry
 
@@ -209,8 +209,8 @@ const BERRY_TYPES = {
   sitrus: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png', color: '#f2a33c', chance: 0.06, life: 1   },
   enigma: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/enigma-berry.png', color: '#6b3fa0', chance: 0.015, points: 25 },
 };
-const BERRY_SIZE = 33; // 22 * 1.5 (50% maior)
-const BERRY_R = 16.5;  // 11 * 1.5
+const BERRY_SIZE = 41.25; // 33 * 1.25 (25% maior)
+const BERRY_R = 20.625;   // 16.5 * 1.25 (25% maior)
 const ORAN_MIN_GAP = 5, ORAN_MAX_GAP = 10; // a oran aparece a cada 5-10 canos
 
 const berryImgs = {};
@@ -252,18 +252,19 @@ function updateLivesHUD() {
   document.getElementById('gf-lives').textContent = `🛡 ${lives}`;
 }
 
-// Círculo branco brilhante do lado do pidgey enquanto ele tem carga(s)
-// de escudo (vidas ganhas de sitrus berry) — pulsa suavemente pra
-// parecer "brilhando".
+// Auréola branca brilhante que envolve o corpo do pidgey enquanto ele
+// tem carga(s) de escudo (vidas ganhas de sitrus berry) — centralizada
+// no próprio pássaro (não mais deslocada pro lado) e pulsa suavemente
+// pra parecer "brilhando" ao redor dele.
 function drawShieldGlow() {
   if (lives <= 0) return;
   const pulse = 0.75 + Math.sin(performance.now() / 220) * 0.25; // 0.5–1.0
-  const r = 9 + pulse * 3;
-  const gx = bird.x - 20, gy = bird.y - 4;
+  const r = 17 + pulse * 4; // raio cobre o corpo inteiro do pidgey (corpo tem ~14px)
+  const gx = bird.x, gy = bird.y;
   ctx.save();
   const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
-  grad.addColorStop(0, `rgba(255,255,255,${0.95 * pulse})`);
-  grad.addColorStop(0.55, `rgba(255,255,255,${0.55 * pulse})`);
+  grad.addColorStop(0, `rgba(255,255,255,${0.55 * pulse})`);
+  grad.addColorStop(0.6, `rgba(255,255,255,${0.4 * pulse})`);
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = grad;
   ctx.beginPath(); ctx.arc(gx, gy, r, 0, Math.PI * 2); ctx.fill();
@@ -380,6 +381,7 @@ function update(dt) {
       p.passed = true;
       score += PIPE_SCORE;
       document.getElementById('gf-score').textContent = score;
+      addPopup(bird.x, bird.y - 20, `+${PIPE_SCORE}`, '#1a1a1a');
     }
   });
 
@@ -461,6 +463,8 @@ function draw() {
     }
   });
 
+  drawShieldGlow();
+
   // Pidgey — desenho vetorial padrão (só usado quando não há sprite/gif
   // customizado configurado; ver loadBirdSprite() e updateBirdSpritePosition())
   if (!birdSpriteReady) {
@@ -500,14 +504,12 @@ function draw() {
     updateBirdSpritePosition();
   }
 
-  drawShieldGlow();
-
   // popups de feedback ("+10", "Protegido!" etc)
   popups.forEach(p => {
     ctx.save();
     ctx.globalAlpha = Math.max(0, p.life / 0.9);
     ctx.fillStyle = p.color || '#1a1a1a';
-    ctx.font = "800 13px 'Nunito', sans-serif";
+    ctx.font = "800 16px 'Nunito', sans-serif";
     ctx.textAlign = 'center';
     ctx.fillText(p.text, p.x, p.y);
     ctx.restore();
