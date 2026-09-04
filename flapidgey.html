@@ -170,7 +170,13 @@ async function loadBirdSprite() {
     } catch (e) { console.warn('[loadBirdSprite]', e); }
   }
   if (!url) return; // sem sprite configurado: mantém o desenho vetorial
-  birdSpriteEl.src = url;
+  // crossOrigin='anonymous' é essencial: sem isso, ao desenhar essa imagem
+  // (de outro domínio, ex. tumblr) num <canvas> e depois chamar
+  // canvas.toDataURL() (usado em shareResultToStories/buildResultCanvas),
+  // o canvas fica "tainted" e o navegador lança SecurityError — o que era
+  // engolido silenciosamente pelo try/catch de shareResultToStories() e
+  // fazia o compartilhamento falhar sem aviso (só voltava pra home).
+  birdSpriteEl.crossOrigin = 'anonymous';
   birdSpriteEl.onload = () => {
     birdSpriteEl.style.display = 'block';
     birdSpriteEl.style.width = BIRD_SPRITE_SIZE * scale + 'px';
@@ -178,6 +184,7 @@ async function loadBirdSprite() {
     birdSpriteReady = true;
   };
   birdSpriteEl.onerror = () => { birdSpriteReady = false; birdSpriteEl.style.display = 'none'; };
+  birdSpriteEl.src = url;
 }
 
 function updateBirdSpritePosition() {
@@ -200,7 +207,14 @@ const PIPE_SPEED = 130;    // px/s
 const PIPE_INTERVAL_BASE = 1150;   // ms — distância "padrão" entre canos
 const PIPE_INTERVAL_VARIANCE = 250; // ms — variação aleatória pra mais/menos a cada cano
 const PIPE_INTERVAL_FLOOR = 1100;   // ms — piso mínimo: nunca deixa os canos mais próximos que isso, mesmo com a variação negativa
-const PIPE_INTERVAL_GAP_SWITCH_BONUS = 350; // ms extras quando a boca deste cano fica bem longe da boca do anterior (ex.: um vão lá em cima, outro lá embaixo)
+// Velocidade de subida que dá pra manter batendo asas num ritmo confortável
+// (bem abaixo do que a física permite no auge, de propósito — sobra folga
+// pra reação) e uma folga fixa de reação, usadas só pra GARANTIR tempo
+// físico de chegar na boca do próximo cano quando ela exige subir (ver
+// spawnPipe). Descidas não precisam disso: a gravidade sozinha já dá conta
+// rápido o bastante mesmo pro deslocamento máximo (PIPE_GAP_MAX_SHIFT).
+const PIPE_CLIMB_SPEED_ASSUMED = 200;   // px/s
+const PIPE_CLIMB_REACTION_BUFFER = 300; // ms
 const PIPE_SCORE = 5;      // pontos ganhos ao passar de cada cano
 const HIT_INVULN_TIME = 1; // segundos de proteção após usar uma vida da sitrus berry
 
@@ -214,8 +228,10 @@ const BERRY_TYPES = {
   sitrus: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png', color: '#f2a33c', chance: 0.06, life: 1   },
   enigma: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/enigma-berry.png', color: '#6b3fa0', chance: 0.015, points: 25 },
 };
-const BERRY_SIZE = 41.25; // 33 * 1.25 (25% maior)
-const BERRY_R = 20.625;   // 16.5 * 1.25 (25% maior)
+const BERRY_SIZE = 33; // 41.25 * 0.8 (20% menor)
+const BERRY_R = 16.5;  // 20.625 * 0.8 (20% menor)
+const BERRY_BUBBLE_PADDING = 6; // px de "respiro" branco ao redor da fruta, dentro da bolha
+const BERRY_BUBBLE_R = BERRY_R + BERRY_BUBBLE_PADDING; // raio da bolha branca atrás de cada fruta
 const ORAN_MIN_GAP = 5, ORAN_MAX_GAP = 10; // a oran aparece a cada 5-10 canos
 
 const berryImgs = {};
@@ -238,6 +254,21 @@ function rollBerryType() {
     if (r < acc) return key;
   }
   return null;
+}
+
+// Bolha branca atrás de cada fruta, pra destacá-la contra o fundo do céu
+// (funciona tanto com o sprite real quanto com o desenho vetorial de
+// fallback, já que é desenhada antes de ambos).
+function drawBerryBubble(b) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(b.x, b.y, BERRY_BUBBLE_R, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = 'rgba(0,0,0,.18)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawBerryFallback(b) {
@@ -332,7 +363,7 @@ function flap() {
   bird.vy = FLAP_VELOCITY;
 }
 
-const PIPE_GAP_MAX_SHIFT = 340; // px — deslocamento vertical máximo entre a boca de um cano e a do seguinte, pra nunca pedir uma subida/descida impossível de fazer a tempo
+const PIPE_GAP_MAX_SHIFT = 260; // px — deslocamento vertical máximo entre a boca de um cano e a do seguinte, pra nunca pedir uma subida/descida impossível de fazer a tempo
 
 function spawnPipe() {
   const margin = 50;
@@ -352,16 +383,19 @@ function spawnPipe() {
   pipeCount++;
   maybeSpawnBerryInGap(gapY);
 
-  // Distância até o PRÓXIMO cano: varia aleatoriamente e ganha um bônus
-  // quando a boca deste cano está bem longe (verticalmente) da boca do
-  // cano anterior — ex.: um vão lá em cima (boca virada pra baixo) e o
-  // seguinte lá embaixo (boca virada pra cima) — pra dar mais espaço
-  // pro jogador se reposicionar em vez de sempre a mesma distância.
+  // Distância até o PRÓXIMO cano: varia aleatoriamente e GARANTE tempo
+  // físico suficiente quando a boca deste cano fica mais alta que a do
+  // anterior (isso exige SUBIR, batendo asas várias vezes — bem mais lento
+  // que descer, que a gravidade resolve sozinha rápido). O tempo mínimo é
+  // calculado pela distância real em pixels que precisa ser subida, não por
+  // uma fração da altura da tela — do jeito antigo, em telas altas (retrato,
+  // celular) a mesma subida em pixels virava uma fração pequena do total e
+  // quase não ganhava bônus, mesmo exigindo fisicamente o mesmo tempo de voo.
   let interval = PIPE_INTERVAL_BASE + (Math.random() * 2 - 1) * PIPE_INTERVAL_VARIANCE;
-  if (lastGapY !== null) {
-    const usableRange = BASE_H - margin * 2 - PIPE_GAP;
-    const flipAmount = usableRange > 0 ? Math.abs(gapY - lastGapY) / usableRange : 0; // 0–1
-    interval += flipAmount * PIPE_INTERVAL_GAP_SWITCH_BONUS;
+  if (lastGapY !== null && gapY < lastGapY) {
+    const climbDistance = lastGapY - gapY;
+    const minTravelTime = (climbDistance / PIPE_CLIMB_SPEED_ASSUMED) * 1000 + PIPE_CLIMB_REACTION_BUFFER;
+    interval = Math.max(interval, minTravelTime);
   }
   interval = Math.max(PIPE_INTERVAL_FLOOR, interval); // nunca abaixo do piso, mesmo com variação bem negativa
   lastGapY = gapY;
@@ -380,7 +414,7 @@ function maybeSpawnBerryInGap(gapY) {
     type = rollBerryType();
   }
   if (!type) return;
-  const innerMargin = BERRY_R + 4; // não deixa a berry colar na parte sólida do cano
+  const innerMargin = BERRY_BUBBLE_R + 4; // não deixa a bolha colar na parte sólida do cano
   const minY = gapY + innerMargin;
   const maxY = gapY + PIPE_GAP - innerMargin;
   const y = maxY > minY ? (minY + Math.random() * (maxY - minY)) : (gapY + PIPE_GAP / 2);
@@ -405,7 +439,7 @@ function update(dt) {
   pipes = pipes.filter(p => p.x > -PIPE_WIDTH);
 
   berries.forEach(b => b.x -= PIPE_SPEED * dt);
-  berries = berries.filter(b => b.x > -BERRY_SIZE);
+  berries = berries.filter(b => b.x > -BERRY_BUBBLE_R * 2);
 
   popups.forEach(p => { p.y -= 40 * dt; p.life -= dt; });
   popups = popups.filter(p => p.life > 0);
@@ -490,6 +524,7 @@ function draw() {
 
   // berries coletáveis
   berries.forEach(b => {
+    drawBerryBubble(b);
     const spriteInfo = berryImgs[b.type];
     if (spriteInfo && spriteInfo.ready) {
       ctx.drawImage(spriteInfo.img, b.x - BERRY_SIZE / 2, b.y - BERRY_SIZE / 2, BERRY_SIZE, BERRY_SIZE);
@@ -596,7 +631,7 @@ document.getElementById('gf-share-btn').addEventListener('click', shareResultToS
 // 'pg_pending_story_image' e sai do jogo direto pro index.html do
 // PokéGram — que lê essa chave no boot (checkPendingGameShare) e já
 // abre o editor de story com essa imagem carregada.
-function buildResultCanvas() {
+function buildResultCanvas(useSprite = true) {
   const W = 1080, H = 1920;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
@@ -624,7 +659,7 @@ function buildResultCanvas() {
   // pidgey (sprite atual, se carregado; senão desenho vetorial simples)
   const birdY = 620, birdSize = 260;
   c2.save();
-  if (birdSpriteReady && birdSpriteEl.complete) {
+  if (useSprite && birdSpriteReady && birdSpriteEl.complete) {
     c2.drawImage(birdSpriteEl, W / 2 - birdSize / 2, birdY - birdSize / 2, birdSize, birdSize);
   } else {
     c2.translate(W / 2, birdY);
@@ -666,19 +701,66 @@ function buildResultCanvas() {
     c2.fillText(`Recorde: ${best}`, W / 2, cardY + cardH + 90);
   }
 
+  // chamada pra ação — "Eu fiz X pontos, venha jogar flaPidgey também"
+  c2.fillStyle = '#fff';
+  c2.font = "800 56px 'Nunito', sans-serif";
+  c2.shadowColor = 'rgba(0,0,0,.35)';
+  c2.shadowBlur = 10;
+  c2.shadowOffsetY = 2;
+  const ctaLines = wrapCanvasText(c2, `Eu fiz ${score} pontos, venha jogar flaPidgey também!`, W - 140);
+  const ctaLineHeight = 68;
+  let ctaY = cardY + cardH + (best ? 200 : 140);
+  ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += ctaLineHeight; });
+  c2.shadowColor = 'transparent';
+  c2.shadowBlur = 0;
+  c2.shadowOffsetY = 0;
+
   return c;
 }
 
+// Quebra `text` em linhas que caibam em `maxWidth` no contexto/fonte atuais
+// (ctx.font já deve estar setado antes de chamar). Retorna array de linhas.
+function wrapCanvasText(ctx2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx2d.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
 function shareResultToStories() {
+  let dataUrl = null;
   try {
-    const canvas = buildResultCanvas();
-    const dataUrl = canvas.toDataURL('image/png');
-    sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
-      image: dataUrl,
-      gameLink: '/jogos/flapidgey'
-    }));
+    dataUrl = buildResultCanvas(true).toDataURL('image/png');
   } catch (e) {
-    console.warn('[shareResultToStories] falhou ao gerar/guardar imagem do resultado', e);
+    // Canvas "tainted" por causa do sprite (imagem de outro domínio sem
+    // CORS liberado) — tenta de novo sem desenhar o sprite, usando o
+    // desenho vetorial, que nunca gera esse problema.
+    console.warn('[shareResultToStories] toDataURL falhou com sprite, tentando sem sprite', e);
+    try {
+      dataUrl = buildResultCanvas(false).toDataURL('image/png');
+    } catch (e2) {
+      console.warn('[shareResultToStories] falhou ao gerar imagem do resultado mesmo sem sprite', e2);
+    }
+  }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl,
+        gameLink: '/jogos/flapidgey'
+      }));
+    } catch (e) {
+      console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
+    }
   }
   window.location.href = '/';
 }
