@@ -54,20 +54,46 @@ async function gRequireSession() {
   return cached;
 }
 
-// Salva uma pontuação no ranking. 'game' é 'tetris' ou 'flapidgey'.
+// Salva uma pontuação no ranking. 'game' é 'tetris', 'flapidgey' ou
+// 'voltorbolha'. Usa fetch cru pro PostgREST (em vez do client supabase-js)
+// porque o client engolia qualquer erro de RLS em silêncio (só um
+// console.warn), e boa parte dos jogadores não tem sessão real no
+// Supabase Auth (só a sessão em cache via bcrypt/RPC) — se a policy de
+// INSERT exigir auth.uid(), o insert falha pra esses jogadores e a
+// pontuação simplesmente nunca aparecia no ranking, sem nenhum aviso.
+// Com fetch cru, um erro assim aparece completo no console (status +
+// corpo da resposta do PostgREST, ex.: "new row violates row-level
+// security policy"), em vez de sumir.
 async function gSaveScore(game, score, user) {
-  if (!user || !user.id || !Number.isFinite(score)) return;
+  if (!user || !user.id || !Number.isFinite(score)) return false;
   try {
-    await gdb.from('game_scores').insert({
-      user_id: user.id,
-      game,
-      score: Math.max(0, Math.round(score)),
-      author_name: user.username || null,
-      author_color: user.color || null,
-      author_avatar: user.avatar_url || null,
+    const { data: { session } } = await gdb.auth.getSession().catch(() => ({ data: { session: null } }));
+    const res = await fetch(`${GAMES_SUPABASE_URL}/rest/v1/game_scores`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': GAMES_SUPABASE_ANON,
+        'Authorization': `Bearer ${(session && session.access_token) || GAMES_SUPABASE_ANON}`,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({
+        user_id: user.id,
+        game,
+        score: Math.max(0, Math.round(score)),
+        author_name: user.username || null,
+        author_color: user.color || null,
+        author_avatar: user.avatar_url || null,
+      }),
     });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.error('[gSaveScore] falha ao salvar pontuação —', game, 'status', res.status, body);
+      return false;
+    }
+    return true;
   } catch (e) {
-    console.warn('[gSaveScore]', game, e);
+    console.error('[gSaveScore]', game, e);
+    return false;
   }
 }
 
