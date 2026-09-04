@@ -10,7 +10,7 @@
 <style>
   *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
   html,body{
-    margin:0;height:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
+    margin:0;height:100%;font-family:'Nunito',sans-serif;background:#1a1a2e;color:#1a1a1a;
     overflow:hidden;
   }
   :root{
@@ -19,49 +19,44 @@
   .gt-nav{
     display:flex;align-items:center;justify-content:space-between;
     padding:0 16px;height:52px;background:var(--brand);
-    box-shadow:0 2px 8px rgba(0,0,0,.15);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;
   }
   .gt-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
   .gt-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
   .gt-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
   .gt-title span{color:var(--accent)}
 
-  .gt-wrap{
-    display:flex;align-items:flex-start;justify-content:center;gap:18px;
-    padding:16px;height:calc(100% - 52px);overflow:auto;
-  }
-  .gt-board-col{display:flex;flex-direction:column;align-items:center;gap:10px}
-  #gt-canvas{
-    background:#1a1a2e;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.25);
+  .gt-stage{
+    position:relative;
+    width:100%;height:calc(100% - 52px);
+    display:flex;align-items:center;justify-content:center;
+    background:#1a1a2e;
     touch-action:none;
+    overflow:hidden;
   }
-  .gt-side{display:flex;flex-direction:column;gap:14px;width:150px;flex-shrink:0}
-  .gt-panel{
-    background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px;
+  #gt-canvas{
+    background:#16162a;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.35);
+    touch-action:none;display:block;
   }
-  .gt-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-  .gt-stat{font-family:'Cinzel',serif;font-size:22px;color:var(--brand);font-weight:700}
-  #gt-next-canvas{display:block;margin:0 auto;background:#1a1a2e;border-radius:8px}
-  .gt-lb-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11.5px}
-  .gt-lb-pos{width:14px;font-weight:800;color:var(--brand-mid)}
-  .gt-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .gt-lb-score{font-weight:800}
-  .gt-lb-empty{font-size:11px;color:var(--muted);font-style:italic}
 
-  .gt-controls-hint{font-size:11px;color:var(--muted);text-align:center;max-width:340px}
-
-  .gt-mobile-controls{display:none;gap:8px;margin-top:6px}
-  .gt-mbtn{
-    width:52px;height:52px;border-radius:12px;border:1.5px solid var(--border);
-    background:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;
-    box-shadow:0 2px 6px rgba(0,0,0,.08);user-select:none;
+  /* HUD flutuante */
+  .gt-level-badge{
+    position:absolute;top:16px;left:16px;
+    width:48px;height:48px;border-radius:50%;
+    background:rgba(255,255,255,0.5);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Cinzel',serif;font-weight:700;font-size:19px;color:#1a1a2e;
+    z-index:15;pointer-events:none;
+    box-shadow:0 2px 10px rgba(0,0,0,.2);
   }
-  @media (max-width:760px){
-    .gt-wrap{flex-direction:column;align-items:center;padding:10px}
-    .gt-side{flex-direction:row;width:100%;max-width:340px;flex-wrap:wrap}
-    .gt-panel{flex:1;min-width:100px}
-    .gt-mobile-controls{display:flex}
+  .gt-next-wrap{
+    position:absolute;top:16px;right:16px;
+    width:64px;height:64px;border-radius:12px;
+    background:rgba(255,255,255,0.15);
+    z-index:15;pointer-events:none;
+    box-shadow:0 2px 10px rgba(0,0,0,.2);
   }
+  #gt-next-canvas{display:block;width:100%;height:100%}
 
   .gt-overlay{
     position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
@@ -70,12 +65,22 @@
   .gt-overlay.show{display:flex}
   .gt-modal{
     background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
+    max-height:86vh;overflow:auto;
   }
   .gt-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
-  .gt-modal p{color:var(--muted);font-size:13px;margin:0 0 16px}
-  .gt-modal .gt-final-score{font-family:'Cinzel',serif;font-size:32px;color:var(--brand-mid);margin-bottom:16px}
+  .gt-modal p{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .gt-modal .gt-final-score{font-family:'Cinzel',serif;font-size:36px;color:var(--brand-mid);margin-bottom:6px}
+  .gt-modal .gt-best-line{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .gt-modal .gt-best-line b{color:var(--brand)}
+  .gt-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left}
+  .gt-leaderboard-box{text-align:left;margin-bottom:18px}
+  .gt-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px}
+  .gt-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .gt-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gt-lb-score{font-weight:800}
+  .gt-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
   .gt-btn{
-    padding:10px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
     font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
   }
   .gt-btn:hover{background:var(--brand)}
@@ -92,48 +97,22 @@
   <div style="width:56px"></div>
 </nav>
 
-<div class="gt-wrap">
-  <div class="gt-board-col">
-    <canvas id="gt-canvas"></canvas>
-    <div class="gt-controls-hint">← → mover · ↑ girar · ↓ acelerar · espaço soltar</div>
-    <div class="gt-mobile-controls">
-      <div class="gt-mbtn" id="gt-m-left">◀</div>
-      <div class="gt-mbtn" id="gt-m-rotate">⟳</div>
-      <div class="gt-mbtn" id="gt-m-down">▼</div>
-      <div class="gt-mbtn" id="gt-m-right">▶</div>
-      <div class="gt-mbtn" id="gt-m-drop">⤓</div>
-    </div>
-  </div>
-
-  <div class="gt-side">
-    <div class="gt-panel">
-      <div class="gt-panel-title">Próxima peça</div>
-      <canvas id="gt-next-canvas" width="80" height="80"></canvas>
-    </div>
-    <div class="gt-panel">
-      <div class="gt-panel-title">Pontuação</div>
-      <div class="gt-stat" id="gt-score">0</div>
-    </div>
-    <div class="gt-panel">
-      <div class="gt-panel-title">Nível</div>
-      <div class="gt-stat" id="gt-level">1</div>
-    </div>
-    <div class="gt-panel">
-      <div class="gt-panel-title">Seu recorde</div>
-      <div class="gt-stat" id="gt-best" style="font-size:18px">–</div>
-    </div>
-    <div class="gt-panel">
-      <div class="gt-panel-title">Top treinadores</div>
-      <div id="gt-leaderboard"><div class="gt-lb-empty">Carregando...</div></div>
-    </div>
-  </div>
+<div class="gt-stage" id="gt-stage">
+  <canvas id="gt-canvas"></canvas>
+  <div class="gt-level-badge" id="gt-level-badge">1</div>
+  <div class="gt-next-wrap"><canvas id="gt-next-canvas" width="64" height="64"></canvas></div>
 </div>
 
 <div class="gt-overlay" id="gt-overlay">
   <div class="gt-modal">
     <h2>Game Over!</h2>
-    <p id="gt-overlay-msg">Sua pontuação foi registrada no ranking.</p>
+    <p>Sua pontuação foi registrada no ranking.</p>
     <div class="gt-final-score" id="gt-final-score">0</div>
+    <div class="gt-best-line">Seu recorde: <b id="gt-best">–</b></div>
+    <div class="gt-leaderboard-box">
+      <div class="gt-panel-title">Top treinadores</div>
+      <div id="gt-leaderboard"><div class="gt-lb-empty">Carregando...</div></div>
+    </div>
     <button class="gt-btn" id="gt-restart-btn">Jogar novamente</button>
   </div>
 </div>
@@ -147,10 +126,12 @@
 const COLS = 10, ROWS = 20;
 let CELL = 26; // recalculado em resize()
 
+const stage = document.getElementById('gt-stage');
 const canvas = document.getElementById('gt-canvas');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('gt-next-canvas');
 const nextCtx = nextCanvas.getContext('2d');
+const levelBadge = document.getElementById('gt-level-badge');
 
 // Peças temáticas: cada tipo de Pokémon vira uma cor de peça
 const PIECES = {
@@ -242,8 +223,7 @@ function clearLines() {
 }
 
 function updateStats() {
-  document.getElementById('gt-score').textContent = score;
-  document.getElementById('gt-level').textContent = level;
+  levelBadge.textContent = level;
 }
 
 function draw() {
@@ -278,7 +258,7 @@ function drawCell(context, col, row, color) {
 
 function drawNext() {
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-  const size = 16;
+  const size = 12;
   const shape = next.shape;
   const w = shape[0].length * size, h = shape.length * size;
   const ox = (nextCanvas.width - w) / 2, oy = (nextCanvas.height - h) / 2;
@@ -316,17 +296,11 @@ function tryRotate() {
   }
 }
 
-function hardDrop() {
-  if (gameOver) return;
-  while (!collides(current, 1, 0)) current.row++;
-  lockPiece();
-  draw();
-}
-
 function loop(ts) {
   if (gameOver) return;
   if (!lastDrop) lastDrop = ts;
-  if (ts - lastDrop > dropInterval) {
+  const interval = fastDropActive ? Math.min(dropInterval, 55) : dropInterval;
+  if (ts - lastDrop > interval) {
     tryMove(1, 0);
     lastDrop = ts;
   }
@@ -348,7 +322,7 @@ function startGame() {
   current = randomPiece();
   next = randomPiece();
   score = 0; level = 1; linesCleared = 0; gameOver = false;
-  dropInterval = 800; lastDrop = 0;
+  dropInterval = 800; lastDrop = 0; fastDropActive = false;
   updateStats();
   drawNext();
   draw();
@@ -357,49 +331,93 @@ function startGame() {
   rafId = requestAnimationFrame(loop);
 }
 
-// ── Controles ──────────────────────────────────────────
+// ── Controles: teclado ──────────────────────────────────
+let fastDropActive = false;
+
 document.addEventListener('keydown', (e) => {
   if (['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key)) e.preventDefault();
   if (gameOver) return;
   if (e.key === 'ArrowLeft') tryMove(0, -1);
   else if (e.key === 'ArrowRight') tryMove(0, 1);
-  else if (e.key === 'ArrowDown') tryMove(1, 0);
-  else if (e.key === 'ArrowUp') tryRotate();
-  else if (e.key === ' ') hardDrop();
+  else if (e.key === 'ArrowDown') fastDropActive = true;
+  else if (e.key === ' ') tryRotate();
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowDown') fastDropActive = false;
 });
 
-function bindHold(id, fn) {
-  const el = document.getElementById(id);
-  let interval;
-  const start = (e) => { e.preventDefault(); fn(); interval = setInterval(fn, 140); };
-  const stop = () => clearInterval(interval);
-  el.addEventListener('touchstart', start, {passive:false});
-  el.addEventListener('touchend', stop);
-  el.addEventListener('mousedown', start);
-  el.addEventListener('mouseup', stop);
-  el.addEventListener('mouseleave', stop);
+// ── Controles: touch (arrastar move, tocar gira, segurar acelera) ──
+let touchActive = false;
+let touchStartX = 0, touchStartY = 0, touchOriginX = 0, touchStartTime = 0;
+let touchDragged = false;
+let holdTimer = null;
+const TAP_THRESHOLD = 12;      // px de tolerância para considerar "toque"
+const TAP_TIME_LIMIT = 220;    // ms de tolerância para considerar "toque"
+const HOLD_DELAY = 180;        // ms segurando parado até acelerar descida
+
+function cellPx() { return CELL; }
+
+stage.addEventListener('touchstart', (e) => {
+  if (gameOver) return;
+  const t = e.touches[0];
+  touchActive = true;
+  touchDragged = false;
+  touchStartX = touchOriginX = t.clientX;
+  touchStartY = t.clientY;
+  touchStartTime = Date.now();
+  clearTimeout(holdTimer);
+  holdTimer = setTimeout(() => {
+    if (touchActive && !touchDragged) fastDropActive = true;
+  }, HOLD_DELAY);
+}, {passive:true});
+
+stage.addEventListener('touchmove', (e) => {
+  if (gameOver || !touchActive) return;
+  const t = e.touches[0];
+  const dx = t.clientX - touchOriginX;
+  const dyTotal = Math.abs(t.clientY - touchStartY);
+  const dxTotal = Math.abs(t.clientX - touchStartX);
+  if (dxTotal > TAP_THRESHOLD || dyTotal > TAP_THRESHOLD) {
+    touchDragged = true;
+    fastDropActive = false;
+  }
+  const step = cellPx();
+  if (Math.abs(dx) >= step) {
+    const cells = Math.trunc(dx / step);
+    tryMove(0, cells);
+    touchOriginX += cells * step;
+  }
+}, {passive:true});
+
+function touchEndHandler(e) {
+  if (!touchActive) return;
+  touchActive = false;
+  fastDropActive = false;
+  clearTimeout(holdTimer);
+  const elapsed = Date.now() - touchStartTime;
+  if (!touchDragged && elapsed < TAP_TIME_LIMIT && !gameOver) {
+    tryRotate();
+  }
 }
-bindHold('gt-m-left', () => tryMove(0, -1));
-bindHold('gt-m-right', () => tryMove(0, 1));
-bindHold('gt-m-down', () => tryMove(1, 0));
-document.getElementById('gt-m-rotate').addEventListener('click', tryRotate);
-document.getElementById('gt-m-drop').addEventListener('click', hardDrop);
+stage.addEventListener('touchend', touchEndHandler);
+stage.addEventListener('touchcancel', touchEndHandler);
 
 document.getElementById('gt-restart-btn').addEventListener('click', startGame);
 
-// ── Canvas sizing responsivo ─────────────────────────────
+// ── Canvas sizing responsivo (ocupa toda a área disponível) ──
 function resize() {
-  const maxH = window.innerHeight - 52 - 90;
-  const maxW = Math.min(window.innerWidth - 20, 340);
+  const pad = 24;
+  const maxH = stage.clientHeight - pad;
+  const maxW = stage.clientWidth - pad;
   CELL = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
-  CELL = Math.max(14, CELL);
+  CELL = Math.max(12, Math.min(CELL, 46));
   canvas.width = CELL * COLS;
   canvas.height = CELL * ROWS;
   if (board) draw();
 }
 window.addEventListener('resize', resize);
 
-// ── Ranking lateral ──────────────────────────────────────
+// ── Ranking (exibido apenas na tela de Game Over) ─────────
 async function refreshLeaderboard() {
   const el = document.getElementById('gt-leaderboard');
   const top = await gLoadTopScores('tetris', 5);
@@ -425,10 +443,9 @@ async function refreshBest() {
 (async function boot() {
   user = await gRequireSession();
   if (!user) return;
+  gSetupFullscreenOnFirstInteraction();
   resize();
   startGame();
-  refreshLeaderboard();
-  refreshBest();
 })();
 </script>
 </body>
