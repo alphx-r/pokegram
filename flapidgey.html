@@ -200,17 +200,18 @@ const PIPE_SCORE = 5;      // pontos ganhos ao passar de cada cano
 const HIT_INVULN_TIME = 1; // segundos de proteção após usar uma vida da sitrus berry
 
 // ── Berries coletáveis ──────────────────────────────────
-// "chance" = probabilidade de aparecer em cada "slot" de spawn (a cada
-// ~1.5s, defasado dos canos). Raridade: enigma (raríssima) < sitrus
-// (rara) < oran (incomum). Ajuste os números aqui pra recalibrar.
+// oran agora é garantida (aparece a cada 5-10 canos, sorteado a cada
+// vez — ver nextOranAt/spawnPipe). "chance" nas outras duas ainda é a
+// probabilidade de aparecer a cada cano, fora da oran garantida.
+// Raridade: enigma (raríssima) < sitrus (rara).
 const BERRY_TYPES = {
-  oran:   { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png',   color: '#3f7fd1', chance: 0.12, points: 10 },
-  sitrus: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png', color: '#f2a33c', chance: 0.04, life: 1   },
-  enigma: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/enigma-berry.png', color: '#6b3fa0', chance: 0.01, points: 25 },
+  oran:   { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png',   color: '#3f7fd1', chance: 0, points: 10 },
+  sitrus: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png', color: '#f2a33c', chance: 0.06, life: 1   },
+  enigma: { sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/enigma-berry.png', color: '#6b3fa0', chance: 0.015, points: 25 },
 };
-const BERRY_SIZE = 22;
-const BERRY_R = 11;
-const BERRY_SLOT_INTERVAL = PIPE_INTERVAL;
+const BERRY_SIZE = 33; // 22 * 1.5 (50% maior)
+const BERRY_R = 16.5;  // 11 * 1.5
+const ORAN_MIN_GAP = 5, ORAN_MAX_GAP = 10; // a oran aparece a cada 5-10 canos
 
 const berryImgs = {};
 Object.keys(BERRY_TYPES).forEach(key => {
@@ -221,13 +222,13 @@ Object.keys(BERRY_TYPES).forEach(key => {
   img.src = BERRY_TYPES[key].sprite;
 });
 
-// Sorteia, na ordem mais rara → mais comum, qual berry aparece nesse
-// slot (ou nenhuma). Ex.: r < 0.01 → enigma; r < 0.05 → sitrus;
-// r < 0.17 → oran; senão, nada aparece nesse slot.
+// Sorteia, na ordem mais rara → mais comum, se aparece sitrus ou enigma
+// nesse cano (a oran é tratada à parte, de forma garantida — ver
+// spawnPipe). r < 0.015 → enigma; r < 0.075 → sitrus; senão nada.
 function rollBerryType() {
   const r = Math.random();
   let acc = 0;
-  for (const key of ['enigma', 'sitrus', 'oran']) {
+  for (const key of ['enigma', 'sitrus']) {
     acc += BERRY_TYPES[key].chance;
     if (r < acc) return key;
   }
@@ -251,6 +252,24 @@ function updateLivesHUD() {
   document.getElementById('gf-lives').textContent = `🛡 ${lives}`;
 }
 
+// Círculo branco brilhante do lado do pidgey enquanto ele tem carga(s)
+// de escudo (vidas ganhas de sitrus berry) — pulsa suavemente pra
+// parecer "brilhando".
+function drawShieldGlow() {
+  if (lives <= 0) return;
+  const pulse = 0.75 + Math.sin(performance.now() / 220) * 0.25; // 0.5–1.0
+  const r = 9 + pulse * 3;
+  const gx = bird.x - 20, gy = bird.y - 4;
+  ctx.save();
+  const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+  grad.addColorStop(0, `rgba(255,255,255,${0.95 * pulse})`);
+  grad.addColorStop(0.55, `rgba(255,255,255,${0.55 * pulse})`);
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(gx, gy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 function addPopup(x, y, text, color) {
   popups.push({ x, y, text, color, life: 0.9 });
 }
@@ -269,7 +288,11 @@ function collectBerry(b) {
   }
 }
 
-let bird, pipes, berries, popups, score, lives, invulnerable, best, gameOver, started, user, lastTs, pipeTimer, berryTimer, rafId;
+let bird, pipes, berries, popups, score, lives, invulnerable, best, gameOver, started, user, lastTs, pipeTimer, pipeCount, nextOranAt, rafId;
+
+function rollNextOranAt(fromCount) {
+  return fromCount + ORAN_MIN_GAP + Math.floor(Math.random() * (ORAN_MAX_GAP - ORAN_MIN_GAP + 1));
+}
 
 function resetGame() {
   bird = { x: 70, y: BASE_H / 2, vy: 0, rot: 0 };
@@ -282,7 +305,8 @@ function resetGame() {
   gameOver = false;
   started = false;
   pipeTimer = 0;
-  berryTimer = -BERRY_SLOT_INTERVAL / 2; // defasa o spawn de berries em relação ao dos canos
+  pipeCount = 0;
+  nextOranAt = rollNextOranAt(0);
   lastTs = 0;
   document.getElementById('gf-score').textContent = '0';
   updateLivesHUD();
@@ -304,14 +328,32 @@ function spawnPipe() {
   const margin = 50;
   const gapY = margin + Math.random() * (BASE_H - margin * 2 - PIPE_GAP);
   pipes.push({ x: BASE_W, gapY, passed: false });
+  pipeCount++;
+  maybeSpawnBerryInGap(gapY);
 }
 
-function maybeSpawnBerry() {
-  const type = rollBerryType();
+// Berry nasce perto da "boca" do cano que acabou de aparecer — não
+// necessariamente dentro do vão seguro (o jogador pode ter que se
+// desviar um pouco pra pegar), mas nunca longe o bastante pra ficar
+// fora de alcance. Se o vão estiver perto do topo/fundo da tela, a
+// berry pode acabar nascendo perto dessas bordas também.
+const BERRY_NEAR_RANGE = 40; // px pra além de cada borda do vão do cano
+function maybeSpawnBerryInGap(gapY) {
+  let type = null;
+  if (pipeCount >= nextOranAt) {
+    type = 'oran';
+    nextOranAt = rollNextOranAt(pipeCount);
+  } else {
+    type = rollBerryType();
+  }
   if (!type) return;
-  const margin = 46;
-  const y = margin + Math.random() * (BASE_H - margin * 2);
-  berries.push({ x: BASE_W, y, type });
+  const edgeMargin = BERRY_R + 6; // não deixa a berry colar nas bordas do jogo
+  let minY = gapY - BERRY_NEAR_RANGE;
+  let maxY = gapY + PIPE_GAP + BERRY_NEAR_RANGE;
+  minY = Math.max(edgeMargin, minY);
+  maxY = Math.min(BASE_H - edgeMargin, maxY);
+  const y = maxY > minY ? (minY + Math.random() * (maxY - minY)) : (gapY + PIPE_GAP / 2);
+  berries.push({ x: BASE_W + PIPE_WIDTH * 0.6, y, type });
 }
 
 function update(dt) {
@@ -326,12 +368,6 @@ function update(dt) {
   if (pipeTimer > PIPE_INTERVAL) {
     pipeTimer = 0;
     spawnPipe();
-  }
-
-  berryTimer += dt * 1000;
-  if (berryTimer > BERRY_SLOT_INTERVAL) {
-    berryTimer -= BERRY_SLOT_INTERVAL;
-    maybeSpawnBerry();
   }
 
   pipes.forEach(p => p.x -= PIPE_SPEED * dt);
@@ -468,6 +504,8 @@ function draw() {
   } else {
     updateBirdSpritePosition();
   }
+
+  drawShieldGlow();
 
   // popups de feedback ("+10", "Protegido!" etc)
   popups.forEach(p => {
@@ -639,7 +677,7 @@ async function refreshBest() {
 function tryEnterFullscreenNow() {
   try {
     const el = document.documentElement;
-    if (document.fullscreenElement || !el.requestFullscreen) return;
+    if (document.fullscreenElement || !el.requestFullscreen || !gIsMobileLike()) return;
     el.requestFullscreen().catch(() => {}); // sem gesto de usuário disponível: ignora, cai no fallback do 1º toque
   } catch (e) {}
 }
