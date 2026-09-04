@@ -3080,6 +3080,59 @@ a:focus, a:active,
             <div class="adm-sec-sub" style="margin-bottom:14px">Imagem de capa exibida para cada jogo (PNG/JPG/WebP, máx 2 MB).</div>
             <div id="jg-covers-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:24px"></div>
 
+            <div class="adm-box-title" style="margin-top:20px">🧱 Editor de Peças — Tetris</div>
+            <div class="adm-sec-sub" style="margin-bottom:14px">Personalize o formato e a cor de cada peça do Pokémon Tetris. As mudanças valem para todas as partidas novas.</div>
+            <div class="adm-box" id="tp-editor-box">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+                <div style="display:flex;gap:8px;flex-wrap:wrap" id="tp-piece-tabs"></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="adm-btn adm-btn-sm" onclick="tpAddPiece()" style="background:var(--surface2)">➕ Nova peça</button>
+                  <button class="adm-btn adm-btn-sm" onclick="tpExportarPecas()" style="background:var(--surface2)">⬇️ Exportar</button>
+                  <button class="adm-btn adm-btn-sm" onclick="document.getElementById('tp-import-file').click()" style="background:var(--surface2)">⬆️ Importar</button>
+                  <input type="file" id="tp-import-file" accept="application/json,.json" style="display:none" onchange="tpImportarPecas(this)" />
+                  <button class="adm-btn adm-btn-sm" onclick="tpResetDefaults()" style="background:var(--surface2)">↺ Restaurar padrão</button>
+                </div>
+              </div>
+
+              <div id="tp-editor-body" style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Formato da peça <span style="text-transform:none;font-weight:600">(clique para pintar/apagar)</span></div>
+                  <div id="tp-grid" style="display:inline-grid;gap:3px;background:var(--border);padding:4px;border-radius:8px"></div>
+                  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+                    <button class="adm-btn adm-btn-sm" onclick="tpResizeGrid(1)" style="background:var(--surface2)">➕ Linha</button>
+                    <button class="adm-btn adm-btn-sm" onclick="tpResizeGrid(-1)" style="background:var(--surface2)">➖ Linha</button>
+                    <button class="adm-btn adm-btn-sm" onclick="tpResizeCols(1)" style="background:var(--surface2)">➕ Coluna</button>
+                    <button class="adm-btn adm-btn-sm" onclick="tpResizeCols(-1)" style="background:var(--surface2)">➖ Coluna</button>
+                  </div>
+                </div>
+
+                <div style="min-width:220px">
+                  <div class="adm-field">
+                    <label>Nome da peça (identificador)</label>
+                    <input type="text" id="tp-piece-key" maxlength="12" oninput="tpRenameCurrentKey(this.value)" style="text-transform:uppercase" />
+                  </div>
+                  <div class="adm-field">
+                    <label>Cor da peça</label>
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <input type="color" id="tp-piece-color" oninput="tpUpdateColor(this.value)" style="width:52px;height:38px;padding:2px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;background:none" />
+                      <span id="tp-piece-color-hex" style="font-family:monospace;font-size:13px;color:var(--muted)"></span>
+                    </div>
+                  </div>
+                  <div class="adm-field">
+                    <label>Pré-visualização</label>
+                    <div id="tp-preview" style="display:inline-grid;gap:2px;background:#16162a;padding:8px;border-radius:8px"></div>
+                  </div>
+                  <button class="adm-btn adm-btn-sm" onclick="tpRemovePiece()" style="background:#fdecea;color:#c0392b">🗑 Remover esta peça</button>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap">
+                <button class="adm-btn" onclick="tpSalvarPecas()">💾 Salvar peças</button>
+                <span id="tp-fb-ok" style="display:none;color:#2e7d32;font-size:13px;font-weight:700"></span>
+                <span id="tp-fb-err" style="display:none;color:#c0392b;font-size:13px;font-weight:700"></span>
+              </div>
+            </div>
+
             <div id="jg-games-wrap"></div>
           </div>
 
@@ -7122,6 +7175,7 @@ async function removerCapaJogo(key) {
 
 async function carregarJogosAdm() {
   carregarCapasJogosAdm();
+  carregarEditorPecasTetris();
 
   const wrap = document.getElementById('jg-games-wrap');
   wrap.innerHTML = JG_GAMES.map(g => `
@@ -7179,6 +7233,347 @@ async function carregarJogosAdm() {
       document.getElementById(`jg-${g.key}-top10`).innerHTML   = `<tr><td colspan="3" style="text-align:center;color:var(--muted)">Erro ao carregar.</td></tr>`;
     }
   }
+}
+
+// ── Editor de peças do Tetris (settings.tetris_pieces) ─────
+// Guarda o conjunto de peças como JSON em settings.tetris_pieces:
+// { "I": { shape: [[1,1,1,1]], color: "#78C850" }, ... }
+// O jogo (tetris.html) lê essa chave no boot; se não existir ou for
+// inválida, usa o conjunto padrão embutido nele.
+const TP_DEFAULT_PIECES = {
+  I: { shape: [[1,1,1,1]], color: '#78C850' },
+  O: { shape: [[1,1],[1,1]], color: '#F8D030' },
+  T: { shape: [[0,1,0],[1,1,1]], color: '#A040A0' },
+  S: { shape: [[0,1,1],[1,1,0]], color: '#EE8130' },
+  Z: { shape: [[1,1,0],[0,1,1]], color: '#C03028' },
+  J: { shape: [[1,0,0],[1,1,1]], color: '#6890F0' },
+  L: { shape: [[0,0,1],[1,1,1]], color: '#E0C068' },
+};
+const TP_MAX_DIM = 6; // limite de linhas/colunas por peça no editor
+const TP_MAX_PIECES = 14;
+
+let _tpPieces = {};        // conjunto de peças em edição (cópia de trabalho)
+let _tpOrder = [];         // ordem das abas (chaves)
+let _tpCurrentKey = null;  // chave da peça selecionada no momento
+
+function tpDeepCopy(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+async function carregarEditorPecasTetris() {
+  let pieces = null;
+  try {
+    const { data } = await db.from('settings').select('value').eq('key', 'tetris_pieces').maybeSingle();
+    if (data && data.value) {
+      const parsed = JSON.parse(data.value);
+      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length) pieces = parsed;
+    }
+  } catch (e) {
+    console.warn('[carregarEditorPecasTetris]', e);
+  }
+  _tpPieces = tpDeepCopy(pieces || TP_DEFAULT_PIECES);
+  _tpOrder = Object.keys(_tpPieces);
+  _tpCurrentKey = _tpOrder[0] || null;
+  tpRenderTabs();
+  tpRenderEditor();
+}
+
+function tpRenderTabs() {
+  const wrap = document.getElementById('tp-piece-tabs');
+  wrap.innerHTML = _tpOrder.map(key => `
+    <button class="adm-btn adm-btn-sm" onclick="tpSelectPiece('${esc(key)}')"
+      style="background:${key === _tpCurrentKey ? 'var(--brand)' : 'var(--surface2)'};color:${key === _tpCurrentKey ? '#fff' : 'var(--text)'}">
+      ${esc(key)}
+    </button>`).join('');
+}
+
+function tpSelectPiece(key) {
+  _tpCurrentKey = key;
+  tpRenderTabs();
+  tpRenderEditor();
+}
+
+function tpRenderEditor() {
+  const cellPx = 30;
+  const gridEl = document.getElementById('tp-grid');
+  const previewEl = document.getElementById('tp-preview');
+  const keyInput = document.getElementById('tp-piece-key');
+  const colorInput = document.getElementById('tp-piece-color');
+  const colorHex = document.getElementById('tp-piece-color-hex');
+
+  if (!_tpCurrentKey || !_tpPieces[_tpCurrentKey]) {
+    gridEl.innerHTML = '';
+    previewEl.innerHTML = '<span style="color:var(--muted);font-size:12px">Sem peça selecionada.</span>';
+    keyInput.value = '';
+    return;
+  }
+
+  const piece = _tpPieces[_tpCurrentKey];
+  const rows = piece.shape.length, cols = piece.shape[0].length;
+
+  keyInput.value = _tpCurrentKey;
+  colorInput.value = piece.color;
+  colorHex.textContent = piece.color.toUpperCase();
+
+  gridEl.style.gridTemplateColumns = `repeat(${cols}, ${cellPx}px)`;
+  gridEl.innerHTML = piece.shape.map((row, ri) => row.map((v, ci) => `
+    <div onclick="tpToggleCell(${ri},${ci})"
+      style="width:${cellPx}px;height:${cellPx}px;border-radius:4px;cursor:pointer;
+      background:${v ? piece.color : 'rgba(255,255,255,0.06)'};
+      border:1px solid rgba(255,255,255,0.12)"></div>
+  `).join('')).join('');
+
+  previewEl.style.gridTemplateColumns = `repeat(${cols}, 16px)`;
+  previewEl.innerHTML = piece.shape.map(row => row.map(v => `
+    <div style="width:16px;height:16px;border-radius:2px;background:${v ? piece.color : 'transparent'}"></div>
+  `).join('')).join('');
+}
+
+function tpToggleCell(r, c) {
+  const piece = _tpPieces[_tpCurrentKey];
+  if (!piece) return;
+  piece.shape[r][c] = piece.shape[r][c] ? 0 : 1;
+  tpRenderEditor();
+}
+
+function tpUpdateColor(hex) {
+  const piece = _tpPieces[_tpCurrentKey];
+  if (!piece) return;
+  piece.color = hex;
+  tpRenderEditor();
+}
+
+function tpRenameCurrentKey(newKeyRaw) {
+  const newKey = (newKeyRaw || '').trim().toUpperCase().slice(0, 12);
+  if (!_tpCurrentKey || !newKey || newKey === _tpCurrentKey) return;
+  if (_tpPieces[newKey]) return; // evita colisão de nomes enquanto digita
+  _tpPieces[newKey] = _tpPieces[_tpCurrentKey];
+  delete _tpPieces[_tpCurrentKey];
+  const idx = _tpOrder.indexOf(_tpCurrentKey);
+  if (idx >= 0) _tpOrder[idx] = newKey;
+  _tpCurrentKey = newKey;
+  tpRenderTabs();
+}
+
+function tpResizeGrid(delta) {
+  const piece = _tpPieces[_tpCurrentKey];
+  if (!piece) return;
+  const cols = piece.shape[0].length;
+  if (delta > 0) {
+    if (piece.shape.length >= TP_MAX_DIM) return;
+    piece.shape.push(Array(cols).fill(0));
+  } else {
+    if (piece.shape.length <= 1) return;
+    piece.shape.pop();
+  }
+  tpRenderEditor();
+}
+
+function tpResizeCols(delta) {
+  const piece = _tpPieces[_tpCurrentKey];
+  if (!piece) return;
+  const cols = piece.shape[0].length;
+  if (delta > 0) {
+    if (cols >= TP_MAX_DIM) return;
+    piece.shape.forEach(row => row.push(0));
+  } else {
+    if (cols <= 1) return;
+    piece.shape.forEach(row => row.pop());
+  }
+  tpRenderEditor();
+}
+
+function tpAddPiece() {
+  if (_tpOrder.length >= TP_MAX_PIECES) { toast('Limite de peças atingido.'); return; }
+  let base = 'NOVA', n = 1, key = base;
+  while (_tpPieces[key]) { key = base + (n++); }
+  _tpPieces[key] = { shape: [[0,1,0],[1,1,1]], color: '#78C850' };
+  _tpOrder.push(key);
+  _tpCurrentKey = key;
+  tpRenderTabs();
+  tpRenderEditor();
+}
+
+function tpRemovePiece() {
+  if (!_tpCurrentKey) return;
+  if (_tpOrder.length <= 1) { toast('É preciso manter ao menos uma peça.'); return; }
+  if (!confirm(`Remover a peça "${_tpCurrentKey}"?`)) return;
+  delete _tpPieces[_tpCurrentKey];
+  _tpOrder = _tpOrder.filter(k => k !== _tpCurrentKey);
+  _tpCurrentKey = _tpOrder[0] || null;
+  tpRenderTabs();
+  tpRenderEditor();
+}
+
+function tpResetDefaults() {
+  if (!confirm('Restaurar as 7 peças originais? As alterações não salvas serão perdidas.')) return;
+  _tpPieces = tpDeepCopy(TP_DEFAULT_PIECES);
+  _tpOrder = Object.keys(_tpPieces);
+  _tpCurrentKey = _tpOrder[0] || null;
+  tpRenderTabs();
+  tpRenderEditor();
+}
+
+// Monta o payload atual { CHAVE: {shape, color} } e valida que toda
+// peça tem ao menos uma célula pintada. Retorna { payload, error }.
+function tpBuildPayload() {
+  for (const key of _tpOrder) {
+    const piece = _tpPieces[key];
+    const hasCell = piece.shape.some(row => row.some(v => v));
+    if (!hasCell) {
+      return { payload: null, error: `A peça "${key}" está vazia — pinte ao menos uma célula.` };
+    }
+  }
+  const payload = {};
+  _tpOrder.forEach(key => { payload[key] = _tpPieces[key]; });
+  return { payload, error: null };
+}
+
+async function tpSalvarPecas() {
+  const okEl  = document.getElementById('tp-fb-ok');
+  const errEl = document.getElementById('tp-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  const { payload, error: validationError } = tpBuildPayload();
+  if (validationError) {
+    errEl.textContent = validationError;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const { error } = await db.from('settings')
+      .upsert({ key: 'tetris_pieces', value: JSON.stringify(payload) }, { onConflict: 'key' });
+    if (error) throw error;
+    okEl.textContent = '✓ Peças salvas com sucesso!';
+    okEl.style.display = 'block';
+    setTimeout(() => okEl.style.display = 'none', 2500);
+  } catch (e) {
+    errEl.textContent = 'Erro ao salvar: ' + (e.message || e);
+    errEl.style.display = 'block';
+  }
+}
+
+// ── Exportar peças para um arquivo .json ────────────────────
+function tpExportarPecas() {
+  const okEl  = document.getElementById('tp-fb-ok');
+  const errEl = document.getElementById('tp-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  const { payload, error: validationError } = tpBuildPayload();
+  if (validationError) {
+    errEl.textContent = validationError;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `tetris-pecas-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  okEl.textContent = '✓ Arquivo exportado.';
+  okEl.style.display = 'block';
+  setTimeout(() => okEl.style.display = 'none', 2500);
+}
+
+// ── Importar peças de um arquivo .json ──────────────────────
+// Só substitui o conjunto em edição na tela — o admin ainda precisa
+// clicar em "Salvar peças" para persistir no banco, igual qualquer
+// outra edição feita no editor.
+function tpImportarPecas(inputEl) {
+  const okEl  = document.getElementById('tp-fb-ok');
+  const errEl = document.getElementById('tp-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    inputEl.value = ''; // permite reimportar o mesmo arquivo depois
+    let parsed;
+    try {
+      parsed = JSON.parse(reader.result);
+    } catch (e) {
+      errEl.textContent = 'Arquivo inválido: não é um JSON válido.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const validated = tpValidateImportedPieces(parsed);
+    if (validated.error) {
+      errEl.textContent = validated.error;
+      errEl.style.display = 'block';
+      return;
+    }
+
+    _tpPieces = validated.pieces;
+    _tpOrder = Object.keys(_tpPieces);
+    _tpCurrentKey = _tpOrder[0] || null;
+    tpRenderTabs();
+    tpRenderEditor();
+
+    okEl.textContent = `✓ ${_tpOrder.length} peça(s) importada(s). Clique em "Salvar peças" para aplicar.`;
+    okEl.style.display = 'block';
+  };
+  reader.onerror = () => {
+    errEl.textContent = 'Erro ao ler o arquivo.';
+    errEl.style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+// Valida a estrutura de um JSON importado, normalizando o que for
+// possível e rejeitando o que não for seguro para o jogo usar.
+function tpValidateImportedPieces(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return { pieces: null, error: 'Formato inválido: esperado um objeto com as peças.' };
+  }
+  const keys = Object.keys(obj);
+  if (!keys.length) {
+    return { pieces: null, error: 'O arquivo não contém nenhuma peça.' };
+  }
+  if (keys.length > TP_MAX_PIECES) {
+    return { pieces: null, error: `Máximo de ${TP_MAX_PIECES} peças por conjunto.` };
+  }
+
+  const out = {};
+  for (const rawKey of keys) {
+    const key = String(rawKey).trim().toUpperCase().slice(0, 12);
+    if (!key) continue;
+    const p = obj[rawKey];
+    if (!p || typeof p !== 'object') {
+      return { pieces: null, error: `Peça "${rawKey}" está mal formatada.` };
+    }
+    if (!Array.isArray(p.shape) || !p.shape.length || p.shape.length > TP_MAX_DIM) {
+      return { pieces: null, error: `Peça "${rawKey}" tem um formato inválido (linhas).` };
+    }
+    const cols = p.shape[0].length;
+    if (!cols || cols > TP_MAX_DIM) {
+      return { pieces: null, error: `Peça "${rawKey}" tem um formato inválido (colunas).` };
+    }
+    if (!p.shape.every(row => Array.isArray(row) && row.length === cols)) {
+      return { pieces: null, error: `Peça "${rawKey}" tem linhas de tamanhos diferentes.` };
+    }
+    if (typeof p.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(p.color.trim())) {
+      return { pieces: null, error: `Peça "${rawKey}" tem uma cor inválida (use formato #RRGGBB).` };
+    }
+    const shape = p.shape.map(row => row.map(v => v ? 1 : 0));
+    if (!shape.some(row => row.some(v => v))) {
+      return { pieces: null, error: `Peça "${rawKey}" está vazia.` };
+    }
+    out[key] = { shape, color: p.color.trim() };
+  }
+
+  if (!Object.keys(out).length) {
+    return { pieces: null, error: 'Nenhuma peça válida encontrada no arquivo.' };
+  }
+  return { pieces: out, error: null };
 }
 
 // ── Visibilidade dos jogos (esconder/reexibir na aba Jogos) ─
