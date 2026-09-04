@@ -3076,6 +3076,10 @@ a:focus, a:active,
               <button class="adm-btn adm-btn-sm" onclick="carregarJogosAdm()" style="background:var(--surface2)">↺ Atualizar</button>
             </div>
 
+            <div class="adm-box-title" style="margin-top:20px">🖼 Capas dos Jogos</div>
+            <div class="adm-sec-sub" style="margin-bottom:14px">Imagem de capa exibida para cada jogo (PNG/JPG/WebP, máx 2 MB).</div>
+            <div id="jg-covers-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:24px"></div>
+
             <div id="jg-games-wrap"></div>
           </div>
 
@@ -7015,7 +7019,109 @@ function jgTop10RowsHTML(rows) {
   }).join('');
 }
 
+// ── Capas dos jogos (settings.game_cover_<key>) ────────────
+// Uma imagem de capa por jogo listado em JG_GAMES, salva em base64
+// em settings.game_cover_<key>, seguindo o mesmo padrão do sprite
+// do flaPidgey. Genérico: cobre automaticamente jogos futuros
+// adicionados a JG_GAMES, sem precisar duplicar funções por jogo.
+let _pendingGameCoverBase64 = {};
+
+function jgCoversWrapHTML() {
+  return JG_GAMES.map(g => `
+    <div class="adm-box" id="jg-cover-box-${g.key}" style="margin:0">
+      <div class="adm-box-title">${g.label}</div>
+      <div id="jg-cover-preview-wrap-${g.key}" style="margin-bottom:12px;min-height:90px;display:flex;align-items:center;gap:10px">
+        <img id="jg-cover-preview-${g.key}" src="" alt="" style="display:none;width:100px;height:100px;object-fit:cover;border:1.5px solid var(--border);border-radius:8px;background:#fff"/>
+        <span id="jg-cover-preview-empty-${g.key}" style="font-size:12px;color:var(--muted)">Nenhuma capa cadastrada.</span>
+      </div>
+      <div class="adm-field">
+        <label>Selecionar imagem (máx 2 MB)</label>
+        <input type="file" id="jg-cover-file-${g.key}" accept="image/png,image/jpeg,image/webp"
+          style="padding:6px 0;font-family:'Nunito',sans-serif;font-size:13px;color:var(--text)"
+          onchange="previewCapaJogoUpload(this,'${g.key}')"/>
+      </div>
+      <div id="jg-cover-new-preview-wrap-${g.key}" style="display:none;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Pré-visualização</div>
+        <img id="jg-cover-new-preview-${g.key}" src="" alt="" style="width:100px;height:100px;object-fit:cover;border:1.5px solid var(--border);border-radius:8px;background:#fff"/>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="adm-btn adm-btn-primary adm-btn-sm" onclick="salvarCapaJogo('${g.key}')">💾 Salvar</button>
+        <button class="adm-btn adm-btn-danger adm-btn-sm" onclick="removerCapaJogo('${g.key}')">🗑 Remover</button>
+      </div>
+      <div class="adm-fb adm-fb-ok" id="jg-cover-fb-ok-${g.key}">✓ Capa salva com sucesso!</div>
+      <div class="adm-fb adm-fb-err" id="jg-cover-fb-err-${g.key}">—</div>
+    </div>
+  `).join('');
+}
+
+async function carregarCapasJogosAdm() {
+  document.getElementById('jg-covers-wrap').innerHTML = jgCoversWrapHTML();
+  for (const g of JG_GAMES) {
+    const { data } = await db.from('settings').select('value').eq('key', `game_cover_${g.key}`).maybeSingle();
+    const img   = document.getElementById(`jg-cover-preview-${g.key}`);
+    const empty = document.getElementById(`jg-cover-preview-empty-${g.key}`);
+    if (data && data.value) {
+      img.src = data.value;
+      img.style.display = 'block';
+      empty.style.display = 'none';
+    } else {
+      img.style.display = 'none';
+      empty.style.display = 'inline';
+    }
+  }
+}
+
+function previewCapaJogoUpload(input, key) {
+  const file = input.files[0];
+  if (!file) return;
+  const errEl = document.getElementById(`jg-cover-fb-err-${key}`);
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { errEl.textContent = 'Apenas PNG, JPG ou WebP são aceitos.'; errEl.style.display = 'block'; return; }
+  if (file.size > 2 * 1024 * 1024) { errEl.textContent = 'Arquivo muito grande. Máximo: 2 MB.'; errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => {
+    _pendingGameCoverBase64[key] = e.target.result;
+    const wrap = document.getElementById(`jg-cover-new-preview-wrap-${key}`);
+    const img  = document.getElementById(`jg-cover-new-preview-${key}`);
+    img.src = _pendingGameCoverBase64[key];
+    wrap.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function salvarCapaJogo(key) {
+  const okEl  = document.getElementById(`jg-cover-fb-ok-${key}`);
+  const errEl = document.getElementById(`jg-cover-fb-err-${key}`);
+  okEl.style.display = errEl.style.display = 'none';
+  if (!_pendingGameCoverBase64[key]) { errEl.textContent = 'Selecione um arquivo primeiro.'; errEl.style.display = 'block'; return; }
+  const { error } = await db.from('settings').upsert({ key: `game_cover_${key}`, value: _pendingGameCoverBase64[key] }, { onConflict: 'key' });
+  if (error) { errEl.textContent = 'Erro ao salvar: ' + error.message; errEl.style.display = 'block'; return; }
+  delete _pendingGameCoverBase64[key];
+  document.getElementById(`jg-cover-file-${key}`).value = '';
+  document.getElementById(`jg-cover-new-preview-wrap-${key}`).style.display = 'none';
+  await carregarCapasJogosAdm();
+  document.getElementById(`jg-cover-fb-ok-${key}`).style.display = 'block';
+  setTimeout(() => { const el = document.getElementById(`jg-cover-fb-ok-${key}`); if (el) el.style.display = 'none'; }, 3000);
+}
+
+async function removerCapaJogo(key) {
+  if (!confirm('Remover a capa deste jogo?')) return;
+  const okEl  = document.getElementById(`jg-cover-fb-ok-${key}`);
+  const errEl = document.getElementById(`jg-cover-fb-err-${key}`);
+  okEl.style.display = errEl.style.display = 'none';
+  const { error } = await db.from('settings').delete().eq('key', `game_cover_${key}`);
+  if (error) { errEl.textContent = 'Erro: ' + error.message; errEl.style.display = 'block'; return; }
+  delete _pendingGameCoverBase64[key];
+  await carregarCapasJogosAdm();
+  const el = document.getElementById(`jg-cover-fb-ok-${key}`);
+  el.textContent = '✓ Capa removida.';
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
 async function carregarJogosAdm() {
+  carregarCapasJogosAdm();
+
   const wrap = document.getElementById('jg-games-wrap');
   wrap.innerHTML = JG_GAMES.map(g => `
     <div class="adm-box" id="jg-box-${g.key}">
