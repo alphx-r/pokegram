@@ -2400,9 +2400,12 @@ a:focus, a:active,
         </div>
       </div>
 
-      <!-- Navegação tap (esquerda / direita) -->
+      <!-- Navegação tap (esquerda / meio / direita) — o meio abre o link
+           anexado (ex: pokeet compartilhado) automaticamente, sem precisar
+           de um botão CTA separado -->
       <div style="position:absolute;inset:0;display:flex;z-index:5">
         <div style="flex:1;cursor:pointer" onclick="storyNav(-1)"></div>
+        <div style="flex:2;cursor:pointer" onclick="storyMiddleTap()"></div>
         <div style="flex:1;cursor:pointer" onclick="storyNav(1)"></div>
       </div>
 
@@ -11563,17 +11566,19 @@ function showStory(idx) {
   // de jogo compartilhado, ver shareResultToStories() em flapidgey.html)
   const ctaWrap = document.getElementById('sv-cta-wrap');
   if (ctaWrap) {
-    if (story.link_url) {
+    const isPokeetLink = !!story.link_url && story.link_url.startsWith('pokeet:');
+    if (story.link_url && !isPokeetLink) {
+      // Pokeet: sem botão — o toque no meio do story já abre (storyMiddleTap()).
+      // Outros links (ex: convite pra jogar) continuam com o CTA visível.
       ctaWrap.style.display = 'flex';
       ctaWrap.dataset.link = story.link_url;
-      const isPokeetLink = story.link_url.startsWith('pokeet:');
       const ctaEmoji = document.getElementById('sv-cta-emoji');
       const ctaLabel = document.getElementById('sv-cta-label');
-      if (ctaEmoji) ctaEmoji.textContent = isPokeetLink ? '💭' : '🎮';
-      if (ctaLabel) ctaLabel.textContent = isPokeetLink ? 'Ver Pokeet' : 'Jogar agora';
+      if (ctaEmoji) ctaEmoji.textContent = '🎮';
+      if (ctaLabel) ctaLabel.textContent = 'Jogar agora';
     } else {
       ctaWrap.style.display = 'none';
-      ctaWrap.dataset.link = '';
+      ctaWrap.dataset.link = story.link_url || '';
     }
   }
 
@@ -11689,6 +11694,15 @@ async function storyNav(dir) {
   }
   _storyViewIdx = next;
   showStory(_storyViewIdx);
+}
+
+// Toque na zona central do story: se houver um link anexado (ex: pokeet
+// compartilhado), abre automaticamente — sem precisar de um botão CTA.
+// Sem link anexado, se comporta como um toque normal (avança pro próximo).
+function storyMiddleTap() {
+  const link = document.getElementById('sv-cta-wrap')?.dataset.link;
+  if (link) { storyGoToLink(); return; }
+  storyNav(1);
 }
 
 // Navega para o link anexado ao story atual (ex: convite pra jogar
@@ -14406,11 +14420,11 @@ async function _pkRenderShareCanvas(p, au) {
   // Cartão central
   const cardX = 90, cardW = W - 180;
   const cardPad = 56;
-  ctx.font = '700 44px Nunito,sans-serif';
+  ctx.font = '700 39px Nunito,sans-serif';
   const maxTextWidth = cardW - cardPad * 2;
   const lines = _pkWrapCanvasLines(ctx, p.text || '', maxTextWidth);
-  const lineH = 58;
-  const headerH = 130;
+  const lineH = 52;
+  const headerH = 155; // mais espaço entre o nome/handle e o texto do pokeet
   const cardH = headerH + lines.length * lineH + cardPad * 2;
   const cardY = (H - cardH) / 2;
 
@@ -14463,14 +14477,9 @@ async function _pkRenderShareCanvas(p, au) {
 
   // Texto do pokeet
   ctx.fillStyle = '#1a1a1a';
-  ctx.font = '700 44px Nunito,sans-serif';
+  ctx.font = '700 39px Nunito,sans-serif';
   let ty = cardY + headerH + 34;
   lines.forEach(line => { ctx.fillText(line, cardX + cardPad, ty); ty += lineH; });
-
-  // Selo "Pokeet"
-  ctx.fillStyle = '#c0c0c0';
-  ctx.font = '700 24px Nunito,sans-serif';
-  ctx.fillText('💭 Pokeet', cardX + cardPad, cardY + cardH - 22);
 
   return canvas;
 }
