@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>tyRUNt · Pokégram</title>
 <link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
@@ -86,7 +86,7 @@
   .tr-toast.show{opacity:1;transform:translate(-50%,0)}
 
   .tr-duck-btn{
-    position:absolute;right:18px;bottom:18px;z-index:25;
+    position:absolute;right:18px;bottom:calc(18px + env(safe-area-inset-bottom, 0px));z-index:25;
     width:58px;height:58px;border-radius:18px;
     border:2px solid rgba(255,255,255,.25);
     background:linear-gradient(160deg, var(--brand-mid), var(--brand));
@@ -1362,11 +1362,17 @@ function tryEnterFullscreenNow() {
   } catch (e) {}
 }
 
+// Chamado de forma síncrona, antes de qualquer await — é a única chance
+// de aproveitar o toque que abriu a página vindo de /jogos.html (depois
+// de um await a ativação do gesto pode já ter expirado, e o navegador
+// bloqueia silenciosamente o requestFullscreen). O fallback por primeira
+// interação também é registrado aqui, o quanto antes possível.
+tryEnterFullscreenNow();
+gSetupFullscreenOnFirstInteraction();
+
 (async function boot() {
   user = await gRequireSession();
   if (!user) return;
-  tryEnterFullscreenNow();
-  gSetupFullscreenOnFirstInteraction();
   resize();
   await loadSpriteOverrides();
   loadPidgeySprite();
