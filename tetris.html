@@ -134,6 +134,8 @@
     font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
   }
   .gt-btn:hover{background:var(--brand)}
+  #gt-share-btn{background:#f2a33c;margin-top:8px}
+  #gt-share-btn:hover{background:#d98a1f}
 </style>
 </head>
 <body>
@@ -194,6 +196,7 @@
       <div id="gt-leaderboard"><div class="gt-lb-empty">Carregando...</div></div>
     </div>
     <button class="gt-btn" id="gt-restart-btn">Jogar novamente</button>
+    <button class="gt-btn" id="gt-share-btn">Compartilhar no Stories</button>
   </div>
 </div>
 
@@ -636,11 +639,111 @@ async function refreshLeaderboard() {
     </div>`).join('');
 }
 
+let bestScore = 0;
 async function refreshBest() {
   if (!user) return;
-  const best = await gLoadMyBest('tetris', user.id);
-  document.getElementById('gt-best').textContent = best || '–';
+  bestScore = await gLoadMyBest('tetris', user.id);
+  document.getElementById('gt-best').textContent = bestScore || '–';
 }
+
+// ── Compartilhar resultado no Stories ──────────────────────
+function buildResultCanvas() {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#1a1a2e');
+  bg.addColorStop(1, '#b71c1c');
+  c2.fillStyle = bg;
+  c2.fillRect(0, 0, W, H);
+
+  c2.textAlign = 'center';
+  c2.fillStyle = '#fdd835';
+  c2.font = "800 74px 'Cinzel', serif";
+  c2.fillText('Pokémon Tetris', W / 2, 200);
+
+  // snapshot do tabuleiro final, centralizado
+  const boardW = 640, boardH = boardW * (canvas.height / canvas.width);
+  const boardX = (W - boardW) / 2, boardY = 280;
+  c2.fillStyle = '#16162a';
+  c2.fillRect(boardX - 14, boardY - 14, boardW + 28, boardH + 28);
+  c2.drawImage(canvas, boardX, boardY, boardW, boardH);
+
+  const cardW = 760, cardH = 260, cardX = (W - cardW) / 2, cardY = boardY + boardH + 60;
+  c2.fillStyle = 'rgba(255,255,255,.92)';
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+  c2.fill();
+
+  c2.fillStyle = '#6b7280';
+  c2.font = "800 34px 'Nunito', sans-serif";
+  c2.fillText('PONTOS', W / 2, cardY + 70);
+
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 130px 'Cinzel', serif";
+  c2.fillText(String(score), W / 2, cardY + 210);
+
+  if (bestScore) {
+    c2.fillStyle = 'rgba(255,255,255,.82)';
+    c2.font = "700 40px 'Nunito', sans-serif";
+    c2.fillText(`Recorde: ${bestScore}`, W / 2, cardY + cardH + 90);
+  }
+
+  c2.fillStyle = '#fff';
+  c2.font = "800 56px 'Nunito', sans-serif";
+  c2.shadowColor = 'rgba(0,0,0,.35)';
+  c2.shadowBlur = 10;
+  c2.shadowOffsetY = 2;
+  const ctaLines = wrapCanvasText(c2, `Eu fiz ${score} pontos, venha jogar Pokémon Tetris também!`, W - 140);
+  const ctaLineHeight = 68;
+  let ctaY = cardY + cardH + (bestScore ? 200 : 140);
+  ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += ctaLineHeight; });
+  c2.shadowColor = 'transparent';
+  c2.shadowBlur = 0;
+  c2.shadowOffsetY = 0;
+
+  return c;
+}
+
+function wrapCanvasText(ctx2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx2d.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function shareResultToStories() {
+  let dataUrl = null;
+  try {
+    dataUrl = buildResultCanvas().toDataURL('image/png');
+  } catch (e) {
+    console.warn('[shareResultToStories] falhou ao gerar imagem do resultado', e);
+  }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl,
+        gameLink: '/tetris.html'
+      }));
+    } catch (e) {
+      console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
+    }
+  }
+  window.location.href = '/';
+}
+document.getElementById('gt-share-btn').addEventListener('click', shareResultToStories);
 
 // ── Boot ──────────────────────────────────────────────────
 (async function boot() {
