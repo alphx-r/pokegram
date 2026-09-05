@@ -599,10 +599,20 @@ function startGame() {
 
 // ── Hint "como jogar" (só na primeira partida da sessão; some com ação
 // real do jogador e não volta a aparecer nos "jogar novamente" seguintes) ──
+// Alguns navegadores continuam roteando toque/seleção de texto pro hint
+// mesmo com opacity:0 + pointer-events:none, então ele é removido do
+// DOM de verdade depois do fade (não só escondido via CSS).
+const hintEl = document.getElementById('tr-hint');
+const hintParent = hintEl.parentNode;
+const hintNextSibling = hintEl.nextSibling;
+let hintHideTimer = null;
+
 function showHint() {
   started = false;
   if (!hintDismissedOnce) {
-    document.getElementById('tr-hint').classList.remove('hide');
+    clearTimeout(hintHideTimer);
+    if (!hintEl.isConnected) hintParent.insertBefore(hintEl, hintNextSibling);
+    hintEl.classList.remove('hide');
   }
 }
 
@@ -611,7 +621,9 @@ function beginPlay() {
   started = true;
   hintDismissedOnce = true;
   lastTs = 0;
-  document.getElementById('tr-hint').classList.add('hide');
+  hintEl.classList.add('hide');
+  clearTimeout(hintHideTimer);
+  hintHideTimer = setTimeout(() => { if (hintEl.isConnected) hintEl.remove(); }, 380);
 }
 
 // ── Ações do jogador ─────────────────────────────────────
@@ -1230,6 +1242,8 @@ duckBtn.addEventListener('pointerleave', duckBtnRelease);
 
 document.getElementById('tr-restart-btn').addEventListener('click', startGame);
 document.getElementById('tr-hint').addEventListener('click', beginPlay);
+document.getElementById('tr-hint').addEventListener('selectstart', (e) => e.preventDefault());
+document.addEventListener('selectstart', (e) => e.preventDefault());
 
 // ── HUD (Pontos/Recorde): toque oculta, toque no mesmo lugar mostra ──
 (function () {
