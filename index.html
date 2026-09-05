@@ -11137,6 +11137,26 @@ function storyDrawCanvas() {
   }
 }
 
+// Calcula a altura da textarea "snap-text-input" de forma determinística,
+// reaproveitando a mesma lógica de quebra de linha usada no canvas final
+// (_wrapCanvasText), em vez de depender de scrollHeight — que em vários
+// navegadores mobile infla a altura em uma linha inteira mesmo com 1
+// caractere (o navegador reserva espaço para a próxima linha durante a
+// digitação, antes mesmo do texto quebrar de fato).
+let _snapMeasureCtx = null;
+function _snapCalcTextareaHeight(input) {
+  if (!_snapMeasureCtx) _snapMeasureCtx = document.createElement('canvas').getContext('2d');
+  const ctx = _snapMeasureCtx;
+  const cs  = getComputedStyle(input);
+  ctx.font  = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  // padding do textarea é 0 (ver estilo inline), então clientWidth já é a largura útil de texto
+  const maxWidth   = input.clientWidth;
+  const lines      = _wrapCanvasText(ctx, input.value || '', maxWidth);
+  const lineCount  = Math.max(1, lines.length);
+  const lineHeight = parseFloat(cs.fontSize) * 1.4; // mesmo line-height:1.4 do CSS e do canvas final
+  return Math.ceil(lineCount * lineHeight);
+}
+
 // Quebra o texto em linhas que cabem em maxWidth (respeita quebras manuais com \n)
 function _wrapCanvasText(ctx, text, maxWidth) {
   const paragraphs = text.split('\n');
@@ -11245,9 +11265,8 @@ function snapTextEdit() {
   bar.style.display    = 'none';
   editor.style.display = 'block';
   if (input) {
-    // Auto-resize antes de focar
-    input.style.height = 'auto';
-    input.style.height = input.scrollHeight + 'px';
+    // Auto-resize antes de focar (cálculo determinístico, não usa scrollHeight)
+    input.style.height = _snapCalcTextareaHeight(input) + 'px';
     setTimeout(() => { input.focus(); }, 30);
   }
 }
@@ -11256,9 +11275,8 @@ function snapTextSync() {
   const input = document.getElementById('snap-text-input');
   const disp  = document.getElementById('snap-text-display');
   if (disp && input) disp.textContent = input.value;
-  // Auto-resize da textarea
-  input.style.height = 'auto';
-  input.style.height = input.scrollHeight + 'px';
+  // Auto-resize da textarea (cálculo determinístico, não usa scrollHeight)
+  input.style.height = _snapCalcTextareaHeight(input) + 'px';
 }
 
 function snapTextConfirm() {
