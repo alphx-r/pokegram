@@ -377,17 +377,21 @@ function syncBirdSprites() {
 // sem hitbox nenhuma — o Tyrunt nunca colide com eles (não entram em
 // `obstacles` nem em `checkCollisions`).
 const SKY_FLYER_SPRITES = [
-  '',
+  'https://64.media.tumblr.com/77fcb473b14a28d7229b2d0f8df75712/4603906cfe87268f-04/s100x200/c9518e0dbef5793dd3a928db1f6ea4d4e58f1417.gifv',
   'https://64.media.tumblr.com/1b649f37370ec8f077e68391bc1b84ed/4603906cfe87268f-67/s250x400/8a339fb03e7a185bf0081f6f3135b555ec68d03a.gifv',
 ];
-const SKY_FLYER_COUNT = 10; // quantos aparecem ao mesmo tempo na tela
+const SKY_FLYER_COUNT = 5; // quantos aparecem ao mesmo tempo na tela
 const SKY_FLYER_SIZE_MIN = 26, SKY_FLYER_SIZE_RANGE = 16;
 const SKY_FLYER_SPEED_MIN = 22, SKY_FLYER_SPEED_RANGE = 30; // px/s — bem mais lento que o jogo, só ambientação
 
 const skyFlyerReady = SKY_FLYER_SPRITES.map(() => false);
+const skyFlyerAspect = SKY_FLYER_SPRITES.map(() => 1); // largura/altura reais do gif, pra nunca esticar/achatar
 SKY_FLYER_SPRITES.forEach((url, i) => {
   const probe = new Image();
-  probe.onload = () => { skyFlyerReady[i] = true; };
+  probe.onload = () => {
+    if (probe.naturalWidth && probe.naturalHeight) skyFlyerAspect[i] = probe.naturalWidth / probe.naturalHeight;
+    skyFlyerReady[i] = true;
+  };
   probe.onerror = () => { skyFlyerReady[i] = false; };
   probe.src = url;
 });
@@ -424,7 +428,7 @@ function initSkyFlyers() {
 function updateSkyFlyers(dt) {
   skyFlyers.forEach(f => {
     f.x += f.vx * dt;
-    const margin = f.size + 20;
+    const margin = f.size * (skyFlyerAspect[f.spriteIndex] || 1) + 20;
     if (f.vx > 0 && f.x - margin > BASE_W) Object.assign(f, makeSkyFlyer(-margin));
     else if (f.vx < 0 && f.x + margin < 0) Object.assign(f, makeSkyFlyer(BASE_W + margin));
   });
@@ -441,11 +445,16 @@ function syncSkyFlyerSprites() {
       el.dataset.spriteIndex = String(f.spriteIndex);
     }
     el.style.display = 'block';
-    el.style.width = f.size + 'px';
-    el.style.height = f.size + 'px';
+    // `f.size` é a altura-alvo; a largura é derivada da proporção real do gif,
+    // então ele nunca fica achatado — só encolhe/cresce mantendo a forma.
+    const aspect = skyFlyerAspect[f.spriteIndex] || 1;
+    const h = f.size;
+    const w = f.size * aspect;
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
     // assume que o GIF olha pra esquerda por padrão; espelha quando voa pra direita
     const flip = f.dir > 0 ? ' scaleX(-1)' : '';
-    el.style.transform = `translate(${f.x - f.size / 2}px, ${f.y - f.size / 2}px)${flip}`;
+    el.style.transform = `translate(${f.x - w / 2}px, ${f.y - h / 2}px)${flip}`;
   });
 }
 
