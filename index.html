@@ -7248,6 +7248,14 @@ async function carregarJogosAdm() {
 // { "I": { shape: [[1,1,1,1]], color: "#78C850" }, ... }
 // O jogo (tetris.html) lê essa chave no boot; se não existir ou for
 // inválida, usa o conjunto padrão embutido nele.
+const TP_KP_SUPA_URL = 'https://vnccljhhexlsthjaaorr.supabase.co';
+const TP_CUSTOM_TYPE_ICONS = new Set(['light', 'scent']);
+function tpTypeIconSrc(t) {
+  return TP_CUSTOM_TYPE_ICONS.has(t)
+    ? `${TP_KP_SUPA_URL}/storage/v1/object/public/pokemons/types/${t}.svg`
+    : `https://cdn.jsdelivr.net/gh/partywhale/pokemon-type-icons@main/icons/${t}.svg`;
+}
+
 const TP_DEFAULT_PIECES = {
   I: { shape: [[1,1,1,1]], color: '#78C850' },
   O: { shape: [[1,1],[1,1]], color: '#F8D030' },
@@ -7325,13 +7333,15 @@ function tpRenderEditor() {
   gridEl.innerHTML = piece.shape.map((row, ri) => row.map((v, ci) => `
     <div onclick="tpToggleCell(${ri},${ci})"
       style="width:${cellPx}px;height:${cellPx}px;border-radius:4px;cursor:pointer;
-      background:${v ? piece.color : 'rgba(255,255,255,0.06)'};
+      background-color:${v ? piece.color : 'rgba(255,255,255,0.06)'};
+      ${v && piece.icon ? `background-image:url('${tpTypeIconSrc(piece.icon)}');background-size:cover;background-position:center;` : ''}
       border:1px solid rgba(255,255,255,0.12)"></div>
   `).join('')).join('');
 
   previewEl.style.gridTemplateColumns = `repeat(${cols}, 16px)`;
   previewEl.innerHTML = piece.shape.map(row => row.map(v => `
-    <div style="width:16px;height:16px;border-radius:2px;background:${v ? piece.color : 'transparent'}"></div>
+    <div style="width:16px;height:16px;border-radius:2px;background-color:${v ? piece.color : 'transparent'};
+      ${v && piece.icon ? `background-image:url('${tpTypeIconSrc(piece.icon)}');background-size:cover;background-position:center;` : ''}"></div>
   `).join('')).join('');
 }
 
@@ -7520,6 +7530,18 @@ function tpImportarPecas(inputEl) {
       return;
     }
 
+    const incomingKeys = Object.keys(validated.pieces);
+    if (_tpOrder.length && incomingKeys.length < _tpOrder.length) {
+      const missing = _tpOrder.filter(k => !incomingKeys.includes(k));
+      const proceed = confirm(
+        `Esse arquivo só tem ${incomingKeys.length} peça(s) (${incomingKeys.join(', ')}).\n\n` +
+        `Importar aqui SUBSTITUI o conjunto inteiro e vai apagar da tela: ${missing.join(', ')}.\n\n` +
+        `Se a ideia era atualizar só uma peça específica, cancele e use o "Importar peça" dentro do editor daquela peça.\n\n` +
+        `Continuar mesmo assim e substituir tudo?`
+      );
+      if (!proceed) return;
+    }
+
     _tpPieces = validated.pieces;
     _tpOrder = Object.keys(_tpPieces);
     _tpCurrentKey = _tpOrder[0] || null;
@@ -7649,7 +7671,9 @@ function tpValidateSinglePiece(p, rawKey) {
   }
   const shape = p.shape.map(row => row.map(v => v ? 1 : 0));
   if (!shape.some(row => row.some(v => v))) return { piece: null, error: `Peça ${label} está vazia.` };
-  return { piece: { shape, color: p.color.trim() }, error: null };
+  const out = { shape, color: p.color.trim() };
+  if (typeof p.icon === 'string' && p.icon.trim()) out.icon = p.icon.trim();
+  return { piece: out, error: null };
 }
 
 // Valida a estrutura de um JSON importado, normalizando o que for
