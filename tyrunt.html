@@ -435,18 +435,31 @@ function syncSkyFlyerSprites() {
   skyFlyers.forEach((f, i) => {
     const el = skyFlyerPool[i];
     if (!el) return;
-    if (!skyFlyerReady[f.spriteIndex]) { el.style.display = 'none'; return; }
+
+    if (!skyFlyerReady[f.spriteIndex]) {
+      el.style.display = 'none';
+      return;
+    }
+
     if (el.dataset.spriteIndex !== String(f.spriteIndex)) {
       el.src = SKY_FLYER_SPRITES[f.spriteIndex];
       el.dataset.spriteIndex = String(f.spriteIndex);
     }
+
     el.style.display = 'block';
-    el.style.width = f.size + 'px';
+
+    // Mantém a proporção original de 67x85
+    const originalWidth = 67;
+    const originalHeight = 85;
+
+    el.style.width = (f.size * originalWidth / originalHeight) + 'px';
     el.style.height = f.size + 'px';
-    // assume que o GIF olha pra esquerda por padrão; espelha quando voa pra direita
+
     const flip = f.dir > 0 ? ' scaleX(-1)' : '';
-    el.style.transform = `translate(${f.x - f.size / 2}px, ${f.y - f.size / 2}px)${flip}`;
+    el.style.transform =
+      `translate(${f.x - f.size / 2}px, ${f.y - f.size / 2}px)${flip}`;
   });
+}
 }
 
 function setSpriteKind(kind) {
