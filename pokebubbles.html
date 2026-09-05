@@ -58,6 +58,15 @@
   .bb-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
   .bb-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
 
+  .bb-toast{
+    position:absolute;top:64px;left:50%;transform:translate(-50%,-8px);z-index:30;
+    background:rgba(20,20,38,.9);color:#fff;padding:8px 16px;border-radius:20px;
+    font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3);
+    opacity:0;transition:opacity .2s ease, transform .2s ease;pointer-events:none;
+    white-space:nowrap;text-align:center;max-width:88vw;
+  }
+  .bb-toast.show{opacity:1;transform:translate(-50%,0)}
+
   .bb-overlay{
     position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
     align-items:center;justify-content:center;z-index:300;
@@ -152,6 +161,7 @@
       </div>
     </div>
   </div>
+  <div class="bb-toast" id="bb-toast"></div>
 
   <div class="bb-hint" id="bb-hint">
     <div class="bb-hint-card">
@@ -165,8 +175,12 @@
         <div class="bb-hint-text"><b>Solte</b> com 3 ou mais conectadas para estourar o grupo e pontuar</div>
       </div>
       <div class="bb-hint-row">
-        <div class="bb-hint-icon">⬇️</div>
-        <div class="bb-hint-text">As bubbles de cima <b>caem</b> para preencher os espaços vazios</div>
+        <div class="bb-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/fluffy-tail.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
+        <div class="bb-hint-text">Bubble com <b>Fluffy Tail</b>: no próximo connect com ela, estoura todas as bubbles daquele inicial na tela</div>
+      </div>
+      <div class="bb-hint-row">
+        <div class="bb-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/snowball.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
+        <div class="bb-hint-text">Bubble com <b>Snowball</b>: no próximo connect com ela, congela todas as bubbles daquele inicial por um tempo</div>
       </div>
       <div class="bb-hint-dismiss">Toque em qualquer lugar para começar</div>
     </div>
@@ -194,7 +208,12 @@
 // POKÉBUBBLES — connecting bubbles com a cara dos iniciais
 // ════════════════════════════════════════════════════════
 
-const COLS = 8, ROWS = 10;
+// Grid dimensionado no resize() para ocupar toda a tela disponível,
+// mantendo bubbles num tamanho confortável de toque (ver BB_TARGET_CELL).
+const BB_TARGET_CELL = 56; // tamanho "alvo" da bubble em px, usado para calcular quantas linhas/colunas cabem
+const BB_MIN_COLS = 5, BB_MAX_COLS = 11;
+const BB_MIN_ROWS = 9, BB_MAX_ROWS = 18;
+let COLS = 8, ROWS = 12; // recalculados em resize() para ocupar a tela toda
 let CELL = 40; // recalculado em resize()
 
 const stage = document.getElementById('bb-stage');
@@ -202,6 +221,7 @@ const canvas = document.getElementById('bb-canvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('bb-score');
 const groupEl = document.getElementById('bb-group');
+const toastEl = document.getElementById('bb-toast');
 
 // Conjunto padrão (fallback) de "iniciais" — cada um vira uma cor de
 // bubble. O admin pode customizar quantidade, cor e ícone livremente
@@ -231,12 +251,30 @@ function bbGetIconImg(key) {
   if (!key) return null;
   if (!_bbIconImgCache[key]) {
     const img = new Image();
-    img.onload = () => { try { draw(); } catch (e) {} };
     img.src = bbTypeIconSrc(key);
     _bbIconImgCache[key] = img;
   }
   return _bbIconImgCache[key];
 }
+
+// ── Itens especiais (mesma fonte de sprites do tyRUNt/flaPidgey:
+// PokeAPI/sprites, pasta items) ──────────────────────────────
+const BB_ITEM_SPRITES = {
+  fluffy_tail: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/fluffy-tail.png',
+  snowball:    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/snowball.png',
+};
+const _bbItemImgCache = {};
+function bbGetItemImg(kind) {
+  if (!_bbItemImgCache[kind]) {
+    const img = new Image();
+    img.src = BB_ITEM_SPRITES[kind];
+    _bbItemImgCache[kind] = img;
+  }
+  return _bbItemImgCache[kind];
+}
+// Chance de uma bubble nova nascer com um item especial (checada toda
+// vez que uma célula é preenchida — no início e no refill pós-explosão).
+const BB_ITEM_SPAWN_CHANCE = 0.045;
 
 // Valida um conjunto de "iniciais" vindo de settings — se algo estiver
 // malformado, ignora e cai no padrão pra não travar o jogo.
@@ -268,7 +306,16 @@ async function loadCustomStarters() {
   }
 }
 
-let board; // board[r][c] = { key } | null
+// board[r][c] = null | {
+//   key,                 // inicial (cor/ícone)
+//   item,                // null | 'fluffy_tail' | 'snowball'
+//   frozenUntil,          // timestamp (performance.now()) até quando fica congelada, ou 0
+//   x, y,                 // posição atual desenhada (px, animada)
+//   targetY,              // posição Y alvo (px) — usada na queda
+//   shakeSeed,            // valor aleatório fixo pra variar o tremor de cada bubble
+//   scale,                // escala atual (usada no "pop" de spawn e na explosão)
+// }
+let board;
 let score = 0;
 let gameOver = false;
 let user = null;
@@ -277,9 +324,39 @@ function randomStarterKey() {
   return STARTER_KEYS[Math.floor(Math.random() * STARTER_KEYS.length)];
 }
 
+function maybeRollItem() {
+  if (Math.random() >= BB_ITEM_SPAWN_CHANCE) return null;
+  return Math.random() < 0.5 ? 'fluffy_tail' : 'snowball';
+}
+
+// Deslocamento fixo (aleatório, mas estável por bubble) que tira as
+// bubbles do alinhamento perfeito de grade — dá aquele visual "jogado
+// na tela" em vez de um tabuleiro xadrez perfeitinho. Proporcional ao
+// tamanho da célula (não ao raio da bubble, que é maior) para não
+// deixar bubbles vizinhas se sobrepondo.
+function randomJitterFor(cellSize) {
+  const maxOffset = cellSize * 0.16;
+  return (Math.random() * 2 - 1) * maxOffset;
+}
+
+function makeBubble(col, row) {
+  return {
+    key: randomStarterKey(),
+    item: maybeRollItem(),
+    frozenUntil: 0,
+    x: col * CELL + CELL / 2,
+    y: row * CELL + CELL / 2,
+    targetY: row * CELL + CELL / 2,
+    jitterX: randomJitterFor(CELL),
+    jitterY: randomJitterFor(CELL),
+    shakeSeed: Math.random() * Math.PI * 2,
+    scale: 1,
+  };
+}
+
 function fillBoard() {
-  board = Array.from({ length: ROWS }, () =>
-    Array.from({ length: COLS }, () => ({ key: randomStarterKey() }))
+  board = Array.from({ length: ROWS }, (_, r) =>
+    Array.from({ length: COLS }, (_, c) => makeBubble(c, r))
   );
 }
 
@@ -295,6 +372,10 @@ function cellAt(r, c) {
   return board[r][c];
 }
 
+function isFrozen(cell) {
+  return !!cell && cell.frozenUntil > performance.now();
+}
+
 // Verifica se (r2,c2) é vizinha de (r1,c1) (8 direções).
 function isNeighbor(r1, c1, r2, c2) {
   const dr = Math.abs(r1 - r2), dc = Math.abs(c1 - c2);
@@ -305,16 +386,17 @@ function isNeighbor(r1, c1, r2, c2) {
 const MIN_GROUP = 3;
 
 // Existe algum grupo conectável (MIN_GROUP+ bubbles do mesmo inicial,
-// adjacentes entre si) em algum lugar do tabuleiro? Usado para detectar
-// fim de jogo. Precisa medir o tamanho real do componente conexo — um
-// simples par adjacente não basta quando o mínimo é 3.
+// adjacentes entre si, não-congeladas) em algum lugar do tabuleiro?
+// Usado para detectar fim de jogo. Precisa medir o tamanho real do
+// componente conexo — um simples par adjacente não basta quando o
+// mínimo é 3.
 function hasAnyMove() {
   const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (visited[r][c]) continue;
       const cell = cellAt(r, c);
-      if (!cell) continue;
+      if (!cell || isFrozen(cell)) continue;
       const groupSize = floodFillSize(r, c, cell.key, visited);
       if (groupSize >= MIN_GROUP) return true;
     }
@@ -323,8 +405,8 @@ function hasAnyMove() {
 }
 
 // Conta o tamanho do componente conexo (mesmo inicial, adjacência em 8
-// direções) que contém (r,c), marcando as células visitadas para não
-// recontar no loop de hasAnyMove.
+// direções, ignorando bubbles congeladas) que contém (r,c), marcando as
+// células visitadas para não recontar no loop de hasAnyMove.
 function floodFillSize(r, c, key, visited) {
   const stack = [[r, c]];
   visited[r][c] = true;
@@ -336,7 +418,7 @@ function floodFillSize(r, c, key, visited) {
       const nr = cr + dr, nc = cc + dc;
       if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || visited[nr][nc]) continue;
       const nb = cellAt(nr, nc);
-      if (nb && nb.key === key) {
+      if (nb && !isFrozen(nb) && nb.key === key) {
         visited[nr][nc] = true;
         stack.push([nr, nc]);
       }
@@ -345,10 +427,11 @@ function floodFillSize(r, c, key, visited) {
   return size;
 }
 
-// ── Gravidade: bubbles "caem" para baixo, colunas vazias colapsam ──
+// ── Gravidade: bubbles "caem" para baixo, colunas vazias colapsam,
+// topo é reabastecido com bubbles novas. A posição real (x/y) some aos
+// poucos até o alvo em cada frame (ver stepPhysics) — aqui só decidimos
+// os alvos e o conteúdo lógico de cada célula.
 function applyGravityAndRefill(removedCells) {
-  // Dentro de cada coluna afetada, compacta as bubbles restantes para
-  // baixo e preenche o topo com bubbles novas aleatórias.
   const touchedCols = new Set(removedCells.map(([, c]) => c));
   touchedCols.forEach(c => {
     const remaining = [];
@@ -357,9 +440,16 @@ function applyGravityAndRefill(removedCells) {
     }
     const missing = ROWS - remaining.length;
     const col = [];
-    for (let i = 0; i < missing; i++) col.push({ key: randomStarterKey() });
+    for (let i = 0; i < missing; i++) {
+      const bubble = makeBubble(c, -1 - (missing - 1 - i)); // nasce acima da tela, cai até o lugar
+      col.push(bubble);
+    }
     for (const cell of remaining) col.push(cell);
-    for (let r = 0; r < ROWS; r++) board[r][c] = col[r];
+    for (let r = 0; r < ROWS; r++) {
+      board[r][c] = col[r];
+      board[r][c].targetY = r * CELL + CELL / 2 + board[r][c].jitterY;
+      board[r][c].targetX = c * CELL + CELL / 2 + board[r][c].jitterX;
+    }
   });
 }
 
@@ -367,7 +457,108 @@ function updateStats() {
   scoreEl.textContent = score;
 }
 
-// ── Desenho ──────────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+// EFEITOS VISUAIS: partículas de explosão + shake de seleção
+// ════════════════════════════════════════════════════════
+let particles = []; // { x, y, vx, vy, color, life, maxLife, size }
+
+function spawnPopParticles(x, y, color, count) {
+  count = count || 10;
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const speed = 60 + Math.random() * 120;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color,
+      life: 0,
+      maxLife: 0.4 + Math.random() * 0.35,
+      size: 3 + Math.random() * 4,
+    });
+  }
+  // "estilhaços" maiores, tipo casca de bolha estourando
+  for (let i = 0; i < Math.ceil(count / 3); i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 30 + Math.random() * 60;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 40,
+      color: 'rgba(255,255,255,0.85)',
+      life: 0,
+      maxLife: 0.3 + Math.random() * 0.25,
+      size: 5 + Math.random() * 5,
+    });
+  }
+}
+
+function stepParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life += dt;
+    if (p.life >= p.maxLife) { particles.splice(i, 1); continue; }
+    p.vy += 220 * dt; // gravidade leve nas partículas
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+  }
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    const t = p.life / p.maxLife;
+    ctx.globalAlpha = Math.max(0, 1 - t);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * (1 - t * 0.4), 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// Bubbles em processo de "pop" (encolhendo antes de sumir de vez) —
+// mantidas separadas do board pra desenhar por cima enquanto encolhem.
+let poppingBubbles = []; // { x, y, key, item, life, maxLife }
+
+function spawnPopBubble(cell, x, y) {
+  poppingBubbles.push({ x, y, key: cell.key, life: 0, maxLife: 0.22 });
+  spawnPopParticles(x, y, (STARTERS[cell.key] || {}).color || '#fff', 12);
+}
+
+function stepPoppingBubbles(dt) {
+  for (let i = poppingBubbles.length - 1; i >= 0; i--) {
+    const b = poppingBubbles[i];
+    b.life += dt;
+    if (b.life >= b.maxLife) poppingBubbles.splice(i, 1);
+  }
+}
+
+function drawPoppingBubbles() {
+  poppingBubbles.forEach(b => {
+    const t = b.life / b.maxLife;
+    const scale = 1 + t * 0.6; // incha rapidinho antes de sumir (efeito "pop")
+    const alpha = 1 - t;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    drawBubbleShape(b.x, b.y, b.key, scale, false, null);
+    ctx.restore();
+  });
+}
+
+// ── Toast simples pra avisar sobre itens ativados ──
+let toastTimer = null;
+function showToast(text) {
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+}
+
+// ════════════════════════════════════════════════════════
+// DESENHO
+// ════════════════════════════════════════════════════════
+let animTime = 0; // tempo acumulado (s), usado pro tremor senoidal
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (let r = 0; r < ROWS; r++) {
@@ -375,24 +566,36 @@ function draw() {
       const cell = board[r][c];
       if (!cell) continue;
       const selected = selection.some(s => s[0] === r && s[1] === c);
-      drawBubble(c, r, cell.key, selected);
+      drawCellAt(cell, c, r, selected);
     }
   }
+  drawPoppingBubbles();
+  drawParticles();
   drawSelectionPath();
 }
 
-function drawBubble(col, row, key, selected) {
-  const starter = STARTERS[key] || { color: '#999' };
-  const x = col * CELL + CELL / 2, y = row * CELL + CELL / 2;
-  const radius = CELL * 0.42;
+// Desenha uma bubble usando a posição animada (cell.x/cell.y), aplicando
+// tremor quando selecionada.
+function drawCellAt(cell, col, row, selected) {
+  let x = cell.x, y = cell.y;
+  if (selected) {
+    const jitter = CELL * 0.045;
+    x += Math.sin(animTime * 26 + cell.shakeSeed) * jitter;
+    y += Math.cos(animTime * 31 + cell.shakeSeed * 1.7) * jitter;
+  }
+  const frozen = isFrozen(cell);
+  drawBubbleShape(x, y, cell.key, cell.scale, selected, cell.item, frozen);
+}
 
-  // sombra
+function drawBubbleShape(x, y, key, scale, selected, item, frozen) {
+  const starter = STARTERS[key] || { color: '#999' };
+  const radius = CELL * 0.42 * (scale == null ? 1 : scale);
+
   ctx.beginPath();
   ctx.arc(x, y + 2, radius, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.fill();
 
-  // corpo com gradiente (dá volume tipo "bola de gude")
   const grad = ctx.createRadialGradient(x - radius * 0.35, y - radius * 0.4, radius * 0.15, x, y, radius);
   grad.addColorStop(0, lightenColor(starter.color, 0.55));
   grad.addColorStop(0.55, starter.color);
@@ -408,17 +611,38 @@ function drawBubble(col, row, key, selected) {
     ctx.stroke();
   }
 
-  // brilho especular
   ctx.beginPath();
   ctx.arc(x - radius * 0.35, y - radius * 0.4, radius * 0.28, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.fill();
 
-  // ícone/cara do inicial
   const icon = starter.icon ? bbGetIconImg(starter.icon) : null;
   if (icon && icon.complete && icon.naturalWidth) {
     const s = radius * 1.15;
     ctx.drawImage(icon, x - s / 2, y - s / 2, s, s);
+  }
+
+  if (item) {
+    const itemImg = bbGetItemImg(item);
+    const s = radius * 0.85;
+    // fundinho branco pro item se destacar sobre a cor da bubble
+    ctx.beginPath();
+    ctx.arc(x + radius * 0.55, y + radius * 0.55, s * 0.62, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+    if (itemImg.complete && itemImg.naturalWidth) {
+      ctx.drawImage(itemImg, x + radius * 0.55 - s / 2, y + radius * 0.55 - s / 2, s, s);
+    }
+  }
+
+  if (frozen) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 1.02, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(180,225,255,0.55)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.5, CELL * 0.035);
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.stroke();
   }
 }
 
@@ -426,7 +650,8 @@ function drawSelectionPath() {
   if (selection.length < 2) return;
   ctx.beginPath();
   selection.forEach(([r, c], i) => {
-    const x = c * CELL + CELL / 2, y = r * CELL + CELL / 2;
+    const cell = board[r][c];
+    const x = cell.x, y = cell.y;
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.strokeStyle = '#ffffff';
@@ -434,11 +659,10 @@ function drawSelectionPath() {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.stroke();
-  // pontos nos nós
   selection.forEach(([r, c]) => {
-    const x = c * CELL + CELL / 2, y = r * CELL + CELL / 2;
+    const cell = board[r][c];
     ctx.beginPath();
-    ctx.arc(x, y, Math.max(4, CELL * 0.09), 0, Math.PI * 2);
+    ctx.arc(cell.x, cell.y, Math.max(4, CELL * 0.09), 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
   });
@@ -460,6 +684,26 @@ function darkenColor(hex, amt) {
   return `rgb(${clampChannel(r * (1 - amt))},${clampChannel(g * (1 - amt))},${clampChannel(b * (1 - amt))})`;
 }
 
+// ════════════════════════════════════════════════════════
+// FÍSICA/ANIMAÇÃO POR FRAME: queda suave até targetY, tremor, etc.
+// ════════════════════════════════════════════════════════
+function stepPhysics(dt) {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = board[r][c];
+      if (!cell) continue;
+      if (cell.targetX == null) cell.targetX = c * CELL + CELL / 2 + cell.jitterX;
+      if (cell.targetY == null) cell.targetY = r * CELL + CELL / 2 + cell.jitterY;
+      // easing exponencial: se aproxima do alvo a cada frame, dá uma
+      // sensação de "cair e assentar" sem precisar simular velocidade/gravidade de verdade.
+      const speed = 10; // quanto maior, mais rápido a bubble "gruda" no alvo
+      cell.x += (cell.targetX - cell.x) * Math.min(1, speed * dt);
+      cell.y += (cell.targetY - cell.y) * Math.min(1, speed * dt);
+      if (cell.scale < 1) cell.scale = Math.min(1, cell.scale + dt * 4); // "pop" de entrada
+    }
+  }
+}
+
 // ── Seleção / arraste ────────────────────────────────────
 let selection = []; // array de [r,c], em ordem de conexão
 let dragging = false;
@@ -474,16 +718,17 @@ function cellFromPoint(clientX, clientY) {
 
 function startSelection(r, c) {
   const cell = cellAt(r, c);
-  if (!cell) return;
+  if (!cell || isFrozen(cell)) return;
   selection = [[r, c]];
   dragging = true;
+  groupEl.textContent = 1;
   draw();
 }
 
 function extendSelection(r, c) {
   if (!dragging) return;
   const cell = cellAt(r, c);
-  if (!cell) return;
+  if (!cell || isFrozen(cell)) return;
 
   const last = selection[selection.length - 1];
   if (last[0] === r && last[1] === c) return; // mesma célula, nada muda
@@ -493,12 +738,12 @@ function extendSelection(r, c) {
     const prev = selection[selection.length - 2];
     if (prev[0] === r && prev[1] === c) {
       selection.pop();
+      groupEl.textContent = selection.length;
       draw();
       return;
     }
   }
 
-  // já está na seleção (mas não é o passo de "voltar")? ignora
   if (selection.some(s => s[0] === r && s[1] === c)) return;
 
   const firstKey = cellAt(selection[0][0], selection[0][1]).key;
@@ -522,17 +767,74 @@ function endSelection() {
   }
 }
 
+// Constantes de duração/efeito dos itens especiais.
+const BB_SNOWBALL_FREEZE_MS = 6000;
+
 function popSelection() {
   const cells = selection.slice();
-  const groupSize = cells.length;
-  // Pontuação cresce mais que linear com o tamanho do grupo, recompensando
-  // conexões grandes (mesma ideia do combo de linhas do Tetris).
+  const groupKey = cellAt(cells[0][0], cells[0][1]).key;
+
+  // Verifica se algum item especial está entre as bubbles conectadas
+  // desta jogada — o efeito vale pro "próximo connect correto" que
+  // inclua a bubble com item, ou seja, esta própria jogada.
+  let triggeredFluffy = false;
+  let triggeredSnowball = false;
+  cells.forEach(([r, c]) => {
+    const cell = board[r][c];
+    if (cell.item === 'fluffy_tail') triggeredFluffy = true;
+    if (cell.item === 'snowball') triggeredSnowball = true;
+  });
+
+  // Conjunto de células realmente removidas nesta jogada (a seleção em
+  // si, mais qualquer célula extra estourada pelo Fluffy Tail).
+  const toRemove = cells.map(([r, c]) => [r, c]);
+  const removedSet = new Set(toRemove.map(([r, c]) => `${r},${c}`));
+
+  if (triggeredFluffy) {
+    // Fluffy Tail: estoura TODAS as bubbles do mesmo inicial no tabuleiro,
+    // além do grupo já selecionado.
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cell = cellAt(r, c);
+        if (cell && cell.key === groupKey && !removedSet.has(`${r},${c}`)) {
+          toRemove.push([r, c]);
+          removedSet.add(`${r},${c}`);
+        }
+      }
+    }
+    showToast('🐇 Fluffy Tail! Todas as bubbles do inicial estouraram!');
+  }
+
+  // Pontuação: cresce mais que linear com o tamanho do grupo real
+  // estourado (recompensa conexões e o bônus do Fluffy Tail).
+  const groupSize = toRemove.length;
   const points = groupSize * (groupSize - 1) * 10 + groupSize * 10;
   score += points;
   updateStats();
 
-  cells.forEach(([r, c]) => { board[r][c] = null; });
-  applyGravityAndRefill(cells);
+  // Dispara o efeito de "pop" visual + partículas em cada bubble removida,
+  // então remove de fato do board (a queda cuida do resto via stepPhysics).
+  toRemove.forEach(([r, c]) => {
+    const cell = board[r][c];
+    if (cell) spawnPopBubble(cell, cell.x, cell.y);
+    board[r][c] = null;
+  });
+
+  if (triggeredSnowball) {
+    // Snowball: congela todas as bubbles do mesmo inicial que sobraram
+    // no tabuleiro (as que não foram estouradas nesta jogada) por um tempo.
+    const until = performance.now() + BB_SNOWBALL_FREEZE_MS;
+    let anyFrozen = false;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cell = cellAt(r, c);
+        if (cell && cell.key === groupKey) { cell.frozenUntil = until; anyFrozen = true; }
+      }
+    }
+    if (anyFrozen) showToast('❄️ Snowball! As bubbles restantes desse inicial congelaram!');
+  }
+
+  applyGravityAndRefill(toRemove);
 
   selection = [];
   groupEl.textContent = 0;
@@ -576,17 +878,49 @@ document.getElementById('bb-hint').addEventListener('click', beginPlay);
   hudBox.addEventListener('pointerup', (e) => e.stopPropagation());
 })();
 
-// ── Canvas sizing responsivo ──
+// ── Canvas sizing responsivo: recalcula quantas linhas/colunas cabem
+// pra ocupar toda a área da tela (em vez de um grid fixo pequeno) ──
+function computeGridForViewport() {
+  const maxH = stage.clientHeight;
+  const maxW = stage.clientWidth;
+  let cols = Math.round(maxW / BB_TARGET_CELL);
+  let rows = Math.round(maxH / BB_TARGET_CELL);
+  cols = Math.max(BB_MIN_COLS, Math.min(BB_MAX_COLS, cols));
+  rows = Math.max(BB_MIN_ROWS, Math.min(BB_MAX_ROWS, rows));
+  return { cols, rows };
+}
+
 function resize() {
   const maxH = stage.clientHeight;
   const maxW = stage.clientWidth;
-  const cell = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
-  CELL = cell;
-  canvas.width = cell * COLS;
-  canvas.height = cell * ROWS;
+  const { cols, rows } = computeGridForViewport();
+  const firstLayout = !board;
+  const cellFit = Math.floor(Math.min(maxW / cols, maxH / rows));
+  const prevCell = CELL;
+
+  if (firstLayout) {
+    COLS = cols; ROWS = rows; CELL = cellFit;
+  } else {
+    // Já em jogo: só reajusta o tamanho da célula pra caber na tela,
+    // sem mudar COLS/ROWS (evitaria perder o estado do tabuleiro).
+    CELL = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
+    const scaleFactor = CELL / (prevCell || CELL);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cell = board[r][c];
+        if (!cell) continue;
+        cell.jitterX *= scaleFactor;
+        cell.jitterY *= scaleFactor;
+        cell.targetX = c * CELL + CELL / 2 + cell.jitterX;
+        cell.targetY = r * CELL + CELL / 2 + cell.jitterY;
+      }
+    }
+  }
+
+  canvas.width = CELL * COLS;
+  canvas.height = CELL * ROWS;
   canvas.style.width = canvas.width + 'px';
   canvas.style.height = canvas.height + 'px';
-  if (board) draw();
 }
 window.addEventListener('resize', resize);
 
@@ -711,9 +1045,27 @@ function shareResultToStories() {
 }
 document.getElementById('bb-share-btn').addEventListener('click', shareResultToStories);
 
+// ── Loop principal (física + partículas + desenho) ──
+let rafId = null;
+let lastFrameTs = 0;
+function loop(ts) {
+  if (!lastFrameTs) lastFrameTs = ts;
+  const dt = Math.min(0.05, (ts - lastFrameTs) / 1000);
+  lastFrameTs = ts;
+  animTime += dt;
+
+  stepPhysics(dt);
+  stepParticles(dt);
+  stepPoppingBubbles(dt);
+  draw();
+
+  rafId = requestAnimationFrame(loop);
+}
+
 // ── Ciclo de jogo ──
 async function endGame() {
   gameOver = true;
+  cancelAnimationFrame(rafId);
   document.getElementById('bb-final-score').textContent = score;
   document.getElementById('bb-overlay').classList.add('show');
   await gSaveScore('pokebubbles', score, user);
@@ -722,14 +1074,18 @@ async function endGame() {
 }
 
 function startGame() {
+  resize();
   fillBoard();
   score = 0; gameOver = false;
   selection = []; dragging = false;
+  particles = []; poppingBubbles = [];
   updateStats();
   groupEl.textContent = 0;
   document.getElementById('bb-overlay').classList.remove('show');
   showHint();
-  draw();
+  lastFrameTs = 0;
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
 }
 
 // ── Hint "como jogar" ──
@@ -750,7 +1106,6 @@ function beginPlay() {
   if (!user) return;
   await loadCustomStarters();
   gSetupFullscreenOnFirstInteraction();
-  resize();
   startGame();
 })();
 </script>
