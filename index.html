@@ -14298,7 +14298,7 @@ async function pkOpenShareSheet(pokeetId) {
     <div style="padding:12px 14px;border-bottom:1px solid #f0f0f0">
       <button id="pk-share-to-story-btn" onclick="pkShareToStory('${pokeetId}')"
         style="width:100%;display:flex;align-items:center;gap:10px;background:#f5f5f5;border:none;border-radius:12px;padding:11px 14px;cursor:pointer;font-family:Nunito,sans-serif;font-size:13px;font-weight:700;color:#262626;transition:background .15s" onmouseover="this.style.background='#ebebeb'" onmouseout="this.style.background='#f5f5f5'">
-        <span style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#feda75,#d62976,#4f5bd5);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="width:30px;height:30px;border-radius:50%;background:${currentUser.color || '#e53935'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
         </span>
         Adicionar ao seu story
@@ -14386,22 +14386,39 @@ function _pkWrapCanvasLines(ctx, text, maxWidth) {
   const paragraphs = (text || '').split('\n');
   const outLines = [];
   paragraphs.forEach(paragraph => {
-    if (paragraph === '') { outLines.push(''); return; }
+    if (paragraph === '') { outLines.push({ text: '', last: true }); return; }
     const words = paragraph.split(' ');
     let currentLine = words[0] || '';
+    const paraLines = [];
     for (let i = 1; i < words.length; i++) {
       const word = words[i];
       const testLine = currentLine + ' ' + word;
       if (ctx.measureText(testLine).width <= maxWidth) {
         currentLine = testLine;
       } else {
-        outLines.push(currentLine);
+        paraLines.push(currentLine);
         currentLine = word;
       }
     }
-    outLines.push(currentLine);
+    paraLines.push(currentLine);
+    paraLines.forEach((l, idx) => outLines.push({ text: l, last: idx === paraLines.length - 1 }));
   });
   return outLines;
+}
+
+// Desenha uma linha justificada: distribui o espaço extra entre as palavras
+// para que a linha ocupe exatamente maxWidth (como text-align:justify no CSS)
+function _pkDrawJustifiedLine(ctx, line, x, y, maxWidth) {
+  const words = line.split(' ');
+  if (words.length <= 1) { ctx.fillText(line, x, y); return; }
+  let wordsWidth = 0;
+  words.forEach(w => { wordsWidth += ctx.measureText(w).width; });
+  const gap = (maxWidth - wordsWidth) / (words.length - 1);
+  let cx = x;
+  words.forEach(w => {
+    ctx.fillText(w, cx, y);
+    cx += ctx.measureText(w).width + gap;
+  });
 }
 
 async function _pkRenderShareCanvas(p, au) {
@@ -14442,7 +14459,7 @@ async function _pkRenderShareCanvas(p, au) {
   const lines = _pkWrapCanvasLines(ctx, p.text || '', maxTextWidth);
   const lineH = 52;
   const headerH = 175; // mais espaço entre o nome/handle e o texto do pokeet
-  const cardH = headerH + lines.length * lineH + cardPad * 2 - 20;
+  const cardH = headerH + lines.length * lineH + cardPad * 2 - 40;
   const cardY = (H - cardH) / 2;
 
   ctx.fillStyle = '#ffffff';
@@ -14496,7 +14513,14 @@ async function _pkRenderShareCanvas(p, au) {
   ctx.fillStyle = '#1a1a1a';
   ctx.font = '700 32px Nunito,sans-serif';
   let ty = cardY + headerH + 34;
-  lines.forEach(line => { ctx.fillText(line, cardX + cardPad, ty); ty += lineH; });
+  lines.forEach(lineObj => {
+    if (lineObj.last) {
+      ctx.fillText(lineObj.text, cardX + cardPad, ty);
+    } else {
+      _pkDrawJustifiedLine(ctx, lineObj.text, cardX + cardPad, ty, maxTextWidth);
+    }
+    ty += lineH;
+  });
 
   return canvas;
 }
