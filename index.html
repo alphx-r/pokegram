@@ -434,6 +434,13 @@ a:focus, a:active,
 .chat-msg-row.sent .chat-post-preview,
 .chat-msg-row.sent .chat-post-preview-info { background:#e3f2fd; }
 
+/* Prévia de Pokeet encaminhado no chat */
+.chat-pokeet-preview { width:220px; cursor:pointer; border-radius:14px; overflow:hidden; background:#fff; padding:10px 12px; box-sizing:border-box; }
+.chat-pokeet-preview-head { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:800; color:#8e8e8e; margin-bottom:4px; }
+.chat-pokeet-preview-text { font-size:13px; color:#262626; line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
+.chat-msg-row.sent .chat-pokeet-preview { background:#e3f2fd; }
+.chat-msg-row.sent .chat-pokeet-preview-head { color:#5a7fa6; }
+
 /* Horário embaixo da bolha */
 .chat-msg-time {
   font-size: 10px;
@@ -2036,7 +2043,7 @@ a:focus, a:active,
       <div id="snap-text-bar"
         style="display:none;position:absolute;left:0;right:0;z-index:8;background:rgba(0,0,0,0.6);padding:10px 16px;touch-action:none;cursor:grab;user-select:none;pointer-events:all">
         <div id="snap-text-display"
-          style="color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;word-break:break-word;white-space:pre-wrap;line-height:1.4"></div>
+          style="color:#fff;font-family:'Nunito',sans-serif;font-size:18px;font-weight:700;text-align:center;overflow-wrap:break-word;word-break:normal;white-space:pre-wrap;line-height:1.4"></div>
       </div>
 
       <!-- Editor inline (substitui a faixa durante edição) -->
@@ -2430,7 +2437,7 @@ a:focus, a:active,
       <!-- CTA de link — aparece quando o story tem um link anexado (ex: convite pra jogar) -->
       <div id="sv-cta-wrap" style="display:none;position:absolute;left:0;right:0;bottom:96px;z-index:9;justify-content:center;pointer-events:none">
         <button id="sv-cta-btn" class="sv-cta-btn" onclick="storyGoToLink()" style="pointer-events:auto;background:rgba(255,255,255,.96);color:#111;border:none;border-radius:999px;padding:12px 22px;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.35)">
-          <span>🎮</span><span id="sv-cta-label">Jogar agora</span>
+          <span id="sv-cta-emoji">🎮</span><span id="sv-cta-label">Jogar agora</span>
         </button>
       </div>
 
@@ -11525,6 +11532,11 @@ function showStory(idx) {
     if (story.link_url) {
       ctaWrap.style.display = 'flex';
       ctaWrap.dataset.link = story.link_url;
+      const isPokeetLink = story.link_url.startsWith('pokeet:');
+      const ctaEmoji = document.getElementById('sv-cta-emoji');
+      const ctaLabel = document.getElementById('sv-cta-label');
+      if (ctaEmoji) ctaEmoji.textContent = isPokeetLink ? '💭' : '🎮';
+      if (ctaLabel) ctaLabel.textContent = isPokeetLink ? 'Ver Pokeet' : 'Jogar agora';
     } else {
       ctaWrap.style.display = 'none';
       ctaWrap.dataset.link = '';
@@ -11651,6 +11663,12 @@ async function storyNav(dir) {
 function storyGoToLink() {
   const link = document.getElementById('sv-cta-wrap')?.dataset.link;
   if (!link) return;
+  if (link.startsWith('pokeet:')) {
+    const pokeetId = link.slice('pokeet:'.length);
+    closeStoryViewer();
+    if (typeof pkOpenThread === 'function') pkOpenThread(pokeetId);
+    return;
+  }
   window.location.href = link;
 }
 
@@ -12898,8 +12916,9 @@ async function chatLoadConversations() {
       u.display_name = u.display_name || u.name || u.username;
       const name = u.display_name || u.username;
       const isMe = conv.lastMsg.sender_id === currentUser.username;
-      const rawContent = conv.lastMsg.meta_type === 'story_reply' ? `💬 Story: ${conv.lastMsg.content||''}` :
-                         conv.lastMsg.meta_type === 'post_share'  ? '📤 Post compartilhado' :
+      const rawContent = conv.lastMsg.meta_type === 'story_reply'  ? `💬 Story: ${conv.lastMsg.content||''}` :
+                         conv.lastMsg.meta_type === 'post_share'   ? '📤 Post compartilhado' :
+                         conv.lastMsg.meta_type === 'pokeet_share' ? '💭 Pokeet encaminhado' :
                          conv.lastMsg.content;
       const preview = (isMe ? 'Você: ' : '') + rawContent;
       const item = document.createElement('div');
@@ -13064,6 +13083,18 @@ function chatRenderMessages() {
           </div>
         </div>`;
       bubble.appendChild(postDiv);
+    } else if (mtype === 'pokeet_share') {
+      bubble.className += ' chat-bubble-rich';
+      const pokeetDiv = document.createElement('div');
+      pokeetDiv.innerHTML = `
+        <div class="chat-pokeet-preview" onclick="pkOpenThread('${_escHtml(msg.meta_ref_id||'')}')">
+          <div class="chat-pokeet-preview-head">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            ${msg.meta_author ? `<span>@${_escHtml(msg.meta_author)}</span>` : `<span>Pokeet</span>`}
+          </div>
+          ${msg.meta_caption ? `<div class="chat-pokeet-preview-text">${_escHtml(msg.meta_caption)}</div>` : ''}
+        </div>`;
+      bubble.appendChild(pokeetDiv);
     } else {
       const textNode = document.createTextNode(msg.content);
       bubble.appendChild(textNode);
@@ -13711,6 +13742,9 @@ function pkRenderCard(p, likedSet, likeMap, replyMap, repostMap, repostedSet, is
           <svg width="16" height="16" viewBox="0 0 24 24" fill="${liked?_activeProfColor:'none'}" stroke="${liked?_activeProfColor:'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
           ${likes > 0 ? likes : ''}`}
         </button>
+        <button class="pk-action-btn" onclick="event.stopPropagation();pkOpenShareSheet('${p.id}')" title="Encaminhar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
         ${menuHtml}
       </div>
     </div>
@@ -14136,6 +14170,315 @@ async function pkDeleteReply(replyId) {
   if (error) { toast('Erro ao apagar.'); return; }
   toast('Resposta apagada.');
   await pkOpenThread(_pk.threadTarget);
+}
+
+// ── Encaminhar Pokeet (chat + story) ──────────────────────
+// Busca os dados básicos de um pokeet (do cache do feed, se disponível,
+// senão direto do banco) já com o snapshot do autor.
+async function pkFetchForShare(pokeetId) {
+  const cached = (_pk.feed || []).find(p => p.id === pokeetId);
+  if (cached) return cached;
+  const { data } = await db.from('pokeets')
+    .select('id,text,user_id,author_name,author_handle,author_color,author_avatar,created_at')
+    .eq('id', pokeetId).maybeSingle();
+  if (!data) return null;
+  data.users = { username: data.author_handle, name: data.author_name, color: data.author_color, avatar_url: data.author_avatar };
+  return data;
+}
+
+function _pkShareAuthorInfo(p) {
+  const name   = p.author_name   || p.users?.name     || p.users?.username || '?';
+  const handle = p.author_handle || p.users?.username || '?';
+  const color  = p.author_color  || p.users?.color     || '#e53935';
+  const avatar = p.author_avatar || p.users?.avatar_url || null;
+  return { name, handle, color, avatar };
+}
+
+async function pkOpenShareSheet(pokeetId) {
+  if (!currentUser) return;
+  // Remove sheet existente (toggle)
+  const existing = document.getElementById('pk-share-sheet');
+  if (existing) { existing.remove(); return; }
+
+  const p = await pkFetchForShare(pokeetId);
+  if (!p) { toast('Pokeet não encontrado.'); return; }
+  const au = _pkShareAuthorInfo(p);
+
+  // Busca conversas existentes (mesmos pares já usados no envio de posts)
+  const { data: convos } = await db.from('messages')
+    .select('sender_id, receiver_id')
+    .or(`sender_id.eq.${currentUser.username},receiver_id.eq.${currentUser.username}`)
+    .order('created_at', { ascending: false });
+  const peersSet = new Set();
+  (convos || []).forEach(m => {
+    if (m.sender_id   !== currentUser.username) peersSet.add(m.sender_id);
+    if (m.receiver_id !== currentUser.username) peersSet.add(m.receiver_id);
+  });
+  const peers = [...peersSet].slice(0, 20);
+  let peersData = [];
+  if (peers.length) {
+    const { data } = await db.from('users').select('username,avatar_url,color').in('username', peers);
+    peersData = data || [];
+  }
+  const peersMap = {};
+  peersData.forEach(u => { peersMap[u.username] = u; });
+
+  const avatarHtml = au.avatar
+    ? `<img src="${esc(au.avatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+    : initials(au.handle);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pk-share-sheet';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:16px;width:340px;max-height:520px;display:flex;flex-direction:column;overflow:hidden;font-family:Nunito,sans-serif';
+
+  box.innerHTML = `
+    <div style="padding:14px 16px;border-bottom:1px solid #dbdbdb;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-weight:800;font-size:15px">Encaminhar Pokeet</span>
+      <button onclick="document.getElementById('pk-share-sheet').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8e8e8e;line-height:1">✕</button>
+    </div>
+    <div style="padding:12px 14px;border-bottom:1px solid #f0f0f0;display:flex;gap:10px;align-items:center;background:#fafafa">
+      <div style="width:34px;height:34px;border-radius:50%;background:${au.color};display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:12px;flex-shrink:0;overflow:hidden">${avatarHtml}</div>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:12px;font-weight:700;color:#1a1a1a">${esc(au.name)} <span style="font-weight:600;color:#8e8e8e">@${esc(au.handle)}</span></div>
+        <div style="font-size:12px;color:#444;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc((p.text||'').substring(0,120))}</div>
+      </div>
+    </div>
+    <div style="padding:12px 14px;border-bottom:1px solid #f0f0f0">
+      <button id="pk-share-to-story-btn" onclick="pkShareToStory('${pokeetId}')"
+        style="width:100%;display:flex;align-items:center;gap:10px;background:#f5f5f5;border:none;border-radius:12px;padding:11px 14px;cursor:pointer;font-family:Nunito,sans-serif;font-size:13px;font-weight:700;color:#262626;transition:background .15s" onmouseover="this.style.background='#ebebeb'" onmouseout="this.style.background='#f5f5f5'">
+        <span style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#feda75,#d62976,#4f5bd5);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+        </span>
+        Adicionar ao seu story
+      </button>
+    </div>
+    <div style="padding:10px 14px;border-bottom:1px solid #f0f0f0">
+      <input id="pk-share-search" placeholder="Buscar usuário..." autocomplete="off"
+        style="width:100%;border:1px solid #dbdbdb;border-radius:20px;padding:7px 14px;font-size:13px;font-family:Nunito,sans-serif;outline:none;box-sizing:border-box"
+        oninput="pkShareSearch(this.value,'${pokeetId}')">
+    </div>
+    <div id="pk-share-list" style="overflow-y:auto;flex:1;padding:6px 0">
+      ${peers.length
+        ? peers.map(u => {
+            const pu = peersMap[u];
+            const av = pu?.avatar_url
+              ? `<img src="${pu.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+              : u.charAt(0).toUpperCase();
+            const bg = pu?.avatar_url ? 'transparent' : (pu?.color || '#e53935');
+            return `
+          <div onclick="pkSendPokeetToChat('${u}','${pokeetId}')"
+            style="display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;transition:background .1s"
+            onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+            <div style="width:40px;height:40px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;flex-shrink:0;overflow:hidden">${av}</div>
+            <div style="font-weight:600;font-size:14px">${u}</div>
+          </div>`;
+          }).join('')
+        : '<div style="text-align:center;padding:24px;color:#8e8e8e;font-size:13px">Nenhuma conversa ainda.<br>Busque um usuário acima.</div>'
+      }
+    </div>`;
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('pk-share-search')?.focus(), 100);
+}
+
+async function pkShareSearch(query, pokeetId) {
+  const list = document.getElementById('pk-share-list');
+  if (!list) return;
+  if (!query.trim()) { list.innerHTML = '<div style="text-align:center;padding:16px;color:#8e8e8e;font-size:13px">Digite para buscar...</div>'; return; }
+  list.innerHTML = '<div style="text-align:center;padding:16px;color:#8e8e8e;font-size:13px">Buscando...</div>';
+  const { data } = await db.from('users').select('username,avatar_url,color').ilike('username', `%${query}%`).neq('username', currentUser.username).limit(10);
+  if (!data || !data.length) { list.innerHTML = '<div style="text-align:center;padding:16px;color:#8e8e8e;font-size:13px">Nenhum usuário encontrado.</div>'; return; }
+  list.innerHTML = data.map(u => {
+    const av = u.avatar_url
+      ? `<img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+      : u.username.charAt(0).toUpperCase();
+    const bg = u.avatar_url ? 'transparent' : (u.color || '#e53935');
+    return `<div onclick="pkSendPokeetToChat('${u.username}','${pokeetId}')"
+      style="display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;transition:background .1s"
+      onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+      <div style="width:40px;height:40px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:14px;flex-shrink:0;overflow:hidden">${av}</div>
+      <div style="font-weight:600;font-size:14px">${u.username}</div>
+    </div>`;
+  }).join('');
+}
+
+// Envia o pokeet via chat (mesma tabela/colunas usadas para posts —
+// não requer nenhuma alteração de schema no Supabase)
+async function pkSendPokeetToChat(toUsername, pokeetId) {
+  const p = await pkFetchForShare(pokeetId);
+  const au = p ? _pkShareAuthorInfo(p) : { name: '?', handle: '?' };
+
+  const { error } = await db.from('messages').insert({
+    sender_id:    currentUser.username,
+    receiver_id:  toUsername,
+    content:      '',
+    meta_type:    'pokeet_share',
+    meta_ref_id:  pokeetId,
+    meta_caption: (p?.text || '').substring(0, 100),
+    meta_author:  au.handle || null,
+    read:         false
+  });
+  document.getElementById('pk-share-sheet')?.remove();
+  if (error) { toast('Erro ao encaminhar.'); return; }
+  toast(`Pokeet encaminhado para @${toUsername}! 📨`);
+  const { data: peerUser } = await db.from('users').select('id,username,name,color,avatar_url').eq('username', toUsername).maybeSingle();
+  if (peerUser) { await openChatPanel(); await chatOpenWindow(peerUser); }
+}
+
+// ── Encaminhar Pokeet para o Story ────────────────────────
+// Gera um "cartão" do pokeet num canvas 1080x1920, sobe pro bucket
+// de stories e cria um story normal com link_url apontando de volta
+// para a thread do pokeet (esquema pokeet:<id>, tratado em storyGoToLink()).
+function _pkWrapCanvasLines(ctx, text, maxWidth) {
+  const paragraphs = (text || '').split('\n');
+  const outLines = [];
+  paragraphs.forEach(paragraph => {
+    if (paragraph === '') { outLines.push(''); return; }
+    const words = paragraph.split(' ');
+    let currentLine = words[0] || '';
+    for (let i = 1; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine + ' ' + word;
+      if (ctx.measureText(testLine).width <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        outLines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    outLines.push(currentLine);
+  });
+  return outLines;
+}
+
+async function _pkRenderShareCanvas(p, au) {
+  const W = 1080, H = 1920;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Fundo: gradiente usando a cor do autor
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, pkColorDarken(au.color, 45));
+  grad.addColorStop(1, pkColorDarken(au.color, 70));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Cartão central
+  const cardX = 90, cardW = W - 180;
+  const cardPad = 56;
+  ctx.font = '700 44px Nunito,sans-serif';
+  const maxTextWidth = cardW - cardPad * 2;
+  const lines = _pkWrapCanvasLines(ctx, p.text || '', maxTextWidth);
+  const lineH = 58;
+  const headerH = 130;
+  const cardH = headerH + lines.length * lineH + cardPad * 2;
+  const cardY = (H - cardH) / 2;
+
+  ctx.fillStyle = '#ffffff';
+  const r = 32;
+  ctx.beginPath();
+  ctx.moveTo(cardX + r, cardY);
+  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, r);
+  ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, r);
+  ctx.arcTo(cardX, cardY + cardH, cardX, cardY, r);
+  ctx.arcTo(cardX, cardY, cardX + cardW, cardY, r);
+  ctx.closePath();
+  ctx.fill();
+
+  // Avatar
+  const avSize = 76, avX = cardX + cardPad, avY = cardY + cardPad;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(avX + avSize / 2, avY + avSize / 2, avSize / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  if (au.avatar) {
+    try {
+      const img = await new Promise((res, rej) => {
+        const im = new Image();
+        im.crossOrigin = 'anonymous';
+        im.onload = () => res(im);
+        im.onerror = rej;
+        im.src = au.avatar;
+      });
+      ctx.drawImage(img, avX, avY, avSize, avSize);
+    } catch (e) {
+      ctx.fillStyle = au.color; ctx.fillRect(avX, avY, avSize, avSize);
+    }
+  } else {
+    ctx.fillStyle = au.color; ctx.fillRect(avX, avY, avSize, avSize);
+    ctx.fillStyle = '#fff'; ctx.font = '700 32px Nunito,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(initials(au.handle), avX + avSize / 2, avY + avSize / 2 + 2);
+  }
+  ctx.restore();
+
+  // Nome / handle
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = '800 34px Nunito,sans-serif';
+  ctx.fillText(au.name, avX + avSize + 20, avY + 32);
+  ctx.fillStyle = '#8e8e8e';
+  ctx.font = '600 28px Nunito,sans-serif';
+  ctx.fillText('@' + au.handle, avX + avSize + 20, avY + 68);
+
+  // Texto do pokeet
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = '700 44px Nunito,sans-serif';
+  let ty = cardY + headerH + 34;
+  lines.forEach(line => { ctx.fillText(line, cardX + cardPad, ty); ty += lineH; });
+
+  // Selo "Pokeet"
+  ctx.fillStyle = '#c0c0c0';
+  ctx.font = '700 24px Nunito,sans-serif';
+  ctx.fillText('💭 Pokeet', cardX + cardPad, cardY + cardH - 22);
+
+  return canvas;
+}
+
+async function pkShareToStory(pokeetId) {
+  const btn = document.getElementById('pk-share-to-story-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+  try {
+    const p = await pkFetchForShare(pokeetId);
+    if (!p) { toast('Pokeet não encontrado.'); return; }
+    const au = _pkShareAuthorInfo(p);
+
+    const canvas = await _pkRenderShareCanvas(p, au);
+    const blob = await new Promise((res, rej) => {
+      canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob falhou')), 'image/jpeg', 0.92);
+    });
+
+    const path = `${currentUser.id}_${Date.now()}_pokeet.jpg`;
+    const { error: upErr } = await db.storage.from('stories').upload(path, blob, { upsert: false, contentType: 'image/jpeg' });
+    if (upErr) throw upErr;
+    const { data: urlData } = db.storage.from('stories').getPublicUrl(path);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const { error } = await db.from('stories').insert({
+      user_id: currentUser.id,
+      image_url: urlData.publicUrl,
+      expires_at: expiresAt,
+      link_url: `pokeet:${pokeetId}`
+    });
+    if (error) throw error;
+
+    db.from('stories_log').insert({ user_id: currentUser.id })
+      .then(({ error: logErr }) => { if (logErr) console.warn('Erro ao registrar story no log de crescimento:', logErr); });
+
+    document.getElementById('pk-share-sheet')?.remove();
+    await renderStories();
+    toast('Pokeet adicionado ao seu story! 🕐');
+  } catch (e) {
+    toast('Erro ao adicionar ao story: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  }
 }
 
 // ── Tabs ──────────────────────────────────────────────────
