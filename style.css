@@ -1129,7 +1129,11 @@ input, select, textarea { font-family: var(--font); }
   z-index: 300;
   opacity: 1;
   transition: opacity .3s;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: min(420px, calc(100vw - 32px));
+  width: max-content;
+  text-align: center;
+  box-sizing: border-box;
 }
 .toast.hidden { opacity: 0; pointer-events: none; }
 
