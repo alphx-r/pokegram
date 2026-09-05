@@ -14,7 +14,7 @@
     -webkit-touch-callout:none;
   }
   html,body{
-    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#1a1a2e;color:#1a1a1a;
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
     overflow:hidden;position:fixed;inset:0;
     display:flex;flex-direction:column;
   }
@@ -33,7 +33,7 @@
 
   .tr-wrap{
     flex:1 1 auto;min-height:0;position:relative;
-    display:flex;align-items:center;justify-content:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
     touch-action:none;overflow:hidden;
   }
   #tr-canvas{
@@ -86,7 +86,7 @@
   .tr-toast.show{opacity:1;transform:translate(-50%,0)}
 
   .tr-duck-btn{
-    position:absolute;right:18px;bottom:calc(18px + env(safe-area-inset-bottom, 0px));z-index:25;
+    position:absolute;right:18px;bottom:calc(68px + env(safe-area-inset-bottom, 0px));z-index:25;
     width:58px;height:58px;border-radius:18px;
     border:2px solid rgba(255,255,255,.25);
     background:linear-gradient(160deg, var(--brand-mid), var(--brand));
