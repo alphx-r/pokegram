@@ -13,6 +13,10 @@
     margin:0;height:100%;font-family:'Nunito',sans-serif;background:#1a1a2e;color:#1a1a1a;
     overflow:hidden;
   }
+  #bb-canvas, .bb-stage, .bb-hint, .bb-hud{
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
   :root{
     --brand:#b71c1c;--brand-mid:#e53935;--accent:#fdd835;--border:#e0e0e0;--muted:#6b7280;
   }
@@ -1030,6 +1034,7 @@ function popSelection() {
 
 // ── Controles: mouse/touch ───────────────────────────────
 canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
   if (gameOver) return;
   if (!started) { beginPlay(); return; }
   const cell = cellFromPoint(e.clientX, e.clientY);
@@ -1037,15 +1042,22 @@ canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
 });
 canvas.addEventListener('pointermove', (e) => {
+  if (dragging) e.preventDefault();
   if (gameOver || !dragging) return;
   const cell = cellFromPoint(e.clientX, e.clientY);
   if (cell) extendSelection(cell[0], cell[1]);
 });
-canvas.addEventListener('pointerup', () => { if (!gameOver) endSelection(); });
-canvas.addEventListener('pointercancel', () => { if (!gameOver) endSelection(); });
+canvas.addEventListener('pointerup', (e) => { e.preventDefault(); if (!gameOver) endSelection(); });
+canvas.addEventListener('pointercancel', (e) => { e.preventDefault(); if (!gameOver) endSelection(); });
+// Bloqueia o gesto nativo de seleção de texto que o navegador tenta
+// iniciar durante o arraste (aparecia principalmente no meio do tabuleiro).
+canvas.addEventListener('selectstart', (e) => e.preventDefault());
+canvas.addEventListener('contextmenu', (e) => { if (dragging || started) e.preventDefault(); });
 
 document.getElementById('bb-restart-btn').addEventListener('click', startGame);
 document.getElementById('bb-hint').addEventListener('click', beginPlay);
+document.getElementById('bb-hint').addEventListener('selectstart', (e) => e.preventDefault());
+document.addEventListener('selectstart', (e) => { if (dragging) e.preventDefault(); });
 
 // ── HUD: toque oculta, toque no mesmo lugar mostra ──
 (function () {
