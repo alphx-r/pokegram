@@ -9,6 +9,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  *{
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
   html,body{
     margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#1a1a2e;color:#1a1a1a;
     overflow:hidden;position:fixed;inset:0;
@@ -41,6 +45,10 @@
     transition:filter .2s ease;
   }
   #tr-sprite.tr-sprite-charged{filter:drop-shadow(0 0 8px #ff1e1e) drop-shadow(0 0 3px #ff5252) saturate(1.3)}
+  .tr-bird-sprite{
+    position:absolute;top:0;left:0;pointer-events:none;display:none;
+    image-rendering:pixelated;
+  }
 
   .tr-hud{
     position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
@@ -60,14 +68,14 @@
   .tr-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
   .tr-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
 
-  .tr-buffs{display:flex;gap:6px;pointer-events:none}
+  .tr-buffs{display:flex;justify-content:center;align-items:center;gap:6px;pointer-events:none;width:100%}
   .tr-buff-pill{
-    display:flex;align-items:center;gap:4px;background:rgba(20,20,38,.72);border-radius:20px;
-    padding:4px 10px 4px 6px;font-size:11px;font-weight:800;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);
+    display:flex;align-items:baseline;justify-content:center;gap:5px;background:rgba(20,20,38,.72);border-radius:20px;
+    padding:4px 12px;font-size:11px;font-weight:800;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);
     opacity:0;transform:translateY(-4px);transition:opacity .18s ease, transform .18s ease;
   }
   .tr-buff-pill.show{opacity:1;transform:translateY(0)}
-  .tr-buff-icon{width:16px;height:16px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:10px}
+  .tr-buff-count{font-family:'Cinzel',serif;font-weight:700;opacity:.85;font-size:10.5px}
 
   .tr-toast{
     position:absolute;top:64px;left:50%;transform:translate(-50%,-8px);z-index:30;
@@ -79,12 +87,20 @@
 
   .tr-duck-btn{
     position:absolute;right:18px;bottom:18px;z-index:25;
-    width:60px;height:60px;border-radius:50%;border:none;
-    background:rgba(20,20,38,.55);color:#fff;font-size:26px;
+    width:58px;height:58px;border-radius:18px;
+    border:2px solid rgba(255,255,255,.25);
+    background:linear-gradient(160deg, var(--brand-mid), var(--brand));
+    color:#fff;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 2px 10px rgba(0,0,0,.35);touch-action:none;cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.25);
+    touch-action:none;cursor:pointer;transition:transform .12s ease, box-shadow .12s ease;
   }
-  .tr-duck-btn:active{background:rgba(20,20,38,.85)}
+  .tr-duck-btn svg{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  .tr-duck-btn:active{
+    transform:scale(.92);
+    background:linear-gradient(160deg, var(--brand), #8a1414);
+    box-shadow:0 2px 6px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  }
 
   .tr-hint{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -187,14 +203,16 @@
       </div>
     </div>
     <div class="tr-buffs" id="tr-buffs">
-      <div class="tr-buff-pill" id="tr-pill-salac"><span class="tr-buff-icon" style="background:#8e5fd6">⚡</span>Salac</div>
-      <div class="tr-buff-pill" id="tr-pill-tamato"><span class="tr-buff-icon" style="background:#e0483e">🐌</span>Tamato</div>
+      <div class="tr-buff-pill" id="tr-pill-salac">Salac <span class="tr-buff-count" id="tr-pill-salac-count">0s</span></div>
+      <div class="tr-buff-pill" id="tr-pill-tamato">Tamato <span class="tr-buff-count" id="tr-pill-tamato-count">0s</span></div>
     </div>
   </div>
 
   <div class="tr-toast" id="tr-toast"></div>
 
-  <button class="tr-duck-btn" id="tr-duck-btn" aria-label="Abaixar">⬇️</button>
+  <button class="tr-duck-btn" id="tr-duck-btn" aria-label="Abaixar">
+    <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
 
   <div class="tr-hint" id="tr-hint">
     <div class="tr-hint-card">
@@ -222,7 +240,7 @@
 
 <div class="tr-overlay" id="tr-overlay">
   <div class="tr-modal">
-    <h2>Tyrunt tropeçou!</h2>
+    <h2>Tyrunt bateu!</h2>
     <p>Sua pontuação foi registrada no ranking.</p>
     <div class="tr-final-score" id="tr-final-score">0</div>
     <div class="tr-best-line">Seu recorde: <b id="tr-best-line-val">–</b></div>
@@ -291,13 +309,26 @@ async function loadSpriteOverrides() {
 // desenho vetorial original do pássaro.
 const PIDGEY_SPRITE_DEFAULT = 'https://64.media.tumblr.com/802e179f72cf2487530ccb5aa9bb27c5/4603906cfe87268f-b3/s75x75_c1/1c728feb8f32ec554fd9a30c5bdb0be02b6e4007.gif';
 const BIRD_VISUAL_SIZE = 34; // tamanho visual do sprite (a hitbox do obstáculo continua a mesma, só o desenho fica maior/mais legível)
-// Importante: usar o <img> que já existe no DOM (tr-pidgey-sprite), e não
-// um `new Image()` solto — fora do DOM, o navegador decodifica só o
-// primeiro frame do GIF e o desenho fica parado (vira "png"); com a tag
-// presente no documento (mesmo invisível, fora da tela) o GIF continua
-// animando e o drawImage() sempre pega o frame atual dele.
+// Um GIF desenhado em canvas via ctx.drawImage() NÃO anima: o canvas só
+// "fotografa" o frame que o navegador tiver decodificado naquele instante,
+// e como a <img> de origem ficava fora da tela (top:-9999px), muitos
+// navegadores nem chegam a continuar decodificando os frames seguintes —
+// o resultado é o pássaro sempre parado no primeiro frame.
+// Por isso os pássaros agora usam <img> reais, visíveis, sobrepostas ao
+// canvas (mesma técnica do sprite do Tyrunt em #tr-sprite) — assim o GIF
+// bate asas de verdade. tr-pidgey-sprite continua existindo só pra
+// detectar se a URL carrega (pidgeyReady) e alimentar o pool visível.
 const pidgeyImg = document.getElementById('tr-pidgey-sprite');
 let pidgeyReady = false;
+const BIRD_POOL_SIZE = 4; // pássaros simultâneos em tela raramente passam disso
+const birdSpritePool = [];
+for (let i = 0; i < BIRD_POOL_SIZE; i++) {
+  const el = document.createElement('img');
+  el.className = 'tr-bird-sprite';
+  el.alt = '';
+  document.getElementById('tr-wrap').appendChild(el);
+  birdSpritePool.push(el);
+}
 pidgeyImg.onload = () => { pidgeyReady = true; };
 pidgeyImg.onerror = () => { pidgeyReady = false; };
 
@@ -309,6 +340,32 @@ async function loadPidgeySprite() {
     if (data && data.value) url = data.value;
   } catch (e) { console.warn('[loadPidgeySprite]', e); }
   pidgeyImg.src = url;
+  birdSpritePool.forEach(el => { el.src = url; });
+}
+
+// Posiciona (ou esconde) cada <img> do pool sobre o pássaro correspondente,
+// nas mesmas coordenadas do canvas (mesmo sistema usado por updateSpritePosition).
+function syncBirdSprites() {
+  const birds = obstacles.filter(o => o.type === 'bird');
+  if (!pidgeyReady) {
+    birds.forEach(o => { o.hasDomSprite = false; });
+    birdSpritePool.forEach(el => { el.style.display = 'none'; });
+    return;
+  }
+  const wobbleDeg = Math.sin(performance.now() / 90) * 6; // pequeno balanço, equivalente ao antigo rotate() no canvas
+  birds.forEach((o, i) => {
+    const el = birdSpritePool[i];
+    if (!el) { o.hasDomSprite = false; return; }
+    o.hasDomSprite = true;
+    const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+    el.style.width = BIRD_VISUAL_SIZE + 'px';
+    el.style.height = BIRD_VISUAL_SIZE + 'px';
+    el.style.display = 'block';
+    el.style.transform = `translate(${cx - BIRD_VISUAL_SIZE / 2}px, ${cy - BIRD_VISUAL_SIZE / 2}px) rotate(${wobbleDeg}deg)`;
+  });
+  for (let i = birds.length; i < birdSpritePool.length; i++) {
+    birdSpritePool[i].style.display = 'none';
+  }
 }
 
 function setSpriteKind(kind) {
@@ -408,6 +465,17 @@ function makeCloud(x) {
   return { x: x !== undefined ? x : BASE_W + 20 + Math.random() * 60, y: 30 + Math.random() * (BASE_H * 0.3), r: 16 + Math.random() * 14 };
 }
 
+let stars = [];
+function makeStars() {
+  stars = [];
+  for (let i = 0; i < 22; i++) {
+    stars.push({ xr: Math.random(), yr: Math.random() * 0.6, r: 0.6 + Math.random() * 1.3, tw: Math.random() * Math.PI * 2 });
+  }
+}
+makeStars();
+
+let hillOffsetFar = 0, hillOffsetNear = 0;
+
 function resetEntities() {
   player = { x: PLAYER_X, y: groundY - PLAYER_STAND_H, vy: 0, onGround: true, ducking: false, jumpsUsed: 0 };
   obstacles = [];
@@ -415,7 +483,9 @@ function resetEntities() {
   breakParticles = [];
   salacUntil = 0; tamatoUntil = 0; xAttackCharges = 0;
   itemSpawnTimer = 0; nextItemSpawnInterval = 6500 + Math.random() * 4500;
-  clouds = [makeCloud(BASE_W * 0.3), makeCloud(BASE_W * 0.6), makeCloud(BASE_W * 0.85)];
+  clouds = [makeCloud(BASE_W * 0.12), makeCloud(BASE_W * 0.35), makeCloud(BASE_W * 0.55), makeCloud(BASE_W * 0.72), makeCloud(BASE_W * 0.92)];
+  hillOffsetFar = 0; hillOffsetNear = 0;
+  birdSpritePool.forEach(el => { el.style.display = 'none'; });
   groundDashes = [];
   for (let x = 0; x < BASE_W + 40; x += 28) groundDashes.push(x);
   updateBuffPills();
@@ -588,7 +658,7 @@ function collectItem(kind) {
     salacUntil = 0;
     showToast('🐌 Baga Tamato! Tyrunt desacelerou');
   } else if (kind === 'xattack') {
-    xAttackCharges = Math.min(XATTACK_MAX, xAttackCharges + 1);
+    xAttackCharges = xAttackCharges === 0 ? XATTACK_MAX : Math.min(XATTACK_MAX, xAttackCharges + 1);
     showToast(`✖️ X Attack! Quebra até ${xAttackCharges} obstáculo${xAttackCharges === 1 ? '' : 's'}`);
     updateXAttackHud();
   }
@@ -606,6 +676,12 @@ function updateBuffPills() {
   const tamatoOn = tamatoUntil && now < tamatoUntil;
   document.getElementById('tr-pill-salac').classList.toggle('show', !!salacOn);
   document.getElementById('tr-pill-tamato').classList.toggle('show', !!tamatoOn);
+  if (salacOn) {
+    document.getElementById('tr-pill-salac-count').textContent = Math.ceil((salacUntil - now) / 1000) + 's';
+  }
+  if (tamatoOn) {
+    document.getElementById('tr-pill-tamato-count').textContent = Math.ceil((tamatoUntil - now) / 1000) + 's';
+  }
 }
 
 let toastTimer = null;
@@ -701,6 +777,10 @@ function update(dt) {
     if (c.x < -40) Object.assign(c, makeCloud());
   });
 
+  // montanhas (parallax mais lento, mais ao fundo)
+  hillOffsetFar += speedForClouds() * 0.22 * dt;
+  hillOffsetNear += speedForClouds() * 0.4 * dt;
+
   // chão animado (traços correndo)
   groundDashes = groundDashes.map(x => {
     let nx = x - currentSpeed() * dt;
@@ -714,6 +794,7 @@ function update(dt) {
   checkItemCollisions();
   checkCollisions();
   updateBuffPills();
+  syncBirdSprites();
 
   const kind = desiredSpriteKind();
   if (kind !== currentSpriteKind) setSpriteKind(kind);
@@ -723,6 +804,19 @@ function speedForClouds() { return currentSpeed() * 0.25; }
 
 function isNight() {
   return Math.floor(score / DAY_NIGHT_INTERVAL) % 2 === 1;
+}
+
+function drawHillLayer(offset, baseY, amp, freq, color) {
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  for (let x = 0; x <= BASE_W; x += 8) {
+    const y = baseY - Math.sin((x + offset) * freq) * amp - Math.sin((x + offset) * freq * 2.3) * amp * 0.35;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(BASE_W, groundY);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
 }
 
 function draw() {
@@ -736,7 +830,40 @@ function draw() {
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, BASE_W, groundY);
 
-  // nuvens / estrelas
+  // estrelas cintilantes (noite)
+  if (night) {
+    stars.forEach(s => {
+      const sx = s.xr * BASE_W, sy = s.yr * groundY;
+      const tw = 0.5 + 0.5 * Math.sin(performance.now() / 550 + s.tw);
+      ctx.fillStyle = `rgba(255,255,255,${(0.35 + 0.5 * tw).toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  // sol / lua
+  const sunX = BASE_W * 0.8, sunY = groundY * 0.18;
+  if (night) {
+    ctx.fillStyle = '#f4f1e2';
+    ctx.beginPath(); ctx.arc(sunX, sunY, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(190,190,200,0.55)';
+    ctx.beginPath(); ctx.arc(sunX - 5, sunY - 4, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sunX + 4, sunY + 5, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sunX + 1, sunY - 6, 1.6, 0, Math.PI * 2); ctx.fill();
+  } else {
+    const glow = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 28);
+    glow.addColorStop(0, 'rgba(255,241,168,0.9)');
+    glow.addColorStop(1, 'rgba(255,241,168,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(sunX, sunY, 28, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffe98f';
+    ctx.beginPath(); ctx.arc(sunX, sunY, 13, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // montanhas distantes (parallax)
+  drawHillLayer(hillOffsetFar, groundY - 30, 12, 0.022, night ? 'rgba(28,28,54,0.6)' : 'rgba(138,178,150,0.55)');
+  drawHillLayer(hillOffsetNear, groundY - 14, 9, 0.038, night ? 'rgba(38,38,68,0.8)' : 'rgba(108,158,120,0.75)');
+
+  // nuvens
   if (night) {
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     clouds.forEach(c => { ctx.beginPath(); ctx.arc(c.x, c.y, 1.6, 0, Math.PI * 2); ctx.fill(); });
@@ -860,16 +987,7 @@ function drawRock(o) {
 }
 
 function drawBird(o) {
-  const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
-  if (pidgeyReady) {
-    const wobble = Math.sin(performance.now() / 90) * 0.1; // pequeno balanço, no lugar da batida de asa vetorial
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(wobble);
-    ctx.drawImage(pidgeyImg, -BIRD_VISUAL_SIZE / 2, -BIRD_VISUAL_SIZE / 2, BIRD_VISUAL_SIZE, BIRD_VISUAL_SIZE);
-    ctx.restore();
-    return;
-  }
+  if (o.hasDomSprite) return; // já sendo desenhado como <img> (GIF real) por cima do canvas
 
   // Fallback vetorial (enquanto o sprite carrega ou se a imagem falhar)
   const flap = Math.sin(performance.now() / 90) * 6;
