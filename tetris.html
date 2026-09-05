@@ -30,12 +30,12 @@
     position:relative;
     width:100%;height:calc(100% - 52px);
     display:flex;align-items:center;justify-content:center;
-    background:#1a1a2e;
+    background:#16162a;
     touch-action:none;
     overflow:hidden;
   }
   #gt-canvas{
-    background:#16162a;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.35);
+    background:#16162a;
     touch-action:none;display:block;
   }
 
@@ -128,7 +128,7 @@
 <body>
 
 <nav class="gt-nav">
-  <a class="gt-back" href="jogos.html">
+  <a class="gt-back" href="/jogos.html">
     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     Jogos
   </a>
@@ -175,14 +175,14 @@
   </div>
 </div>
 
-<script src="games-common.js"></script>
+<script src="/games-common.js"></script>
 <script>
 // ════════════════════════════════════════════════════════
 // PÓKEMON TETRIS — engine clássico com skin temática
 // ════════════════════════════════════════════════════════
 
 const COLS = 10, ROWS = 20;
-let CELL = 26; // recalculado em resize()
+let CELL_W = 26, CELL_H = 26; // recalculados em resize()
 
 const stage = document.getElementById('gt-stage');
 const canvas = document.getElementById('gt-canvas');
@@ -354,10 +354,10 @@ function draw() {
   // grid de fundo
   ctx.strokeStyle = 'rgba(255,255,255,0.04)';
   for (let c = 0; c <= COLS; c++) {
-    ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, ROWS * CELL); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c * CELL_W, 0); ctx.lineTo(c * CELL_W, ROWS * CELL_H); ctx.stroke();
   }
   for (let r = 0; r <= ROWS; r++) {
-    ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(COLS * CELL, r * CELL); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, r * CELL_H); ctx.lineTo(COLS * CELL_W, r * CELL_H); ctx.stroke();
   }
   // board fixo
   for (let r = 0; r < ROWS; r++)
@@ -370,20 +370,22 @@ function draw() {
 }
 
 function drawCell(context, col, row, color, icon) {
-  const x = col * CELL, y = row * CELL;
+  const x = col * CELL_W, y = row * CELL_H;
+  const w = CELL_W, h = CELL_H;
   context.fillStyle = color;
-  context.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+  context.fillRect(x + 1, y + 1, w - 2, h - 2);
   if (icon) {
     const img = gtGetIconImg(icon);
     if (img && img.complete && img.naturalWidth) {
-      const pad = Math.max(2, Math.round(CELL * 0.14));
-      context.drawImage(img, x + 1 + pad, y + 1 + pad, CELL - 2 - pad * 2, CELL - 2 - pad * 2);
+      const padX = Math.max(2, Math.round(w * 0.14));
+      const padY = Math.max(2, Math.round(h * 0.14));
+      context.drawImage(img, x + 1 + padX, y + 1 + padY, w - 2 - padX * 2, h - 2 - padY * 2);
     }
   }
   context.fillStyle = 'rgba(255,255,255,0.25)';
-  context.fillRect(x + 1, y + 1, CELL - 2, 4);
+  context.fillRect(x + 1, y + 1, w - 2, 4);
   context.fillStyle = 'rgba(0,0,0,0.18)';
-  context.fillRect(x + 1, y + CELL - 5, CELL - 2, 4);
+  context.fillRect(x + 1, y + h - 5, w - 2, 4);
 }
 
 function drawNext() {
@@ -514,7 +516,7 @@ const TAP_THRESHOLD = 12;      // px de tolerância para considerar "toque"
 const TAP_TIME_LIMIT = 220;    // ms de tolerância para considerar "toque"
 const HOLD_DELAY = 180;        // ms segurando parado até acelerar descida
 
-function cellPx() { return CELL; }
+function cellPx() { return CELL_W; }
 
 stage.addEventListener('touchstart', (e) => {
   if (gameOver) return;
@@ -567,13 +569,14 @@ document.getElementById('gt-hint').addEventListener('click', dismissHint);
 
 // ── Canvas sizing responsivo (ocupa toda a área disponível) ──
 function resize() {
-  const pad = 24;
-  const maxH = stage.clientHeight - pad;
-  const maxW = stage.clientWidth - pad;
-  CELL = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
-  CELL = Math.max(12, Math.min(CELL, 46));
-  canvas.width = CELL * COLS;
-  canvas.height = CELL * ROWS;
+  const maxH = stage.clientHeight;
+  const maxW = stage.clientWidth;
+  CELL_W = maxW / COLS;
+  CELL_H = maxH / ROWS;
+  canvas.width = Math.floor(maxW);
+  canvas.height = Math.floor(maxH);
+  canvas.style.width = maxW + 'px';
+  canvas.style.height = maxH + 'px';
   if (board) draw();
 }
 window.addEventListener('resize', resize);
