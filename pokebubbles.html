@@ -1280,15 +1280,32 @@ function startGame() {
 }
 
 // ── Hint "como jogar" ──
+// Some navegadores continuam roteando toques/seleção de texto para um
+// elemento mesmo com opacity:0 + pointer-events:none (especialmente no
+// meio da tela, sobre o canvas). Pra garantir que não sobra nenhum
+// resquício depois que o jogo começa, o hint é removido do DOM de
+// verdade (não só escondido via CSS) e reinserido quando precisa
+// aparecer de novo (nova partida).
 let started = false;
+const hintEl = document.getElementById('bb-hint');
+const hintParent = hintEl.parentNode;
+const hintNextSibling = hintEl.nextSibling;
+let hintHideTimer = null;
+
 function showHint() {
   started = false;
-  document.getElementById('bb-hint').classList.remove('hide');
+  clearTimeout(hintHideTimer);
+  if (!hintEl.isConnected) hintParent.insertBefore(hintEl, hintNextSibling);
+  hintEl.classList.remove('hide');
 }
 function beginPlay() {
   if (started) return;
   started = true;
-  document.getElementById('bb-hint').classList.add('hide');
+  hintEl.classList.add('hide');
+  // Espera a transição de opacidade (.35s, ver CSS) terminar antes de
+  // tirar o elemento do DOM, pra manter o fade suave.
+  clearTimeout(hintHideTimer);
+  hintHideTimer = setTimeout(() => { if (hintEl.isConnected) hintEl.remove(); }, 380);
 }
 
 // ── Boot ──
