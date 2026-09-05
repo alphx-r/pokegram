@@ -67,7 +67,7 @@
   /* Hint de "como jogar", exibido no centro na primeira partida */
   .gt-hint{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    z-index:100;pointer-events:none;
+    z-index:100;pointer-events:auto;
     opacity:1;transition:opacity .35s ease;
   }
   .gt-hint.hide{opacity:0;pointer-events:none}
@@ -229,8 +229,8 @@ function validatePieces(obj) {
 // Se não existir ou for inválido, mantém o padrão.
 async function loadCustomPieces() {
   try {
-    if (typeof db === 'undefined' || !db) return;
-    const { data } = await db.from('settings').select('value').eq('key', 'tetris_pieces').maybeSingle();
+    if (typeof gdb === 'undefined' || !gdb) return;
+    const { data } = await gdb.from('settings').select('value').eq('key', 'tetris_pieces').maybeSingle();
     if (!data || !data.value) return;
     const parsed = JSON.parse(data.value);
     const valid = validatePieces(parsed);
