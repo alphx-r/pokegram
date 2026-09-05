@@ -6,6 +6,8 @@
     { "source": "/jogos/flapidgey/", "destination": "/flapidgey.html" },
     { "source": "/jogos/tetris", "destination": "/tetris.html" },
     { "source": "/jogos/tetris/", "destination": "/tetris.html" },
+    { "source": "/jogos/tyrunt", "destination": "/tyrunt.html" },
+    { "source": "/jogos/tyrunt/", "destination": "/tyrunt.html" },
     { "source": "/jogos/voltorbolha", "destination": "/voltorbolha.html" },
     { "source": "/jogos/voltorbolha/", "destination": "/voltorbolha.html" },
     { "source": "/(.*)", "destination": "/index.html" }
