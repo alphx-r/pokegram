@@ -78,6 +78,7 @@
   .gt-hint{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     z-index:100;pointer-events:auto;
+    background:rgba(10,10,20,0.72);
     opacity:1;transition:opacity .35s ease;
   }
   .gt-hint.hide{opacity:0;pointer-events:none}
@@ -613,12 +614,13 @@ document.getElementById('gt-hint').addEventListener('click', dismissHint);
 function resize() {
   const maxH = stage.clientHeight;
   const maxW = stage.clientWidth;
-  CELL_W = maxW / COLS;
-  CELL_H = maxH / ROWS;
-  canvas.width = Math.floor(maxW);
-  canvas.height = Math.floor(maxH);
-  canvas.style.width = maxW + 'px';
-  canvas.style.height = maxH + 'px';
+  const cell = Math.min(maxW / COLS, maxH / ROWS);
+  CELL_W = cell;
+  CELL_H = cell;
+  canvas.width = Math.floor(cell * COLS);
+  canvas.height = Math.floor(cell * ROWS);
+  canvas.style.width = canvas.width + 'px';
+  canvas.style.height = canvas.height + 'px';
   if (board) draw();
 }
 window.addEventListener('resize', resize);
