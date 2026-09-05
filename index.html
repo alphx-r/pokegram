@@ -3123,6 +3123,49 @@ a:focus, a:active,
               </div>
             </div>
 
+            <div class="adm-box-title" style="margin-top:20px">🫧 Editor de Iniciais — Pokébubbles</div>
+            <div class="adm-sec-sub" style="margin-bottom:14px">Personalize quais "iniciais" aparecem como bubbles (cor + ícone de tipo), com quantas cores quiser. As mudanças valem para todas as partidas novas.</div>
+            <div class="adm-box" id="bp-editor-box">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+                <div style="display:flex;gap:8px;flex-wrap:wrap" id="bp-key-tabs"></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="adm-btn adm-btn-sm" onclick="bpAddStarter()" style="background:var(--surface2)">➕ Novo inicial</button>
+                  <button class="adm-btn adm-btn-sm" onclick="bpResetDefaults()" style="background:var(--surface2)">↺ Restaurar padrão</button>
+                </div>
+              </div>
+
+              <div id="bp-editor-body" style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+                <div style="min-width:220px">
+                  <div class="adm-field">
+                    <label>Nome do inicial (identificador)</label>
+                    <input type="text" id="bp-key" maxlength="16" oninput="bpRenameCurrentKey(this.value)" style="text-transform:uppercase" />
+                  </div>
+                  <div class="adm-field">
+                    <label>Cor da bubble</label>
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <input type="color" id="bp-color" oninput="bpUpdateColor(this.value)" style="width:52px;height:38px;padding:2px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;background:none" />
+                      <span id="bp-color-hex" style="font-family:monospace;font-size:13px;color:var(--muted)"></span>
+                    </div>
+                  </div>
+                  <div class="adm-field">
+                    <label>Ícone de tipo (opcional)</label>
+                    <input type="text" id="bp-icon" maxlength="20" oninput="bpUpdateIcon(this.value)" placeholder="ex: grass, fire, water" />
+                  </div>
+                  <div class="adm-field">
+                    <label>Pré-visualização</label>
+                    <div id="bp-preview" style="width:64px;height:64px;border-radius:50%;background:#16162a;display:flex;align-items:center;justify-content:center"></div>
+                  </div>
+                  <button class="adm-btn adm-btn-sm" onclick="bpRemoveStarter()" style="background:#fdecea;color:#c0392b">🗑 Remover este inicial</button>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:12px;margin-top:18px;flex-wrap:wrap">
+                <button class="adm-btn" onclick="bpSalvarIniciais()">💾 Salvar iniciais</button>
+                <span id="bp-fb-ok" style="display:none;color:#2e7d32;font-size:13px;font-weight:700"></span>
+                <span id="bp-fb-err" style="display:none;color:#c0392b;font-size:13px;font-weight:700"></span>
+              </div>
+            </div>
+
             <div id="jg-games-wrap"></div>
           </div>
 
@@ -6979,6 +7022,7 @@ const JG_GAMES = [
   { key: 'flapidgey',   label: '🐦 flaPidgey'   },
   { key: 'voltorbolha', label: '🫧 Voltorbolha' },
   { key: 'tyrunt',      label: '🦖 tyRUNt'      },
+  { key: 'pokebubbles', label: '🫧 Pokébubbles' },
 ];
 
 // Brasília não usa mais horário de verão desde 2019, então o offset
@@ -7167,6 +7211,7 @@ async function removerCapaJogo(key) {
 async function carregarJogosAdm() {
   carregarCapasJogosAdm();
   carregarEditorPecasTetris();
+  carregarEditorIniciaisBubbles();
 
   const wrap = document.getElementById('jg-games-wrap');
   wrap.innerHTML = JG_GAMES.map(g => `
@@ -7683,6 +7728,177 @@ function tpValidateImportedPieces(obj) {
   }
   if (!Object.keys(out).length) return { pieces: null, error: 'Nenhuma peça válida encontrada no arquivo.' };
   return { pieces: out, error: null };
+}
+
+// ── Editor de Iniciais — Pokébubbles (settings.pokebubbles_pieces) ─
+// Guarda o conjunto de "iniciais" (cada um vira uma cor de bubble) como
+// JSON em settings.pokebubbles_pieces: { "BULBASAUR": { color, icon }, ... }
+// Mesmo padrão do editor de peças do Tetris (settings.tetris_pieces),
+// mas sem grade de formato — cada inicial é só uma cor + ícone opcional,
+// e o admin pode ter quantos quiser (mínimo 3 pro jogo fazer sentido).
+const BP_DEFAULT_STARTERS = {
+  BULBASAUR:  { color: '#78C850', icon: 'grass' },
+  CHARMANDER: { color: '#F08030', icon: 'fire' },
+  SQUIRTLE:   { color: '#6890F0', icon: 'water' },
+  PIKACHU:    { color: '#F8D030', icon: 'electric' },
+  EEVEE:      { color: '#E0C068', icon: 'normal' },
+};
+const BP_MAX_STARTERS = 12;
+
+let _bpStarters = {};
+let _bpOrder = [];
+let _bpCurrentKey = null;
+
+function bpDeepCopy(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+async function carregarEditorIniciaisBubbles() {
+  let starters = null;
+  try {
+    const { data } = await db.from('settings').select('value').eq('key', 'pokebubbles_pieces').maybeSingle();
+    if (data && data.value) {
+      const parsed = JSON.parse(data.value);
+      if (parsed && typeof parsed === 'object' && Object.keys(parsed).length) starters = parsed;
+    }
+  } catch (e) {
+    console.warn('[carregarEditorIniciaisBubbles]', e);
+  }
+  _bpStarters = bpDeepCopy(starters || BP_DEFAULT_STARTERS);
+  _bpOrder = Object.keys(_bpStarters);
+  _bpCurrentKey = _bpOrder[0] || null;
+  bpRenderTabs();
+  bpRenderEditor();
+}
+
+function bpRenderTabs() {
+  const wrap = document.getElementById('bp-key-tabs');
+  wrap.innerHTML = _bpOrder.map(key => `
+    <button class="adm-btn adm-btn-sm" onclick="bpSelectStarter('${esc(key)}')"
+      style="background:${key === _bpCurrentKey ? 'var(--brand)' : 'var(--surface2)'};color:${key === _bpCurrentKey ? '#fff' : 'var(--text)'}">
+      ${esc(key)}
+    </button>`).join('');
+}
+
+function bpSelectStarter(key) {
+  _bpCurrentKey = key;
+  bpRenderTabs();
+  bpRenderEditor();
+}
+
+function bpRenderEditor() {
+  const keyInput = document.getElementById('bp-key');
+  const colorInput = document.getElementById('bp-color');
+  const colorHex = document.getElementById('bp-color-hex');
+  const iconInput = document.getElementById('bp-icon');
+  const previewEl = document.getElementById('bp-preview');
+
+  if (!_bpCurrentKey || !_bpStarters[_bpCurrentKey]) {
+    keyInput.value = '';
+    previewEl.innerHTML = '<span style="color:var(--muted);font-size:11px">Sem inicial selecionado.</span>';
+    return;
+  }
+
+  const starter = _bpStarters[_bpCurrentKey];
+  keyInput.value = _bpCurrentKey;
+  colorInput.value = starter.color;
+  colorHex.textContent = starter.color.toUpperCase();
+  iconInput.value = starter.icon || '';
+
+  previewEl.style.background = starter.color;
+  previewEl.innerHTML = starter.icon
+    ? `<img src="${tpTypeIconSrc(starter.icon)}" style="width:60%;height:60%;object-fit:contain" onerror="this.style.display='none'">`
+    : '';
+}
+
+function bpUpdateColor(hex) {
+  const starter = _bpStarters[_bpCurrentKey];
+  if (!starter) return;
+  starter.color = hex;
+  bpRenderEditor();
+}
+
+function bpUpdateIcon(iconRaw) {
+  const starter = _bpStarters[_bpCurrentKey];
+  if (!starter) return;
+  const icon = (iconRaw || '').trim();
+  if (icon) starter.icon = icon; else delete starter.icon;
+  bpRenderEditor();
+}
+
+function bpRenameCurrentKey(newKeyRaw) {
+  const newKey = (newKeyRaw || '').trim().toUpperCase().slice(0, 16);
+  if (!_bpCurrentKey || !newKey || newKey === _bpCurrentKey) return;
+  if (_bpStarters[newKey]) return; // evita colisão de nomes enquanto digita
+  _bpStarters[newKey] = _bpStarters[_bpCurrentKey];
+  delete _bpStarters[_bpCurrentKey];
+  const idx = _bpOrder.indexOf(_bpCurrentKey);
+  if (idx >= 0) _bpOrder[idx] = newKey;
+  _bpCurrentKey = newKey;
+  bpRenderTabs();
+}
+
+function bpAddStarter() {
+  if (_bpOrder.length >= BP_MAX_STARTERS) { toast('Limite de iniciais atingido.'); return; }
+  let base = 'NOVO', n = 1, key = base;
+  while (_bpStarters[key]) { key = base + (n++); }
+  _bpStarters[key] = { color: '#78C850' };
+  _bpOrder.push(key);
+  _bpCurrentKey = key;
+  bpRenderTabs();
+  bpRenderEditor();
+}
+
+function bpRemoveStarter() {
+  if (!_bpCurrentKey) return;
+  if (_bpOrder.length <= 3) { toast('É preciso manter ao menos 3 iniciais para o jogo funcionar.'); return; }
+  if (!confirm(`Remover o inicial "${_bpCurrentKey}"?`)) return;
+  delete _bpStarters[_bpCurrentKey];
+  _bpOrder = _bpOrder.filter(k => k !== _bpCurrentKey);
+  _bpCurrentKey = _bpOrder[0] || null;
+  bpRenderTabs();
+  bpRenderEditor();
+}
+
+function bpResetDefaults() {
+  if (!confirm('Restaurar os 5 iniciais originais? As alterações não salvas serão perdidas.')) return;
+  _bpStarters = bpDeepCopy(BP_DEFAULT_STARTERS);
+  _bpOrder = Object.keys(_bpStarters);
+  _bpCurrentKey = _bpOrder[0] || null;
+  bpRenderTabs();
+  bpRenderEditor();
+}
+
+function bpBuildPayload() {
+  if (_bpOrder.length < 3) {
+    return { payload: null, error: 'É preciso ao menos 3 iniciais para o jogo funcionar.' };
+  }
+  const payload = {};
+  _bpOrder.forEach(key => { payload[key] = _bpStarters[key]; });
+  return { payload, error: null };
+}
+
+async function bpSalvarIniciais() {
+  const okEl  = document.getElementById('bp-fb-ok');
+  const errEl = document.getElementById('bp-fb-err');
+  okEl.style.display = errEl.style.display = 'none';
+
+  const { payload, error: validationError } = bpBuildPayload();
+  if (validationError) {
+    errEl.textContent = validationError;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const { error } = await db.from('settings')
+      .upsert({ key: 'pokebubbles_pieces', value: JSON.stringify(payload) }, { onConflict: 'key' });
+    if (error) throw error;
+    okEl.textContent = '✓ Iniciais salvos com sucesso!';
+    okEl.style.display = 'block';
+    setTimeout(() => okEl.style.display = 'none', 2500);
+  } catch (e) {
+    errEl.textContent = 'Erro ao salvar: ' + (e.message || e);
+    errEl.style.display = 'block';
+  }
 }
 
 // ── Visibilidade dos jogos (esconder/reexibir na aba Jogos) ─
