@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>tyRUNt · Pokégram</title>
+<link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#1a1a2e;color:#1a1a1a;
+    overflow:hidden;position:fixed;inset:0;
+    display:flex;flex-direction:column;
+  }
+  :root{
+    --brand:#b71c1c;--brand-mid:#e53935;--accent:#fdd835;--border:#e0e0e0;--muted:#6b7280;
+  }
+  .tr-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;flex:0 0 52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;
+  }
+  .tr-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .tr-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .tr-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .tr-title span{color:var(--accent)}
+
+  .tr-wrap{
+    flex:1 1 auto;min-height:0;position:relative;
+    display:flex;align-items:center;justify-content:center;
+    touch-action:none;overflow:hidden;
+  }
+  #tr-canvas{
+    touch-action:none;display:block;max-width:100%;max-height:100%;
+  }
+  #tr-sprite{
+    position:absolute;top:0;left:0;pointer-events:none;display:none;
+    image-rendering:pixelated;transform-origin:bottom center;
+    transition:filter .2s ease;
+  }
+  #tr-sprite.tr-sprite-charged{filter:drop-shadow(0 0 8px #ff1e1e) drop-shadow(0 0 3px #ff5252) saturate(1.3)}
+
+  .tr-hud{
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
+  }
+  .tr-hud-box{
+    display:flex;gap:clamp(14px,5vw,28px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.82);border-radius:10px;
+    padding:9px clamp(20px,5vw,28px);box-shadow:0 2px 8px rgba(0,0,0,.2);
+    pointer-events:auto;cursor:pointer;transition:opacity .25s ease;
+  }
+  .tr-hud-box.tr-hud-hidden{opacity:0}
+  .tr-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .tr-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .tr-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
+
+  .tr-buffs{display:flex;gap:6px;pointer-events:none}
+  .tr-buff-pill{
+    display:flex;align-items:center;gap:4px;background:rgba(20,20,38,.72);border-radius:20px;
+    padding:4px 10px 4px 6px;font-size:11px;font-weight:800;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);
+    opacity:0;transform:translateY(-4px);transition:opacity .18s ease, transform .18s ease;
+  }
+  .tr-buff-pill.show{opacity:1;transform:translateY(0)}
+  .tr-buff-icon{width:16px;height:16px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:10px}
+
+  .tr-toast{
+    position:absolute;top:64px;left:50%;transform:translate(-50%,-8px);z-index:30;
+    background:rgba(20,20,38,.9);color:#fff;padding:8px 16px;border-radius:20px;
+    font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3);
+    opacity:0;transition:opacity .2s ease, transform .2s ease;pointer-events:none;white-space:nowrap;
+  }
+  .tr-toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .tr-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:100;pointer-events:auto;
+    background:rgba(10,10,20,0.72);
+    opacity:1;transition:opacity .35s ease;
+  }
+  .tr-hint.hide{opacity:0;pointer-events:none}
+  .tr-hint-card{
+    background:rgba(20,20,38,0.88);
+    border:1.5px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:20px 22px;
+    max-width:270px;
+    text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+    pointer-events:auto;
+  }
+  .tr-hint-title{
+    font-family:'Cinzel',serif;color:var(--accent);font-size:15px;font-weight:700;
+    margin:0 0 12px;
+  }
+  .tr-hint-row{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:10px;text-align:left;
+  }
+  .tr-hint-row:last-of-type{margin-bottom:0}
+  .tr-hint-icon{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .tr-hint-text{font-size:12px;color:#fff;line-height:1.35}
+  .tr-hint-text b{color:var(--accent)}
+  .tr-hint-dismiss{
+    margin-top:14px;font-size:11px;color:rgba(255,255,255,0.55);
+    font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  }
+
+  .tr-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .tr-overlay.show{display:flex}
+  .tr-modal{
+    background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
+    max-height:86vh;overflow:auto;
+  }
+  .tr-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .tr-modal p{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .tr-final-score{font-family:'Cinzel',serif;font-size:36px;color:var(--brand-mid);margin-bottom:6px}
+  .tr-best-line{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .tr-best-line b{color:var(--brand)}
+  .tr-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left}
+  .tr-lb-box{text-align:left;margin-bottom:18px}
+  .tr-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px}
+  .tr-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .tr-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tr-lb-score{font-weight:800}
+  .tr-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
+  .tr-btn{
+    padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
+  }
+  .tr-btn:hover{background:var(--brand)}
+  #tr-share-btn{background:#f2a33c;margin-top:8px}
+  #tr-share-btn:hover{background:#d98a1f}
+</style>
+</head>
+<body>
+
+<nav class="tr-nav">
+  <a class="tr-back" href="/jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="tr-title">ty<span>RUN</span>t</div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="tr-wrap" id="tr-wrap">
+  <canvas id="tr-canvas"></canvas>
+  <img id="tr-sprite" alt="">
+
+  <div class="tr-hud" id="tr-hud">
+    <div class="tr-hud-box" id="tr-hud-box">
+      <div class="tr-hud-item">
+        <div class="tr-hud-label">Pontos</div>
+        <div class="tr-hud-value" id="tr-score">0</div>
+      </div>
+      <div class="tr-hud-item">
+        <div class="tr-hud-label">Recorde</div>
+        <div class="tr-hud-value" id="tr-best">–</div>
+      </div>
+      <div class="tr-hud-item" id="tr-hud-xattack" style="display:none">
+        <div class="tr-hud-label">X Attack</div>
+        <div class="tr-hud-value" id="tr-xattack-count">0</div>
+      </div>
+    </div>
+    <div class="tr-buffs" id="tr-buffs">
+      <div class="tr-buff-pill" id="tr-pill-salac"><span class="tr-buff-icon" style="background:#8e5fd6">⚡</span>Salac</div>
+      <div class="tr-buff-pill" id="tr-pill-tamato"><span class="tr-buff-icon" style="background:#e0483e">🐌</span>Tamato</div>
+    </div>
+  </div>
+
+  <div class="tr-toast" id="tr-toast"></div>
+
+  <div class="tr-hint" id="tr-hint">
+    <div class="tr-hint-card">
+      <div class="tr-hint-title">Como jogar</div>
+      <div class="tr-hint-row">
+        <div class="tr-hint-icon">⬆️</div>
+        <div class="tr-hint-text"><b>Toque</b> na tela <span style="opacity:.7">(ou espaço/↑)</span> para pular os obstáculos</div>
+      </div>
+      <div class="tr-hint-row">
+        <div class="tr-hint-icon">⬇️</div>
+        <div class="tr-hint-text"><b>Segure pra baixo</b> <span style="opacity:.7">(ou ↓)</span> para se abaixar dos Pokémon voadores</div>
+      </div>
+      <div class="tr-hint-row">
+        <div class="tr-hint-icon">🍇</div>
+        <div class="tr-hint-text">Pegue as <b>bagas</b>: Salac acelera, Tamato desacelera</div>
+      </div>
+      <div class="tr-hint-row">
+        <div class="tr-hint-icon">✖️</div>
+        <div class="tr-hint-text">Pegue o <b>X Attack</b> pra quebrar até 3 obstáculos sem perder</div>
+      </div>
+      <div class="tr-hint-dismiss">Toque em qualquer lugar para começar</div>
+    </div>
+  </div>
+</div>
+
+<div class="tr-overlay" id="tr-overlay">
+  <div class="tr-modal">
+    <h2>Tyrunt tropeçou!</h2>
+    <p>Sua pontuação foi registrada no ranking.</p>
+    <div class="tr-final-score" id="tr-final-score">0</div>
+    <div class="tr-best-line">Seu recorde: <b id="tr-best-line-val">–</b></div>
+    <div class="tr-lb-box">
+      <div class="tr-panel-title">Top treinadores</div>
+      <div id="tr-leaderboard"><div class="tr-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="tr-btn" id="tr-restart-btn">Jogar novamente</button>
+    <button class="tr-btn" id="tr-share-btn">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="/games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// tyRUNt — Chrome Dino clássico com skin temática (Tyrunt),
+// itens de battle (Baga Salac, Baga Tamato, X Attack)
+// ════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('tr-canvas');
+const ctx = canvas.getContext('2d');
+const spriteEl = document.getElementById('tr-sprite');
+const scoreEl = document.getElementById('tr-score');
+const bestEl = document.getElementById('tr-best');
+let user, best = 0;
+
+// ── Sprites do Tyrunt (customizáveis) ────────────────────
+// Três estados: parado/correndo normal, "correndo" (Baga Salac ativa) e
+// "devagar" (Baga Tamato ativa). Pra trocar qualquer um sem editar código,
+// guarda a URL na tabela `settings` do Supabase (mesmo padrão de
+// flapidgey_sprite/network_logo) com a chave correspondente:
+//   insert into settings (key, value) values ('tyrunt_sprite_normal', 'https://...')
+//   on conflict (key) do update set value = excluded.value;
+// (idem para 'tyrunt_sprite_running' e 'tyrunt_sprite_slow')
+// Sem override salvo, cai nos GIFs padrão abaixo; se nem esses carregarem,
+// cai no desenho vetorial.
+const TYRUNT_SPRITES_DEFAULT = {
+  normal:  'https://64.media.tumblr.com/037814c362cef6eb55bef8ad5d126d43/4603906cfe87268f-90/s250x400/9736b26c1016b86d23fb18afdcf971fb3bb962db.gif',
+  running: 'https://64.media.tumblr.com/360b4bbac0f7f79f0810183d09329571/4603906cfe87268f-2f/s250x400/ce283c06a2a79dd804e1d24c8376aa9574ad0430.gifv',
+  slow:    'https://64.media.tumblr.com/20def77673b4de1da681f65cedeaa611/4603906cfe87268f-c6/s250x400/b6ea049310d26904edf89dff9d8ff016648a3e5e.gifv',
+};
+let TYRUNT_SPRITES = { ...TYRUNT_SPRITES_DEFAULT };
+const SPRITE_SIZE = 46; // tamanho do sprite em pé, em px (na resolução lógica do canvas)
+let spriteReady = false;
+let currentSpriteKind = null; // 'normal' | 'running' | 'slow'
+
+async function loadSpriteOverrides() {
+  try {
+    const { data, error } = await gdb.from('settings').select('key, value').in('key', [
+      'tyrunt_sprite_normal', 'tyrunt_sprite_running', 'tyrunt_sprite_slow',
+    ]);
+    if (error) { console.warn('[loadSpriteOverrides] erro ao buscar sprites', error); return; }
+    (data || []).forEach(row => {
+      if (!row.value) return;
+      if (row.key === 'tyrunt_sprite_normal') TYRUNT_SPRITES.normal = row.value;
+      if (row.key === 'tyrunt_sprite_running') TYRUNT_SPRITES.running = row.value;
+      if (row.key === 'tyrunt_sprite_slow') TYRUNT_SPRITES.slow = row.value;
+    });
+  } catch (e) { console.warn('[loadSpriteOverrides]', e); }
+}
+
+function setSpriteKind(kind) {
+  if (kind === currentSpriteKind) return;
+  currentSpriteKind = kind;
+  const url = TYRUNT_SPRITES[kind];
+  if (!url) { spriteReady = false; spriteEl.style.display = 'none'; return; }
+  spriteEl.crossOrigin = 'anonymous'; // essencial p/ toDataURL() no compartilhamento
+  spriteEl.onload = () => {
+    spriteEl.style.display = 'block';
+    spriteReady = true;
+    updateSpritePosition();
+  };
+  spriteEl.onerror = () => { spriteReady = false; spriteEl.style.display = 'none'; };
+  spriteEl.src = url;
+}
+
+// Escolhe o sprite certo de acordo com os buffs ativos no momento
+// (Tamato tem prioridade visual sobre Salac se, por azar, coincidirem).
+function desiredSpriteKind() {
+  const now = performance.now();
+  if (tamatoUntil && now < tamatoUntil) return 'slow';
+  if (salacUntil && now < salacUntil) return 'running';
+  return 'normal';
+}
+
+function updateSpritePosition() {
+  if (!spriteReady) return;
+  const h = player.ducking ? SPRITE_SIZE * 0.62 : SPRITE_SIZE;
+  const w = SPRITE_SIZE;
+  spriteEl.style.width = w + 'px';
+  spriteEl.style.height = h + 'px';
+  const x = player.x - w / 2;
+  const y = player.y + PLAYER_STAND_H - h; // ancorado no chão (bottom center)
+  spriteEl.style.transform = `translate(${x}px, ${y}px)`;
+  spriteEl.classList.toggle('tr-sprite-charged', xAttackCharges > 0);
+}
+
+// ── Estado do jogo ───────────────────────────────────────
+const BASE_W_MIN = 260, BASE_H_MIN = 340;
+let BASE_W = 360, BASE_H = 480;
+let baseSized = false;
+
+const GROUND_MARGIN = 56; // distância do chão até a base do canvas
+const PLAYER_X = 56;
+const PLAYER_W = 40, PLAYER_STAND_H = 46, PLAYER_DUCK_H = 26;
+const GRAVITY = 1500, JUMP_VELOCITY = -560, FAST_FALL_MULT = 2.4;
+
+const BASE_SPEED = 260, MAX_SPEED = 620, SPEED_PER_POINT = 1.6;
+const SCORE_RATE = 12; // pontos por segundo de distância percorrida
+const DAY_NIGHT_INTERVAL = 400; // pontos entre ciclos dia/noite
+
+// ── Itens de battle ───────────────────────────────────────
+const SALAC_DURATION = 5000, SALAC_MULT = 1.55;   // Baga Salac: acelera
+const TAMATO_DURATION = 5000, TAMATO_MULT = 0.55; // Baga Tamato: desacelera
+const XATTACK_MAX = 3;                             // até 3 obstáculos quebrados
+const ITEM_SIZE = 26;
+let salacUntil = 0, tamatoUntil = 0, xAttackCharges = 0;
+let items = [];
+let itemSpawnTimer = 0, nextItemSpawnInterval = 6500 + Math.random() * 4500;
+let breakParticles = [];
+
+let player, obstacles, clouds, groundDashes;
+let score = 0, groundY = BASE_H - GROUND_MARGIN;
+let gameOver = false, started = false;
+let lastTs = 0, rafId = null;
+let spawnTimer = 0, nextSpawnInterval = 900;
+let fastFall = false, duckHeld = false;
+
+function makeCloud(x) {
+  return { x: x !== undefined ? x : BASE_W + 20 + Math.random() * 60, y: 30 + Math.random() * (BASE_H * 0.3), r: 16 + Math.random() * 14 };
+}
+
+function resetEntities() {
+  player = { x: PLAYER_X, y: groundY - PLAYER_STAND_H, vy: 0, onGround: true, ducking: false };
+  obstacles = [];
+  items = [];
+  breakParticles = [];
+  salacUntil = 0; tamatoUntil = 0; xAttackCharges = 0;
+  itemSpawnTimer = 0; nextItemSpawnInterval = 6500 + Math.random() * 4500;
+  clouds = [makeCloud(BASE_W * 0.3), makeCloud(BASE_W * 0.6), makeCloud(BASE_W * 0.85)];
+  groundDashes = [];
+  for (let x = 0; x < BASE_W + 40; x += 28) groundDashes.push(x);
+  updateBuffPills();
+  updateXAttackHud();
+}
+
+function startGame() {
+  score = 0; gameOver = false;
+  spawnTimer = 0; nextSpawnInterval = 900;
+  fastFall = false; duckHeld = false;
+  resetEntities();
+  scoreEl.textContent = '0';
+  document.getElementById('tr-overlay').classList.remove('show');
+  showHint();
+  draw();
+  cancelAnimationFrame(rafId);
+  lastTs = 0;
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── Hint "como jogar" (toda partida nova, some só com ação real do jogador) ──
+function showHint() {
+  started = false;
+  document.getElementById('tr-hint').classList.remove('hide');
+}
+
+function beginPlay() {
+  if (started) return;
+  started = true;
+  lastTs = 0;
+  document.getElementById('tr-hint').classList.add('hide');
+}
+
+// ── Ações do jogador ─────────────────────────────────────
+function jump() {
+  if (gameOver) return;
+  if (!started) beginPlay();
+  if (player.onGround && !player.ducking) {
+    player.vy = JUMP_VELOCITY;
+    player.onGround = false;
+  }
+}
+
+function setDuck(on) {
+  duckHeld = on;
+  if (gameOver) return;
+  if (on && !started) beginPlay();
+  if (player.onGround) {
+    player.ducking = on;
+  } else {
+    fastFall = on; // segurar pra baixo no ar = queda mais rápida (igual ao original)
+  }
+}
+
+// ── Obstáculos ───────────────────────────────────────────
+function currentSpeed() {
+  let s = Math.min(MAX_SPEED, BASE_SPEED + score * SPEED_PER_POINT);
+  const now = performance.now();
+  if (tamatoUntil && now < tamatoUntil) s *= TAMATO_MULT;
+  else if (salacUntil && now < salacUntil) s *= SALAC_MULT;
+  return s;
+}
+
+function spawnObstacle() {
+  const isBird = Math.random() < 0.35;
+  if (isBird) {
+    const bottomOffset = 30 + Math.random() * 8; // ver cálculo de altura no comentário abaixo
+    const h = 16;
+    obstacles.push({ type: 'bird', x: BASE_W + 20, y: groundY - bottomOffset - h, w: 32, h, passed: false });
+  } else {
+    // cluster de 1 a 3 rochas, como os cactos do original
+    const count = Math.random() < 0.3 ? (Math.random() < 0.5 ? 2 : 3) : 1;
+    let x = BASE_W + 20;
+    for (let i = 0; i < count; i++) {
+      const h = 26 + Math.random() * 26;
+      const w = 18 + Math.random() * 14;
+      obstacles.push({ type: 'rock', x, y: groundY - h, w, h, passed: false });
+      x += w + 6 + Math.random() * 6;
+    }
+  }
+}
+
+// Altura da ave (Pokémon voador): fica numa faixa que colide com o Tyrunt
+// em pé (bbox alta) mas fica livre quando ele se abaixa (bbox baixa) —
+// por isso o bottomOffset (30–38px do chão) fica acima do topo da bbox
+// de agachado (26px do chão) e dentro da bbox em pé (46px do chão).
+
+function updateObstacles(dt) {
+  const speed = currentSpeed();
+  spawnTimer += dt * 1000;
+  const interval = Math.max(500, nextSpawnInterval - speed * 0.6);
+  if (spawnTimer > interval) {
+    spawnTimer = 0;
+    nextSpawnInterval = 700 + Math.random() * 900;
+    spawnObstacle();
+  }
+  obstacles.forEach(o => o.x -= speed * dt);
+  obstacles = obstacles.filter(o => o.x + o.w > -20);
+}
+
+// ── Itens (Baga Salac, Baga Tamato, X Attack) ───────────────
+const ITEM_KINDS = ['salac', 'tamato', 'xattack'];
+
+function trySpawnItem() {
+  // evita nascer em cima (ou perto demais) de um obstáculo recém-criado
+  if (obstacles.some(o => o.x > BASE_W - 70)) return;
+  const kind = ITEM_KINDS[Math.floor(Math.random() * ITEM_KINDS.length)];
+  items.push({ kind, x: BASE_W + 20, y: groundY - 34, w: ITEM_SIZE, h: ITEM_SIZE, bob: Math.random() * Math.PI * 2 });
+}
+
+function updateItems(dt) {
+  const speed = currentSpeed();
+  itemSpawnTimer += dt * 1000;
+  if (itemSpawnTimer > nextItemSpawnInterval) {
+    itemSpawnTimer = 0;
+    nextItemSpawnInterval = 6500 + Math.random() * 5500;
+    trySpawnItem();
+  }
+  items.forEach(it => { it.x -= speed * dt; it.bob += dt * 4; });
+  items = items.filter(it => it.x + it.w > -20);
+}
+
+function checkItemCollisions() {
+  const pb = playerBBox();
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    if (boxesOverlap(pb, { x: it.x, y: it.y, w: it.w, h: it.h })) {
+      collectItem(it.kind);
+      items.splice(i, 1);
+    }
+  }
+}
+
+function collectItem(kind) {
+  const now = performance.now();
+  if (kind === 'salac') {
+    salacUntil = now + SALAC_DURATION;
+    tamatoUntil = 0; // uma baga cancela o efeito da outra
+    showToast('⚡ Baga Salac! Tyrunt disparou');
+  } else if (kind === 'tamato') {
+    tamatoUntil = now + TAMATO_DURATION;
+    salacUntil = 0;
+    showToast('🐌 Baga Tamato! Tyrunt desacelerou');
+  } else if (kind === 'xattack') {
+    xAttackCharges = Math.min(XATTACK_MAX, xAttackCharges + 1);
+    showToast(`✖️ X Attack! Quebra até ${xAttackCharges} obstáculo${xAttackCharges === 1 ? '' : 's'}`);
+    updateXAttackHud();
+  }
+}
+
+function updateXAttackHud() {
+  const box = document.getElementById('tr-hud-xattack');
+  document.getElementById('tr-xattack-count').textContent = xAttackCharges;
+  box.style.display = xAttackCharges > 0 ? 'flex' : 'none';
+}
+
+function updateBuffPills() {
+  const now = performance.now();
+  const salacOn = salacUntil && now < salacUntil;
+  const tamatoOn = tamatoUntil && now < tamatoUntil;
+  document.getElementById('tr-pill-salac').classList.toggle('show', !!salacOn);
+  document.getElementById('tr-pill-tamato').classList.toggle('show', !!tamatoOn);
+}
+
+let toastTimer = null;
+function showToast(text) {
+  const el = document.getElementById('tr-toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+function spawnBreakParticles(o) {
+  const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+  for (let i = 0; i < 10; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 60 + Math.random() * 120;
+    breakParticles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 40,
+      life: 0.45 + Math.random() * 0.2, age: 0,
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function updateBreakParticles(dt) {
+  breakParticles.forEach(p => {
+    p.age += dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 500 * dt;
+  });
+  breakParticles = breakParticles.filter(p => p.age < p.life);
+}
+
+function playerBBox() {
+  if (player.ducking) {
+    return { x: player.x - PLAYER_W / 2, y: groundY - PLAYER_DUCK_H, w: PLAYER_W, h: PLAYER_DUCK_H };
+  }
+  return { x: player.x - PLAYER_W / 2, y: player.y, w: PLAYER_W, h: PLAYER_STAND_H };
+}
+
+function boxesOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// Colisão com obstáculo: se houver carga de X Attack disponível, quebra o
+// obstáculo em vez de acabar o jogo (consome 1 carga); sem carga, Game Over.
+function checkCollisions() {
+  const pb = playerBBox();
+  for (let i = 0; i < obstacles.length; i++) {
+    const o = obstacles[i];
+    if (boxesOverlap(pb, { x: o.x, y: o.y, w: o.w, h: o.h })) {
+      if (xAttackCharges > 0) {
+        xAttackCharges--;
+        spawnBreakParticles(o);
+        obstacles.splice(i, 1);
+        updateXAttackHud();
+        showToast(xAttackCharges > 0 ? `💥 Obstáculo destruído! (${xAttackCharges} restante${xAttackCharges === 1 ? '' : 's'})` : '💥 Último X Attack usado!');
+      } else {
+        triggerGameOver();
+      }
+      return;
+    }
+  }
+}
+
+// ── Loop principal ───────────────────────────────────────
+function update(dt) {
+  if (!started) return;
+
+  score += dt * SCORE_RATE;
+  scoreEl.textContent = Math.floor(score);
+
+  // física do pulo
+  if (!player.onGround) {
+    const g = fastFall ? GRAVITY * FAST_FALL_MULT : GRAVITY;
+    player.vy += g * dt;
+    player.y += player.vy * dt;
+    if (player.y >= groundY - PLAYER_STAND_H) {
+      player.y = groundY - PLAYER_STAND_H;
+      player.vy = 0;
+      player.onGround = true;
+      fastFall = false;
+      player.ducking = duckHeld; // se soltou segurando pra baixo, já pousa agachado
+    }
+  }
+
+  // nuvens (parallax)
+  clouds.forEach(c => {
+    c.x -= speedForClouds() * dt;
+    if (c.x < -40) Object.assign(c, makeCloud());
+  });
+
+  // chão animado (traços correndo)
+  groundDashes = groundDashes.map(x => {
+    let nx = x - currentSpeed() * dt;
+    if (nx < -20) nx += BASE_W + 40;
+    return nx;
+  });
+
+  updateObstacles(dt);
+  updateItems(dt);
+  updateBreakParticles(dt);
+  checkItemCollisions();
+  checkCollisions();
+  updateBuffPills();
+
+  const kind = desiredSpriteKind();
+  if (kind !== currentSpriteKind) setSpriteKind(kind);
+}
+
+function speedForClouds() { return currentSpeed() * 0.25; }
+
+function isNight() {
+  return Math.floor(score / DAY_NIGHT_INTERVAL) % 2 === 1;
+}
+
+function draw() {
+  const night = isNight();
+  ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+  // céu
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+  skyGrad.addColorStop(0, night ? '#12122a' : '#8fc8f7');
+  skyGrad.addColorStop(1, night ? '#2a2a4a' : '#c9e8ff');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, BASE_W, groundY);
+
+  // nuvens / estrelas
+  if (night) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    clouds.forEach(c => { ctx.beginPath(); ctx.arc(c.x, c.y, 1.6, 0, Math.PI * 2); ctx.fill(); });
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    clouds.forEach(c => {
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, c.r, c.r * 0.6, 0, 0, Math.PI * 2);
+      ctx.ellipse(c.x + c.r * 0.7, c.y + 3, c.r * 0.7, c.r * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // chão
+  ctx.fillStyle = night ? '#3a3a52' : '#d9c08a';
+  ctx.fillRect(0, groundY, BASE_W, BASE_H - groundY);
+  ctx.strokeStyle = night ? '#54547a' : '#a8875a';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(BASE_W, groundY); ctx.stroke();
+  ctx.fillStyle = night ? '#54547a' : '#a8875a';
+  groundDashes.forEach(x => ctx.fillRect(x, groundY + 8, 14, 3));
+
+  // itens
+  items.forEach(it => drawItem(it));
+
+  // obstáculos
+  obstacles.forEach(o => {
+    if (o.type === 'rock') drawRock(o); else drawBird(o);
+  });
+
+  // partículas de quebra (X Attack)
+  breakParticles.forEach(p => {
+    const t = 1 - p.age / p.life;
+    ctx.fillStyle = `rgba(255,80,60,${Math.max(0, t)})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * t, 0, Math.PI * 2); ctx.fill();
+  });
+
+  // Tyrunt — desenho vetorial (só usado sem sprite customizado)
+  if (!spriteReady) {
+    drawTyruntVector();
+  } else {
+    updateSpritePosition();
+  }
+}
+
+function drawItem(it) {
+  const bobY = it.y + Math.sin(it.bob) * 3;
+  const cx = it.x + it.w / 2, cy = bobY + it.h / 2;
+  const r = it.w / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (it.kind === 'salac') {
+    ctx.fillStyle = '#8e5fd6';
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c9a8f0';
+    ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.3, r * 0.35, r * 0.22, -0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff176';
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.55); ctx.lineTo(r * 0.32, -r * 0.05); ctx.lineTo(-r * 0.08, -r * 0.05);
+    ctx.lineTo(r * 0.1, r * 0.55); ctx.lineTo(-r * 0.34, 0); ctx.lineTo(r * 0.02, 0);
+    ctx.closePath(); ctx.fill();
+  } else if (it.kind === 'tamato') {
+    ctx.fillStyle = '#e0483e';
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f2938a';
+    ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.3, r * 0.35, r * 0.22, -0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4caf50';
+    ctx.beginPath(); ctx.ellipse(0, -r * 0.95, r * 0.28, r * 0.18, 0, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.fillStyle = '#2b2b2b';
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ff3b30';
+    ctx.lineWidth = r * 0.32;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.42, -r * 0.42); ctx.lineTo(r * 0.42, r * 0.42);
+    ctx.moveTo(r * 0.42, -r * 0.42); ctx.lineTo(-r * 0.42, r * 0.42);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRock(o) {
+  ctx.fillStyle = '#8a8a92';
+  ctx.strokeStyle = '#5c5c64';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(o.x, o.y + o.h);
+  ctx.lineTo(o.x + o.w * 0.15, o.y + o.h * 0.35);
+  ctx.lineTo(o.x + o.w * 0.5, o.y);
+  ctx.lineTo(o.x + o.w * 0.85, o.y + o.h * 0.3);
+  ctx.lineTo(o.x + o.w, o.y + o.h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawBird(o) {
+  const flap = Math.sin(performance.now() / 90) * 6;
+  ctx.save();
+  ctx.translate(o.x + o.w / 2, o.y + o.h / 2);
+  ctx.fillStyle = '#c0504d';
+  // corpo
+  ctx.beginPath(); ctx.ellipse(0, 0, o.w * 0.28, o.h * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+  // asas (batendo)
+  ctx.fillStyle = '#963e3c';
+  ctx.beginPath();
+  ctx.moveTo(-o.w * 0.1, 0);
+  ctx.lineTo(-o.w * 0.55, -flap);
+  ctx.lineTo(-o.w * 0.1, o.h * 0.15);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(o.w * 0.1, 0);
+  ctx.lineTo(o.w * 0.55, -flap);
+  ctx.lineTo(o.w * 0.1, o.h * 0.15);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawTyruntVector() {
+  const pb = playerBBox();
+  const scaleY = player.ducking ? 0.62 : 1;
+  ctx.save();
+  ctx.translate(pb.x + pb.w / 2, pb.y + pb.h);
+  ctx.scale(1, scaleY);
+  if (xAttackCharges > 0) {
+    ctx.shadowColor = '#ff1e1e';
+    ctx.shadowBlur = 16;
+  }
+  // corpo
+  ctx.fillStyle = '#c77b3e';
+  ctx.beginPath(); ctx.ellipse(0, -26, 20, 15, 0, 0, Math.PI * 2); ctx.fill();
+  // barriga
+  ctx.fillStyle = '#f2d8b0';
+  ctx.beginPath(); ctx.ellipse(-2, -20, 13, 9, 0, 0, Math.PI * 2); ctx.fill();
+  // cabeça
+  ctx.fillStyle = '#c77b3e';
+  ctx.beginPath(); ctx.arc(16, -34, 11, 0, Math.PI * 2); ctx.fill();
+  // "capacete" de pedra na cabeça (Tyrunt)
+  ctx.fillStyle = '#8a5a30';
+  ctx.beginPath();
+  ctx.moveTo(8, -42); ctx.lineTo(24, -46); ctx.lineTo(22, -36); ctx.lineTo(10, -34);
+  ctx.closePath(); ctx.fill();
+  // olho
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(20, -35, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  // pernas (mais rápidas com Salac, mais lentas com Tamato)
+  const legSpeed = tamatoUntil && performance.now() < tamatoUntil ? 40 : (salacUntil && performance.now() < salacUntil ? 110 : 70);
+  ctx.fillStyle = '#a8642f';
+  const legPhase = player.onGround && started ? Math.sin(performance.now() / legSpeed) * 6 : 0;
+  ctx.fillRect(-14, -14, 7, 14 + legPhase);
+  ctx.fillRect(4, -14, 7, 14 - legPhase);
+  // cauda com maça óssea
+  ctx.fillStyle = '#c77b3e';
+  ctx.beginPath();
+  ctx.moveTo(-18, -22); ctx.lineTo(-32, -14); ctx.lineTo(-18, -12);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#8a5a30';
+  ctx.beginPath(); ctx.arc(-33, -14, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+async function triggerGameOver() {
+  if (gameOver) return;
+  gameOver = true;
+  cancelAnimationFrame(rafId);
+  const finalScore = Math.floor(score);
+  document.getElementById('tr-final-score').textContent = finalScore;
+  document.getElementById('tr-overlay').classList.add('show');
+  await gSaveScore('tyrunt', finalScore, user);
+  refreshLeaderboard();
+  refreshBest();
+}
+
+function loop(ts) {
+  if (gameOver) return;
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(0.033, (ts - lastTs) / 1000);
+  lastTs = ts;
+  update(dt);
+  draw();
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── Controles: teclado ───────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (['ArrowUp', 'ArrowDown', ' '].includes(e.key)) e.preventDefault();
+  if (e.repeat) return;
+  if (e.key === ' ' || e.key === 'ArrowUp') jump();
+  else if (e.key === 'ArrowDown') setDuck(true);
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowDown') setDuck(false);
+});
+
+// ── Controles: toque (tap = pular, segurar pra baixo = abaixar) ──
+const wrap = document.getElementById('tr-wrap');
+let touchStartY = 0, touchStartTime = 0, touchDragged = false, touchActive = false;
+const TAP_TIME_LIMIT = 220, DUCK_DRAG_THRESHOLD = 16;
+
+wrap.addEventListener('touchstart', (e) => {
+  const t = e.touches[0];
+  touchActive = true;
+  touchDragged = false;
+  touchStartY = t.clientY;
+  touchStartTime = Date.now();
+  if (!started) { beginPlay(); return; } // primeiro toque só fecha o hint
+  jump();
+}, { passive: true });
+
+wrap.addEventListener('touchmove', (e) => {
+  if (!touchActive || gameOver) return;
+  const t = e.touches[0];
+  if (t.clientY - touchStartY > DUCK_DRAG_THRESHOLD) {
+    touchDragged = true;
+    setDuck(true);
+  }
+}, { passive: true });
+
+function touchEndHandler() {
+  touchActive = false;
+  setDuck(false);
+}
+wrap.addEventListener('touchend', touchEndHandler);
+wrap.addEventListener('touchcancel', touchEndHandler);
+
+document.getElementById('tr-restart-btn').addEventListener('click', startGame);
+document.getElementById('tr-hint').addEventListener('click', beginPlay);
+
+// ── HUD (Pontos/Recorde): toque oculta, toque no mesmo lugar mostra ──
+(function () {
+  const hudBox = document.getElementById('tr-hud-box');
+  let hidden = false;
+  function toggleHud(e) {
+    e.stopPropagation();
+    hidden = !hidden;
+    hudBox.classList.toggle('tr-hud-hidden', hidden);
+  }
+  hudBox.addEventListener('click', toggleHud);
+  hudBox.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+  hudBox.addEventListener('touchend', (e) => e.stopPropagation());
+})();
+
+// ── Canvas sizing responsivo ─────────────────────────────
+function computeBaseDims(maxW, maxH) {
+  BASE_W = Math.max(BASE_W_MIN, Math.round(maxW));
+  BASE_H = Math.max(BASE_H_MIN, Math.round(maxH));
+}
+
+function resize() {
+  const nav = document.querySelector('.tr-nav');
+  const navH = nav ? nav.getBoundingClientRect().height : 52;
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - navH;
+
+  // Só trava o recálculo em pleno jogo (started && !gameOver): redimensionar
+  // aí distorceria a posição do Tyrunt e dos obstáculos em andamento. Antes
+  // de começar ou depois de um Game Over é seguro recalcular.
+  const midRun = started && !gameOver;
+  const prevW = BASE_W, prevH = BASE_H;
+  if (!baseSized || !midRun) {
+    computeBaseDims(maxW, maxH);
+    baseSized = true;
+  }
+  const dimsChanged = BASE_W !== prevW || BASE_H !== prevH;
+  groundY = BASE_H - GROUND_MARGIN;
+
+  if (dimsChanged && !midRun && player) {
+    player.y = groundY - PLAYER_STAND_H;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  const sizeChanged = canvas.width !== BASE_W || canvas.height !== BASE_H;
+  if (sizeChanged) { canvas.width = BASE_W; canvas.height = BASE_H; }
+  canvas.style.width = BASE_W + 'px';
+  canvas.style.height = BASE_H + 'px';
+
+  if (spriteReady) updateSpritePosition();
+  if (!midRun && sizeChanged && player) draw();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+window.addEventListener('load', () => resize());
+setTimeout(resize, 300);
+
+// ── Ranking ───────────────────────────────────────────────
+async function refreshLeaderboard() {
+  const el = document.getElementById('tr-leaderboard');
+  const top = await gLoadTopScores('tyrunt', 5);
+  if (top.length === 0) {
+    el.innerHTML = '<div class="tr-lb-empty">Nenhum recorde ainda.</div>';
+    return;
+  }
+  el.innerHTML = top.map((row, i) => `
+    <div class="tr-lb-row">
+      <span class="tr-lb-pos">${i + 1}º</span>
+      <span class="tr-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="tr-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+
+async function refreshBest() {
+  if (!user) return;
+  best = await gLoadMyBest('tyrunt', user.id);
+  bestEl.textContent = best || '–';
+  document.getElementById('tr-best-line-val').textContent = best || '–';
+}
+
+// ── Compartilhar resultado no Stories ──────────────────────
+function buildResultCanvas(useSprite = true) {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#8fc8f7');
+  bg.addColorStop(1, '#d9c08a');
+  c2.fillStyle = bg;
+  c2.fillRect(0, 0, W, H);
+
+  c2.fillStyle = 'rgba(255,255,255,0.6)';
+  [[160, 260, 70], [820, 420, 95], [420, 160, 55]].forEach(([x, y, r]) => {
+    c2.beginPath(); c2.arc(x, y, r, 0, Math.PI * 2); c2.fill();
+  });
+
+  c2.textAlign = 'center';
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 74px 'Cinzel', serif";
+  c2.fillText('tyRUNt', W / 2, 320);
+
+  const finalScore = Math.floor(score);
+  const size = 260;
+  c2.save();
+  if (useSprite && spriteReady && spriteEl.complete) {
+    c2.drawImage(spriteEl, W / 2 - size / 2, 620 - size / 2, size, size);
+  } else {
+    c2.translate(W / 2, 700);
+    c2.scale(6.5, 6.5);
+    ctx2TyruntVector(c2);
+  }
+  c2.restore();
+
+  c2.fillStyle = 'rgba(255,255,255,.88)';
+  const cardW = 760, cardH = 260, cardX = (W - cardW) / 2, cardY = 940;
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+  c2.fill();
+
+  c2.fillStyle = '#6b7280';
+  c2.font = "800 34px 'Nunito', sans-serif";
+  c2.fillText('PONTOS', W / 2, cardY + 70);
+
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 130px 'Cinzel', serif";
+  c2.fillText(String(finalScore), W / 2, cardY + 210);
+
+  if (best) {
+    c2.fillStyle = 'rgba(255,255,255,.82)';
+    c2.font = "700 40px 'Nunito', sans-serif";
+    c2.fillText(`Recorde: ${best}`, W / 2, cardY + cardH + 90);
+  }
+
+  c2.fillStyle = '#fff';
+  c2.font = "800 56px 'Nunito', sans-serif";
+  c2.shadowColor = 'rgba(0,0,0,.35)';
+  c2.shadowBlur = 10;
+  c2.shadowOffsetY = 2;
+  const ctaLines = wrapCanvasText(c2, `Eu fiz ${finalScore} pontos, venha jogar tyRUNt também!`, W - 140);
+  const ctaLineHeight = 68;
+  let ctaY = cardY + cardH + (best ? 200 : 140);
+  ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += ctaLineHeight; });
+  c2.shadowColor = 'transparent';
+  c2.shadowBlur = 0;
+  c2.shadowOffsetY = 0;
+
+  return c;
+}
+
+// Versão simplificada do desenho vetorial do Tyrunt, usada só na imagem
+// de compartilhamento (sem depender de player/groundY, que não fazem
+// sentido fora do jogo em si).
+function ctx2TyruntVector(c2) {
+  c2.fillStyle = '#c77b3e';
+  c2.beginPath(); c2.ellipse(0, -26, 20, 15, 0, 0, Math.PI * 2); c2.fill();
+  c2.fillStyle = '#f2d8b0';
+  c2.beginPath(); c2.ellipse(-2, -20, 13, 9, 0, 0, Math.PI * 2); c2.fill();
+  c2.fillStyle = '#c77b3e';
+  c2.beginPath(); c2.arc(16, -34, 11, 0, Math.PI * 2); c2.fill();
+  c2.fillStyle = '#8a5a30';
+  c2.beginPath();
+  c2.moveTo(8, -42); c2.lineTo(24, -46); c2.lineTo(22, -36); c2.lineTo(10, -34);
+  c2.closePath(); c2.fill();
+  c2.fillStyle = '#1a1a1a';
+  c2.beginPath(); c2.arc(20, -35, 2, 0, Math.PI * 2); c2.fill();
+}
+
+function wrapCanvasText(ctx2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx2d.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function shareResultToStories() {
+  let dataUrl = null;
+  try {
+    dataUrl = buildResultCanvas(true).toDataURL('image/png');
+  } catch (e) {
+    console.warn('[shareResultToStories] toDataURL falhou com sprite, tentando sem sprite', e);
+    try {
+      dataUrl = buildResultCanvas(false).toDataURL('image/png');
+    } catch (e2) {
+      console.warn('[shareResultToStories] falhou ao gerar imagem do resultado mesmo sem sprite', e2);
+    }
+  }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl,
+        gameLink: '/tyrunt.html'
+      }));
+    } catch (e) {
+      console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
+    }
+  }
+  window.location.href = '/';
+}
+document.getElementById('tr-share-btn').addEventListener('click', shareResultToStories);
+
+// ── Boot ──────────────────────────────────────────────────
+function tryEnterFullscreenNow() {
+  try {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen || !gIsMobileLike()) return;
+    el.requestFullscreen().catch(() => {});
+  } catch (e) {}
+}
+
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  tryEnterFullscreenNow();
+  gSetupFullscreenOnFirstInteraction();
+  resize();
+  await loadSpriteOverrides();
+  startGame();
+  setSpriteKind('normal');
+  refreshBest();
+})();
+</script>
+</body>
+</html>
