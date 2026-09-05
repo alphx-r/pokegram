@@ -11100,6 +11100,9 @@ let _storyViewList    = [];
 let _storyViewIdx     = 0;
 let _storyTimer       = null;
 let _storyViewOwnerId = null;
+const STORY_DURATION  = 5000; // duração (ms) de cada story antes de avançar
+let _storyRemainingMs = STORY_DURATION; // tempo restante do story atual (usado ao pausar/retomar)
+let _storySegmentStart = 0; // timestamp de quando o segmento atual começou a contar
 
 // ── Editor state ──────────────────────────────────────────
 const _storyEd = {
@@ -11173,6 +11176,29 @@ function storyDrawCanvas() {
   }
 }
 
+// Quebra o texto em linhas que cabem em maxWidth (respeita quebras manuais com \n)
+function _wrapCanvasText(ctx, text, maxWidth) {
+  const paragraphs = text.split('\n');
+  const outLines = [];
+  paragraphs.forEach(paragraph => {
+    if (paragraph === '') { outLines.push(''); return; }
+    const words = paragraph.split(' ');
+    let currentLine = words[0] || '';
+    for (let i = 1; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine + ' ' + word;
+      if (ctx.measureText(testLine).width <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        outLines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    outLines.push(currentLine);
+  });
+  return outLines;
+}
+
 async function storyRenderFinal() {
   const canvas = document.getElementById('story-canvas');
   if (!canvas) return canvas;
@@ -11210,11 +11236,15 @@ async function storyRenderFinal() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
-  const lines   = text.split('\n');
+  const sidePad = Math.round(20 * scale); // margem lateral (equivalente ao padding do editor)
+  const maxTextWidth = W - sidePad * 2;
+  const lines   = _wrapCanvasText(ctx, text, maxTextWidth);
   const lineH   = fontSize * 1.4;
   const padV    = Math.round(10 * scale);
   const totalH  = lines.length * lineH + padV * 2;
-  const barY    = Math.round(barTop * scale);
+  let barY      = Math.round(barTop * scale);
+  // garante que a faixa não ultrapasse o limite inferior do canvas
+  if (barY + totalH > H) barY = Math.max(0, H - totalH);
 
   // Fundo preto semi-transparente
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -11223,7 +11253,7 @@ async function storyRenderFinal() {
   // Texto branco
   ctx.fillStyle = '#ffffff';
   lines.forEach((line, i) => {
-    ctx.fillText(line, W / 2, barY + padV + i * lineH, W - 40);
+    ctx.fillText(line, W / 2, barY + padV + i * lineH);
   });
 
   return canvas;
@@ -11916,16 +11946,18 @@ function showStory(idx) {
       <div id="sp-${i}" style="height:100%;background:#fff;width:${i < idx ? '100%' : '0%'};transition:none"></div>
     </div>`).join('');
 
+  _storyRemainingMs  = STORY_DURATION;
+  _storySegmentStart = Date.now();
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const activeFill = document.getElementById('sp-' + idx);
       if (activeFill) {
-        activeFill.style.transition = 'width 5s linear';
+        activeFill.style.transition = `width ${STORY_DURATION}ms linear`;
         activeFill.style.width = '100%';
       }
     });
   });
-  _storyTimer = setTimeout(() => storyNav(1), 5000);
+  _storyTimer = setTimeout(() => storyNav(1), STORY_DURATION);
 
   // marca o story atual como visto imediatamente ao exibi-lo
   const _cur = _storyViewList[idx];
@@ -12098,9 +12130,17 @@ function svCommentFocus(on) {
 
 function storyClearTimer() {
   clearTimeout(_storyTimer);
-  // também pausa a barra de progresso visual
+  // calcula quanto tempo realmente restava (evita reiniciar do zero ao retomar)
+  const elapsed = Date.now() - _storySegmentStart;
+  _storyRemainingMs = Math.max(0, _storyRemainingMs - elapsed);
+  // também pausa a barra de progresso visual no ponto exato em que estava
   const fill = document.getElementById('sp-' + _storyViewIdx);
-  if (fill) fill.style.animationPlayState = 'paused';
+  if (fill) {
+    const computed = window.getComputedStyle(fill).width;
+    fill.style.transition = 'none';
+    fill.style.width = computed;
+    void fill.offsetWidth;
+  }
 }
 
 // ── Teclado: ← → para navegar, Space para pausar ─────────
@@ -12116,17 +12156,20 @@ function _storyKeyHandler(e) {
     e.preventDefault();
     const fill = document.getElementById('sp-' + _storyViewIdx);
     if (_storyPaused) {
-      // retomar
+      // retomar — usa o tempo restante real, não 5s fixos
       _storyPaused = false;
-      if (fill) { fill.style.transition = 'width 5s linear'; fill.style.width = '100%'; }
-      _storyTimer = setTimeout(() => storyNav(1), 5000);
+      if (_storyRemainingMs <= 0) _storyRemainingMs = STORY_DURATION;
+      _storySegmentStart = Date.now();
+      if (fill) { fill.style.transition = `width ${_storyRemainingMs}ms linear`; fill.style.width = '100%'; }
+      _storyTimer = setTimeout(() => storyNav(1), _storyRemainingMs);
     } else {
-      // pausar
+      // pausar — calcula quanto tempo já passou e guarda o restante
       _storyPaused = true;
       clearTimeout(_storyTimer);
+      const elapsed = Date.now() - _storySegmentStart;
+      _storyRemainingMs = Math.max(0, _storyRemainingMs - elapsed);
       if (fill) {
         const computed = window.getComputedStyle(fill).width;
-        const parentW  = fill.parentElement ? fill.parentElement.offsetWidth : 1;
         fill.style.transition = 'none';
         fill.style.width = computed;
         // congela no ponto atual
@@ -12139,12 +12182,15 @@ document.addEventListener('keydown', _storyKeyHandler);
 
 function storyRestartTimer() {
   clearTimeout(_storyTimer);
+  // se por algum motivo não sobrou tempo (ex: já tinha zerado), usa a duração cheia
+  if (_storyRemainingMs <= 0) _storyRemainingMs = STORY_DURATION;
+  _storySegmentStart = Date.now();
   const fill = document.getElementById('sp-' + _storyViewIdx);
   if (fill) {
-    fill.style.transition = 'width 5s linear';
+    fill.style.transition = `width ${_storyRemainingMs}ms linear`;
     fill.style.width = '100%';
   }
-  _storyTimer = setTimeout(() => storyNav(1), 5000);
+  _storyTimer = setTimeout(() => storyNav(1), _storyRemainingMs);
 }
 
 // ── Story: enviar comentário como DM ─────────────────────
