@@ -14410,22 +14410,39 @@ async function _pkRenderShareCanvas(p, au) {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Fundo: gradiente usando a cor do autor
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, pkColorDarken(au.color, 45));
-  grad.addColorStop(1, pkColorDarken(au.color, 70));
-  ctx.fillStyle = grad;
+  // Fundo: cor sólida da conta + padrão de símbolos de pokeet (💭) espalhados a 50% de opacidade
+  ctx.fillStyle = au.color;
   ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.font = '64px Nunito,sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const spacing = 170;
+  let row = 0;
+  for (let y = -80; y < H + 80; y += spacing) {
+    const rowOffset = (row % 2 === 0) ? 0 : spacing / 2;
+    for (let x = -80; x < W + 80; x += spacing) {
+      ctx.save();
+      ctx.translate(x + rowOffset, y);
+      ctx.rotate((Math.random() - 0.5) * 0.5);
+      ctx.fillText('💭', 0, 0);
+      ctx.restore();
+    }
+    row++;
+  }
+  ctx.restore();
 
   // Cartão central
   const cardX = 90, cardW = W - 180;
   const cardPad = 56;
-  ctx.font = '700 39px Nunito,sans-serif';
+  ctx.font = '700 32px Nunito,sans-serif';
   const maxTextWidth = cardW - cardPad * 2;
   const lines = _pkWrapCanvasLines(ctx, p.text || '', maxTextWidth);
   const lineH = 52;
-  const headerH = 155; // mais espaço entre o nome/handle e o texto do pokeet
-  const cardH = headerH + lines.length * lineH + cardPad * 2;
+  const headerH = 175; // mais espaço entre o nome/handle e o texto do pokeet
+  const cardH = headerH + lines.length * lineH + cardPad * 2 - 20;
   const cardY = (H - cardH) / 2;
 
   ctx.fillStyle = '#ffffff';
@@ -14477,7 +14494,7 @@ async function _pkRenderShareCanvas(p, au) {
 
   // Texto do pokeet
   ctx.fillStyle = '#1a1a1a';
-  ctx.font = '700 39px Nunito,sans-serif';
+  ctx.font = '700 32px Nunito,sans-serif';
   let ty = cardY + headerH + 34;
   lines.forEach(line => { ctx.fillText(line, cardX + cardPad, ty); ty += lineH; });
 
