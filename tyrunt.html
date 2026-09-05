@@ -49,6 +49,10 @@
     position:absolute;top:0;left:0;pointer-events:none;display:none;
     image-rendering:pixelated;
   }
+  .tr-skyflyer-sprite{
+    position:absolute;top:0;left:0;pointer-events:none;display:none;
+    z-index:8;
+  }
 
   .tr-hud{
     position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
@@ -368,6 +372,83 @@ function syncBirdSprites() {
   }
 }
 
+// ── Voadores decorativos de fundo ────────────────────────
+// Só ambientação: ficam cruzando o céu de um lado pro outro em looping,
+// sem hitbox nenhuma — o Tyrunt nunca colide com eles (não entram em
+// `obstacles` nem em `checkCollisions`).
+const SKY_FLYER_SPRITES = [
+  'https://64.media.tumblr.com/77fcb473b14a28d7229b2d0f8df75712/4603906cfe87268f-04/s100x200/c9518e0dbef5793dd3a928db1f6ea4d4e58f1417.gifv',
+  'https://64.media.tumblr.com/1b649f37370ec8f077e68391bc1b84ed/4603906cfe87268f-67/s250x400/8a339fb03e7a185bf0081f6f3135b555ec68d03a.gifv',
+];
+const SKY_FLYER_COUNT = 5; // quantos aparecem ao mesmo tempo na tela
+const SKY_FLYER_SIZE_MIN = 26, SKY_FLYER_SIZE_RANGE = 16;
+const SKY_FLYER_SPEED_MIN = 22, SKY_FLYER_SPEED_RANGE = 30; // px/s — bem mais lento que o jogo, só ambientação
+
+const skyFlyerReady = SKY_FLYER_SPRITES.map(() => false);
+SKY_FLYER_SPRITES.forEach((url, i) => {
+  const probe = new Image();
+  probe.onload = () => { skyFlyerReady[i] = true; };
+  probe.onerror = () => { skyFlyerReady[i] = false; };
+  probe.src = url;
+});
+
+let skyFlyers = [];
+const skyFlyerPool = [];
+for (let i = 0; i < SKY_FLYER_COUNT; i++) {
+  const el = document.createElement('img');
+  el.className = 'tr-skyflyer-sprite';
+  el.alt = '';
+  document.getElementById('tr-wrap').appendChild(el);
+  skyFlyerPool.push(el);
+}
+
+// `forceX` é usado pra reaparecer exatamente na borda oposta quando sai
+// da tela, mantendo o fluxo contínuo (sem "sumir e piscar" no meio).
+function makeSkyFlyer(forceX) {
+  const dir = Math.random() < 0.5 ? -1 : 1;
+  return {
+    x: forceX !== undefined ? forceX : Math.random() * BASE_W,
+    y: BASE_H * 0.06 + Math.random() * (BASE_H * 0.34), // faixa alta do céu, acima de onde os obstáculos voam
+    vx: (SKY_FLYER_SPEED_MIN + Math.random() * SKY_FLYER_SPEED_RANGE) * dir,
+    dir,
+    size: SKY_FLYER_SIZE_MIN + Math.random() * SKY_FLYER_SIZE_RANGE,
+    spriteIndex: Math.floor(Math.random() * SKY_FLYER_SPRITES.length),
+  };
+}
+
+function initSkyFlyers() {
+  skyFlyers = [];
+  for (let i = 0; i < SKY_FLYER_COUNT; i++) skyFlyers.push(makeSkyFlyer());
+}
+
+function updateSkyFlyers(dt) {
+  skyFlyers.forEach(f => {
+    f.x += f.vx * dt;
+    const margin = f.size + 20;
+    if (f.vx > 0 && f.x - margin > BASE_W) Object.assign(f, makeSkyFlyer(-margin));
+    else if (f.vx < 0 && f.x + margin < 0) Object.assign(f, makeSkyFlyer(BASE_W + margin));
+  });
+  syncSkyFlyerSprites();
+}
+
+function syncSkyFlyerSprites() {
+  skyFlyers.forEach((f, i) => {
+    const el = skyFlyerPool[i];
+    if (!el) return;
+    if (!skyFlyerReady[f.spriteIndex]) { el.style.display = 'none'; return; }
+    if (el.dataset.spriteIndex !== String(f.spriteIndex)) {
+      el.src = SKY_FLYER_SPRITES[f.spriteIndex];
+      el.dataset.spriteIndex = String(f.spriteIndex);
+    }
+    el.style.display = 'block';
+    el.style.width = f.size + 'px';
+    el.style.height = f.size + 'px';
+    // assume que o GIF olha pra esquerda por padrão; espelha quando voa pra direita
+    const flip = f.dir > 0 ? ' scaleX(-1)' : '';
+    el.style.transform = `translate(${f.x - f.size / 2}px, ${f.y - f.size / 2}px)${flip}`;
+  });
+}
+
 function setSpriteKind(kind) {
   if (kind === currentSpriteKind) return;
   currentSpriteKind = kind;
@@ -485,6 +566,7 @@ function resetEntities() {
   itemSpawnTimer = 0; nextItemSpawnInterval = 6500 + Math.random() * 4500;
   clouds = [makeCloud(BASE_W * 0.12), makeCloud(BASE_W * 0.35), makeCloud(BASE_W * 0.55), makeCloud(BASE_W * 0.72), makeCloud(BASE_W * 0.92)];
   hillOffsetFar = 0; hillOffsetNear = 0;
+  if (skyFlyers.length === 0) initSkyFlyers(); // só recria na 1ª vez — sem "piscar" no meio do voo a cada restart
   birdSpritePool.forEach(el => { el.style.display = 'none'; });
   groundDashes = [];
   for (let x = 0; x < BASE_W + 40; x += 28) groundDashes.push(x);
@@ -1072,6 +1154,7 @@ function loop(ts) {
   if (!lastTs) lastTs = ts;
   const dt = Math.min(0.033, (ts - lastTs) / 1000);
   lastTs = ts;
+  updateSkyFlyers(dt);
   update(dt);
   draw();
   rafId = requestAnimationFrame(loop);
