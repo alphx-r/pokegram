@@ -51,7 +51,9 @@
     background:rgba(255,255,255,.82);border-radius:10px;
     padding:13.5px clamp(26.5px,5vw,34.5px);box-shadow:0 2px 8px rgba(0,0,0,.2);
     max-width:calc(100% - 20px);
+    pointer-events:auto;cursor:pointer;transition:opacity .25s ease;
   }
+  .gf-hud-box.gf-hud-hidden{opacity:0}
   .gf-hud-item{
     flex:0 1 auto;white-space:nowrap;text-align:center;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
@@ -114,7 +116,7 @@
     <canvas id="gf-canvas"></canvas>
     <img id="gf-bird-sprite" alt="">
     <div class="gf-hud">
-      <div class="gf-hud-box">
+      <div class="gf-hud-box" id="gf-hud-box">
         <div class="gf-hud-item">
           <div class="gf-hud-label">Pontos</div>
           <div class="gf-hud-value" id="gf-score">0</div>
@@ -835,6 +837,19 @@ document.addEventListener('keydown', (e) => {
 });
 document.getElementById('gf-restart-btn').addEventListener('click', resetGame);
 document.getElementById('gf-share-btn').addEventListener('click', shareResultToStories);
+
+// ── HUD (Pontos/Recorde/Vidas): toque oculta, toque no mesmo lugar mostra ──
+(function () {
+  const hudBox = document.getElementById('gf-hud-box');
+  let hidden = false;
+  function toggleHud(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    hidden = !hidden;
+    hudBox.classList.toggle('gf-hud-hidden', hidden);
+  }
+  hudBox.addEventListener('pointerdown', toggleHud);
+})();
 
 // ── Compartilhar resultado no Stories ──────────────────────
 // Desenha um card de resultado no formato de story (1080×1920), guarda
