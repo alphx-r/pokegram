@@ -9172,7 +9172,7 @@ async function renderStories() {
     const badge = count > 1
       ? `<div class="story-count-badge" style="${badgeStyle}">${count}</div>`
       : '';
-    return `<div class="story-item" onclick="openStoryViewer('${u.id}')">
+    return `<div class="story-item" style="${isViewed ? 'opacity:0.6' : ''}" onclick="openStoryViewer('${u.id}')">
       <div class="story-ring ${isViewed ? 'story-ring-viewed' : 'story-ring-active'}" style="position:relative;${ringGradient}">${pic}${badge}</div>
       <span style="color:${isViewed ? '#999' : ''}">${u.username}</span>
     </div>`;
