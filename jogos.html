@@ -79,7 +79,8 @@
     gap:3px;padding:6px;text-align:center;
   }
   .gj-tile-overlay[hidden]{display:none}
-  .gj-tile-overlay .gj-lb-pos-row{font-size:12px;font-weight:800;color:#fff;line-height:1.3;font-family:'Nunito',sans-serif}
+  .gj-tile-overlay .gj-lb-title-mini{font-size:9.5px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .gj-tile-overlay .gj-lb-pos-row{font-size:11px;font-weight:800;color:#fff;line-height:1.3;font-family:'Nunito',sans-serif}
   .gj-tile-overlay .gj-lb-pos-row b{color:var(--accent)}
   .gj-tile-overlay .gj-lb-empty{font-size:10.5px;color:#fff;font-style:italic;line-height:1.3}
   .gj-card-name{
@@ -470,8 +471,8 @@
         if (top.length >= 3) break;
       }
 
-      el.innerHTML = top.map((row, i) =>
-        `<div class="gj-lb-pos-row">${i + 1}º <b>${esc(row.author_name || '???')}</b></div>`
+      el.innerHTML = '<div class="gj-lb-title-mini">Top jogadores</div>' + top.map((row, i) =>
+        `<div class="gj-lb-pos-row">${i + 1}º <b>${esc(row.author_name || '???')}</b> - ${row.score} pontos</div>`
       ).join('');
 
       if (isSundayBrasilia()) renderWeekWinners(game, top);
