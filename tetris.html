@@ -462,7 +462,7 @@ function tryRotate() {
 function loop(ts) {
   if (gameOver) return;
   if (!lastDrop) lastDrop = ts;
-  if (hintActive) { lastDrop = ts; rafId = requestAnimationFrame(loop); return; }
+  if (!started) { lastDrop = ts; rafId = requestAnimationFrame(loop); return; }
   const interval = fastDropActive ? Math.min(dropInterval, 55) : dropInterval;
   if (ts - lastDrop > interval) {
     tryMove(1, 0);
@@ -491,33 +491,28 @@ function startGame() {
   drawNext();
   draw();
   document.getElementById('gt-overlay').classList.remove('show');
+  showHint();
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(loop);
 }
 
-// ── Hint "como jogar" (só na primeira partida do jogador) ──
-const GT_HINT_KEY = 'gt_tetris_hint_seen';
-let hintActive = false;
+// ── Hint "como jogar" (toda partida nova, some só com ação real do jogador) ──
+// Sem localStorage: o hint aparece em toda partida — inclusive ao reiniciar
+// depois de um Game Over — e só é dispensado por uma ação de fato do
+// jogador (tap, arraste ou tecla de jogo) — nunca sozinho, por timeout ou
+// por estado salvo do navegador.
+let started = false;
 
-function maybeShowHint() {
-  let seen = false;
-  try { seen = localStorage.getItem(GT_HINT_KEY) === '1'; } catch (e) {}
-  const hintEl = document.getElementById('gt-hint');
-  if (seen) {
-    hintActive = false;
-    hintEl.classList.add('hide');
-    return;
-  }
-  hintActive = true;
-  hintEl.classList.remove('hide');
+function showHint() {
+  started = false;
+  document.getElementById('gt-hint').classList.remove('hide');
 }
 
-function dismissHint() {
-  if (!hintActive) return;
-  hintActive = false;
+function beginPlay() {
+  if (started) return;
+  started = true;
   lastDrop = 0; // não penaliza o tempo gasto lendo o hint
   document.getElementById('gt-hint').classList.add('hide');
-  try { localStorage.setItem(GT_HINT_KEY, '1'); } catch (e) {}
 }
 
 // ── Controles: teclado ──────────────────────────────────
@@ -526,7 +521,7 @@ let fastDropActive = false;
 document.addEventListener('keydown', (e) => {
   if (['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key)) e.preventDefault();
   if (gameOver) return;
-  if (hintActive) dismissHint();
+  if (!started) beginPlay();
   if (e.key === 'ArrowLeft') tryMove(0, -1);
   else if (e.key === 'ArrowRight') tryMove(0, 1);
   else if (e.key === 'ArrowDown') fastDropActive = true;
@@ -549,7 +544,7 @@ function cellPx() { return CELL_W; }
 
 stage.addEventListener('touchstart', (e) => {
   if (gameOver) return;
-  if (hintActive) { dismissHint(); return; } // primeiro toque só fecha o hint
+  if (!started) { beginPlay(); return; } // primeiro toque só fecha o hint
   const t = e.touches[0];
   touchActive = true;
   touchDragged = false;
@@ -594,7 +589,7 @@ stage.addEventListener('touchend', touchEndHandler);
 stage.addEventListener('touchcancel', touchEndHandler);
 
 document.getElementById('gt-restart-btn').addEventListener('click', startGame);
-document.getElementById('gt-hint').addEventListener('click', dismissHint);
+document.getElementById('gt-hint').addEventListener('click', beginPlay);
 
 // ── HUD (Pontos/Nível): toque oculta, toque no mesmo lugar mostra ──
 (function () {
@@ -655,7 +650,6 @@ async function refreshBest() {
   gSetupFullscreenOnFirstInteraction();
   resize();
   startGame();
-  maybeShowHint();
 })();
 </script>
 </body>
