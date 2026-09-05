@@ -509,17 +509,28 @@ function startGame() {
 // jogador (tap, arraste ou tecla de jogo) — nunca sozinho, por timeout ou
 // por estado salvo do navegador.
 let started = false;
+// Alguns navegadores continuam roteando toque/seleção de texto pro hint
+// mesmo com opacity:0 + pointer-events:none, então ele é removido do
+// DOM de verdade depois do fade (não só escondido via CSS).
+const hintEl = document.getElementById('gt-hint');
+const hintParent = hintEl.parentNode;
+const hintNextSibling = hintEl.nextSibling;
+let hintHideTimer = null;
 
 function showHint() {
   started = false;
-  document.getElementById('gt-hint').classList.remove('hide');
+  clearTimeout(hintHideTimer);
+  if (!hintEl.isConnected) hintParent.insertBefore(hintEl, hintNextSibling);
+  hintEl.classList.remove('hide');
 }
 
 function beginPlay() {
   if (started) return;
   started = true;
   lastDrop = 0; // não penaliza o tempo gasto lendo o hint
-  document.getElementById('gt-hint').classList.add('hide');
+  hintEl.classList.add('hide');
+  clearTimeout(hintHideTimer);
+  hintHideTimer = setTimeout(() => { if (hintEl.isConnected) hintEl.remove(); }, 380);
 }
 
 // ── Controles: teclado ──────────────────────────────────
@@ -597,6 +608,8 @@ stage.addEventListener('touchcancel', touchEndHandler);
 
 document.getElementById('gt-restart-btn').addEventListener('click', startGame);
 document.getElementById('gt-hint').addEventListener('click', beginPlay);
+document.getElementById('gt-hint').addEventListener('selectstart', (e) => e.preventDefault());
+document.addEventListener('selectstart', (e) => e.preventDefault());
 
 // ── HUD (Pontos/Nível): toque oculta, toque no mesmo lugar mostra ──
 (function () {
