@@ -9497,6 +9497,10 @@ async function toggleLike(postId, btn) {
 async function openComments(postId) {
   currentCommentPostId = postId;
 
+  // Se o modal de thread de pokeet estiver aberto, fecha antes de abrir o post
+  // (post e pokeet não devem ficar empilhados ao alternar entre eles no chat).
+  closeModal('modal-pokeet-thread');
+
   const imgEl = document.getElementById('comments-post-image');
   const imgElDesktop = document.getElementById('comments-post-image-desktop');
   const capEl = document.getElementById('comments-post-caption');
@@ -13965,6 +13969,9 @@ async function pkToggleLike(pokeetId) {
 // ── Thread (replies) ──────────────────────────────────────
 async function pkOpenThread(pokeetId) {
   if (!pokeetId) return;
+  // Se o modal de comentários de post estiver aberto, fecha antes de abrir o
+  // pokeet (post e pokeet não devem ficar empilhados ao alternar no chat).
+  closeModal('modal-comments');
   _pk.threadTarget = pokeetId;
   const content = document.getElementById('pk-thread-content');
   const title   = document.getElementById('pk-thread-title');
