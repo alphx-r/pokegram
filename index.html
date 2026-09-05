@@ -11203,18 +11203,28 @@ async function storyRenderFinal() {
   const fontSize = Math.round(18 * scale);
   ctx.font      = `700 ${fontSize}px Nunito,sans-serif`;
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
 
   const sidePad = Math.round(20 * scale); // margem lateral (equivalente ao padding do editor)
   const maxTextWidth = W - sidePad * 2;
   const lines   = _wrapCanvasText(ctx, text, maxTextWidth);
   const lineH   = fontSize * 1.4;
-  // O CSS (line-height:1.4) centraliza cada linha de texto verticalmente dentro
-  // da própria caixa de linha, deixando uma folga ("half-leading") acima do
-  // glifo. O canvas com textBaseline='top' não tem essa folga — sem compensar,
-  // o texto renderizado fica ~(lineH-fontSize)/2 mais alto do que na prévia,
-  // dando a impressão de que o texto "sobe" ao publicar.
-  const halfLeading = (lineH - fontSize) / 2;
+
+  // O CSS centraliza o conteúdo real da fonte (ascent + descent — que quase
+  // sempre é MAIOR que o font-size nominal, cada fonte tem sua própria
+  // proporção) dentro da caixa de linha (lineH), com metade da folga
+  // ("half-leading") acima e metade abaixo. Usar apenas `fontSize` como
+  // aproximação da altura de conteúdo subestima essa folga (a maioria das
+  // fontes, incluindo a Nunito, tem ascent+descent > 1em), por isso ainda
+  // sobrava uma pequena subida. Aqui usamos as métricas reais da fonte
+  // (fontBoundingBoxAscent/Descent) e desenhamos na baseline, replicando
+  // exatamente o modelo de caixa do CSS.
+  const fm = ctx.measureText('Mg');
+  const hasFontBoxMetrics = typeof fm.fontBoundingBoxAscent === 'number';
+  const ascent  = hasFontBoxMetrics ? fm.fontBoundingBoxAscent  : fontSize * 0.9;
+  const descent = hasFontBoxMetrics ? fm.fontBoundingBoxDescent : fontSize * 0.2;
+  const halfLeading = (lineH - (ascent + descent)) / 2;
+  ctx.textBaseline = 'alphabetic';
+
   const padV    = Math.round(10 * scale);
   const totalH  = lines.length * lineH + padV * 2;
   let barY      = Math.round(barTop * scale);
@@ -11228,7 +11238,7 @@ async function storyRenderFinal() {
   // Texto branco
   ctx.fillStyle = '#ffffff';
   lines.forEach((line, i) => {
-    ctx.fillText(line, W / 2, barY + padV + i * lineH + halfLeading);
+    ctx.fillText(line, W / 2, barY + padV + i * lineH + halfLeading + ascent);
   });
 
   return canvas;
