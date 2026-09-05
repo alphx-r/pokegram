@@ -144,6 +144,8 @@
   .tr-btn:hover{background:var(--brand)}
   #tr-share-btn{background:#f2a33c;margin-top:8px}
   #tr-share-btn:hover{background:#d98a1f}
+  #tr-download-btn{background:#3f7fd1;margin-top:8px}
+  #tr-download-btn:hover{background:#2f66ac}
 </style>
 </head>
 <body>
@@ -220,6 +222,7 @@
     </div>
     <button class="tr-btn" id="tr-restart-btn">Jogar novamente</button>
     <button class="tr-btn" id="tr-share-btn">Compartilhar no Stories</button>
+    <button class="tr-btn" id="tr-download-btn">Baixar imagem</button>
   </div>
 </div>
 
@@ -272,6 +275,28 @@ async function loadSpriteOverrides() {
   } catch (e) { console.warn('[loadSpriteOverrides]', e); }
 }
 
+// ── Sprite do Pidgey (usado nos obstáculos "pássaro") ────
+// Mesma imagem e mesma chave de settings do flaPidgey ('flapidgey_sprite'),
+// pra ficar sempre igual em ambos os jogos e trocar num lugar só se um dia
+// mudar. Sem override salvo, cai no GIF padrão; sem GIF nenhum, cai no
+// desenho vetorial original do pássaro.
+const PIDGEY_SPRITE_DEFAULT = 'https://64.media.tumblr.com/802e179f72cf2487530ccb5aa9bb27c5/4603906cfe87268f-b3/s75x75_c1/1c728feb8f32ec554fd9a30c5bdb0be02b6e4007.gif';
+const BIRD_VISUAL_SIZE = 34; // tamanho visual do sprite (a hitbox do obstáculo continua a mesma, só o desenho fica maior/mais legível)
+const pidgeyImg = new Image();
+let pidgeyReady = false;
+pidgeyImg.onload = () => { pidgeyReady = true; };
+pidgeyImg.onerror = () => { pidgeyReady = false; };
+
+async function loadPidgeySprite() {
+  let url = PIDGEY_SPRITE_DEFAULT;
+  try {
+    const { data, error } = await gdb.from('settings').select('value').eq('key', 'flapidgey_sprite').maybeSingle();
+    if (error) console.warn('[loadPidgeySprite] erro ao buscar sprite', error);
+    if (data && data.value) url = data.value;
+  } catch (e) { console.warn('[loadPidgeySprite]', e); }
+  pidgeyImg.src = url;
+}
+
 function setSpriteKind(kind) {
   if (kind === currentSpriteKind) return;
   currentSpriteKind = kind;
@@ -318,7 +343,15 @@ const PLAYER_X = 56;
 const PLAYER_W = 40, PLAYER_STAND_H = 46, PLAYER_DUCK_H = 26;
 const GRAVITY = 1500, JUMP_VELOCITY = -560, FAST_FALL_MULT = 2.4;
 
-const BASE_SPEED = 260, MAX_SPEED = 620, SPEED_PER_POINT = 1.6;
+const BASE_SPEED = 260;
+// A velocidade fica travada em BASE_SPEED até 1500 pontos; a partir daí sobe
+// numa rampa contínua (nunca em degraus/pulos bruscos) que vale exatamente
+// 1,5x a velocidade base a cada 1500 pontos completados (3000 pts = 2,25x,
+// 4500 pts = 3,375x, etc.), até o teto de segurança MAX_SPEED.
+const SPEED_RAMP_START = 1500;
+const SPEED_RAMP_INTERVAL = 1500;
+const SPEED_RAMP_MULT = 1.5;
+const MAX_SPEED = 900;
 const SCORE_RATE = 12; // pontos por segundo de distância percorrida
 const DAY_NIGHT_INTERVAL = 400; // pontos entre ciclos dia/noite
 
@@ -327,6 +360,23 @@ const SALAC_DURATION = 5000, SALAC_MULT = 1.55;   // Baga Salac: acelera
 const TAMATO_DURATION = 5000, TAMATO_MULT = 0.55; // Baga Tamato: desacelera
 const XATTACK_MAX = 3;                             // até 3 obstáculos quebrados
 const ITEM_SIZE = 26;
+
+// Sprites reais dos itens (mesmo repositório de sprites do PokeAPI já usado
+// pelas bagas do flaPidgey — oran/sitrus/starf/enigma). Sem imagem carregada
+// (falha de rede, etc.) cai no desenho vetorial original de cada item.
+const ITEM_SPRITES = {
+  salac:   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/salac-berry.png',
+  tamato:  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tamato-berry.png',
+  xattack: 'https://static.wikia.nocookie.net/pokemon-uranium/images/f/f5/Bag_X_Attack_Sprite.png/revision/latest?cb=20160827054619',
+};
+const itemImgs = {};
+Object.keys(ITEM_SPRITES).forEach(key => {
+  const img = new Image();
+  itemImgs[key] = { img, ready: false };
+  img.onload = () => { itemImgs[key].ready = true; };
+  img.onerror = () => { itemImgs[key].ready = false; };
+  img.src = ITEM_SPRITES[key];
+});
 let salacUntil = 0, tamatoUntil = 0, xAttackCharges = 0;
 let items = [];
 let itemSpawnTimer = 0, nextItemSpawnInterval = 6500 + Math.random() * 4500;
@@ -338,13 +388,14 @@ let gameOver = false, started = false;
 let lastTs = 0, rafId = null;
 let spawnTimer = 0, nextSpawnInterval = 900;
 let fastFall = false, duckHeld = false;
+let hintDismissedOnce = false; // controla se o hint "Como jogar" já foi visto nesta sessão
 
 function makeCloud(x) {
   return { x: x !== undefined ? x : BASE_W + 20 + Math.random() * 60, y: 30 + Math.random() * (BASE_H * 0.3), r: 16 + Math.random() * 14 };
 }
 
 function resetEntities() {
-  player = { x: PLAYER_X, y: groundY - PLAYER_STAND_H, vy: 0, onGround: true, ducking: false };
+  player = { x: PLAYER_X, y: groundY - PLAYER_STAND_H, vy: 0, onGround: true, ducking: false, jumpsUsed: 0 };
   obstacles = [];
   items = [];
   breakParticles = [];
@@ -371,26 +422,39 @@ function startGame() {
   rafId = requestAnimationFrame(loop);
 }
 
-// ── Hint "como jogar" (toda partida nova, some só com ação real do jogador) ──
+// ── Hint "como jogar" (só na primeira partida da sessão; some com ação
+// real do jogador e não volta a aparecer nos "jogar novamente" seguintes) ──
 function showHint() {
   started = false;
-  document.getElementById('tr-hint').classList.remove('hide');
+  if (!hintDismissedOnce) {
+    document.getElementById('tr-hint').classList.remove('hide');
+  }
 }
 
 function beginPlay() {
   if (started) return;
   started = true;
+  hintDismissedOnce = true;
   lastTs = 0;
   document.getElementById('tr-hint').classList.add('hide');
 }
 
 // ── Ações do jogador ─────────────────────────────────────
+const MAX_JUMPS = 2; // 1 pulo normal + 1 pulo duplo no ar
+
 function jump() {
   if (gameOver) return;
   if (!started) beginPlay();
-  if (player.onGround && !player.ducking) {
+  if (player.ducking) return;
+  if (player.onGround) {
     player.vy = JUMP_VELOCITY;
     player.onGround = false;
+    player.jumpsUsed = 1;
+  } else if (player.jumpsUsed < MAX_JUMPS) {
+    // pulo duplo: um segundo clique/toque enquanto ainda está no ar dá
+    // um novo impulso, com o mesmo valor do pulo normal
+    player.vy = JUMP_VELOCITY;
+    player.jumpsUsed++;
   }
 }
 
@@ -407,7 +471,11 @@ function setDuck(on) {
 
 // ── Obstáculos ───────────────────────────────────────────
 function currentSpeed() {
-  let s = Math.min(MAX_SPEED, BASE_SPEED + score * SPEED_PER_POINT);
+  let s = BASE_SPEED;
+  if (score > SPEED_RAMP_START) {
+    const tiers = (score - SPEED_RAMP_START) / SPEED_RAMP_INTERVAL;
+    s = Math.min(MAX_SPEED, BASE_SPEED * Math.pow(SPEED_RAMP_MULT, tiers));
+  }
   const now = performance.now();
   if (tamatoUntil && now < tamatoUntil) s *= TAMATO_MULT;
   else if (salacUntil && now < salacUntil) s *= SALAC_MULT;
@@ -597,6 +665,7 @@ function update(dt) {
       player.vy = 0;
       player.onGround = true;
       fastFall = false;
+      player.jumpsUsed = 0; // reseta o pulo duplo ao pousar
       player.ducking = duckHeld; // se soltou segurando pra baixo, já pousa agachado
     }
   }
@@ -692,6 +761,14 @@ function drawItem(it) {
   const bobY = it.y + Math.sin(it.bob) * 3;
   const cx = it.x + it.w / 2, cy = bobY + it.h / 2;
   const r = it.w / 2;
+
+  const spr = itemImgs[it.kind];
+  if (spr && spr.ready) {
+    ctx.drawImage(spr.img, cx - r, cy - r, r * 2, r * 2);
+    return;
+  }
+
+  // Fallback vetorial (enquanto o sprite carrega ou se a imagem falhar)
   ctx.save();
   ctx.translate(cx, cy);
   if (it.kind === 'salac') {
@@ -741,6 +818,18 @@ function drawRock(o) {
 }
 
 function drawBird(o) {
+  const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+  if (pidgeyReady) {
+    const wobble = Math.sin(performance.now() / 90) * 0.1; // pequeno balanço, no lugar da batida de asa vetorial
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(wobble);
+    ctx.drawImage(pidgeyImg, -BIRD_VISUAL_SIZE / 2, -BIRD_VISUAL_SIZE / 2, BIRD_VISUAL_SIZE, BIRD_VISUAL_SIZE);
+    ctx.restore();
+    return;
+  }
+
+  // Fallback vetorial (enquanto o sprite carrega ou se a imagem falhar)
   const flap = Math.sin(performance.now() / 90) * 6;
   ctx.save();
   ctx.translate(o.x + o.w / 2, o.y + o.h / 2);
@@ -839,36 +928,37 @@ document.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowDown') setDuck(false);
 });
 
-// ── Controles: toque (tap = pular, segurar pra baixo = abaixar) ──
+// ── Controles: ponteiro (tap/clique = pular, segurar pra baixo = abaixar) ──
+// Usa Pointer Events (mesmo padrão do flaPidgey) em vez de Touch Events:
+// um único listener cobre toque E clique de mouse com a mesma resposta
+// imediata, o que também corrige dois problemas que só o touch tinha:
+// (1) no desktop o clique de mouse simplesmente não pulava antes, e
+// (2) o tempo de resposta ao toque ficava um pouco mais lento/inconsistente
+// que no flaPidgey por depender de um trio de eventos touchstart/move/end.
 const wrap = document.getElementById('tr-wrap');
-let touchStartY = 0, touchStartTime = 0, touchDragged = false, touchActive = false;
-const TAP_TIME_LIMIT = 220, DUCK_DRAG_THRESHOLD = 16;
+let pointerDownY = 0, pointerActive = false;
+const DUCK_DRAG_THRESHOLD = 16;
 
-wrap.addEventListener('touchstart', (e) => {
-  const t = e.touches[0];
-  touchActive = true;
-  touchDragged = false;
-  touchStartY = t.clientY;
-  touchStartTime = Date.now();
-  if (!started) { beginPlay(); return; } // primeiro toque só fecha o hint
+wrap.addEventListener('pointerdown', (e) => {
+  pointerActive = true;
+  pointerDownY = e.clientY;
+  if (!started) { beginPlay(); return; } // primeiro toque/clique só fecha o hint
   jump();
-}, { passive: true });
+});
 
-wrap.addEventListener('touchmove', (e) => {
-  if (!touchActive || gameOver) return;
-  const t = e.touches[0];
-  if (t.clientY - touchStartY > DUCK_DRAG_THRESHOLD) {
-    touchDragged = true;
+wrap.addEventListener('pointermove', (e) => {
+  if (!pointerActive || gameOver) return;
+  if (e.clientY - pointerDownY > DUCK_DRAG_THRESHOLD) {
     setDuck(true);
   }
-}, { passive: true });
+});
 
-function touchEndHandler() {
-  touchActive = false;
+function pointerEndHandler() {
+  pointerActive = false;
   setDuck(false);
 }
-wrap.addEventListener('touchend', touchEndHandler);
-wrap.addEventListener('touchcancel', touchEndHandler);
+wrap.addEventListener('pointerup', pointerEndHandler);
+wrap.addEventListener('pointercancel', pointerEndHandler);
 
 document.getElementById('tr-restart-btn').addEventListener('click', startGame);
 document.getElementById('tr-hint').addEventListener('click', beginPlay);
@@ -883,8 +973,8 @@ document.getElementById('tr-hint').addEventListener('click', beginPlay);
     hudBox.classList.toggle('tr-hud-hidden', hidden);
   }
   hudBox.addEventListener('click', toggleHud);
-  hudBox.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
-  hudBox.addEventListener('touchend', (e) => e.stopPropagation());
+  hudBox.addEventListener('pointerdown', (e) => e.stopPropagation());
+  hudBox.addEventListener('pointerup', (e) => e.stopPropagation());
 })();
 
 // ── Canvas sizing responsivo ─────────────────────────────
@@ -1087,6 +1177,52 @@ function shareResultToStories() {
 }
 document.getElementById('tr-share-btn').addEventListener('click', shareResultToStories);
 
+// ── Baixar imagem do resultado ─────────────────────────────
+// "Compartilhar no Stories" só posta dentro do próprio Pokégram; esse botão
+// é pra salvar a imagem no aparelho. No mobile, o link <a download> sozinho
+// costuma falhar ou só abrir a imagem numa aba (principalmente no Safari
+// iOS), então aqui primeiro tenta a Web Share API com arquivo — que abre o
+// menu nativo de compartilhar/salvar do celular — e só cai pro link de
+// download tradicional se isso não for suportado (ex.: a maioria dos
+// desktops).
+async function downloadResultImage() {
+  let resultCanvas;
+  try {
+    resultCanvas = buildResultCanvas(true);
+  } catch (e) {
+    console.warn('[downloadResultImage] falhou com sprite, tentando sem sprite', e);
+    resultCanvas = buildResultCanvas(false);
+  }
+  const filename = `tyrunt-${Math.floor(score)}pts.png`;
+
+  try {
+    const blob = await new Promise(resolve => resultCanvas.toBlob(resolve, 'image/png'));
+    if (blob) {
+      const file = new File([blob], filename, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'tyRUNt' });
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('[downloadResultImage] Web Share falhou, caindo pro download direto', e);
+  }
+
+  try {
+    const dataUrl = resultCanvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (e) {
+    console.warn('[downloadResultImage] download direto falhou, abrindo em nova aba', e);
+    window.open(resultCanvas.toDataURL('image/png'), '_blank');
+  }
+}
+document.getElementById('tr-download-btn').addEventListener('click', downloadResultImage);
+
 // ── Boot ──────────────────────────────────────────────────
 function tryEnterFullscreenNow() {
   try {
@@ -1103,6 +1239,7 @@ function tryEnterFullscreenNow() {
   gSetupFullscreenOnFirstInteraction();
   resize();
   await loadSpriteOverrides();
+  loadPidgeySprite();
   startGame();
   setSpriteKind('normal');
   refreshBest();
