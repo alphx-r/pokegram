@@ -48,7 +48,9 @@
     background:rgba(255,255,255,.86);border-radius:10px;
     padding:10px clamp(20px,5vw,30px);box-shadow:0 2px 8px rgba(0,0,0,.2);
     max-width:calc(100% - 20px);
+    pointer-events:auto;cursor:pointer;transition:opacity .25s ease;
   }
+  .vb-hud-box.vb-hud-hidden{opacity:0}
   .vb-hud-item{
     flex:0 1 auto;white-space:nowrap;text-align:center;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
@@ -110,7 +112,7 @@
   <div class="vb-canvas-wrap">
     <canvas id="vb-canvas"></canvas>
     <div class="vb-hud">
-      <div class="vb-hud-box">
+      <div class="vb-hud-box" id="vb-hud-box">
         <div class="vb-hud-item">
           <div class="vb-hud-label">Pontos</div>
           <div class="vb-hud-value" id="vb-score">0</div>
@@ -823,6 +825,19 @@ window.addEventListener('pointerup', (e) => {
 
 document.getElementById('vb-restart-btn').addEventListener('click', resetGame);
 document.getElementById('vb-share-btn').addEventListener('click', shareResultToStories);
+
+// ── HUD (Pontos/Recorde/Tipos): toque oculta, toque no mesmo lugar mostra ──
+(function () {
+  const hudBox = document.getElementById('vb-hud-box');
+  let hidden = false;
+  function toggleHud(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    hidden = !hidden;
+    hudBox.classList.toggle('vb-hud-hidden', hidden);
+  }
+  hudBox.addEventListener('pointerdown', toggleHud);
+})();
 
 // ── Compartilhar resultado ────────────────────────────────
 function buildResultCanvas() {
