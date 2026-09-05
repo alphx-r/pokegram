@@ -1407,12 +1407,18 @@ a:focus, a:active,
 <script>
   const SUPABASE_URL  = 'https://cofqapsaxrqlmxzpzbkr.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZnFhcHNheHJxbG14enB6YmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTMyMjcsImV4cCI6MjA5NTA2OTIyN30.p331KADbBKl6oPSQvxXpDAga3Hx_YwVDZTruKa6Rp8o';
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  const IS_ADM = window.location.pathname.startsWith('/adm');
+  // storageKey separado por rota: evita que logar como admin em /adm
+  // sobrescreva a sessão de auth (auth.uid()) de uma aba do app aberta
+  // como player/personagem, e vice-versa. Sem isso, RLS de tabelas como
+  // `messages` filtra tudo silenciosamente pro usuário errado.
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { storageKey: IS_ADM ? 'sb-pokegram-adm-auth' : 'sb-pokegram-player-auth' }
+  });
 
   // ── Banco do Kingdom Platinum (login por player) ──────────
   const KP_URL = 'https://ucbkodkjlbatttiuqjtv.supabase.co';
   const KP_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjYmtvZGtqbGJhdHR0aXVxanR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NjExODcsImV4cCI6MjA5MzMzNzE4N30.a65MSk7m4DvgTw2pHXhaqMOOEpjTB_wPsXJUfvOGiG4';
-  const IS_ADM = window.location.pathname.startsWith('/adm');
 
   // ── Logo da rede social (armazenada no Supabase) ──────────
   let _logoUrl = null;
