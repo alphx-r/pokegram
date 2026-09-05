@@ -11522,7 +11522,7 @@ async function submitStory() {
 }
 
 // ── Story Viewer ──────────────────────────────────────────
-async function openStoryViewer(userId) {
+async function openStoryViewer(userId, targetStoryId) {
   // busca stories do usuário (não expirados)
   const { data: stories } = await db
     .from('stories')
@@ -11534,6 +11534,10 @@ async function openStoryViewer(userId) {
   if (!stories || !stories.length) { toast('Nenhum story disponível.'); return; }
   _storyViewList   = stories;
   _storyViewIdx    = 0;
+  if (targetStoryId) {
+    const targetIdx = stories.findIndex(s => s.id === targetStoryId);
+    if (targetIdx >= 0) _storyViewIdx = targetIdx;
+  }
   _storyViewOwnerId = userId;
   _storyPaused     = false;
   document.getElementById('modal-story').style.display = 'flex';
@@ -11542,6 +11546,19 @@ async function openStoryViewer(userId) {
   // atualiza URL para /usuario/stories
   const storyUsername = stories[0]?.users?.username;
   if (storyUsername) history.replaceState({ storyUserId: userId }, '', '/' + storyUsername + '/stories');
+}
+
+// Abre um story específico compartilhado no chat (meta_ref_id = id do story).
+// Resolve o user_id dono do story e já posiciona o viewer nele.
+async function openStoryFromChat(storyId, fallbackUserId) {
+  if (!storyId) {
+    if (fallbackUserId) return openStoryViewer(fallbackUserId);
+    toast('Story não disponível.');
+    return;
+  }
+  const { data: storyRow } = await db.from('stories').select('user_id').eq('id', storyId).maybeSingle();
+  if (!storyRow) { toast('Este story não está mais disponível.'); return; }
+  openStoryViewer(storyRow.user_id, storyId);
 }
 
 function showStory(idx) {
@@ -13102,7 +13119,7 @@ function chatRenderMessages() {
       const emojiSide = isSent ? 'left:0;transform:translate(-50%,50%)' : 'right:0;transform:translate(50%,50%)';
       storyDiv.innerHTML = `
         <div style="position:relative;display:inline-block;">
-          <div class="chat-story-preview" style="border-radius:${previewRadius}" onclick="openStoryViewer('${_escHtml(msg.meta_ref_id||msg.sender_id||'')}')">
+          <div class="chat-story-preview" style="border-radius:${previewRadius}" onclick="openStoryFromChat('${_escHtml(msg.meta_ref_id||'')}','${_escHtml(msg.sender_id||'')}')">
             ${msg.meta_img
               ? `<img src="${_escHtml(msg.meta_img)}" style="width:100%;height:100%;object-fit:cover;display:block">`
               : `<div style="width:100%;height:100%;background:#222;display:flex;align-items:center;justify-content:center;color:#888;font-size:11px">Story</div>`}
