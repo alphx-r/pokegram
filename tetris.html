@@ -40,15 +40,25 @@
   }
 
   /* HUD flutuante */
-  .gt-level-badge{
-    position:absolute;top:16px;left:16px;
-    width:48px;height:48px;border-radius:50%;
-    background:rgba(255,255,255,0.5);
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Cinzel',serif;font-weight:700;font-size:19px;color:#1a1a2e;
-    z-index:15;pointer-events:none;
-    box-shadow:0 2px 10px rgba(0,0,0,.2);
+  /* HUD (Pontos/Nível) — toque para ocultar/mostrar */
+  .gt-hud{
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
+    display:flex;justify-content:center;pointer-events:none;
   }
+  .gt-hud-box{
+    display:flex;gap:clamp(14px,5vw,28px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.82);border-radius:10px;
+    padding:9px clamp(20px,5vw,28px);box-shadow:0 2px 8px rgba(0,0,0,.2);
+    pointer-events:auto;cursor:pointer;
+    transition:opacity .25s ease;
+  }
+  .gt-hud-box.gt-hud-hidden{opacity:0}
+  .gt-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .gt-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .gt-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
   .gt-next-wrap{
     position:absolute;top:16px;right:16px;
     width:64px;height:64px;border-radius:12px;
@@ -138,7 +148,18 @@
 
 <div class="gt-stage" id="gt-stage">
   <canvas id="gt-canvas"></canvas>
-  <div class="gt-level-badge" id="gt-level-badge">1</div>
+  <div class="gt-hud" id="gt-hud">
+    <div class="gt-hud-box" id="gt-hud-box">
+      <div class="gt-hud-item">
+        <div class="gt-hud-label">Pontos</div>
+        <div class="gt-hud-value" id="gt-score">0</div>
+      </div>
+      <div class="gt-hud-item">
+        <div class="gt-hud-label">Nível</div>
+        <div class="gt-hud-value" id="gt-level">1</div>
+      </div>
+    </div>
+  </div>
   <div class="gt-next-wrap"><canvas id="gt-next-canvas" width="64" height="64"></canvas></div>
 
   <div class="gt-hint" id="gt-hint">
@@ -189,7 +210,8 @@ const canvas = document.getElementById('gt-canvas');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('gt-next-canvas');
 const nextCtx = nextCanvas.getContext('2d');
-const levelBadge = document.getElementById('gt-level-badge');
+const scoreEl = document.getElementById('gt-score');
+const levelEl = document.getElementById('gt-level');
 
 // Peças temáticas: cada tipo de Pokémon vira uma cor de peça.
 // Estas são as peças padrão (fallback), usadas caso o admin não
@@ -346,7 +368,8 @@ function clearLines() {
 }
 
 function updateStats() {
-  levelBadge.textContent = level;
+  scoreEl.textContent = score;
+  levelEl.textContent = level;
 }
 
 function draw() {
@@ -478,9 +501,14 @@ let hintActive = false;
 function maybeShowHint() {
   let seen = false;
   try { seen = localStorage.getItem(GT_HINT_KEY) === '1'; } catch (e) {}
-  if (seen) return;
+  const hintEl = document.getElementById('gt-hint');
+  if (seen) {
+    hintActive = false;
+    hintEl.classList.add('hide');
+    return;
+  }
   hintActive = true;
-  document.getElementById('gt-hint').classList.remove('hide');
+  hintEl.classList.remove('hide');
 }
 
 function dismissHint() {
@@ -566,6 +594,20 @@ stage.addEventListener('touchcancel', touchEndHandler);
 
 document.getElementById('gt-restart-btn').addEventListener('click', startGame);
 document.getElementById('gt-hint').addEventListener('click', dismissHint);
+
+// ── HUD (Pontos/Nível): toque oculta, toque no mesmo lugar mostra ──
+(function () {
+  const hudBox = document.getElementById('gt-hud-box');
+  let hidden = false;
+  function toggleHud(e) {
+    e.stopPropagation();
+    hidden = !hidden;
+    hudBox.classList.toggle('gt-hud-hidden', hidden);
+  }
+  hudBox.addEventListener('click', toggleHud);
+  hudBox.addEventListener('touchstart', (e) => e.stopPropagation(), {passive:true});
+  hudBox.addEventListener('touchend', (e) => e.stopPropagation());
+})();
 
 // ── Canvas sizing responsivo (ocupa toda a área disponível) ──
 function resize() {
