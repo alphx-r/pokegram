@@ -480,9 +480,11 @@ function updateNextBallUI() {
 // Esconde o hint de controles assim que o jogador dá o primeiro tiro
 // (ou seja, quando o jogo "começa" de verdade) — antes ele ficava na
 // tela o jogo inteiro, atrapalhando a mira perto do canhão.
+// Removido do DOM de verdade (não só display:none) pra não sobrar
+// nenhum elemento por cima do canvas roteando toque/seleção de texto.
 function hideHintOnce() {
   const hint = document.getElementById('vb-hint');
-  if (hint) hint.style.display = 'none';
+  if (hint) hint.remove();
 }
 
 function resetGame() {
@@ -829,6 +831,8 @@ window.addEventListener('pointerup', (e) => {
 
 document.getElementById('vb-restart-btn').addEventListener('click', resetGame);
 document.getElementById('vb-share-btn').addEventListener('click', shareResultToStories);
+document.getElementById('vb-hint').addEventListener('selectstart', (e) => e.preventDefault());
+document.addEventListener('selectstart', (e) => e.preventDefault());
 
 // ── HUD (Pontos/Recorde/Tipos): toque oculta, toque no mesmo lugar mostra ──
 (function () {
