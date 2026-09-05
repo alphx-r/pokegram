@@ -70,9 +70,42 @@
   }
   .gf-enigma-result.show{opacity:1;transform:translateY(0)}
   .gf-hint{
-    position:absolute;top:calc(50% - 30px);left:10px;right:10px;z-index:20;
-    font-size:13px;color:rgba(26,26,26,.55);text-align:center;font-weight:600;
-    text-shadow:0 1px 3px rgba(255,255,255,.6);pointer-events:none;
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:100;pointer-events:auto;
+    background:rgba(10,10,20,0.72);
+    opacity:1;transition:opacity .35s ease;
+  }
+  .gf-hint.hide{opacity:0;pointer-events:none}
+  .gf-hint-card{
+    background:rgba(20,20,38,0.88);
+    border:1.5px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:20px 22px;
+    max-width:270px;
+    text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+    pointer-events:auto;
+  }
+  .gf-hint-title{
+    font-family:'Cinzel',serif;color:var(--accent);font-size:15px;font-weight:700;
+    margin:0 0 12px;
+  }
+  .gf-hint-row{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:10px;text-align:left;
+  }
+  .gf-hint-row:last-of-type{margin-bottom:0}
+  .gf-hint-icon{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .gf-hint-text{font-size:12px;color:#fff;line-height:1.35}
+  .gf-hint-text b{color:var(--accent)}
+  .gf-hint-dismiss{
+    margin-top:14px;font-size:11px;color:rgba(255,255,255,0.55);
+    font-weight:700;text-transform:uppercase;letter-spacing:.4px;
   }
 
   .gf-lb{width:100%;max-width:340px;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px}
@@ -132,7 +165,24 @@
       </div>
       <div class="gf-enigma-result" id="gf-enigma-result"></div>
     </div>
-    <div class="gf-hint">Toque na tela ou aperte espaço para bater as asas</div>
+    <div class="gf-hint" id="gf-hint">
+      <div class="gf-hint-card">
+        <div class="gf-hint-title">Como jogar</div>
+        <div class="gf-hint-row">
+          <div class="gf-hint-icon">🐦</div>
+          <div class="gf-hint-text"><b>Toque</b> na tela <span style="opacity:.7">(ou espaço/↑)</span> para bater as asas e subir, desviando dos canos</div>
+        </div>
+        <div class="gf-hint-row">
+          <div class="gf-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
+          <div class="gf-hint-text">Pegue a <b>Oran</b> pra somar pontos — a rara <b>Starf</b> vale ainda mais</div>
+        </div>
+        <div class="gf-hint-row">
+          <div class="gf-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
+          <div class="gf-hint-text">A <b>Sitrus</b> dá uma vida extra, e a raríssima <b>Enigma</b> sorteia um bônus (bom ou ruim)</div>
+        </div>
+        <div class="gf-hint-dismiss">Toque em qualquer lugar para começar</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -522,16 +572,32 @@ function resetGame() {
   document.getElementById('gf-enigma-result').classList.remove('show');
   updateSkyBackground();
   document.getElementById('gf-overlay').classList.remove('show');
-  document.querySelector('.gf-hint').style.display = '';
+  showHint();
   cancelAnimationFrame(rafId);
   draw();
   rafId = requestAnimationFrame(loop);
 }
 
+// ── Hint "como jogar" (só na primeira partida da sessão; some com ação
+// real do jogador e não volta a aparecer nos "jogar novamente" seguintes) ──
+let hintDismissedOnce = false;
+function showHint() {
+  started = false;
+  if (!hintDismissedOnce) {
+    document.getElementById('gf-hint').classList.remove('hide');
+  }
+}
+
+function beginPlay() {
+  if (started) return;
+  started = true;
+  hintDismissedOnce = true;
+  document.getElementById('gf-hint').classList.add('hide');
+}
+
 function flap() {
   if (gameOver) return;
-  if (!started) document.querySelector('.gf-hint').style.display = 'none';
-  started = true;
+  if (!started) beginPlay();
   bird.vy = FLAP_VELOCITY;
 }
 
@@ -837,6 +903,7 @@ document.addEventListener('keydown', (e) => {
 });
 document.getElementById('gf-restart-btn').addEventListener('click', resetGame);
 document.getElementById('gf-share-btn').addEventListener('click', shareResultToStories);
+document.getElementById('gf-hint').addEventListener('click', beginPlay);
 
 // ── HUD (Pontos/Recorde/Vidas): toque oculta, toque no mesmo lugar mostra ──
 (function () {
