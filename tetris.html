@@ -207,6 +207,29 @@ const DEFAULT_PIECES = {
 let PIECES = DEFAULT_PIECES;
 let PIECE_KEYS = Object.keys(PIECES);
 
+// ── Ícone de tipo (símbolo desenhado em cima de cada célula) ──
+// Mesma lógica de URL do editor de peças: alguns tipos usam SVG
+// hospedado no Storage da Kingdom Platinum, os demais vêm de um CDN
+// público de ícones de tipo Pokémon.
+const GT_KP_SUPA_URL = 'https://vnccljhhexlsthjaaorr.supabase.co';
+const GT_CUSTOM_TYPE_ICONS = new Set(['light', 'scent']);
+function gtTypeIconSrc(t) {
+  return GT_CUSTOM_TYPE_ICONS.has(t)
+    ? `${GT_KP_SUPA_URL}/storage/v1/object/public/pokemons/types/${t}.svg`
+    : `https://cdn.jsdelivr.net/gh/partywhale/pokemon-type-icons@main/icons/${t}.svg`;
+}
+const _gtIconImgCache = {};
+function gtGetIconImg(key) {
+  if (!key) return null;
+  if (!_gtIconImgCache[key]) {
+    const img = new Image();
+    img.onload = () => { try { draw(); drawNext(); } catch (e) {} };
+    img.src = gtTypeIconSrc(key);
+    _gtIconImgCache[key] = img;
+  }
+  return _gtIconImgCache[key];
+}
+
 // Valida a estrutura de um conjunto de peças vindo de settings antes
 // de usar — se algo estiver malformado, cai no padrão pra não travar o jogo.
 function validatePieces(obj) {
@@ -221,6 +244,7 @@ function validatePieces(obj) {
       shape: p.shape.map(row => row.map(v => v ? 1 : 0)),
       color: p.color,
     };
+    if (typeof p.icon === 'string' && p.icon.trim()) out[key].icon = p.icon.trim();
   }
   return Object.keys(out).length ? out : null;
 }
@@ -256,6 +280,7 @@ function randomPiece() {
   return {
     shape: p.shape.map(r => r.slice()),
     color: p.color,
+    icon: p.icon || null,
     row: 0,
     col: Math.floor((COLS - p.shape[0].length) / 2),
   };
@@ -288,7 +313,7 @@ function lockPiece() {
   current.shape.forEach((r, ri) => r.forEach((v, ci) => {
     if (v) {
       const rr = current.row + ri, cc = current.col + ci;
-      if (rr >= 0) board[rr][cc] = current.color;
+      if (rr >= 0) board[rr][cc] = { color: current.color, icon: current.icon };
     }
   }));
   clearLines();
@@ -337,17 +362,24 @@ function draw() {
   // board fixo
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
-      if (board[r][c]) drawCell(ctx, c, r, board[r][c]);
+      if (board[r][c]) drawCell(ctx, c, r, board[r][c].color, board[r][c].icon);
   // peça atual
   current.shape.forEach((row, ri) => row.forEach((v, ci) => {
-    if (v && current.row + ri >= 0) drawCell(ctx, current.col + ci, current.row + ri, current.color);
+    if (v && current.row + ri >= 0) drawCell(ctx, current.col + ci, current.row + ri, current.color, current.icon);
   }));
 }
 
-function drawCell(context, col, row, color) {
+function drawCell(context, col, row, color, icon) {
   const x = col * CELL, y = row * CELL;
   context.fillStyle = color;
   context.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+  if (icon) {
+    const img = gtGetIconImg(icon);
+    if (img && img.complete && img.naturalWidth) {
+      const pad = Math.max(2, Math.round(CELL * 0.14));
+      context.drawImage(img, x + 1 + pad, y + 1 + pad, CELL - 2 - pad * 2, CELL - 2 - pad * 2);
+    }
+  }
   context.fillStyle = 'rgba(255,255,255,0.25)';
   context.fillRect(x + 1, y + 1, CELL - 2, 4);
   context.fillStyle = 'rgba(0,0,0,0.18)';
@@ -361,10 +393,16 @@ function drawNext() {
   const size = Math.floor(Math.min((nextCanvas.width - 4) / cols, (nextCanvas.height - 4) / rows, 12));
   const w = cols * size, h = rows * size;
   const ox = (nextCanvas.width - w) / 2, oy = (nextCanvas.height - h) / 2;
+  const icon = next.icon ? gtGetIconImg(next.icon) : null;
   shape.forEach((row, ri) => row.forEach((v, ci) => {
     if (!v) return;
+    const cx = ox + ci * size + 1, cy = oy + ri * size + 1, cs = size - 2;
     nextCtx.fillStyle = next.color;
-    nextCtx.fillRect(ox + ci * size + 1, oy + ri * size + 1, size - 2, size - 2);
+    nextCtx.fillRect(cx, cy, cs, cs);
+    if (icon && icon.complete && icon.naturalWidth) {
+      const pad = Math.max(1, Math.round(cs * 0.14));
+      nextCtx.drawImage(icon, cx + pad, cy + pad, cs - pad * 2, cs - pad * 2);
+    }
   }));
 }
 
