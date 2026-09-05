@@ -11209,6 +11209,12 @@ async function storyRenderFinal() {
   const maxTextWidth = W - sidePad * 2;
   const lines   = _wrapCanvasText(ctx, text, maxTextWidth);
   const lineH   = fontSize * 1.4;
+  // O CSS (line-height:1.4) centraliza cada linha de texto verticalmente dentro
+  // da própria caixa de linha, deixando uma folga ("half-leading") acima do
+  // glifo. O canvas com textBaseline='top' não tem essa folga — sem compensar,
+  // o texto renderizado fica ~(lineH-fontSize)/2 mais alto do que na prévia,
+  // dando a impressão de que o texto "sobe" ao publicar.
+  const halfLeading = (lineH - fontSize) / 2;
   const padV    = Math.round(10 * scale);
   const totalH  = lines.length * lineH + padV * 2;
   let barY      = Math.round(barTop * scale);
@@ -11222,7 +11228,7 @@ async function storyRenderFinal() {
   // Texto branco
   ctx.fillStyle = '#ffffff';
   lines.forEach((line, i) => {
-    ctx.fillText(line, W / 2, barY + padV + i * lineH);
+    ctx.fillText(line, W / 2, barY + padV + i * lineH + halfLeading);
   });
 
   return canvas;
