@@ -3058,6 +3058,21 @@ a:focus, a:active,
               <button class="adm-btn adm-btn-sm" onclick="carregarJogosAdm()" style="background:var(--surface2)">↺ Atualizar</button>
             </div>
 
+            <div class="adm-box-title" style="margin-top:20px">🖼 Imagem — Vencedores da Semana</div>
+            <div class="adm-sec-sub" style="margin-bottom:14px">Gerada automaticamente com o top 3 e a premiação de cada jogo da semana atual (<span id="jg-winners-img-range">—</span>), mais o total ganho por personagem somando todos os jogos.</div>
+            <div class="adm-box" style="margin-bottom:24px">
+              <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+                <img id="jg-winners-img-preview" src="" alt="Vencedores da semana" style="display:none;max-width:260px;width:100%;border-radius:14px;border:1.5px solid var(--border);background:#fff" />
+                <div style="flex:1;min-width:200px">
+                  <div id="jg-winners-img-status" style="font-size:13px;color:var(--muted);margin-bottom:12px">Gerando imagem...</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="adm-btn adm-btn-sm" id="jg-winners-img-download" style="display:none" onclick="jgDownloadWinnersImage()">⬇️ Baixar imagem</button>
+                    <button class="adm-btn adm-btn-sm" onclick="gerarImagemVencedoresSemana()" style="background:var(--surface2)">↺ Gerar novamente</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="adm-box-title" style="margin-top:20px">🖼 Capas dos Jogos</div>
             <div class="adm-sec-sub" style="margin-bottom:14px">Imagem de capa exibida para cada jogo (PNG/JPG/WebP, máx 2 MB).</div>
             <div id="jg-covers-wrap" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:24px"></div>
@@ -7208,10 +7223,220 @@ async function removerCapaJogo(key) {
   setTimeout(() => el.style.display = 'none', 3000);
 }
 
+// ── Imagem "Vencedores da Semana" (gerada automaticamente) ──────
+// Junta o top 3 de cada jogo (JG_GAMES) na semana atual, aplica a
+// premiação fixa por posição e desenha um cartão único (canvas) pra
+// download/compartilhamento, com o total ganho por personagem somando
+// as premiações de todos os jogos no rodapé. Roda sozinha sempre que
+// a aba Jogos é (re)carregada — sem precisar de ação manual do admin.
+const JG_PRIZES = [1000, 500, 250]; // C$ por posição: 1º, 2º, 3º lugar
+
+// Top 3 (melhor score por jogador único) de um jogo dentro da semana atual.
+async function jgTop3ThisWeek(game, startISO, endISO) {
+  const { data, error } = await db
+    .from('game_scores')
+    .select('score, author_name, author_color, author_avatar, user_id')
+    .eq('game', game)
+    .gte('created_at', startISO)
+    .lt('created_at', endISO)
+    .order('score', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  const seen = new Set(); const top = [];
+  for (const row of (data || [])) {
+    if (seen.has(row.user_id)) continue;
+    seen.add(row.user_id);
+    top.push(row);
+    if (top.length >= 3) break;
+  }
+  return top;
+}
+
+// Soma a premiação de cada personagem em todos os jogos (mesmo
+// personagem pode aparecer no pódio de mais de um jogo na semana).
+function jgComputeWeekTotals(gamesTop) {
+  const totals = new Map();
+  gamesTop.forEach(({ top }) => {
+    top.forEach((row, i) => {
+      const prize = JG_PRIZES[i];
+      if (!prize) return;
+      const key = row.user_id || row.author_name || Math.random();
+      const cur = totals.get(key) || { name: row.author_name || 'Jogador', total: 0 };
+      cur.total += prize;
+      totals.set(key, cur);
+    });
+  });
+  return Array.from(totals.values()).sort((a, b) => b.total - a.total);
+}
+
+function _jgRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Layout compartilhado entre o cálculo de altura e o desenho de cada
+// "cartão" (jogo ou totais), pra nunca ficarem dessincronizados.
+const JG_CARD_PAD  = 34;  // respiro interno do cartão
+const JG_TITLE_H   = 74;  // do topo do cartão até a linha de base da 1ª linha
+const JG_ROW_H     = 56;  // espaço entre linhas
+function jgCardHeight(rowsCount) {
+  return JG_TITLE_H + Math.max(rowsCount, 1) * JG_ROW_H + JG_CARD_PAD;
+}
+
+async function _jgRenderWinnersCanvas(gamesTop, totals, bounds) {
+  const W = 1080, pad = 56, cardW = W - pad * 2, gamesGap = 22, medals = ['🥇', '🥈', '🥉'];
+
+  const gameCardHeights = gamesTop.map(({ top }) => jgCardHeight(top.length));
+  const headerH = 230;
+  const gamesTotalH = gameCardHeights.reduce((a, b) => a + b, 0) + gamesGap * Math.max(gameCardHeights.length - 1, 0);
+  const totalsCardH = jgCardHeight(totals.length);
+  const sectionGap = 34, footerH = 70;
+  const H = headerH + gamesTotalH + sectionGap + totalsCardH + footerH;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#b71c1c');
+  grad.addColorStop(1, '#7a0f0f');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fdd835';
+  ctx.font = '800 50px Cinzel, serif';
+  ctx.fillText('🏆 Vencedores da Semana', W / 2, 100);
+  ctx.fillStyle = 'rgba(255,255,255,.88)';
+  ctx.font = '600 24px Nunito, sans-serif';
+  ctx.fillText(jgFmtWeekRange(bounds), W / 2, 140);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 23px Nunito, sans-serif';
+  ctx.fillText('🥇 1000 C$    🥈 500 C$    🥉 250 C$', W / 2, 186);
+
+  let y = headerH;
+  gamesTop.forEach(({ game, top }, gi) => {
+    const cardH = gameCardHeights[gi];
+    ctx.fillStyle = '#ffffff';
+    _jgRoundRect(ctx, pad, y, cardW, cardH, 24);
+    ctx.fill();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#b71c1c';
+    ctx.font = '800 28px Cinzel, serif';
+    ctx.fillText(game.label, pad + JG_CARD_PAD, y + JG_CARD_PAD + 12);
+
+    if (!top.length) {
+      ctx.fillStyle = '#8e8e8e';
+      ctx.font = 'italic 600 22px Nunito, sans-serif';
+      ctx.fillText('Ninguém pontuou essa semana.', pad + JG_CARD_PAD, y + JG_TITLE_H);
+    } else {
+      top.forEach((row, i) => {
+        const ry = y + JG_TITLE_H + i * JG_ROW_H;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#1a1a1a';
+        ctx.font = '700 26px Nunito, sans-serif';
+        ctx.fillText(`${medals[i]} ${row.author_name || 'Jogador'}`, pad + JG_CARD_PAD, ry);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '700 21px Nunito, sans-serif';
+        ctx.fillText(`${row.score} pts`, pad + cardW - JG_CARD_PAD - 128, ry);
+        ctx.fillStyle = '#2e7d32';
+        ctx.font = '800 24px Nunito, sans-serif';
+        ctx.fillText(`${JG_PRIZES[i]} C$`, pad + cardW - JG_CARD_PAD, ry);
+      });
+    }
+    y += cardH + gamesGap;
+  });
+
+  y += sectionGap - gamesGap;
+
+  ctx.fillStyle = '#ffffff';
+  _jgRoundRect(ctx, pad, y, cardW, totalsCardH, 24);
+  ctx.fill();
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#b71c1c';
+  ctx.font = '800 28px Cinzel, serif';
+  ctx.fillText('💰 Total ganho na semana', pad + JG_CARD_PAD, y + JG_CARD_PAD + 12);
+
+  if (!totals.length) {
+    ctx.fillStyle = '#8e8e8e';
+    ctx.font = 'italic 600 22px Nunito, sans-serif';
+    ctx.fillText('Nenhum prêmio distribuído essa semana.', pad + JG_CARD_PAD, y + JG_TITLE_H);
+  } else {
+    totals.forEach((t, i) => {
+      const ry = y + JG_TITLE_H + i * JG_ROW_H;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = '700 25px Nunito, sans-serif';
+      ctx.fillText(t.name, pad + JG_CARD_PAD, ry);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#2e7d32';
+      ctx.font = '800 26px Nunito, sans-serif';
+      ctx.fillText(`${t.total.toLocaleString('pt-BR')} C$`, pad + cardW - JG_CARD_PAD, ry);
+    });
+  }
+
+  y += totalsCardH + 36;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,.7)';
+  ctx.font = '600 20px Nunito, sans-serif';
+  ctx.fillText('Pokégram · Jogos', W / 2, y);
+
+  return canvas;
+}
+
+let _jgWinnersCanvas = null;
+
+async function gerarImagemVencedoresSemana() {
+  const statusEl = document.getElementById('jg-winners-img-status');
+  const imgEl    = document.getElementById('jg-winners-img-preview');
+  const dlBtn    = document.getElementById('jg-winners-img-download');
+  if (statusEl) { statusEl.textContent = 'Gerando imagem...'; statusEl.style.display = 'block'; }
+  if (dlBtn) dlBtn.style.display = 'none';
+  try {
+    const bounds = jgWeekBoundsBrasilia(new Date());
+    const rangeEl = document.getElementById('jg-winners-img-range');
+    if (rangeEl) rangeEl.textContent = jgFmtWeekRange(bounds);
+
+    const gamesTop = [];
+    for (const g of JG_GAMES) {
+      const top = await jgTop3ThisWeek(g.key, bounds.start.toISOString(), bounds.end.toISOString());
+      gamesTop.push({ game: g, top });
+    }
+    const totals = jgComputeWeekTotals(gamesTop);
+
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const canvas = await _jgRenderWinnersCanvas(gamesTop, totals, bounds);
+    _jgWinnersCanvas = canvas;
+
+    if (imgEl) { imgEl.src = canvas.toDataURL('image/png'); imgEl.style.display = 'block'; }
+    if (statusEl) statusEl.style.display = 'none';
+    if (dlBtn) dlBtn.style.display = 'inline-flex';
+  } catch (e) {
+    console.warn('[gerarImagemVencedoresSemana]', e);
+    if (statusEl) { statusEl.textContent = 'Erro ao gerar imagem: ' + (e.message || e); statusEl.style.display = 'block'; }
+  }
+}
+
+function jgDownloadWinnersImage() {
+  if (!_jgWinnersCanvas) return;
+  const a = document.createElement('a');
+  a.download = `vencedores-semana-${new Date().toISOString().slice(0, 10)}.png`;
+  a.href = _jgWinnersCanvas.toDataURL('image/png');
+  a.click();
+}
+
 async function carregarJogosAdm() {
   carregarCapasJogosAdm();
   carregarEditorPecasTetris();
   carregarEditorIniciaisBubbles();
+  gerarImagemVencedoresSemana();
 
   const wrap = document.getElementById('jg-games-wrap');
   wrap.innerHTML = JG_GAMES.map(g => `
