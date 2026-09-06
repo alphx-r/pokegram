@@ -248,8 +248,8 @@ const BERRIES = {
 const berryImgs = {};
 Object.keys(BERRIES).forEach(key => {
   const img = new Image();
-  berryImgs[key] = { img, ready: false };
-  img.onload  = () => { berryImgs[key].ready = true; };
+  berryImgs[key] = { img, ready: false, aspect: 1 };
+  img.onload  = () => { berryImgs[key].ready = true; berryImgs[key].aspect = img.naturalWidth / img.naturalHeight || 1; };
   img.onerror = () => { berryImgs[key].ready = false; };
   img.src = BERRIES[key].sprite;
 });
@@ -573,10 +573,14 @@ function drawFoodFallback(fx, fy, minCell) {
 function drawFood() {
   const fx = food.x*cellW + cellW/2, fy = food.y*cellH + cellH/2;
   const minCell = Math.min(cellW, cellH);
-  const size = minCell * 1.1;
+  const size = minCell * 1.6; // aumentado (era 1.1)
   const spriteInfo = berryImgs[food.kind];
   if (spriteInfo && spriteInfo.ready) {
-    ctx.drawImage(spriteInfo.img, fx - size/2, fy - size/2, size, size);
+    // respeita a proporção original do sprite em vez de forçar um quadrado
+    const aspect = spriteInfo.aspect || 1;
+    const w = aspect >= 1 ? size : size * aspect;
+    const h = aspect >= 1 ? size / aspect : size;
+    ctx.drawImage(spriteInfo.img, fx - w/2, fy - h/2, w, h);
     if (food.kind !== 'normal') {
       // leve glow por baixo pra destacar as bagas especiais do sprite genérico
       ctx.save();
@@ -717,9 +721,10 @@ function drawSegmentedSnake(pts, minCell) {
       angle = Math.atan2(vy, -vx); // reflete o ângulo pro semicírculo da frente
     }
 
-    const h = minCell * 0.95;
+    const EKANS_SIZE_BOOST = 1.25; // cobra 25% maior
+    const h = minCell * 0.95 * EKANS_SIZE_BOOST;
     let w = h * (part.aspect || 1);
-    if (partKey === 'grow') w = Math.max(w, minCell * EKANS_GROW_MIN_WIDTH_FACTOR);
+    if (partKey === 'grow') w = Math.max(w, minCell * EKANS_GROW_MIN_WIDTH_FACTOR * EKANS_SIZE_BOOST);
 
     ctx.save();
     ctx.translate(pts[i].x, pts[i].y);
