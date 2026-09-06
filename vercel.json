@@ -12,6 +12,8 @@
     { "source": "/jogos/voltorbolha/", "destination": "/voltorbolha.html" },
     { "source": "/jogos/pokebubbles", "destination": "/pokebubbles.html" },
     { "source": "/jogos/pokebubbles/", "destination": "/pokebubbles.html" },
+    { "source": "/jogos/whackadiglett", "destination": "/whackadiglett.html" },
+    { "source": "/jogos/whackadiglett/", "destination": "/whackadiglett.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
