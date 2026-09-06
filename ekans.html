@@ -680,8 +680,27 @@ function draw() {
 // bastante na arte original e mantêm sua proporção natural. ──
 const EKANS_GROW_MIN_WIDTH_FACTOR = 1.05; // fração de minCell garantida pro cresce
 
-function drawSegmentedSnake(pts, minCell) {
+// ── Arredonda os "cotovelos" da cobra: puxa cada ponto do meio um pouco em
+// direção à média dos seus vizinhos. Numa reta isso não faz nada (a média
+// dos vizinhos já é o próprio ponto), mas numa curva de 90° o ponto do
+// cotovelo se desloca pra dentro, suavizando a quina em vez do quadrado
+// duro. A cabeça (i=0) e o rabo (i=n-1) ficam de fora, presos à posição
+// real da grade. ──
+function smoothCorners(pts, factor) {
   const n = pts.length;
+  const out = pts.map(p => ({ x: p.x, y: p.y }));
+  for (let i = 1; i < n - 1; i++) {
+    const avgX = (pts[i - 1].x + pts[i + 1].x) / 2;
+    const avgY = (pts[i - 1].y + pts[i + 1].y) / 2;
+    out[i].x = pts[i].x + (avgX - pts[i].x) * factor;
+    out[i].y = pts[i].y + (avgY - pts[i].y) * factor;
+  }
+  return out;
+}
+
+function drawSegmentedSnake(rawPts, minCell) {
+  const n = rawPts.length;
+  const pts = smoothCorners(rawPts, 0.4);
 
   for (let i = n - 1; i >= 0; i--) {
     let partKey;
@@ -729,6 +748,9 @@ function drawSegmentedSnake(pts, minCell) {
     ctx.save();
     ctx.translate(pts[i].x, pts[i].y);
     ctx.rotate(angle);
+    // puxa a cabeça um pouco pra trás (sentido oposto ao movimento), já que
+    // ela estava avançando demais por cima do primeiro segmento de "cresce"
+    if (partKey === 'head') ctx.translate(-w * 0.18, 0);
     if (flip) ctx.scale(-1, 1);
     ctx.drawImage(part.img, -w/2, -h/2, w, h);
     ctx.restore();
