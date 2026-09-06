@@ -654,8 +654,10 @@ function draw() {
 }
 
 // ── Desenha a cobra com as 4 peças reais (cabeça/corpo/cresce/rabo).
-// Sequência fixa: pts[0] = cabeça; último ponto = rabo; penúltimo = cresce
-// (transição corpo→rabo); todo o meio = corpo repetido.
+// Sequência fixa: pts[0] = cabeça; pts[1] = corpo (sempre 1, logo após a
+// cabeça); último ponto = rabo; tudo entre o corpo e o rabo = cresce
+// repetido (uma peça de "cresce" a mais pra cada crescimento além do
+// tamanho inicial de 3).
 //
 // Cada peça é desenhada apontando pro próximo ponto do trajeto, mas o
 // ângulo de rotação é sempre "grampeado" entre -90° e 90°: se o vetor real
@@ -679,8 +681,8 @@ function drawSegmentedSnake(pts, minCell) {
     let partKey;
     if (i === 0) partKey = 'head';
     else if (i === n - 1) partKey = 'tail';
-    else if (i === n - 2 && n > 2) partKey = 'grow';
-    else partKey = 'body';
+    else if (i === 1) partKey = 'body';
+    else partKey = 'grow';
 
     const part = ekansParts[partKey];
     if (!part || !part.ready) continue;
