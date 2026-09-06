@@ -40,10 +40,6 @@
   #ek-canvas{
     touch-action:none;display:block;
   }
-  #ek-sprite{
-    position:absolute;top:0;left:0;pointer-events:none;display:none;
-    image-rendering:pixelated;transform-origin:center center;z-index:5;
-  }
 
   .ek-hud{
     position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
@@ -162,7 +158,6 @@
 
 <div class="ek-wrap" id="ek-wrap">
   <canvas id="ek-canvas"></canvas>
-  <img id="ek-sprite" alt="">
 
   <div class="ek-hud" id="ek-hud">
     <div class="ek-hud-box" id="ek-hud-box">
@@ -259,30 +254,35 @@ Object.keys(BERRIES).forEach(key => {
   img.src = BERRIES[key].sprite;
 });
 
-// ── Sprite real do Ekans, mesmo sistema usado no flaPidgey/Tyrunt: um <img>
-// real no DOM (não um Image() solto), sobreposto ao canvas via CSS
-// transform. É o que faz o GIF animar de verdade e evita "tainted canvas"
-// (CORS) ao tirar prints/compartilhar o resultado. Se falhar/não carregar,
-// cai no desenho vetorial de sempre. ──
-const EKANS_SPRITE_URL = 'https://64.media.tumblr.com/c2fe334ebaaa36c824130b21872e9b49/4603906cfe87268f-7e/s250x400/27f249c3d751b6991022bfd2dc73128b775201f8.gif';
-// Se a arte "olhar" pro lado errado por padrão, ajusta esse ângulo em passos
-// de Math.PI/2 (90°) até a cabeça acompanhar certinho a direção do movimento.
-const EKANS_BASE_ROTATION = 0;
-const ekansSpriteEl = document.getElementById('ek-sprite');
-let ekansSpriteReady = false;
+// ── Sprites segmentados do Ekans: cabeça, corpo, segmento-de-crescimento e
+// rabo, recortados de uma pose única do Ekans enrolado. Cada célula da
+// cobra (snake[i]) recebe uma dessas peças, rotacionada para acompanhar o
+// ângulo real do trajeto e espelhada horizontalmente conforme o sentido do
+// movimento (esquerda/direita). Embutidas em base64 (arquivos pequenos) —
+// carregam instantâneo, sem depender de rede/hospedagem externa. ──
+const EKANS_PARTS_SRC = {
+  head: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC4AAAAkCAMAAADB/PhjAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAEVQTFRFAAAAeidlVQZH75/SzVuxokeI4qtUsHspAAAA/dVmsHsp4qtU/dVm0VutpEmJ4qtU4qtUnkmGpUuH4qtUeixkeidkVQdH7ORlyQAAABd0Uk5TAP////////////z8/Bwc9NQVEfsXLupR1ZYsAAAA/klEQVR4nK2S2w7CIAyGW9iWmeiN8f0fUKMmemPcYLbAYGzzQGMJbLTfvxVahJlhmAB2HooRGc4bFVwIZkUix5HQ3MUS+xc8JZGbzQQyXNEYQkJIw9JuCOFpQnIcXKildSCggyqm2UWBBFeg3a+5MA29cWLPiDPUB0E5rtzR2LQLeEuw/6YXlOJq0rIAyzIlHwsk+Gc4eXsBrugCdXQatw6Lo2qKoC7FfZEgojnIxkXzhKnLcQjtNUd1SCzhoCU4uLY1GZr2mDx1GT6ty5hSQ/MR97VrbS+o7nJ83Vg0XkB7K8A3iNevuJdwStvLuxZcw3dn+BFnwR5PBfjh6J4vFldsfL43fe4AAAAASUVORK5CYII=',
+  body: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAAeCAMAAABOrS0HAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGZQTFRFAAAAAAAAAAAAAAAAgIAAVQZHVQZHVQZH/4CAzVuxokeIVQZH//+AeidlqkSInU6J75/SokaLqlWOzFuxkkmSmTOZokeIqlWq6KJd4axTokeI/wD/okeI/79AeiZleidlVQBJ4qtUQKDALAAAACJ0Uk5TAP/y9gL/+v4C///gAv8PDf8LCeMHBeMDCyvqAe4E6NEV/1gpxjoAAAEPSURBVHicrdNfj4IwDADwdsqBiebMmaAP3oXv/6l8vRgvPuAfhLlbKTLQLWHMJWN19Ie1QwTfgXivF38oZAdOaS2HMJ16GwlF0YEJ6oihm0f0DXpWH6dwOJdtKTZOpIIZqCYj0b0dCYUpNa6DoscNVBpOgSucwBXmj3OcecIFw9WZE+KndhSdmB4WNXEJn2PhkmGaqzYhtiAukZoiG/hFGxvEoy9MaWP7Rx8UuAfXRU3hYktR6K3vA3hDvCH84L5NsGPz1+P2TCAXErMDyPbGYIh31GHUS1MOZOCFcgIgvFD3oAPJ+dFBkK4Z/A6Aa9g9fkog5DXT080JdVoXDE2cWdCuvvYO6i3QtWN9FUfDfxn+bbrYpXnfAAAAAElFTkSuQmCC',
+  grow: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAYCAMAAAA4a6b0AAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAADlQTFRFAAAAVQZHokeIzVuxAAAAAAAAZgAzeidlUghKoUeIokeIokeIokaIokeI4qtUAAAAokeIokeIokeI3XEdTwAAABN0Uk5TAP///w0IBf8f8PL09vj///r8/loVWYcAAACMSURBVHichdHRDoMgDAXQNgoR57LN///IaeKcOnAysIJS1xfbexqCirAVBv0cTSlBMtcZytKCUYJ+z5xJ7qZ5d6OlE5oTqSm3TwkT7WSsQDHS+wkY/Xl/ZCk1xF9l2yjfnFz6UGwuvVQvTq6dy6vgT7ju3nLyaNas2Un95OQWZYFIxYmY4Fg/yT8J+QK36DVRRuLo1wAAAABJRU5ErkJggg==',
+  tail: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAABtQTFRFVQZHAAAAAAAAzVuxokeI4qtUgk8GsHsp/dVmN98INAAAAAl0Uk5T//8A////////7HvdrwAAAG5JREFUeJx9zlsNACEMRNEiYSxgYS2gZc1hoRawgIVa2Gn4IQstCSTnhlcRQLZR/n6gezrNBYMzcDNZBYFFWGYTRWQWeoW7B1eYh8Pw9/CKmVxdfb8fwkRH4JX8wtAsmIrEPNJz16Gp+eXMvPDwB/BHPdeHkMRgAAAAAElFTkSuQmCC',
+};
+const ekansParts = {};
+let ekansPartsReadyCount = 0;
+const EKANS_PARTS_TOTAL = Object.keys(EKANS_PARTS_SRC).length;
+let ekansPartsAllReady = false;
 
-function loadEkansSprite() {
-  const url = EKANS_SPRITE_URL;
-  if (!url) return; // sem sprite: mantém o desenho vetorial
-  ekansSpriteEl.crossOrigin = 'anonymous'; // essencial p/ toDataURL() no compartilhamento
-  ekansSpriteEl.onload = () => {
-    ekansSpriteEl.style.display = 'block';
-    ekansSpriteReady = true;
+Object.keys(EKANS_PARTS_SRC).forEach(key => {
+  const img = new Image();
+  ekansParts[key] = { img, ready: false, aspect: 1 };
+  img.onload = () => {
+    ekansParts[key].ready = true;
+    ekansParts[key].aspect = img.naturalWidth / img.naturalHeight;
+    ekansPartsReadyCount++;
+    if (ekansPartsReadyCount === EKANS_PARTS_TOTAL) ekansPartsAllReady = true;
   };
-  ekansSpriteEl.onerror = () => { ekansSpriteReady = false; ekansSpriteEl.style.display = 'none'; };
-  ekansSpriteEl.src = url;
-}
-loadEkansSprite();
+  img.onerror = () => { ekansParts[key].ready = false; };
+  img.src = EKANS_PARTS_SRC[key];
+});
 
 // ── Canvas responsivo: células SEMPRE quadradas. O nº de colunas/linhas se
 // adapta ao formato da tela (em vez de esticar cellW/cellH separadamente),
@@ -607,7 +607,7 @@ function draw() {
   // suavemente em vez de saltar de célula em célula
   const t = gameOver ? 1 : Math.min(1, acc / tickMs);
 
-  // ── Crescimento visual: a cobra fica mais "grossa" e a cabeça maior
+  // ── Crescimento visual: a cobra fica mais "grossa"/os segmentos maiores
   // conforme come e o comprimento (snake.length) aumenta. Escala suave,
   // com teto pra não ficar gigante nem sair da tela em telas pequenas. ──
   const GROWTH_START_LEN = 3;   // comprimento inicial, sem bônus de escala
@@ -627,18 +627,10 @@ function draw() {
   ctx.lineJoin = 'round';
 
   const head = pts[0];
-  // A imagem do Ekans mostra a cobra inteira enrolada (não só uma cabeça).
-  // Por isso ela substitui o corpo desenhado por vetor em vez de ficar em
-  // cima dele — desenhar os dois juntos duplicava a cobra na tela.
-  if (ekansSpriteReady) {
-    const angle = Math.atan2(dir.y, dir.x) + EKANS_BASE_ROTATION;
-    // tamanho cresce com o comprimento da cobra (snake.length via growthScale)
-    const size = minCell * (2.2 + Math.min(2.2, snake.length * 0.055)) * growthScale;
-    ekansSpriteEl.style.width = size + 'px';
-    ekansSpriteEl.style.height = size + 'px';
-    ekansSpriteEl.style.transform = `translate(${head.x - size/2}px, ${head.y - size/2}px) rotate(${angle}rad)`;
+
+  if (ekansPartsAllReady) {
+    drawSegmentedSnake(pts, minCell, growthScale);
   } else {
-    ekansSpriteEl.style.display = 'none';
     if (shield) {
       ctx.strokeStyle = 'rgba(111,195,232,.85)';
       ctx.lineWidth = minCell*0.95*growthScale;
@@ -669,6 +661,50 @@ function draw() {
     ctx.fill();
   }
 }
+
+// ── Desenha a cobra com as 4 peças reais (cabeça/corpo/cresce/rabo).
+// Sequência fixa: pts[0] = cabeça; último ponto = rabo; penúltimo = cresce
+// (transição corpo→rabo); todo o meio = corpo repetido. Cada peça roda para
+// acompanhar o ângulo do trajeto naquele ponto e espelha horizontalmente
+// conforme o sentido (esquerda/direita) do movimento local, pra evitar a
+// distorção de girar uma pose curva em qualquer ângulo (só espelho, sem
+// rotação livre além do necessário pra apontar na direção certa). ──
+function drawSegmentedSnake(pts, minCell, growthScale) {
+  const n = pts.length;
+
+  for (let i = n - 1; i >= 0; i--) {
+    let partKey;
+    if (i === 0) partKey = 'head';
+    else if (i === n - 1) partKey = 'tail';
+    else if (i === n - 2 && n > 2) partKey = 'grow';
+    else partKey = 'body';
+
+    const part = ekansParts[partKey];
+    if (!part || !part.ready) continue;
+
+    // vetor de direção local: cabeça e meio olham pro próximo ponto (rumo à
+    // frente do movimento); o rabo olha pro ponto anterior (de onde veio)
+    const from = i === n - 1 ? pts[i - 1] : pts[i];
+    const to   = i === n - 1 ? pts[i]     : pts[i + 1] || pts[i];
+    let vx = to.x - from.x, vy = to.y - from.y;
+    if (vx === 0 && vy === 0) { vx = dir.x; vy = dir.y; }
+
+    const angle = Math.atan2(vy, vx);
+    const flip = vx < 0 ? -1 : 1; // espelha horizontalmente conforme o sentido
+
+    const segSize = minCell * 1.7 * growthScale;
+    const h = segSize;
+    const w = segSize * (part.aspect || 1);
+
+    ctx.save();
+    ctx.translate(pts[i].x, pts[i].y);
+    ctx.rotate(angle);
+    ctx.scale(flip, 1);
+    ctx.drawImage(part.img, -w/2, -h/2, w, h);
+    ctx.restore();
+  }
+}
+
 
 // Desenha o corpo da cobra como um trajeto único e curvo (não blocos
 // quadrados grudados na grade), suavizando os cantos com curvas quadráticas
