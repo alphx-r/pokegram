@@ -38,8 +38,7 @@
     touch-action:none;overflow:hidden;
   }
   #ek-canvas{
-    touch-action:none;display:block;max-width:100%;max-height:100%;
-    border-radius:14px;
+    touch-action:none;display:block;
   }
 
   .ek-hud{
@@ -256,18 +255,22 @@ Object.keys(BERRIES).forEach(key => {
 });
 
 // ── Canvas responsivo (mesmo padrão de resize dos outros jogos) ──
-let cell = 20, BASE_W = 380, BASE_H = 380;
+// ── Canvas responsivo: preenche 100% da área disponível (sem letterbox).
+// As células ficam retangulares (cellW × cellH) quando a proporção da tela
+// não é quadrada, em vez de deixar sobra em branco nas bordas. ──
+let cellW = 20, cellH = 20;
 
 function resize() {
   const nav = document.querySelector('.ek-nav');
   const navH = nav ? nav.getBoundingClientRect().height : 52;
-  const maxW = Math.min(window.innerWidth - 16, 520);
-  const maxH = Math.min(window.innerHeight - navH - 16, 520);
-  cell = Math.max(10, Math.floor(Math.min(maxW / COLS, maxH / ROWS)));
-  BASE_W = cell * COLS;
-  BASE_H = cell * ROWS;
-  canvas.width = BASE_W;
-  canvas.height = BASE_H;
+  const w = window.innerWidth;
+  const h = window.innerHeight - navH;
+  canvas.width = w;
+  canvas.height = h;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  cellW = w / COLS;
+  cellH = h / ROWS;
   if (!started) draw();
 }
 window.addEventListener('resize', resize);
@@ -484,10 +487,10 @@ function roundRect(x,y,w,h,r) {
   ctx.closePath();
 }
 
-function drawFoodFallback(fx, fy) {
+function drawFoodFallback(fx, fy, minCell) {
   ctx.beginPath();
   ctx.fillStyle = BERRIES[food.kind].color;
-  ctx.arc(fx, fy, cell*0.32, 0, Math.PI*2);
+  ctx.arc(fx, fy, minCell*0.32, 0, Math.PI*2);
   ctx.fill();
   if (food.kind !== 'normal') {
     ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.stroke();
@@ -495,8 +498,9 @@ function drawFoodFallback(fx, fy) {
 }
 
 function drawFood() {
-  const fx = food.x*cell + cell/2, fy = food.y*cell + cell/2;
-  const size = cell * 0.78;
+  const fx = food.x*cellW + cellW/2, fy = food.y*cellH + cellH/2;
+  const minCell = Math.min(cellW, cellH);
+  const size = minCell * 0.78;
   const spriteInfo = berryImgs[food.kind];
   if (spriteInfo && spriteInfo.ready) {
     ctx.drawImage(spriteInfo.img, fx - size/2, fy - size/2, size, size);
@@ -507,12 +511,12 @@ function drawFood() {
       ctx.beginPath();
       ctx.fillStyle = BERRIES[food.kind].color;
       ctx.globalAlpha = 0.35;
-      ctx.arc(fx, fy, cell*0.42, 0, Math.PI*2);
+      ctx.arc(fx, fy, minCell*0.42, 0, Math.PI*2);
       ctx.fill();
       ctx.restore();
     }
   } else {
-    drawFoodFallback(fx, fy);
+    drawFoodFallback(fx, fy, minCell);
   }
 }
 
@@ -521,31 +525,32 @@ function draw() {
   for (let y=0;y<ROWS;y++){
     for (let x=0;x<COLS;x++){
       ctx.fillStyle = (x+y)%2===0 ? '#254a34' : '#22452f';
-      ctx.fillRect(x*cell, y*cell, cell, cell);
+      ctx.fillRect(x*cellW, y*cellH, cellW+1, cellH+1);
     }
   }
 
   drawFood();
 
+  const minCell = Math.min(cellW, cellH);
   for (let i = snake.length-1; i>=0; i--) {
     const s = snake[i];
     const isHead = i===0;
     ctx.fillStyle = isHead ? '#9b4fb0' : (i%2===0 ? '#9b4fb0' : '#6d3480');
-    roundRect(s.x*cell+1, s.y*cell+1, cell-2, cell-2, cell*0.35);
+    roundRect(s.x*cellW+1, s.y*cellH+1, cellW-2, cellH-2, minCell*0.35);
     ctx.fill();
     if (shield) { ctx.strokeStyle = 'rgba(111,195,232,.85)'; ctx.lineWidth = 2; ctx.stroke(); }
     if (isHead) {
-      const cx = s.x*cell + cell/2, cy = s.y*cell + cell/2;
-      const ex = dir.x*cell*0.18, ey = dir.y*cell*0.18;
+      const cx = s.x*cellW + cellW/2, cy = s.y*cellH + cellH/2;
+      const ex = dir.x*minCell*0.18, ey = dir.y*minCell*0.18;
       ctx.fillStyle = '#d9a5e8';
       ctx.beginPath();
-      ctx.arc(cx - cell*0.12 + ex, cy - cell*0.06 + ey, cell*0.07, 0, Math.PI*2);
-      ctx.arc(cx + cell*0.12 + ex, cy - cell*0.06 + ey, cell*0.07, 0, Math.PI*2);
+      ctx.arc(cx - minCell*0.12 + ex, cy - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
+      ctx.arc(cx + minCell*0.12 + ex, cy - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
       ctx.fill();
       ctx.fillStyle = '#1a1a1a';
       ctx.beginPath();
-      ctx.arc(cx - cell*0.12 + ex, cy - cell*0.06 + ey, cell*0.03, 0, Math.PI*2);
-      ctx.arc(cx + cell*0.12 + ex, cy - cell*0.06 + ey, cell*0.03, 0, Math.PI*2);
+      ctx.arc(cx - minCell*0.12 + ex, cy - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
+      ctx.arc(cx + minCell*0.12 + ex, cy - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
       ctx.fill();
     }
   }
@@ -572,7 +577,7 @@ function endGame() {
   cancelAnimationFrame(rafId);
   document.getElementById('ek-final-score').textContent = score;
   document.getElementById('ek-overlay').classList.add('show');
-  if (user) gSaveScore('ekans', score, user).then(refreshBest);
+  if (user && typeof gSaveScore === 'function') gSaveScore('ekans', score, user).then(refreshBest);
   refreshLeaderboard();
 }
 
@@ -584,6 +589,10 @@ document.addEventListener('selectstart', (e) => e.preventDefault());
 // ── Ranking ──
 async function refreshLeaderboard() {
   const el = document.getElementById('ek-leaderboard');
+  if (typeof gLoadTopScores !== 'function') {
+    el.innerHTML = '<div class="ek-lb-empty">Ranking indisponível.</div>';
+    return;
+  }
   const top = await gLoadTopScores('ekans', 5);
   if (top.length === 0) {
     el.innerHTML = '<div class="ek-lb-empty">Nenhum recorde ainda.</div>';
@@ -598,7 +607,7 @@ async function refreshLeaderboard() {
 }
 
 async function refreshBest() {
-  if (!user) return;
+  if (!user || typeof gLoadMyBest !== 'function') return;
   best = await gLoadMyBest('ekans', user.id);
   bestEl.textContent = best || '–';
   document.getElementById('ek-best-line-val').textContent = best || '–';
@@ -720,17 +729,30 @@ document.getElementById('ek-share-btn').addEventListener('click', shareResultToS
 function tryEnterFullscreenNow() {
   try {
     const el = document.documentElement;
-    if (document.fullscreenElement || !el.requestFullscreen || !gIsMobileLike()) return;
+    if (document.fullscreenElement || !el.requestFullscreen) return;
+    if (typeof gIsMobileLike === 'function' && !gIsMobileLike()) return;
     el.requestFullscreen().catch(() => {});
   } catch (e) {}
 }
 
 tryEnterFullscreenNow();
-gSetupFullscreenOnFirstInteraction();
+if (typeof gSetupFullscreenOnFirstInteraction === 'function') gSetupFullscreenOnFirstInteraction();
 
+// O boot nunca pode ficar pendurado esperando a sessão: se games-common.js
+// não carregar (404, teste fora do domínio do Pokégram, etc.) ou
+// gRequireSession falhar, o jogo segue em modo local (sem login/ranking)
+// em vez de deixar o hint preso na tela pra sempre.
 (async function boot() {
-  user = await gRequireSession();
-  if (!user) return;
+  try {
+    if (typeof gRequireSession === 'function') {
+      user = await gRequireSession();
+      if (!user) return; // gRequireSession já redireciona pra fora
+    } else {
+      console.warn('[EKANS] games-common.js não carregou — jogando sem login/ranking.');
+    }
+  } catch (e) {
+    console.warn('[EKANS] falha ao checar sessão, seguindo sem login', e);
+  }
   resize();
   startGame();
   refreshBest();
