@@ -71,6 +71,15 @@
   }
   .bb-toast.show{opacity:1;transform:translate(-50%,0)}
 
+  .bb-inactivity-warn{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:25;
+    font-family:'Cinzel',serif;font-weight:800;color:#ff5252;
+    font-size:clamp(48px,18vw,96px);line-height:1;
+    text-shadow:0 2px 12px rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:opacity .15s ease;
+  }
+  .bb-inactivity-warn.show{opacity:.5}
+
   .bb-overlay{
     position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
     align-items:center;justify-content:center;z-index:300;
@@ -160,16 +169,17 @@
         <div class="bb-hud-value" id="bb-score">0</div>
       </div>
       <div class="bb-hud-item">
-        <div class="bb-hud-label">Grupo</div>
-        <div class="bb-hud-value" id="bb-group">0</div>
-      </div>
-      <div class="bb-hud-item">
         <div class="bb-hud-label">Tempo</div>
         <div class="bb-hud-value" id="bb-timer">2:30</div>
+      </div>
+      <div class="bb-hud-item">
+        <div class="bb-hud-label">Conectando</div>
+        <div class="bb-hud-value" id="bb-group">0</div>
       </div>
     </div>
   </div>
   <div class="bb-toast" id="bb-toast"></div>
+  <div class="bb-inactivity-warn" id="bb-inactivity-warn"></div>
 
   <div class="bb-hint" id="bb-hint">
     <div class="bb-hint-card">
@@ -234,6 +244,7 @@ const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('bb-score');
 const groupEl = document.getElementById('bb-group');
 const toastEl = document.getElementById('bb-toast');
+const inactivityWarnEl = document.getElementById('bb-inactivity-warn');
 
 // Conjunto padrão (fallback) de "iniciais" — cada um vira uma cor de
 // bubble. O admin pode customizar quantidade, cor e ícone livremente
@@ -1262,6 +1273,20 @@ document.getElementById('bb-share-btn').addEventListener('click', shareResultToS
 
 // ── Loop principal (física + partículas + desenho) ──
 const BB_INACTIVITY_LIMIT_MS = 10000; // 10s sem nenhuma conexão → game over
+// A partir dos 5s sem conectar, mostra na tela a contagem regressiva
+// (em 50% de opacidade) até o game over por inatividade.
+const BB_INACTIVITY_WARN_MS = 5000;
+
+function updateInactivityWarning(now) {
+  const elapsed = now - lastConnectionTs;
+  if (elapsed < BB_INACTIVITY_WARN_MS) {
+    inactivityWarnEl.classList.remove('show');
+    return;
+  }
+  const remainingSec = Math.max(0, Math.ceil((BB_INACTIVITY_LIMIT_MS - elapsed) / 1000));
+  inactivityWarnEl.textContent = remainingSec;
+  inactivityWarnEl.classList.add('show');
+}
 
 let rafId = null;
 let lastFrameTs = 0;
@@ -1287,6 +1312,7 @@ function loop(ts) {
       endGame('inactivity');
       return;
     }
+    updateInactivityWarning(now);
   }
 
   rafId = requestAnimationFrame(loop);
@@ -1307,6 +1333,7 @@ const BB_END_MESSAGES = {
 async function endGame(reason) {
   gameOver = true;
   cancelAnimationFrame(rafId);
+  inactivityWarnEl.classList.remove('show');
   document.getElementById('bb-modal-msg').textContent = BB_END_MESSAGES[reason] || BB_END_MESSAGES['no-moves'];
   document.getElementById('bb-final-score').textContent = score;
   document.getElementById('bb-overlay').classList.add('show');
@@ -1342,6 +1369,7 @@ function startGame() {
   updateStats();
   groupEl.textContent = 0;
   timerEl.textContent = formatTime(BB_GAME_DURATION_MS);
+  inactivityWarnEl.classList.remove('show');
   document.getElementById('bb-overlay').classList.remove('show');
   showHint();
   lastFrameTs = 0;
