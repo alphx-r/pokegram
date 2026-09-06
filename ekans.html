@@ -670,7 +670,7 @@ function draw() {
 // maior/mais dominante que o corpo, e o corpo é um pouco mais robusto que
 // o rabo, que afina até a ponta. Aplicados em cima do tamanho base
 // (segSize), sem mudar a lógica de rotação/espelho. ──
-const EKANS_PART_SCALE = { head: 1.25, body: 1.0, grow: 1.0, tail: 0.85 };
+const EKANS_PART_SCALE = { head: 1.15, body: 1.0, grow: 1.0, tail: 0.9 };
 
 function drawSegmentedSnake(pts, minCell) {
   const n = pts.length;
@@ -699,7 +699,7 @@ function drawSegmentedSnake(pts, minCell) {
       angle = Math.atan2(vy, -vx); // reflete o ângulo pro semicírculo da frente
     }
 
-    const segSize = minCell * 1.7 * (EKANS_PART_SCALE[partKey] || 1);
+    const segSize = minCell * 0.88 * (EKANS_PART_SCALE[partKey] || 1); // calibrado pra encaixar sem sobrepor a cabeça no corpo
     const h = segSize;
     const w = segSize * (part.aspect || 1);
 
