@@ -163,6 +163,10 @@
         <div class="bb-hud-label">Grupo</div>
         <div class="bb-hud-value" id="bb-group">0</div>
       </div>
+      <div class="bb-hud-item">
+        <div class="bb-hud-label">Tempo</div>
+        <div class="bb-hud-value" id="bb-timer">2:30</div>
+      </div>
     </div>
   </div>
   <div class="bb-toast" id="bb-toast"></div>
@@ -179,16 +183,16 @@
         <div class="bb-hint-text"><b>Solte</b> com 3 ou mais conectadas para estourar o grupo e pontuar</div>
       </div>
       <div class="bb-hint-row">
-        <div class="bb-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/fluffy-tail.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
-        <div class="bb-hint-text">Bubble <b>Fluffy Tail</b>: fica parada no tabuleiro — quando um grupo estoura perto dela, ela também estoura e faz as bubbles vizinhas estourarem em cadeia</div>
+        <div class="bb-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/fluffy-tail.png" alt="" style="width:25px;height:25px;object-fit:contain"></div>
+        <div class="bb-hint-text"><b>Fluffy Tail</b>: quando um grupo estoura perto dela, ela também estoura e faz as vizinhas estourarem em cadeia</div>
       </div>
       <div class="bb-hint-row">
-        <div class="bb-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/snowball.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
-        <div class="bb-hint-text">Bubble <b>Snowball</b>: fica parada no tabuleiro — quando um grupo estoura perto dela, ela congela as bubbles vizinhas por um tempo</div>
+        <div class="bb-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/snowball.png" alt="" style="width:25px;height:25px;object-fit:contain"></div>
+        <div class="bb-hint-text"><b>Snowball</b>: quando um grupo estoura perto dela, ela congela as vizinhas até que 3 conexões sejam feitas</div>
       </div>
       <div class="bb-hint-row">
-        <div class="bb-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/smoke-ball.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
-        <div class="bb-hint-text">Bubble <b>Smoke Ball</b>: fica parada no tabuleiro — quando um grupo estoura perto dela, ela embaralha todas as bubbles da tela</div>
+        <div class="bb-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/smoke-ball.png" alt="" style="width:25px;height:25px;object-fit:contain"></div>
+        <div class="bb-hint-text"><b>Smoke Ball</b>: quando um grupo estoura perto dela, ela embaralha todas as bubbles da tela</div>
       </div>
       <div class="bb-hint-dismiss">Toque em qualquer lugar para começar</div>
     </div>
@@ -197,8 +201,8 @@
 
 <div class="bb-overlay" id="bb-overlay">
   <div class="bb-modal">
-    <h2>Fim de jogo!</h2>
-    <p>Sua pontuação foi registrada no ranking.</p>
+    <h2 id="bb-modal-title">Fim de jogo!</h2>
+    <p id="bb-modal-msg">Sua pontuação foi registrada no ranking.</p>
     <div class="bb-final-score" id="bb-final-score">0</div>
     <div class="bb-best-line">Seu recorde: <b id="bb-best">–</b></div>
     <div class="bb-leaderboard-box">
@@ -319,7 +323,8 @@ async function loadCustomStarters() {
 //   isItem,               // true se esta bubble É um item (bubble própria, branca)
 //   itemKind,             // null | 'fluffy_tail' | 'snowball' (só quando isItem)
 //   key,                  // inicial (cor/ícone) — null quando isItem
-//   frozenUntil,          // timestamp (performance.now()) até quando fica congelada, ou 0
+//   frozenUntilConnections, // nº de conexões (pops) acumuladas até a bubble
+//                            // descongelar, ou 0 se não estiver congelada
 //   x, y,                 // posição atual desenhada (px, animada)
 //   targetX, targetY,     // posição alvo (px, sempre o centro exato da célula de grade)
 //   pushX, pushY,         // deslocamento visual temporário (empurrão ao selecionar vizinha), decai a cada frame
@@ -330,16 +335,24 @@ let board;
 let score = 0;
 let gameOver = false;
 let user = null;
+// Contador de conexões (pops) bem-sucedidas realizadas na partida —
+// usado para descongelar bubbles atingidas pelo Snowball após 3 delas.
+let connectionsCount = 0;
+// Timestamp (performance.now()) da última conexão bem-sucedida — usado
+// para detectar 10s de inatividade e encerrar o jogo.
+let lastConnectionTs = 0;
 
 function randomStarterKey() {
   return STARTER_KEYS[Math.floor(Math.random() * STARTER_KEYS.length)];
 }
 
+// Pesos de sorteio entre os itens especiais: Fluffy Tail e Smoke Ball
+// aparecem com menos frequência que o Snowball (25% / 50% / 25%).
 function maybeRollItem() {
   if (Math.random() >= BB_ITEM_SPAWN_CHANCE) return null;
   const r = Math.random();
-  if (r < 1 / 3) return 'fluffy_tail';
-  if (r < 2 / 3) return 'snowball';
+  if (r < 0.25) return 'fluffy_tail';
+  if (r < 0.75) return 'snowball';
   return 'smoke_ball';
 }
 
@@ -357,7 +370,7 @@ function makeBubble(col, row) {
     isItem: !!itemKind,
     itemKind: itemKind || null,
     key: itemKind ? null : randomStarterKey(),
-    frozenUntil: 0,
+    frozenUntilConnections: 0,
     x: gx,
     y: gy,
     targetX: gx,
@@ -387,8 +400,11 @@ function cellAt(r, c) {
   return board[r][c];
 }
 
+// Congelamento agora é medido em número de conexões (pops) realizadas,
+// não em tempo: a bubble descongela só depois que 3 conexões acontecerem
+// no jogo desde que ela foi congelada (ver BB_SNOWBALL_FREEZE_CONNECTIONS).
 function isFrozen(cell) {
-  return !!cell && cell.frozenUntil > performance.now();
+  return !!cell && cell.frozenUntilConnections > connectionsCount;
 }
 
 // Verifica se (r2,c2) é vizinha de (r1,c1) (8 direções).
@@ -705,7 +721,9 @@ function drawBubbleShape(x, y, cell, scale, selected) {
 
   if (cell.isItem) {
     const itemImg = bbGetItemImg(cell.itemKind);
-    const s = radius * 1.15;
+    // Sprites de item (Fluffy Tail / Snowball / Smoke Ball) 25% maiores
+    // que o ícone padrão, pra ficarem mais visíveis no tabuleiro.
+    const s = radius * 1.15 * 1.25;
     if (itemImg && itemImg.complete && itemImg.naturalWidth) {
       ctx.drawImage(itemImg, x - s / 2, y - s / 2, s, s);
     }
@@ -886,7 +904,8 @@ function endSelection() {
 }
 
 // Constantes de duração/efeito dos itens especiais.
-const BB_SNOWBALL_FREEZE_MS = 6000;
+// Snowball congela a bubble até que 3 novas conexões (pops) aconteçam.
+const BB_SNOWBALL_FREEZE_CONNECTIONS = 3;
 
 // Raio (em px) em que uma explosão "alcança" uma bubble-item vizinha e
 // a aciona (ela não precisa ser conectada — só estar por perto).
@@ -935,6 +954,11 @@ function shuffleBoardIdentities(excludeSet) {
 // a cadeia.
 function popSelection() {
   const cells = selection.slice();
+
+  // Marca esta conexão bem-sucedida: reseta o timer de inatividade e
+  // avança o contador usado para descongelar bubbles do Snowball.
+  connectionsCount++;
+  lastConnectionTs = performance.now();
 
   const toRemove = [];
   const removedSet = new Set();
@@ -986,7 +1010,7 @@ function popSelection() {
               if (kind === 'fluffy_tail') {
                 markRemoved(r2, c2); // essa também pode acionar outro item por perto (cadeia)
               } else if (kind === 'snowball') {
-                cell2.frozenUntil = performance.now() + BB_SNOWBALL_FREEZE_MS;
+                cell2.frozenUntilConnections = connectionsCount + BB_SNOWBALL_FREEZE_CONNECTIONS;
               }
             }
           }
@@ -1028,7 +1052,7 @@ function popSelection() {
   draw();
 
   if (!hasAnyMove()) {
-    endGame();
+    endGame('no-moves');
   }
 }
 
@@ -1237,6 +1261,8 @@ function shareResultToStories() {
 document.getElementById('bb-share-btn').addEventListener('click', shareResultToStories);
 
 // ── Loop principal (física + partículas + desenho) ──
+const BB_INACTIVITY_LIMIT_MS = 10000; // 10s sem nenhuma conexão → game over
+
 let rafId = null;
 let lastFrameTs = 0;
 function loop(ts) {
@@ -1250,18 +1276,60 @@ function loop(ts) {
   stepPoppingBubbles(dt);
   draw();
 
+  if (started && !gameOver) {
+    updateTimerDisplay();
+    const now = performance.now();
+    if (now >= gameEndTs) {
+      endGame('timeout');
+      return;
+    }
+    if (now - lastConnectionTs >= BB_INACTIVITY_LIMIT_MS) {
+      endGame('inactivity');
+      return;
+    }
+  }
+
   rafId = requestAnimationFrame(loop);
 }
 
 // ── Ciclo de jogo ──
-async function endGame() {
+// `reason` identifica o motivo do fim de jogo, usado só pra escolher a
+// mensagem exibida no modal:
+//  - 'timeout'    → tempo do cronômetro esgotado ("O tempo acabou...")
+//  - 'inactivity' → 10s sem nenhuma conexão bem-sucedida
+//  - 'no-moves'   → não sobrou nenhum grupo conectável no tabuleiro
+const BB_END_MESSAGES = {
+  timeout: 'O tempo acabou...',
+  inactivity: 'Muito tempo sem conectar nenhuma bubble!',
+  'no-moves': 'Sua pontuação foi registrada no ranking.',
+};
+
+async function endGame(reason) {
   gameOver = true;
   cancelAnimationFrame(rafId);
+  document.getElementById('bb-modal-msg').textContent = BB_END_MESSAGES[reason] || BB_END_MESSAGES['no-moves'];
   document.getElementById('bb-final-score').textContent = score;
   document.getElementById('bb-overlay').classList.add('show');
   await gSaveScore('pokebubbles', score, user);
   refreshLeaderboard();
   refreshBest();
+}
+
+// ── Cronômetro (2:30min) ──
+const BB_GAME_DURATION_MS = 2 * 60 * 1000 + 30 * 1000; // 2:30
+let gameEndTs = 0;
+const timerEl = document.getElementById('bb-timer');
+
+function formatTime(ms) {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function updateTimerDisplay() {
+  if (!timerEl) return;
+  timerEl.textContent = formatTime(gameEndTs - performance.now());
 }
 
 function startGame() {
@@ -1270,8 +1338,10 @@ function startGame() {
   score = 0; gameOver = false;
   selection = []; dragging = false;
   particles = []; poppingBubbles = [];
+  connectionsCount = 0;
   updateStats();
   groupEl.textContent = 0;
+  timerEl.textContent = formatTime(BB_GAME_DURATION_MS);
   document.getElementById('bb-overlay').classList.remove('show');
   showHint();
   lastFrameTs = 0;
@@ -1301,6 +1371,10 @@ function showHint() {
 function beginPlay() {
   if (started) return;
   started = true;
+  // O cronômetro (2:30) e o timer de inatividade (10s) só começam a
+  // contar quando o jogador de fato começa a jogar (hint fechado).
+  gameEndTs = performance.now() + BB_GAME_DURATION_MS;
+  lastConnectionTs = performance.now();
   hintEl.classList.add('hide');
   // Espera a transição de opacidade (.35s, ver CSS) terminar antes de
   // tirar o elemento do DOM, pra manter o fade suave.
