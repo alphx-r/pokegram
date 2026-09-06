@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>EKANS · Pokégram</title>
+<link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  *{
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
+  html,body{
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
+    overflow:hidden;position:fixed;inset:0;
+    display:flex;flex-direction:column;
+  }
+  :root{
+    --brand:#b71c1c;--brand-mid:#e53935;--accent:#fdd835;--border:#e0e0e0;--muted:#6b7280;
+    --salac:#e8613f;--sitrus:#f5a623;--ganlon:#6fc3e8;
+  }
+  .ek-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;flex:0 0 52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;
+  }
+  .ek-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .ek-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .ek-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .ek-title span{color:var(--accent)}
+
+  .ek-wrap{
+    flex:1 1 auto;min-height:0;position:relative;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    touch-action:none;overflow:hidden;
+  }
+  #ek-canvas{
+    touch-action:none;display:block;max-width:100%;max-height:100%;
+    border-radius:14px;
+  }
+
+  .ek-hud{
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
+  }
+  .ek-hud-box{
+    display:flex;gap:clamp(14px,5vw,28px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.82);border-radius:10px;
+    padding:9px clamp(20px,5vw,28px);box-shadow:0 2px 8px rgba(0,0,0,.2);
+    pointer-events:auto;cursor:pointer;transition:opacity .25s ease;
+  }
+  .ek-hud-box.ek-hud-hidden{opacity:0}
+  .ek-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .ek-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .ek-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
+
+  .ek-buffs{display:flex;justify-content:center;align-items:center;gap:6px;pointer-events:none;width:100%}
+  .ek-buff-pill{
+    display:flex;align-items:baseline;justify-content:center;gap:5px;background:rgba(20,20,38,.72);border-radius:20px;
+    padding:4px 12px;font-size:11px;font-weight:800;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);
+    opacity:0;transform:translateY(-4px);transition:opacity .18s ease, transform .18s ease;
+  }
+  .ek-buff-pill.show{opacity:1;transform:translateY(0)}
+  .ek-buff-count{font-family:'Cinzel',serif;font-weight:700;opacity:.85;font-size:10.5px}
+
+  .ek-toast{
+    position:absolute;top:64px;left:50%;transform:translate(-50%,-8px);z-index:30;
+    background:rgba(20,20,38,.9);color:#fff;padding:8px 16px;border-radius:20px;
+    font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3);
+    opacity:0;transition:opacity .2s ease, transform .2s ease;pointer-events:none;white-space:nowrap;
+  }
+  .ek-toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .ek-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:100;pointer-events:auto;
+    background:rgba(10,10,20,0.72);
+    opacity:1;transition:opacity .35s ease;
+  }
+  .ek-hint.hide{opacity:0;pointer-events:none}
+  .ek-hint-card{
+    background:rgba(20,20,38,0.88);
+    border:1.5px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:20px 22px;
+    max-width:270px;
+    text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+    pointer-events:auto;
+  }
+  .ek-hint-title{
+    font-family:'Cinzel',serif;color:var(--accent);font-size:15px;font-weight:700;
+    margin:0 0 12px;
+  }
+  .ek-hint-row{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:10px;text-align:left;
+  }
+  .ek-hint-row:last-of-type{margin-bottom:0}
+  .ek-hint-icon{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .ek-hint-text{font-size:12px;color:#fff;line-height:1.35}
+  .ek-hint-text b{color:var(--accent)}
+  .ek-hint-dismiss{
+    margin-top:14px;font-size:11px;color:rgba(255,255,255,0.55);
+    font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  }
+
+  .ek-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .ek-overlay.show{display:flex}
+  .ek-modal{
+    background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
+    max-height:86vh;overflow:auto;
+  }
+  .ek-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .ek-modal p{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .ek-final-score{font-family:'Cinzel',serif;font-size:36px;color:var(--brand-mid);margin-bottom:6px}
+  .ek-best-line{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .ek-best-line b{color:var(--brand)}
+  .ek-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left}
+  .ek-lb-box{text-align:left;margin-bottom:18px}
+  .ek-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px}
+  .ek-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .ek-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ek-lb-score{font-weight:800}
+  .ek-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
+  .ek-btn{
+    padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
+  }
+  .ek-btn:hover{background:var(--brand)}
+  #ek-share-btn{background:#f2a33c;margin-top:8px}
+  #ek-share-btn:hover{background:#d98a1f}
+</style>
+</head>
+<body>
+
+<nav class="ek-nav">
+  <a class="ek-back" href="/jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="ek-title">EK<span>ANS</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="ek-wrap" id="ek-wrap">
+  <canvas id="ek-canvas"></canvas>
+
+  <div class="ek-hud" id="ek-hud">
+    <div class="ek-hud-box" id="ek-hud-box">
+      <div class="ek-hud-item">
+        <div class="ek-hud-label">Pontos</div>
+        <div class="ek-hud-value" id="ek-score">0</div>
+      </div>
+      <div class="ek-hud-item">
+        <div class="ek-hud-label">Recorde</div>
+        <div class="ek-hud-value" id="ek-best">–</div>
+      </div>
+    </div>
+    <div class="ek-buffs" id="ek-buffs">
+      <div class="ek-buff-pill" id="ek-pill-salac">Salac <span class="ek-buff-count" id="ek-pill-salac-count">0s</span></div>
+      <div class="ek-buff-pill" id="ek-pill-ganlon">Ganlon <span class="ek-buff-count" id="ek-pill-ganlon-count">Escudo</span></div>
+    </div>
+  </div>
+
+  <div class="ek-toast" id="ek-toast"></div>
+
+  <div class="ek-hint" id="ek-hint">
+    <div class="ek-hint-card">
+      <div class="ek-hint-title">Como jogar</div>
+      <div class="ek-hint-row">
+        <div class="ek-hint-icon">🕹️</div>
+        <div class="ek-hint-text"><b>Deslize</b> na tela <span style="opacity:.7">(ou setas/WASD)</span> para guiar o Ekans</div>
+      </div>
+      <div class="ek-hint-row">
+        <div class="ek-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/salac-berry.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
+        <div class="ek-hint-text">A <b>Salac</b> acelera o Ekans por alguns segundos</div>
+      </div>
+      <div class="ek-hint-row">
+        <div class="ek-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
+        <div class="ek-hint-text">A <b>Sitrus</b> encolhe o Ekans na hora</div>
+      </div>
+      <div class="ek-hint-row">
+        <div class="ek-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ganlon-berry.png" alt="" style="width:20px;height:20px;object-fit:contain"></div>
+        <div class="ek-hint-text">A <b>Ganlon</b> dá um escudo que perdoa uma batida</div>
+      </div>
+      <div class="ek-hint-dismiss">Toque em qualquer lugar para começar</div>
+    </div>
+  </div>
+</div>
+
+<div class="ek-overlay" id="ek-overlay">
+  <div class="ek-modal">
+    <h2>O Ekans se enroscou!</h2>
+    <p>Sua pontuação foi registrada no ranking.</p>
+    <div class="ek-final-score" id="ek-final-score">0</div>
+    <div class="ek-best-line">Seu recorde: <b id="ek-best-line-val">–</b></div>
+    <div class="ek-lb-box">
+      <div class="ek-panel-title">Top treinadores</div>
+      <div id="ek-leaderboard"><div class="ek-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="ek-btn" id="ek-restart-btn">Jogar novamente</button>
+    <button class="ek-btn" id="ek-share-btn">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="/games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// EKANS — jogo da cobrinha (Snake) com o Ekans
+// ════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('ek-canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('ek-wrap');
+const scoreEl = document.getElementById('ek-score');
+const bestEl = document.getElementById('ek-best');
+
+const COLS = 20, ROWS = 20;
+const BASE_TICK = 132;
+const SALAC_TICK = 74;
+const SALAC_DURATION = 4200;
+const SPECIAL_LIFESPAN = 9000;
+const SPECIAL_CHANCE = 0.32;
+
+const BERRIES = {
+  normal: { color: '#e2453f', points: 10, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png' },
+  salac:  { color: '#e8613f', points: 15, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/salac-berry.png' },
+  sitrus: { color: '#f5a623', points: 20, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png' },
+  ganlon: { color: '#6fc3e8', points: 15, sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ganlon-berry.png' },
+};
+
+// ── Sprites reais das bagas (mesmo padrão do flaPidgey: pré-carrega e usa
+// desenho vetorial como fallback enquanto a imagem não carregou/falhou) ──
+const berryImgs = {};
+Object.keys(BERRIES).forEach(key => {
+  const img = new Image();
+  berryImgs[key] = { img, ready: false };
+  img.onload  = () => { berryImgs[key].ready = true; };
+  img.onerror = () => { berryImgs[key].ready = false; };
+  img.src = BERRIES[key].sprite;
+});
+
+// ── Canvas responsivo (mesmo padrão de resize dos outros jogos) ──
+let cell = 20, BASE_W = 380, BASE_H = 380;
+
+function resize() {
+  const nav = document.querySelector('.ek-nav');
+  const navH = nav ? nav.getBoundingClientRect().height : 52;
+  const maxW = Math.min(window.innerWidth - 16, 520);
+  const maxH = Math.min(window.innerHeight - navH - 16, 520);
+  cell = Math.max(10, Math.floor(Math.min(maxW / COLS, maxH / ROWS)));
+  BASE_W = cell * COLS;
+  BASE_H = cell * ROWS;
+  canvas.width = BASE_W;
+  canvas.height = BASE_H;
+  if (!started) draw();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+
+// ── Estado do jogo ──
+let snake, dir, nextDir, food, tickMs, acc, lastTs, rafId;
+let started = false, gameOver = false, hintDismissedOnce = false;
+let score = 0, best = 0, shield = false, salacUntil = 0, user = null;
+
+function newGame() {
+  snake = [{x:9,y:10},{x:8,y:10},{x:7,y:10}];
+  dir = {x:1,y:0};
+  nextDir = dir;
+  tickMs = BASE_TICK;
+  acc = 0; lastTs = 0;
+  gameOver = false;
+  score = 0; shield = false; salacUntil = 0;
+  food = spawnFood();
+  scoreEl.textContent = '0';
+  document.getElementById('ek-pill-salac').classList.remove('show');
+  document.getElementById('ek-pill-ganlon').classList.remove('show');
+  document.getElementById('ek-overlay').classList.remove('show');
+}
+
+function spawnFood() {
+  let pos;
+  do {
+    pos = { x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS) };
+  } while (snake.some(s => s.x===pos.x && s.y===pos.y));
+  if (Math.random() < SPECIAL_CHANCE) {
+    const kinds = Object.keys(BERRIES);
+    pos.kind = kinds[Math.floor(Math.random()*kinds.length)];
+    pos.expiresAt = performance.now() + SPECIAL_LIFESPAN;
+  } else {
+    pos.kind = 'normal';
+  }
+  return pos;
+}
+
+// ── Hint "como jogar" (só na primeira partida da sessão) ──
+const hintEl = document.getElementById('ek-hint');
+const hintParent = hintEl.parentNode;
+const hintNextSibling = hintEl.nextSibling;
+let hintHideTimer = null;
+
+function showHint() {
+  started = false;
+  if (!hintDismissedOnce) {
+    clearTimeout(hintHideTimer);
+    if (!hintEl.isConnected) hintParent.insertBefore(hintEl, hintNextSibling);
+    hintEl.classList.remove('hide');
+  }
+}
+
+function beginPlay() {
+  if (started) return;
+  started = true;
+  hintDismissedOnce = true;
+  lastTs = 0;
+  hintEl.classList.add('hide');
+  clearTimeout(hintHideTimer);
+  hintHideTimer = setTimeout(() => { if (hintEl.isConnected) hintEl.remove(); }, 380);
+}
+
+function startGame() {
+  newGame();
+  showHint();
+  cancelAnimationFrame(rafId);
+  lastTs = 0;
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── Toast (mensagens rápidas: Sitrus, escudo usado, etc.) ──
+let toastTimer = null;
+function showToast(text) {
+  const el = document.getElementById('ek-toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1400);
+}
+
+// ── Pills de buff persistentes (Salac/Ganlon) ──
+function setBuffPill(kind, show, label) {
+  const pill = document.getElementById('ek-pill-' + kind);
+  const countEl = document.getElementById('ek-pill-' + kind + '-count');
+  if (show) {
+    pill.classList.add('show');
+    if (label) countEl.textContent = label;
+  } else {
+    pill.classList.remove('show');
+  }
+}
+
+function tickBuffPills() {
+  if (salacUntil > performance.now()) {
+    const remain = Math.ceil((salacUntil - performance.now()) / 1000);
+    setBuffPill('salac', true, remain + 's');
+  } else {
+    setBuffPill('salac', false);
+  }
+  setBuffPill('ganlon', shield, 'Ativo');
+}
+
+// ── Efeitos das bagas ──
+function applyBerry(kind) {
+  if (kind === 'salac') {
+    salacUntil = performance.now() + SALAC_DURATION;
+    tickMs = SALAC_TICK;
+  } else if (kind === 'sitrus') {
+    const shrinkBy = Math.min(3, Math.max(0, snake.length - 3));
+    for (let i = 0; i < shrinkBy; i++) snake.pop();
+    showToast('Sitrus — Ekans encolheu!');
+  } else if (kind === 'ganlon') {
+    shield = true;
+  }
+}
+
+// ── Controles: teclado ──
+const KEY_DIRS = {
+  ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0},
+  w:{x:0,y:-1}, s:{x:0,y:1}, a:{x:-1,y:0}, d:{x:1,y:0}
+};
+window.addEventListener('keydown', (e) => {
+  const d = KEY_DIRS[e.key];
+  if (!d) return;
+  if (!started) { beginPlay(); return; }
+  if (d.x === -dir.x && d.y === -dir.y) return;
+  nextDir = d;
+});
+
+// ── Controles: ponteiro (swipe) — Pointer Events, mesmo padrão dos outros jogos ──
+let pointerDown = null;
+const SWIPE_THRESHOLD = 24;
+
+wrap.addEventListener('pointerdown', (e) => {
+  pointerDown = { x: e.clientX, y: e.clientY };
+  if (!started) beginPlay(); // primeiro toque/clique só fecha o hint
+});
+
+wrap.addEventListener('pointerup', (e) => {
+  if (!pointerDown || gameOver) { pointerDown = null; return; }
+  const dx = e.clientX - pointerDown.x;
+  const dy = e.clientY - pointerDown.y;
+  pointerDown = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
+  let d;
+  if (Math.abs(dx) > Math.abs(dy)) d = dx > 0 ? {x:1,y:0} : {x:-1,y:0};
+  else d = dy > 0 ? {x:0,y:1} : {x:0,y:-1};
+  if (d.x === -dir.x && d.y === -dir.y) return;
+  nextDir = d;
+});
+wrap.addEventListener('pointercancel', () => { pointerDown = null; });
+
+// ── HUD (Pontos/Recorde): toque oculta, toque no mesmo lugar mostra ──
+(function () {
+  const hudBox = document.getElementById('ek-hud-box');
+  let hidden = false;
+  function toggleHud(e) {
+    e.stopPropagation();
+    hidden = !hidden;
+    hudBox.classList.toggle('ek-hud-hidden', hidden);
+  }
+  hudBox.addEventListener('click', toggleHud);
+  hudBox.addEventListener('pointerdown', (e) => e.stopPropagation());
+  hudBox.addEventListener('pointerup', (e) => e.stopPropagation());
+})();
+
+// ── Loop principal ──
+function step() {
+  dir = nextDir;
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+  const hitWall = head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS;
+  const hitSelf = !hitWall && snake.some(s => s.x === head.x && s.y === head.y);
+
+  if (hitWall || hitSelf) {
+    if (shield && !hitWall) {
+      shield = false;
+      showToast('Ganlon — escudo usado!');
+      snake.pop();
+    } else {
+      return endGame();
+    }
+  } else {
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+      score += BERRIES[food.kind].points;
+      if (food.kind !== 'normal') {
+        applyBerry(food.kind);
+      } else {
+        snake.push({...snake[snake.length-1]});
+      }
+      scoreEl.textContent = score;
+      food = spawnFood();
+    } else {
+      snake.pop();
+    }
+  }
+
+  if (food.kind !== 'normal' && performance.now() > food.expiresAt) food = spawnFood();
+  if (performance.now() > salacUntil && tickMs === SALAC_TICK) tickMs = BASE_TICK;
+}
+
+function roundRect(x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function drawFoodFallback(fx, fy) {
+  ctx.beginPath();
+  ctx.fillStyle = BERRIES[food.kind].color;
+  ctx.arc(fx, fy, cell*0.32, 0, Math.PI*2);
+  ctx.fill();
+  if (food.kind !== 'normal') {
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.stroke();
+  }
+}
+
+function drawFood() {
+  const fx = food.x*cell + cell/2, fy = food.y*cell + cell/2;
+  const size = cell * 0.78;
+  const spriteInfo = berryImgs[food.kind];
+  if (spriteInfo && spriteInfo.ready) {
+    ctx.drawImage(spriteInfo.img, fx - size/2, fy - size/2, size, size);
+    if (food.kind !== 'normal') {
+      // leve glow por baixo pra destacar as bagas especiais do sprite genérico
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-over';
+      ctx.beginPath();
+      ctx.fillStyle = BERRIES[food.kind].color;
+      ctx.globalAlpha = 0.35;
+      ctx.arc(fx, fy, cell*0.42, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  } else {
+    drawFoodFallback(fx, fy);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for (let y=0;y<ROWS;y++){
+    for (let x=0;x<COLS;x++){
+      ctx.fillStyle = (x+y)%2===0 ? '#254a34' : '#22452f';
+      ctx.fillRect(x*cell, y*cell, cell, cell);
+    }
+  }
+
+  drawFood();
+
+  for (let i = snake.length-1; i>=0; i--) {
+    const s = snake[i];
+    const isHead = i===0;
+    ctx.fillStyle = isHead ? '#9b4fb0' : (i%2===0 ? '#9b4fb0' : '#6d3480');
+    roundRect(s.x*cell+1, s.y*cell+1, cell-2, cell-2, cell*0.35);
+    ctx.fill();
+    if (shield) { ctx.strokeStyle = 'rgba(111,195,232,.85)'; ctx.lineWidth = 2; ctx.stroke(); }
+    if (isHead) {
+      const cx = s.x*cell + cell/2, cy = s.y*cell + cell/2;
+      const ex = dir.x*cell*0.18, ey = dir.y*cell*0.18;
+      ctx.fillStyle = '#d9a5e8';
+      ctx.beginPath();
+      ctx.arc(cx - cell*0.12 + ex, cy - cell*0.06 + ey, cell*0.07, 0, Math.PI*2);
+      ctx.arc(cx + cell*0.12 + ex, cy - cell*0.06 + ey, cell*0.07, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      ctx.arc(cx - cell*0.12 + ex, cy - cell*0.06 + ey, cell*0.03, 0, Math.PI*2);
+      ctx.arc(cx + cell*0.12 + ex, cy - cell*0.06 + ey, cell*0.03, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+function loop(ts) {
+  if (!started || gameOver) return;
+  if (!lastTs) lastTs = ts;
+  acc += ts - lastTs;
+  lastTs = ts;
+  while (acc >= tickMs) {
+    step();
+    acc -= tickMs;
+    if (gameOver) break;
+  }
+  draw();
+  tickBuffPills();
+  if (!gameOver) rafId = requestAnimationFrame(loop);
+}
+
+function endGame() {
+  gameOver = true;
+  started = false;
+  cancelAnimationFrame(rafId);
+  document.getElementById('ek-final-score').textContent = score;
+  document.getElementById('ek-overlay').classList.add('show');
+  if (user) gSaveScore('ekans', score, user).then(refreshBest);
+  refreshLeaderboard();
+}
+
+document.getElementById('ek-restart-btn').addEventListener('click', startGame);
+document.getElementById('ek-hint').addEventListener('click', beginPlay);
+document.getElementById('ek-hint').addEventListener('selectstart', (e) => e.preventDefault());
+document.addEventListener('selectstart', (e) => e.preventDefault());
+
+// ── Ranking ──
+async function refreshLeaderboard() {
+  const el = document.getElementById('ek-leaderboard');
+  const top = await gLoadTopScores('ekans', 5);
+  if (top.length === 0) {
+    el.innerHTML = '<div class="ek-lb-empty">Nenhum recorde ainda.</div>';
+    return;
+  }
+  el.innerHTML = top.map((row, i) => `
+    <div class="ek-lb-row">
+      <span class="ek-lb-pos">${i + 1}º</span>
+      <span class="ek-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="ek-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+
+async function refreshBest() {
+  if (!user) return;
+  best = await gLoadMyBest('ekans', user.id);
+  bestEl.textContent = best || '–';
+  document.getElementById('ek-best-line-val').textContent = best || '–';
+}
+
+// ── Compartilhar resultado no Stories ──
+function buildResultCanvas() {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#1e3d2b');
+  bg.addColorStop(1, '#0f2318');
+  c2.fillStyle = bg;
+  c2.fillRect(0, 0, W, H);
+
+  c2.textAlign = 'center';
+  c2.fillStyle = '#fdd835';
+  c2.font = "800 74px 'Cinzel', serif";
+  c2.fillText('EKANS', W / 2, 320);
+
+  c2.save();
+  c2.translate(W / 2, 700);
+  c2.scale(7, 7);
+  c2.fillStyle = '#9b4fb0';
+  roundRect2(c2, -34, -8, 68, 16, 8); c2.fill();
+  c2.fillStyle = '#d9a5e8';
+  c2.beginPath(); c2.arc(22, -4, 3, 0, Math.PI*2); c2.arc(30, -4, 3, 0, Math.PI*2); c2.fill();
+  c2.restore();
+
+  const finalScore = Math.floor(score);
+  c2.fillStyle = 'rgba(255,255,255,.9)';
+  const cardW = 760, cardH = 260, cardX = (W - cardW) / 2, cardY = 940;
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+  c2.fill();
+
+  c2.fillStyle = '#6b7280';
+  c2.font = "800 34px 'Nunito', sans-serif";
+  c2.fillText('PONTOS', W / 2, cardY + 70);
+
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 130px 'Cinzel', serif";
+  c2.fillText(String(finalScore), W / 2, cardY + 210);
+
+  if (best) {
+    c2.fillStyle = 'rgba(255,255,255,.82)';
+    c2.font = "700 40px 'Nunito', sans-serif";
+    c2.fillText(`Recorde: ${best}`, W / 2, cardY + cardH + 90);
+  }
+
+  c2.fillStyle = '#fff';
+  c2.font = "800 56px 'Nunito', sans-serif";
+  c2.shadowColor = 'rgba(0,0,0,.35)';
+  c2.shadowBlur = 10;
+  c2.shadowOffsetY = 2;
+  const ctaLines = wrapCanvasText(c2, `Eu fiz ${finalScore} pontos, venha jogar EKANS também!`, W - 140);
+  const ctaLineHeight = 68;
+  let ctaY = cardY + cardH + (best ? 200 : 140);
+  ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += ctaLineHeight; });
+  c2.shadowColor = 'transparent';
+  c2.shadowBlur = 0;
+  c2.shadowOffsetY = 0;
+
+  return c;
+}
+
+function roundRect2(c2, x, y, w, h, r) {
+  c2.beginPath();
+  c2.moveTo(x+r,y);
+  c2.arcTo(x+w,y,x+w,y+h,r);
+  c2.arcTo(x+w,y+h,x,y+h,r);
+  c2.arcTo(x,y+h,x,y,r);
+  c2.arcTo(x,y,x+w,y,r);
+  c2.closePath();
+}
+
+function wrapCanvasText(c2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (c2d.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function shareResultToStories() {
+  let dataUrl = null;
+  try {
+    dataUrl = buildResultCanvas().toDataURL('image/png');
+  } catch (e) {
+    console.warn('[shareResultToStories] falhou ao gerar imagem do resultado', e);
+  }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl,
+        gameLink: '/ekans.html'
+      }));
+    } catch (e) {
+      console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
+    }
+  }
+  window.location.href = '/';
+}
+document.getElementById('ek-share-btn').addEventListener('click', shareResultToStories);
+
+// ── Boot ──
+function tryEnterFullscreenNow() {
+  try {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen || !gIsMobileLike()) return;
+    el.requestFullscreen().catch(() => {});
+  } catch (e) {}
+}
+
+tryEnterFullscreenNow();
+gSetupFullscreenOnFirstInteraction();
+
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  resize();
+  startGame();
+  refreshBest();
+})();
+</script>
+</body>
+</html>
