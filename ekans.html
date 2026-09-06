@@ -665,18 +665,16 @@ function draw() {
 // semicírculo da frente. Isso evita a cobra ficar de cabeça pra baixo (o
 // que acontecia girando livremente 180°) e mantém o desenho sempre legível,
 // só variando entre "de lado" e "espelhado de lado", nunca invertido. ──
-// ── Multiplicadores de tamanho por peça, calibrados pela arte de
-// referência: a cabeça é visivelmente maior/mais dominante, o rabo afina
-// até a ponta. "w" dá um empurrão extra só na largura (o eixo que aponta
-// pro próximo segmento), sem mudar a espessura — útil pro "cresce", que é
-// uma peça bem estreita na arte original e por isso ficava com um vão
-// visível até o próximo segmento. Aplicados em cima do tamanho base
-// (segSize), sem mudar a lógica de rotação/espelho. ──
-const EKANS_PART_SCALE = {
-  head: { h: 1.15, w: 1.0 },
-  grow: { h: 1.0, w: 4.0 },
-  tail: { h: 0.9, w: 1.0 },
-};
+// ── Cabeça, cresce e rabo são recortes da MESMA pose original, todos com
+// 44px de altura — ou seja, fatias de uma única imagem. Por isso as três
+// peças usam a mesma altura na hora de desenhar: escalar cada uma por um
+// fator diferente (como fazíamos com a arte antiga) desalinha verticalmente
+// o encaixe entre elas. A única correção necessária é de largura: o recorte
+// do "cresce" é bem mais estreito que o espaço entre dois pontos do
+// trajeto, então garantimos uma largura mínima só pra ele, o suficiente pra
+// não sobrar vão até o próximo segmento — cabeça e rabo já são largos o
+// bastante na arte original e mantêm sua proporção natural. ──
+const EKANS_GROW_MIN_WIDTH_FACTOR = 0.95; // fração de minCell garantida pro cresce
 
 function drawSegmentedSnake(pts, minCell) {
   const n = pts.length;
@@ -704,9 +702,9 @@ function drawSegmentedSnake(pts, minCell) {
       angle = Math.atan2(vy, -vx); // reflete o ângulo pro semicírculo da frente
     }
 
-    const scale = EKANS_PART_SCALE[partKey] || { h: 1, w: 1 };
-    const h = minCell * 0.88 * scale.h;
-    const w = h * (part.aspect || 1) * scale.w;
+    const h = minCell * 0.88;
+    let w = h * (part.aspect || 1);
+    if (partKey === 'grow') w = Math.max(w, minCell * EKANS_GROW_MIN_WIDTH_FACTOR);
 
     ctx.save();
     ctx.translate(pts[i].x, pts[i].y);
