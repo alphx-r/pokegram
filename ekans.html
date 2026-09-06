@@ -750,7 +750,7 @@ function drawSegmentedSnake(rawPts, minCell) {
     ctx.rotate(angle);
     // puxa a cabeça um pouco pra trás (sentido oposto ao movimento), já que
     // ela estava avançando demais por cima do primeiro segmento de "cresce"
-    if (partKey === 'head') ctx.translate(-w * 0.18, 0);
+    if (partKey === 'head') ctx.translate(flip ? w * 0.18 : -w * 0.18, 0);
     if (flip) ctx.scale(-1, 1);
     ctx.drawImage(part.img, -w/2, -h/2, w, h);
     ctx.restore();
