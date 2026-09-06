@@ -40,6 +40,10 @@
   #ek-canvas{
     touch-action:none;display:block;
   }
+  #ek-sprite{
+    position:absolute;top:0;left:0;pointer-events:none;display:none;
+    image-rendering:pixelated;transform-origin:center center;z-index:5;
+  }
 
   .ek-hud{
     position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
@@ -158,6 +162,7 @@
 
 <div class="ek-wrap" id="ek-wrap">
   <canvas id="ek-canvas"></canvas>
+  <img id="ek-sprite" alt="">
 
   <div class="ek-hud" id="ek-hud">
     <div class="ek-hud-box" id="ek-hud-box">
@@ -254,16 +259,30 @@ Object.keys(BERRIES).forEach(key => {
   img.src = BERRIES[key].sprite;
 });
 
-// ── Sprite real do Ekans (a cabeça vira essa imagem quando ela carrega;
-// se falhar/não carregar, cai no desenho vetorial de sempre) ──
-const EKANS_SPRITE_URL = 'https://64.media.tumblr.com/c2fe334ebaaa36c824130b21872e9b49/4603906cfe87268f-7e/s250x400/27f249c3d751b6991022bfd2dc73128b775201f8.gifv';
+// ── Sprite real do Ekans, mesmo sistema usado no flaPidgey/Tyrunt: um <img>
+// real no DOM (não um Image() solto), sobreposto ao canvas via CSS
+// transform. É o que faz o GIF animar de verdade e evita "tainted canvas"
+// (CORS) ao tirar prints/compartilhar o resultado. Se falhar/não carregar,
+// cai no desenho vetorial de sempre. ──
+const EKANS_SPRITE_URL = 'https://64.media.tumblr.com/c2fe334ebaaa36c824130b21872e9b49/4603906cfe87268f-7e/s250x400/27f249c3d751b6991022bfd2dc73128b775201f8.gif';
 // Se a arte "olhar" pro lado errado por padrão, ajusta esse ângulo em passos
 // de Math.PI/2 (90°) até a cabeça acompanhar certinho a direção do movimento.
 const EKANS_BASE_ROTATION = 0;
-const ekansImg = { img: new Image(), ready: false };
-ekansImg.img.onload  = () => { ekansImg.ready = true; };
-ekansImg.img.onerror = () => { ekansImg.ready = false; };
-ekansImg.img.src = EKANS_SPRITE_URL;
+const ekansSpriteEl = document.getElementById('ek-sprite');
+let ekansSpriteReady = false;
+
+function loadEkansSprite() {
+  const url = EKANS_SPRITE_URL;
+  if (!url) return; // sem sprite: mantém o desenho vetorial
+  ekansSpriteEl.crossOrigin = 'anonymous'; // essencial p/ toDataURL() no compartilhamento
+  ekansSpriteEl.onload = () => {
+    ekansSpriteEl.style.display = 'block';
+    ekansSpriteReady = true;
+  };
+  ekansSpriteEl.onerror = () => { ekansSpriteReady = false; ekansSpriteEl.style.display = 'none'; };
+  ekansSpriteEl.src = url;
+}
+loadEkansSprite();
 
 // ── Canvas responsivo: células SEMPRE quadradas. O nº de colunas/linhas se
 // adapta ao formato da tela (em vez de esticar cellW/cellH separadamente),
@@ -588,6 +607,15 @@ function draw() {
   // suavemente em vez de saltar de célula em célula
   const t = gameOver ? 1 : Math.min(1, acc / tickMs);
 
+  // ── Crescimento visual: a cobra fica mais "grossa" e a cabeça maior
+  // conforme come e o comprimento (snake.length) aumenta. Escala suave,
+  // com teto pra não ficar gigante nem sair da tela em telas pequenas. ──
+  const GROWTH_START_LEN = 3;   // comprimento inicial, sem bônus de escala
+  const GROWTH_MAX_BONUS = 0.9; // até +90% de espessura/tamanho no máximo
+  const GROWTH_FULL_AT = 30;    // comprimento em que atinge o bônus máximo
+  const growthRatio = Math.max(0, Math.min(1, (snake.length - GROWTH_START_LEN) / (GROWTH_FULL_AT - GROWTH_START_LEN)));
+  const growthScale = 1 + growthRatio * GROWTH_MAX_BONUS;
+
   const pts = snake.map((s, i) => {
     const p = (prevSnake && prevSnake[i]) ? prevSnake[i] : s;
     const ix = p.x + (s.x - p.x) * t;
@@ -598,43 +626,46 @@ function draw() {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  if (shield) {
-    ctx.strokeStyle = 'rgba(111,195,232,.85)';
-    ctx.lineWidth = minCell*0.95;
+  const head = pts[0];
+  // A imagem do Ekans mostra a cobra inteira enrolada (não só uma cabeça).
+  // Por isso ela substitui o corpo desenhado por vetor em vez de ficar em
+  // cima dele — desenhar os dois juntos duplicava a cobra na tela.
+  if (ekansSpriteReady) {
+    const angle = Math.atan2(dir.y, dir.x) + EKANS_BASE_ROTATION;
+    // tamanho cresce com o comprimento da cobra (snake.length via growthScale)
+    const size = minCell * (2.2 + Math.min(2.2, snake.length * 0.055)) * growthScale;
+    ekansSpriteEl.style.width = size + 'px';
+    ekansSpriteEl.style.height = size + 'px';
+    ekansSpriteEl.style.transform = `translate(${head.x - size/2}px, ${head.y - size/2}px) rotate(${angle}rad)`;
+  } else {
+    ekansSpriteEl.style.display = 'none';
+    if (shield) {
+      ctx.strokeStyle = 'rgba(111,195,232,.85)';
+      ctx.lineWidth = minCell*0.95*growthScale;
+      drawSmoothPath(pts);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#6d3480';
+    ctx.lineWidth = minCell*0.82*growthScale;
     drawSmoothPath(pts);
     ctx.stroke();
-  }
 
-  ctx.strokeStyle = '#6d3480';
-  ctx.lineWidth = minCell*0.82;
-  drawSmoothPath(pts);
-  ctx.stroke();
+    ctx.strokeStyle = '#9b4fb0';
+    ctx.lineWidth = minCell*0.66*growthScale;
+    drawSmoothPath(pts);
+    ctx.stroke();
 
-  ctx.strokeStyle = '#9b4fb0';
-  ctx.lineWidth = minCell*0.66;
-  drawSmoothPath(pts);
-  ctx.stroke();
-
-  const head = pts[0];
-  if (ekansImg.ready) {
-    const angle = Math.atan2(dir.y, dir.x) + EKANS_BASE_ROTATION;
-    const size = minCell * 2.6; // a arte é o corpo inteiro enrolado, maior que 1 célula
-    ctx.save();
-    ctx.translate(head.x, head.y);
-    ctx.rotate(angle);
-    ctx.drawImage(ekansImg.img, -size/2, -size/2, size, size);
-    ctx.restore();
-  } else {
-    const ex = dir.x*minCell*0.18, ey = dir.y*minCell*0.18;
+    const ex = dir.x*minCell*0.18*growthScale, ey = dir.y*minCell*0.18*growthScale;
     ctx.fillStyle = '#d9a5e8';
     ctx.beginPath();
-    ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
-    ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
+    ctx.arc(head.x - minCell*0.12*growthScale + ex, head.y - minCell*0.06*growthScale + ey, minCell*0.07*growthScale, 0, Math.PI*2);
+    ctx.arc(head.x + minCell*0.12*growthScale + ex, head.y - minCell*0.06*growthScale + ey, minCell*0.07*growthScale, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = '#1a1a1a';
     ctx.beginPath();
-    ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
-    ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
+    ctx.arc(head.x - minCell*0.12*growthScale + ex, head.y - minCell*0.06*growthScale + ey, minCell*0.03*growthScale, 0, Math.PI*2);
+    ctx.arc(head.x + minCell*0.12*growthScale + ex, head.y - minCell*0.06*growthScale + ey, minCell*0.03*growthScale, 0, Math.PI*2);
     ctx.fill();
   }
 }
