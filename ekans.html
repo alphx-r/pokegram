@@ -254,6 +254,17 @@ Object.keys(BERRIES).forEach(key => {
   img.src = BERRIES[key].sprite;
 });
 
+// ── Sprite real do Ekans (a cabeça vira essa imagem quando ela carrega;
+// se falhar/não carregar, cai no desenho vetorial de sempre) ──
+const EKANS_SPRITE_URL = 'https://64.media.tumblr.com/c2fe334ebaaa36c824130b21872e9b49/4603906cfe87268f-7e/s250x400/27f249c3d751b6991022bfd2dc73128b775201f8.gifv';
+// Se a arte "olhar" pro lado errado por padrão, ajusta esse ângulo em passos
+// de Math.PI/2 (90°) até a cabeça acompanhar certinho a direção do movimento.
+const EKANS_BASE_ROTATION = 0;
+const ekansImg = { img: new Image(), ready: false };
+ekansImg.img.onload  = () => { ekansImg.ready = true; };
+ekansImg.img.onerror = () => { ekansImg.ready = false; };
+ekansImg.img.src = EKANS_SPRITE_URL;
+
 // ── Canvas responsivo: células SEMPRE quadradas. O nº de colunas/linhas se
 // adapta ao formato da tela (em vez de esticar cellW/cellH separadamente),
 // preenchendo o máximo possível da área disponível sem deformar a grade. ──
@@ -605,17 +616,27 @@ function draw() {
   ctx.stroke();
 
   const head = pts[0];
-  const ex = dir.x*minCell*0.18, ey = dir.y*minCell*0.18;
-  ctx.fillStyle = '#d9a5e8';
-  ctx.beginPath();
-  ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
-  ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
-  ctx.fill();
-  ctx.fillStyle = '#1a1a1a';
-  ctx.beginPath();
-  ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
-  ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
-  ctx.fill();
+  if (ekansImg.ready) {
+    const angle = Math.atan2(dir.y, dir.x) + EKANS_BASE_ROTATION;
+    const size = minCell * 2.6; // a arte é o corpo inteiro enrolado, maior que 1 célula
+    ctx.save();
+    ctx.translate(head.x, head.y);
+    ctx.rotate(angle);
+    ctx.drawImage(ekansImg.img, -size/2, -size/2, size, size);
+    ctx.restore();
+  } else {
+    const ex = dir.x*minCell*0.18, ey = dir.y*minCell*0.18;
+    ctx.fillStyle = '#d9a5e8';
+    ctx.beginPath();
+    ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
+    ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
+    ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
+    ctx.fill();
+  }
 }
 
 // Desenha o corpo da cobra como um trajeto único e curvo (não blocos
