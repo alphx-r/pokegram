@@ -735,6 +735,7 @@ function drawSegmentedSnake(rawPts, minCell) {
       vy = inY / inLen + outY / outLen;
     }
     if (vx === 0 && vy === 0) { vx = dir.x; vy = dir.y; }
+    else { vx = -vx; vy = -vy; } // os cálculos acima apontam pra trás; vira pra frente
 
     let angle = Math.atan2(vy, vx);
     let flip = false;
