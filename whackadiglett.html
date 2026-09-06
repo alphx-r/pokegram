@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Whack-a-Diglett · Pokégram</title>
+<link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{
+    margin:0;height:100%;font-family:'Nunito',sans-serif;background:#3e2a1a;color:#1a1a1a;
+    overflow:hidden;
+  }
+  .wd-stage, .wd-hint, .wd-hud, .wd-hole{
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
+  :root{
+    --brand:#b71c1c;--brand-mid:#e53935;--accent:#fdd835;--border:#e0e0e0;--muted:#6b7280;
+    --dirt:#8a5a30;--dirt-dark:#5c3a1e;--grass:#4c9a4c;
+  }
+  .wd-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;
+  }
+  .wd-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .wd-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .wd-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .wd-title span{color:var(--accent)}
+
+  .wd-stage{
+    position:relative;
+    width:100%;height:calc(100% - 52px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.06), transparent 60%),
+      linear-gradient(180deg, var(--grass) 0 22%, var(--dirt) 22% 100%);
+    touch-action:none;
+    overflow:hidden;
+  }
+
+  .wd-hud{
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
+    display:flex;justify-content:center;pointer-events:none;
+  }
+  .wd-hud-box{
+    display:flex;gap:clamp(14px,5vw,28px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.9);border-radius:10px;
+    padding:9px clamp(20px,5vw,28px);box-shadow:0 2px 8px rgba(0,0,0,.25);
+    pointer-events:auto;
+  }
+  .wd-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .wd-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .wd-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
+  .wd-hearts{font-size:clamp(13px,4vw,17px);line-height:1;letter-spacing:2px}
+
+  .wd-toast{
+    position:absolute;top:64px;left:50%;transform:translate(-50%,-8px);z-index:30;
+    background:rgba(20,20,38,.9);color:#fff;padding:8px 16px;border-radius:20px;
+    font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3);
+    opacity:0;transition:opacity .2s ease, transform .2s ease;pointer-events:none;
+    white-space:nowrap;text-align:center;max-width:88vw;
+  }
+  .wd-toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .wd-flash{
+    position:absolute;inset:0;background:rgba(183,28,28,.35);z-index:15;
+    opacity:0;pointer-events:none;transition:opacity .08s ease;
+  }
+  .wd-flash.show{opacity:1;transition:opacity 0s}
+
+  .wd-grid{
+    position:relative;z-index:5;
+    display:grid;grid-template-columns:repeat(3,1fr);
+    gap:clamp(10px,4vw,24px);
+    width:min(92vw,480px);
+    aspect-ratio:1/1;
+    margin-top:36px;
+  }
+  .wd-hole{
+    position:relative;border-radius:50%;
+    background:radial-gradient(ellipse at 50% 40%, var(--dirt-dark) 0%, #2c1a0d 72%);
+    box-shadow:inset 0 6px 14px rgba(0,0,0,.55), 0 3px 0 rgba(0,0,0,.2);
+    overflow:hidden;
+    cursor:pointer;
+  }
+  .wd-hole::before{
+    content:'';position:absolute;inset:0;border-radius:50%;
+    box-shadow:inset 0 -8px 10px rgba(255,255,255,.08);
+  }
+  .wd-target{
+    position:absolute;left:50%;bottom:-15%;width:68%;height:auto;
+    transform:translate(-50%,0);
+    transition:bottom .16s cubic-bezier(.34,1.56,.64,1);
+    filter:drop-shadow(0 4px 4px rgba(0,0,0,.4));
+    pointer-events:none;
+  }
+  .wd-hole.wd-up .wd-target{bottom:8%}
+  .wd-hole.wd-hit .wd-target{transition:transform .18s ease, opacity .18s ease;transform:translate(-50%,0) scale(1.3);opacity:0}
+
+  .wd-popscore{
+    position:absolute;left:50%;top:6%;transform:translate(-50%,0);
+    font-family:'Cinzel',serif;font-weight:800;font-size:15px;
+    pointer-events:none;opacity:0;z-index:8;
+    text-shadow:0 2px 4px rgba(0,0,0,.5);
+  }
+  .wd-popscore.wd-anim{animation:wd-pop-float .6s ease-out forwards}
+  @keyframes wd-pop-float{
+    0%{opacity:1;transform:translate(-50%,0)}
+    100%{opacity:0;transform:translate(-50%,-34px)}
+  }
+
+  .wd-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .wd-overlay.show{display:flex}
+
+  .wd-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:100;pointer-events:auto;
+    background:rgba(10,10,20,0.72);
+    opacity:1;transition:opacity .35s ease;
+  }
+  .wd-hint.hide{opacity:0;pointer-events:none}
+  .wd-hint-card{
+    background:rgba(20,20,38,0.88);
+    border:1.5px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:20px 22px;
+    max-width:260px;
+    text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+    pointer-events:auto;
+  }
+  .wd-hint-title{
+    font-family:'Cinzel',serif;color:var(--accent);font-size:15px;font-weight:700;
+    margin:0 0 12px;
+  }
+  .wd-hint-row{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:10px;text-align:left;
+  }
+  .wd-hint-row:last-of-type{margin-bottom:0}
+  .wd-hint-icon{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .wd-hint-icon img{width:22px;height:22px;object-fit:contain}
+  .wd-hint-text{font-size:12px;color:#fff;line-height:1.35}
+  .wd-hint-text b{color:var(--accent)}
+  .wd-hint-dismiss{
+    margin-top:14px;font-size:11px;color:rgba(255,255,255,0.55);
+    font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  }
+  .wd-modal{
+    background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
+    max-height:86vh;overflow:auto;
+  }
+  .wd-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .wd-modal p{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .wd-modal .wd-final-score{font-family:'Cinzel',serif;font-size:36px;color:var(--brand-mid);margin-bottom:6px}
+  .wd-modal .wd-best-line{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .wd-modal .wd-best-line b{color:var(--brand)}
+  .wd-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left}
+  .wd-leaderboard-box{text-align:left;margin-bottom:18px}
+  .wd-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px}
+  .wd-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .wd-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wd-lb-score{font-weight:800}
+  .wd-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
+  .wd-btn{
+    padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
+  }
+  .wd-btn:hover{background:var(--brand)}
+  #wd-share-btn{background:#f2a33c;margin-top:8px}
+  #wd-share-btn:hover{background:#d98a1f}
+</style>
+</head>
+<body>
+
+<nav class="wd-nav">
+  <a class="wd-back" href="/jogos">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="wd-title">Whack-a-<span>Diglett</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="wd-stage" id="wd-stage">
+  <div class="wd-flash" id="wd-flash"></div>
+  <div class="wd-hud" id="wd-hud">
+    <div class="wd-hud-box">
+      <div class="wd-hud-item">
+        <div class="wd-hud-label">Pontos</div>
+        <div class="wd-hud-value" id="wd-score">0</div>
+      </div>
+      <div class="wd-hud-item">
+        <div class="wd-hud-label">Vidas</div>
+        <div class="wd-hud-value wd-hearts" id="wd-hearts">❤️❤️❤️</div>
+      </div>
+      <div class="wd-hud-item">
+        <div class="wd-hud-label">Combo</div>
+        <div class="wd-hud-value" id="wd-combo">x1</div>
+      </div>
+    </div>
+  </div>
+  <div class="wd-toast" id="wd-toast"></div>
+
+  <div class="wd-grid" id="wd-grid"></div>
+
+  <div class="wd-hint" id="wd-hint">
+    <div class="wd-hint-card">
+      <div class="wd-hint-title">Como jogar</div>
+      <div class="wd-hint-row">
+        <div class="wd-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/50.png" alt=""></div>
+        <div class="wd-hint-text">Toque no <b>Diglett</b> assim que ele sair do buraco pra pontuar</div>
+      </div>
+      <div class="wd-hint-row">
+        <div class="wd-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/51.png" alt=""></div>
+        <div class="wd-hint-text"><b>Dugtrio</b> aparece raramente e vale muito mais pontos</div>
+      </div>
+      <div class="wd-hint-row">
+        <div class="wd-hint-icon"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/109.png" alt=""></div>
+        <div class="wd-hint-text"><b>Koffing</b> é armadilha — tocar nele custa uma vida! Se ficar com medo, é só não tocar</div>
+      </div>
+      <div class="wd-hint-row">
+        <div class="wd-hint-icon">🔥</div>
+        <div class="wd-hint-text">Acertos seguidos aumentam seu <b>combo</b> e multiplicam a pontuação. Perca as 3 vidas e o jogo acaba</div>
+      </div>
+      <div class="wd-hint-dismiss">Toque em qualquer lugar para começar</div>
+    </div>
+  </div>
+</div>
+
+<div class="wd-overlay" id="wd-overlay">
+  <div class="wd-modal">
+    <h2>Fim de jogo!</h2>
+    <p id="wd-modal-msg">Sua pontuação foi registrada no ranking.</p>
+    <div class="wd-final-score" id="wd-final-score">0</div>
+    <div class="wd-best-line">Seu recorde: <b id="wd-best">–</b></div>
+    <div class="wd-leaderboard-box">
+      <div class="wd-panel-title">Top treinadores</div>
+      <div id="wd-leaderboard"><div class="wd-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="wd-btn" id="wd-restart-btn">Jogar novamente</button>
+    <button class="wd-btn" id="wd-share-btn">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="/games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// WHACK-A-DIGLETT — toque nos Diglett/Dugtrio antes que se
+// escondam, evite o Koffing (armadilha) e sobreviva o quanto
+// puder. A dificuldade aumenta com a pontuação (endless).
+// ════════════════════════════════════════════════════════
+
+const GRID_SIZE = 9; // 3x3
+const gridEl = document.getElementById('wd-grid');
+const scoreEl = document.getElementById('wd-score');
+const heartsEl = document.getElementById('wd-hearts');
+const comboEl = document.getElementById('wd-combo');
+const toastEl = document.getElementById('wd-toast');
+const flashEl = document.getElementById('wd-flash');
+
+// Sprites (mesma fonte usada nos outros jogos: PokeAPI/sprites).
+const SPRITES = {
+  diglett: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/50.png',
+  dugtrio: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/51.png',
+  koffing: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/109.png',
+};
+const POINTS = { diglett: 10, dugtrio: 35 };
+const MAX_LIVES = 3;
+
+// Monta as 9 covas do tabuleiro (fixo — não depende do tamanho de tela,
+// o CSS grid cuida do escalonamento responsivo).
+const holes = [];
+for (let i = 0; i < GRID_SIZE; i++) {
+  const hole = document.createElement('div');
+  hole.className = 'wd-hole';
+  hole.dataset.index = i;
+  const img = document.createElement('img');
+  img.className = 'wd-target';
+  hole.appendChild(img);
+  const pop = document.createElement('div');
+  pop.className = 'wd-popscore';
+  hole.appendChild(pop);
+  gridEl.appendChild(hole);
+  holes.push({ el: hole, img, pop, kind: null, up: false, locked: false, hideTimer: null, lockTimer: null });
+}
+
+let score = 0;
+let lives = MAX_LIVES;
+let combo = 0;
+let multiplier = 1;
+let gameOver = false;
+let started = false;
+let user = null;
+let spawnTimer = null;
+
+function updateStats() {
+  scoreEl.textContent = score;
+  heartsEl.textContent = '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
+  comboEl.textContent = `x${multiplier.toFixed(1).replace('.0', '')}`;
+}
+
+let toastTimer = null;
+function showToast(text) {
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1600);
+}
+
+function flashHazard() {
+  flashEl.classList.add('show');
+  setTimeout(() => flashEl.classList.remove('show'), 90);
+}
+
+function showPopScore(hole, text, color) {
+  hole.pop.textContent = text;
+  hole.pop.style.color = color;
+  hole.pop.classList.remove('wd-anim');
+  // Força reflow pra poder reiniciar a animação em toques consecutivos.
+  void hole.pop.offsetWidth;
+  hole.pop.classList.add('wd-anim');
+}
+
+// ── Curva de dificuldade: quanto maior a pontuação, mais rápido os
+// alvos aparecem e somem, e mais chance de Koffing/Dugtrio. Tudo com
+// limites (clamp) pra não ficar impossível nem trivial demais.
+function currentDifficulty() {
+  const visibleMs = Math.max(380, 1000 - score * 2.2);
+  const spawnGapMs = Math.max(230, 680 - score * 1.6);
+  const koffingChance = Math.min(0.32, 0.15 + score * 0.0009);
+  const dugtrioChance = Math.min(0.18, 0.08 + score * 0.0006);
+  return { visibleMs, spawnGapMs, koffingChance, dugtrioChance };
+}
+
+function pickKind() {
+  const { koffingChance, dugtrioChance } = currentDifficulty();
+  const r = Math.random();
+  if (r < koffingChance) return 'koffing';
+  if (r < koffingChance + dugtrioChance) return 'dugtrio';
+  return 'diglett';
+}
+
+function freeHoleIndexes() {
+  const out = [];
+  holes.forEach((h, i) => { if (!h.up && !h.locked) out.push(i); });
+  return out;
+}
+
+function popUp(hole) {
+  const kind = pickKind();
+  hole.kind = kind;
+  hole.up = true;
+  hole.img.src = SPRITES[kind];
+  hole.el.classList.remove('wd-hit');
+  hole.el.classList.add('wd-up');
+
+  const { visibleMs } = currentDifficulty();
+  clearTimeout(hole.hideTimer);
+  hole.hideTimer = setTimeout(() => {
+    // Ninguém tocou a tempo — some sozinho. Diglett/Dugtrio perdidos só
+    // zeram o combo; Koffing evitado com sucesso não pune ninguém.
+    if (hole.kind !== 'koffing') combo = 0, multiplier = 1;
+    hideHole(hole);
+    updateStats();
+  }, visibleMs);
+}
+
+// `hit` = true quando o jogador tocou o alvo (toca a animação de
+// "estourar" por ~200ms antes de liberar a cova de novo); false quando
+// o alvo só se escondeu sozinho (sem animação extra, some suave).
+function hideHole(hole, hit) {
+  hole.up = false;
+  hole.kind = null;
+  clearTimeout(hole.hideTimer);
+  if (hit) {
+    hole.locked = true;
+    clearTimeout(hole.lockTimer);
+    hole.lockTimer = setTimeout(() => {
+      hole.el.classList.remove('wd-up', 'wd-hit');
+      hole.locked = false;
+    }, 200);
+  } else {
+    clearTimeout(hole.lockTimer);
+    hole.locked = false;
+    hole.el.classList.remove('wd-up', 'wd-hit');
+  }
+}
+
+function bumpCombo() {
+  combo++;
+  multiplier = 1 + Math.floor(combo / 5) * 0.5;
+}
+
+function onHoleTap(hole) {
+  if (gameOver || !started || !hole.up) return;
+
+  if (hole.kind === 'koffing') {
+    lives--;
+    combo = 0;
+    multiplier = 1;
+    hole.el.classList.add('wd-hit');
+    showPopScore(hole, '💥', '#ff5252');
+    flashHazard();
+    showToast('☠️ Gás venenoso! -1 vida');
+    hideHole(hole, true);
+    updateStats();
+    if (lives <= 0) { endGame(); return; }
+    return;
+  }
+
+  const pts = Math.round(POINTS[hole.kind] * multiplier);
+  score += pts;
+  bumpCombo();
+  hole.el.classList.add('wd-hit');
+  showPopScore(hole, `+${pts}`, hole.kind === 'dugtrio' ? '#fdd835' : '#4c9a4c');
+  if (hole.kind === 'dugtrio') showToast('🎉 Dugtrio! Bônus de pontos');
+  hideHole(hole, true);
+  updateStats();
+}
+
+gridEl.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (!started) { beginPlay(); return; }
+  const holeEl = e.target.closest('.wd-hole');
+  if (!holeEl) return;
+  const hole = holes[Number(holeEl.dataset.index)];
+  if (hole) onHoleTap(hole);
+});
+
+// ── Loop de spawn: agenda a próxima toupeira/inimigo recursivamente,
+// sempre escolhendo uma cova livre. Nunca deixa mais de ~40% das covas
+// ativas ao mesmo tempo, pra manter jogável mesmo em dificuldade alta.
+function scheduleNextSpawn() {
+  if (gameOver || !started) return;
+  const { spawnGapMs } = currentDifficulty();
+  spawnTimer = setTimeout(() => {
+    const free = freeHoleIndexes();
+    const activeCount = GRID_SIZE - free.length;
+    if (free.length > 0 && activeCount < Math.ceil(GRID_SIZE * 0.4)) {
+      const idx = free[Math.floor(Math.random() * free.length)];
+      popUp(holes[idx]);
+    }
+    scheduleNextSpawn();
+  }, spawnGapMs);
+}
+
+// ── Ranking (exibido só na tela de fim de jogo) ──
+async function refreshLeaderboard() {
+  const el = document.getElementById('wd-leaderboard');
+  const top = await gLoadTopScores('whackadiglett', 5);
+  if (top.length === 0) {
+    el.innerHTML = '<div class="wd-lb-empty">Nenhum recorde ainda.</div>';
+    return;
+  }
+  el.innerHTML = top.map((row, i) => `
+    <div class="wd-lb-row">
+      <span class="wd-lb-pos">${i+1}º</span>
+      <span class="wd-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="wd-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+
+let bestScore = 0;
+async function refreshBest() {
+  if (!user) return;
+  bestScore = await gLoadMyBest('whackadiglett', user.id);
+  document.getElementById('wd-best').textContent = bestScore || '–';
+}
+
+// ── Compartilhar resultado no Stories ──────────────────────
+function loadImg(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+async function buildResultCanvas() {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#3e2a1a');
+  bg.addColorStop(1, '#b71c1c');
+  c2.fillStyle = bg;
+  c2.fillRect(0, 0, W, H);
+
+  c2.textAlign = 'center';
+  c2.fillStyle = '#fdd835';
+  c2.font = "800 60px 'Cinzel', serif";
+  c2.fillText('Whack-a-Diglett', W / 2, 220);
+
+  const diglettImg = await loadImg(SPRITES.diglett);
+  if (diglettImg) {
+    const s = 420;
+    c2.drawImage(diglettImg, W / 2 - s / 2, 300, s, s);
+  }
+
+  const cardW = 760, cardH = 260, cardX = (W - cardW) / 2, cardY = 800;
+  c2.fillStyle = 'rgba(255,255,255,.92)';
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+  c2.fill();
+
+  c2.fillStyle = '#6b7280';
+  c2.font = "800 34px 'Nunito', sans-serif";
+  c2.fillText('PONTOS', W / 2, cardY + 70);
+
+  c2.fillStyle = '#b71c1c';
+  c2.font = "800 130px 'Cinzel', serif";
+  c2.fillText(String(score), W / 2, cardY + 210);
+
+  if (bestScore) {
+    c2.fillStyle = 'rgba(255,255,255,.82)';
+    c2.font = "700 40px 'Nunito', sans-serif";
+    c2.fillText(`Recorde: ${bestScore}`, W / 2, cardY + cardH + 90);
+  }
+
+  c2.fillStyle = '#fff';
+  c2.font = "800 54px 'Nunito', sans-serif";
+  c2.shadowColor = 'rgba(0,0,0,.35)';
+  c2.shadowBlur = 10;
+  c2.shadowOffsetY = 2;
+  const ctaLines = wrapCanvasText(c2, `Eu fiz ${score} pontos, venha jogar Whack-a-Diglett também!`, W - 140);
+  const ctaLineHeight = 66;
+  let ctaY = cardY + cardH + (bestScore ? 200 : 140);
+  ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += ctaLineHeight; });
+  c2.shadowColor = 'transparent';
+  c2.shadowBlur = 0;
+  c2.shadowOffsetY = 0;
+
+  return c;
+}
+
+function wrapCanvasText(ctx2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx2d.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+async function shareResultToStories() {
+  let dataUrl = null;
+  try {
+    dataUrl = (await buildResultCanvas()).toDataURL('image/png');
+  } catch (e) {
+    console.warn('[shareResultToStories] falhou ao gerar imagem do resultado', e);
+  }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl,
+        gameLink: '/jogos/whackadiglett'
+      }));
+    } catch (e) {
+      console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
+    }
+  }
+  window.location.href = '/';
+}
+document.getElementById('wd-share-btn').addEventListener('click', shareResultToStories);
+document.getElementById('wd-restart-btn').addEventListener('click', startGame);
+document.getElementById('wd-hint').addEventListener('click', beginPlay);
+document.getElementById('wd-hint').addEventListener('selectstart', (e) => e.preventDefault());
+
+// ── Ciclo de jogo ──
+async function endGame() {
+  gameOver = true;
+  clearTimeout(spawnTimer);
+  holes.forEach(hideHole);
+  document.getElementById('wd-final-score').textContent = score;
+  document.getElementById('wd-overlay').classList.add('show');
+  await gSaveScore('whackadiglett', score, user);
+  refreshLeaderboard();
+  refreshBest();
+}
+
+function startGame() {
+  score = 0; lives = MAX_LIVES; combo = 0; multiplier = 1;
+  gameOver = false; started = false;
+  holes.forEach(hideHole);
+  updateStats();
+  document.getElementById('wd-overlay').classList.remove('show');
+  showHint();
+  clearTimeout(spawnTimer);
+}
+
+// ── Hint "como jogar" (mesmo padrão dos outros jogos: removido do DOM
+// de verdade quando dispensado, pra não sobrar resquício de toque). ──
+const hintEl = document.getElementById('wd-hint');
+const hintParent = hintEl.parentNode;
+const hintNextSibling = hintEl.nextSibling;
+let hintHideTimer = null;
+
+function showHint() {
+  started = false;
+  clearTimeout(hintHideTimer);
+  if (!hintEl.isConnected) hintParent.insertBefore(hintEl, hintNextSibling);
+  hintEl.classList.remove('hide');
+}
+function beginPlay() {
+  if (started) return;
+  started = true;
+  hintEl.classList.add('hide');
+  clearTimeout(hintHideTimer);
+  hintHideTimer = setTimeout(() => { if (hintEl.isConnected) hintEl.remove(); }, 380);
+  scheduleNextSpawn();
+}
+
+// ── Boot ──
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  gSetupFullscreenOnFirstInteraction();
+  startGame();
+})();
+</script>
+</body>
+</html>
