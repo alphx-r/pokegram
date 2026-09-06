@@ -254,17 +254,16 @@ Object.keys(BERRIES).forEach(key => {
   img.src = BERRIES[key].sprite;
 });
 
-// ── Sprites segmentados do Ekans: cabeça, corpo, segmento-de-crescimento e
-// rabo, recortados de uma pose única do Ekans enrolado. Cada célula da
-// cobra (snake[i]) recebe uma dessas peças, rotacionada para acompanhar o
-// ângulo real do trajeto e espelhada horizontalmente conforme o sentido do
-// movimento (esquerda/direita). Embutidas em base64 (arquivos pequenos) —
-// carregam instantâneo, sem depender de rede/hospedagem externa. ──
+// ── Sprites segmentados do Ekans: cabeça, segmento-de-crescimento e rabo.
+// Cada célula da cobra (snake[i]) recebe uma dessas peças, rotacionada para
+// acompanhar o ângulo real do trajeto e espelhada horizontalmente conforme
+// o sentido do movimento (esquerda/direita). Embutidas em base64 (arquivos
+// pequenos) — carregam instantâneo, sem depender de rede/hospedagem
+// externa. ──
 const EKANS_PARTS_SRC = {
-  head: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC4AAAAkCAMAAADB/PhjAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAEVQTFRFAAAAeidlVQZH75/SzVuxokeI4qtUsHspAAAA/dVmsHsp4qtU/dVm0VutpEmJ4qtU4qtUnkmGpUuH4qtUeixkeidkVQdH7ORlyQAAABd0Uk5TAP////////////z8/Bwc9NQVEfsXLupR1ZYsAAAA/klEQVR4nK2S2w7CIAyGW9iWmeiN8f0fUKMmemPcYLbAYGzzQGMJbLTfvxVahJlhmAB2HooRGc4bFVwIZkUix5HQ3MUS+xc8JZGbzQQyXNEYQkJIw9JuCOFpQnIcXKildSCggyqm2UWBBFeg3a+5MA29cWLPiDPUB0E5rtzR2LQLeEuw/6YXlOJq0rIAyzIlHwsk+Gc4eXsBrugCdXQatw6Lo2qKoC7FfZEgojnIxkXzhKnLcQjtNUd1SCzhoCU4uLY1GZr2mDx1GT6ty5hSQ/MR97VrbS+o7nJ83Vg0XkB7K8A3iNevuJdwStvLuxZcw3dn+BFnwR5PBfjh6J4vFldsfL43fe4AAAAASUVORK5CYII=',
-  body: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAAeCAMAAABOrS0HAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAGZQTFRFAAAAAAAAAAAAAAAAgIAAVQZHVQZHVQZH/4CAzVuxokeIVQZH//+AeidlqkSInU6J75/SokaLqlWOzFuxkkmSmTOZokeIqlWq6KJd4axTokeI/wD/okeI/79AeiZleidlVQBJ4qtUQKDALAAAACJ0Uk5TAP/y9gL/+v4C///gAv8PDf8LCeMHBeMDCyvqAe4E6NEV/1gpxjoAAAEPSURBVHicrdNfj4IwDADwdsqBiebMmaAP3oXv/6l8vRgvPuAfhLlbKTLQLWHMJWN19Ie1QwTfgXivF38oZAdOaS2HMJ16GwlF0YEJ6oihm0f0DXpWH6dwOJdtKTZOpIIZqCYj0b0dCYUpNa6DoscNVBpOgSucwBXmj3OcecIFw9WZE+KndhSdmB4WNXEJn2PhkmGaqzYhtiAukZoiG/hFGxvEoy9MaWP7Rx8UuAfXRU3hYktR6K3vA3hDvCH84L5NsGPz1+P2TCAXErMDyPbGYIh31GHUS1MOZOCFcgIgvFD3oAPJ+dFBkK4Z/A6Aa9g9fkog5DXT080JdVoXDE2cWdCuvvYO6i3QtWN9FUfDfxn+bbrYpXnfAAAAAElFTkSuQmCC',
-  grow: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAYCAMAAAA4a6b0AAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAADlQTFRFAAAAVQZHokeIzVuxAAAAAAAAZgAzeidlUghKoUeIokeIokeIokaIokeI4qtUAAAAokeIokeIokeI3XEdTwAAABN0Uk5TAP///w0IBf8f8PL09vj///r8/loVWYcAAACMSURBVHichdHRDoMgDAXQNgoR57LN///IaeKcOnAysIJS1xfbexqCirAVBv0cTSlBMtcZytKCUYJ+z5xJ7qZ5d6OlE5oTqSm3TwkT7WSsQDHS+wkY/Xl/ZCk1xF9l2yjfnFz6UGwuvVQvTq6dy6vgT7ju3nLyaNas2Un95OQWZYFIxYmY4Fg/yT8J+QK36DVRRuLo1wAAAABJRU5ErkJggg==',
-  tail: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAABtQTFRFVQZHAAAAAAAAzVuxokeI4qtUgk8GsHsp/dVmN98INAAAAAl0Uk5T//8A////////7HvdrwAAAG5JREFUeJx9zlsNACEMRNEiYSxgYS2gZc1hoRawgIVa2Gn4IQstCSTnhlcRQLZR/n6gezrNBYMzcDNZBYFFWGYTRWQWeoW7B1eYh8Pw9/CKmVxdfb8fwkRH4JX8wtAsmIrEPNJz16Gp+eXMvPDwB/BHPdeHkMRgAAAAAElFTkSuQmCC',
+  head: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFUAAAAsBAMAAADm9ulgAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAB5QTFRFAAAAeidlVQZH75/SzVuxokeIsHsp4qtUAAAA/dVmI3CWwwAAAAp0Uk5TAP///////////36JFFYAAAEZSURBVHicrdTLbcMwDABQZgQukAMHyEUrdAWvkBk6QmbIClmhGxTaoNAKPOcSlF83SNOgNEQDNiw8WaRoewcRKAcMeBW7ukUgodhf6rpFUg6mI55MKltbPwYIXfbfvGqJGLAx8WAtktT2J5XWLUA/AfP5TctrOn4Bmfegi5YaSyUL4rioBTtpEqbHVksotw0/Uv1Y02Nss4TR3XXozoqWJ41t9oFiNNlSsIFsd81Sbyp1j2x1gtWaZkxestIKUOkwUzhnjaz75pNvNWuLpmzOJBbnagPvixZO0BO+r1tHxgPbf+ZQtZ7G8Q4m19RW/FW3fwU59phovVGhZ9rApqdaoCU/oc+pVjriuh/mWn+N5HKdbZ3bN/Rv+w10ZMKNqDJq1wAAAABJRU5ErkJggg==',
+  grow: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAsBAMAAABBK1+bAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAABJQTFRFAAAAVQZHzVuxokeI4qtUAAAA2061NwAAAAZ0Uk5TAP//////enng/gAAAElJREFUeJxjZAADxkFICYLI/zBKCUh85INRRh8YGPnuwyghAaDoe6IoQQGGf/dhlLACAxJlDCQfycIoF5C1f2CUIAOLA8NvKAUAUoYozVUxEo8AAAAASUVORK5CYII=',
+  tail: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAsBAMAAADROCZUAAAAAXNSR0IB2cksfwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAB5QTFRFAAAAVQZHzVuxokeIAAAA4qtUgk8GsHsp/dVmeidlUQU/kgAAAAp0Uk5TAP///////////36JFFYAAACWSURBVHic7dHdDYMwEAPgYwSvkBVuBWZhua7QFVghK3gFfEmFVCAHb30pP0HyFzkEJhsc0x9+DNDN54C44rT3E4D12KCxdhtDhEVrsoQC1LCm4BGqwqoEThbK6GOIhtYjWGz9vD0tB0RNnbnvTlNSaCsvrz3tn2QMsUMBvuIMvD2qH/JbOBbdQeEpT0G/6ZwnMNtVnMAGfkdNO0xE+T0AAAAASUVORK5CYII=',
 };
 const ekansParts = {};
 let ekansPartsReadyCount = 0;
@@ -653,11 +652,10 @@ function draw() {
   }
 }
 
-// ── Desenha a cobra com as 4 peças reais (cabeça/corpo/cresce/rabo).
-// Sequência fixa: pts[0] = cabeça; pts[1] = corpo (sempre 1, logo após a
-// cabeça); último ponto = rabo; tudo entre o corpo e o rabo = cresce
-// repetido (uma peça de "cresce" a mais pra cada crescimento além do
-// tamanho inicial de 3).
+// ── Desenha a cobra com as 3 peças reais (cabeça/cresce/rabo).
+// Sequência fixa: pts[0] = cabeça; último ponto = rabo; todo o meio (um ou
+// mais segmentos, sempre pelo menos 1, já que o tamanho mínimo é 3) = peça
+// de "cresce", repetida uma vez a mais pra cada crescimento.
 //
 // Cada peça é desenhada apontando pro próximo ponto do trajeto, mas o
 // ângulo de rotação é sempre "grampeado" entre -90° e 90°: se o vetor real
@@ -672,7 +670,7 @@ function draw() {
 // maior/mais dominante que o corpo, e o corpo é um pouco mais robusto que
 // o rabo, que afina até a ponta. Aplicados em cima do tamanho base
 // (segSize), sem mudar a lógica de rotação/espelho. ──
-const EKANS_PART_SCALE = { head: 1.15, body: 1.0, grow: 1.0, tail: 0.9 };
+const EKANS_PART_SCALE = { head: 1.15, grow: 1.0, tail: 0.9 };
 
 function drawSegmentedSnake(pts, minCell) {
   const n = pts.length;
@@ -681,7 +679,6 @@ function drawSegmentedSnake(pts, minCell) {
     let partKey;
     if (i === 0) partKey = 'head';
     else if (i === n - 1) partKey = 'tail';
-    else if (i === 1) partKey = 'body';
     else partKey = 'grow';
 
     const part = ekansParts[partKey];
