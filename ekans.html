@@ -607,15 +607,6 @@ function draw() {
   // suavemente em vez de saltar de célula em célula
   const t = gameOver ? 1 : Math.min(1, acc / tickMs);
 
-  // ── Crescimento visual: a cobra fica mais "grossa"/os segmentos maiores
-  // conforme come e o comprimento (snake.length) aumenta. Escala suave,
-  // com teto pra não ficar gigante nem sair da tela em telas pequenas. ──
-  const GROWTH_START_LEN = 3;   // comprimento inicial, sem bônus de escala
-  const GROWTH_MAX_BONUS = 0.9; // até +90% de espessura/tamanho no máximo
-  const GROWTH_FULL_AT = 30;    // comprimento em que atinge o bônus máximo
-  const growthRatio = Math.max(0, Math.min(1, (snake.length - GROWTH_START_LEN) / (GROWTH_FULL_AT - GROWTH_START_LEN)));
-  const growthScale = 1 + growthRatio * GROWTH_MAX_BONUS;
-
   const pts = snake.map((s, i) => {
     const p = (prevSnake && prevSnake[i]) ? prevSnake[i] : s;
     const ix = p.x + (s.x - p.x) * t;
@@ -629,47 +620,59 @@ function draw() {
   const head = pts[0];
 
   if (ekansPartsAllReady) {
-    drawSegmentedSnake(pts, minCell, growthScale);
+    drawSegmentedSnake(pts, minCell);
   } else {
     if (shield) {
       ctx.strokeStyle = 'rgba(111,195,232,.85)';
-      ctx.lineWidth = minCell*0.95*growthScale;
+      ctx.lineWidth = minCell*0.95;
       drawSmoothPath(pts);
       ctx.stroke();
     }
 
     ctx.strokeStyle = '#6d3480';
-    ctx.lineWidth = minCell*0.82*growthScale;
+    ctx.lineWidth = minCell*0.82;
     drawSmoothPath(pts);
     ctx.stroke();
 
     ctx.strokeStyle = '#9b4fb0';
-    ctx.lineWidth = minCell*0.66*growthScale;
+    ctx.lineWidth = minCell*0.66;
     drawSmoothPath(pts);
     ctx.stroke();
 
-    const ex = dir.x*minCell*0.18*growthScale, ey = dir.y*minCell*0.18*growthScale;
+    const ex = dir.x*minCell*0.18, ey = dir.y*minCell*0.18;
     ctx.fillStyle = '#d9a5e8';
     ctx.beginPath();
-    ctx.arc(head.x - minCell*0.12*growthScale + ex, head.y - minCell*0.06*growthScale + ey, minCell*0.07*growthScale, 0, Math.PI*2);
-    ctx.arc(head.x + minCell*0.12*growthScale + ex, head.y - minCell*0.06*growthScale + ey, minCell*0.07*growthScale, 0, Math.PI*2);
+    ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
+    ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = '#1a1a1a';
     ctx.beginPath();
-    ctx.arc(head.x - minCell*0.12*growthScale + ex, head.y - minCell*0.06*growthScale + ey, minCell*0.03*growthScale, 0, Math.PI*2);
-    ctx.arc(head.x + minCell*0.12*growthScale + ex, head.y - minCell*0.06*growthScale + ey, minCell*0.03*growthScale, 0, Math.PI*2);
+    ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
+    ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
     ctx.fill();
   }
 }
 
 // ── Desenha a cobra com as 4 peças reais (cabeça/corpo/cresce/rabo).
 // Sequência fixa: pts[0] = cabeça; último ponto = rabo; penúltimo = cresce
-// (transição corpo→rabo); todo o meio = corpo repetido. Cada peça roda para
-// acompanhar o ângulo do trajeto naquele ponto e espelha horizontalmente
-// conforme o sentido (esquerda/direita) do movimento local, pra evitar a
-// distorção de girar uma pose curva em qualquer ângulo (só espelho, sem
-// rotação livre além do necessário pra apontar na direção certa). ──
-function drawSegmentedSnake(pts, minCell, growthScale) {
+// (transição corpo→rabo); todo o meio = corpo repetido.
+//
+// Cada peça é desenhada apontando pro próximo ponto do trajeto, mas o
+// ângulo de rotação é sempre "grampeado" entre -90° e 90°: se o vetor real
+// aponta "pra trás" (mais de 90° do eixo horizontal, ex. subindo-e-voltando
+// ou indo direto pra esquerda), em vez de girar até lá a imagem é espelhada
+// horizontalmente e o ângulo é refletido pro equivalente dentro do
+// semicírculo da frente. Isso evita a cobra ficar de cabeça pra baixo (o
+// que acontecia girando livremente 180°) e mantém o desenho sempre legível,
+// só variando entre "de lado" e "espelhado de lado", nunca invertido. ──
+// ── Multiplicadores de tamanho por peça, calibrados pela arte de
+// referência (Ekans completo em pose enrolada): a cabeça é visivelmente
+// maior/mais dominante que o corpo, e o corpo é um pouco mais robusto que
+// o rabo, que afina até a ponta. Aplicados em cima do tamanho base
+// (segSize), sem mudar a lógica de rotação/espelho. ──
+const EKANS_PART_SCALE = { head: 1.25, body: 1.0, grow: 1.0, tail: 0.85 };
+
+function drawSegmentedSnake(pts, minCell) {
   const n = pts.length;
 
   for (let i = n - 1; i >= 0; i--) {
@@ -689,17 +692,21 @@ function drawSegmentedSnake(pts, minCell, growthScale) {
     let vx = to.x - from.x, vy = to.y - from.y;
     if (vx === 0 && vy === 0) { vx = dir.x; vy = dir.y; }
 
-    const angle = Math.atan2(vy, vx);
-    const flip = vx < 0 ? -1 : 1; // espelha horizontalmente conforme o sentido
+    let angle = Math.atan2(vy, vx);
+    let flip = false;
+    if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+      flip = true;
+      angle = Math.atan2(vy, -vx); // reflete o ângulo pro semicírculo da frente
+    }
 
-    const segSize = minCell * 1.7 * growthScale;
+    const segSize = minCell * 1.7 * (EKANS_PART_SCALE[partKey] || 1);
     const h = segSize;
     const w = segSize * (part.aspect || 1);
 
     ctx.save();
     ctx.translate(pts[i].x, pts[i].y);
     ctx.rotate(angle);
-    ctx.scale(flip, 1);
+    if (flip) ctx.scale(-1, 1);
     ctx.drawImage(part.img, -w/2, -h/2, w, h);
     ctx.restore();
   }
