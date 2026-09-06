@@ -10,6 +10,8 @@
     { "source": "/jogos/tyrunt/", "destination": "/tyrunt.html" },
     { "source": "/jogos/voltorbolha", "destination": "/voltorbolha.html" },
     { "source": "/jogos/voltorbolha/", "destination": "/voltorbolha.html" },
+    { "source": "/jogos/pokebubbles", "destination": "/pokebubbles.html" },
+    { "source": "/jogos/pokebubbles/", "destination": "/pokebubbles.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
