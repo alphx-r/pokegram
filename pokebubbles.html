@@ -352,6 +352,9 @@ let connectionsCount = 0;
 // Timestamp (performance.now()) da última conexão bem-sucedida — usado
 // para detectar 10s de inatividade e encerrar o jogo.
 let lastConnectionTs = 0;
+// Enquanto o jogador está arrastando uma seleção, a contagem de
+// inatividade fica congelada neste instante (não avança até soltar).
+let dragFreezeTs = null;
 
 function randomStarterKey() {
   return STARTER_KEYS[Math.floor(Math.random() * STARTER_KEYS.length)];
@@ -866,6 +869,9 @@ function startSelection(r, c) {
   if (!cell || cell.isItem || isFrozen(cell)) return; // itens nunca são selecionáveis
   selection = [[r, c]];
   dragging = true;
+  // Tocar numa bubble pra começar a conectar congela a contagem de
+  // inatividade (5s de aviso / 10s de game over) até soltar o dedo.
+  dragFreezeTs = performance.now();
   groupEl.textContent = 1;
   applyPushImpulse(r, c);
   draw();
@@ -908,6 +914,12 @@ function endSelection() {
   if (selection.length >= MIN_GROUP) {
     popSelection();
   } else {
+    // Não completou o grupo: a contagem de inatividade volta a andar
+    // de onde tinha congelado (o tempo gasto arrastando não conta).
+    if (dragFreezeTs != null) {
+      lastConnectionTs += performance.now() - dragFreezeTs;
+      dragFreezeTs = null;
+    }
     selection = [];
     groupEl.textContent = 0;
     draw();
@@ -970,6 +982,7 @@ function popSelection() {
   // avança o contador usado para descongelar bubbles do Snowball.
   connectionsCount++;
   lastConnectionTs = performance.now();
+  dragFreezeTs = null;
 
   const toRemove = [];
   const removedSet = new Set();
@@ -1308,11 +1321,14 @@ function loop(ts) {
       endGame('timeout');
       return;
     }
-    if (now - lastConnectionTs >= BB_INACTIVITY_LIMIT_MS) {
+    // Enquanto está arrastando uma seleção, a contagem de inatividade
+    // fica congelada no instante em que o toque começou.
+    const inactivityNow = dragging ? dragFreezeTs : now;
+    if (inactivityNow - lastConnectionTs >= BB_INACTIVITY_LIMIT_MS) {
       endGame('inactivity');
       return;
     }
-    updateInactivityWarning(now);
+    updateInactivityWarning(inactivityNow);
   }
 
   rafId = requestAnimationFrame(loop);
@@ -1366,6 +1382,7 @@ function startGame() {
   selection = []; dragging = false;
   particles = []; poppingBubbles = [];
   connectionsCount = 0;
+  dragFreezeTs = null;
   updateStats();
   groupEl.textContent = 0;
   timerEl.textContent = formatTime(BB_GAME_DURATION_MS);
