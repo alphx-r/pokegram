@@ -686,14 +686,17 @@ const EKANS_GROW_MIN_WIDTH_FACTOR = 1.05; // fração de minCell garantida pro c
 // cotovelo se desloca pra dentro, suavizando a quina em vez do quadrado
 // duro. A cabeça (i=0) e o rabo (i=n-1) ficam de fora, presos à posição
 // real da grade. ──
-function smoothCorners(pts, factor) {
-  const n = pts.length;
-  const out = pts.map(p => ({ x: p.x, y: p.y }));
-  for (let i = 1; i < n - 1; i++) {
-    const avgX = (pts[i - 1].x + pts[i + 1].x) / 2;
-    const avgY = (pts[i - 1].y + pts[i + 1].y) / 2;
-    out[i].x = pts[i].x + (avgX - pts[i].x) * factor;
-    out[i].y = pts[i].y + (avgY - pts[i].y) * factor;
+function smoothCorners(pts, factor, passes = 2) {
+  let out = pts.map(p => ({ x: p.x, y: p.y }));
+  for (let pass = 0; pass < passes; pass++) {
+    const src = out;
+    out = src.map(p => ({ x: p.x, y: p.y }));
+    for (let i = 1; i < src.length - 1; i++) {
+      const avgX = (src[i - 1].x + src[i + 1].x) / 2;
+      const avgY = (src[i - 1].y + src[i + 1].y) / 2;
+      out[i].x = src[i].x + (avgX - src[i].x) * factor;
+      out[i].y = src[i].y + (avgY - src[i].y) * factor;
+    }
   }
   return out;
 }
