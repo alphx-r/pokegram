@@ -674,7 +674,7 @@ function draw() {
 // trajeto, então garantimos uma largura mínima só pra ele, o suficiente pra
 // não sobrar vão até o próximo segmento — cabeça e rabo já são largos o
 // bastante na arte original e mantêm sua proporção natural. ──
-const EKANS_GROW_MIN_WIDTH_FACTOR = 0.95; // fração de minCell garantida pro cresce
+const EKANS_GROW_MIN_WIDTH_FACTOR = 1.05; // fração de minCell garantida pro cresce
 
 function drawSegmentedSnake(pts, minCell) {
   const n = pts.length;
@@ -688,11 +688,26 @@ function drawSegmentedSnake(pts, minCell) {
     const part = ekansParts[partKey];
     if (!part || !part.ready) continue;
 
-    // vetor de direção local: cabeça e meio olham pro próximo ponto (rumo à
-    // frente do movimento); o rabo olha pro ponto anterior (de onde veio)
-    const from = i === n - 1 ? pts[i - 1] : pts[i];
-    const to   = i === n - 1 ? pts[i]     : pts[i + 1] || pts[i];
-    let vx = to.x - from.x, vy = to.y - from.y;
+    // vetor de direção local: a cabeça olha pro próximo ponto (rumo à
+    // frente do movimento) e o rabo olha pro ponto anterior (de onde veio).
+    // As peças do meio ("cresce") usam a BISSETRIZ entre a direção de
+    // entrada (de onde vieram) e a de saída (pra onde vão) — apontar só
+    // pra frente faz a peça girar de uma vez só numa curva de 90°, deixando
+    // um buraco quadrado no cotovelo; a bissetriz suaviza esse giro.
+    let vx, vy;
+    if (i === 0) {
+      const next = pts[1] || pts[0];
+      vx = next.x - pts[0].x; vy = next.y - pts[0].y;
+    } else if (i === n - 1) {
+      const prev = pts[i - 1];
+      vx = pts[i].x - prev.x; vy = pts[i].y - prev.y;
+    } else {
+      const inX = pts[i].x - pts[i - 1].x, inY = pts[i].y - pts[i - 1].y;
+      const outX = pts[i + 1].x - pts[i].x, outY = pts[i + 1].y - pts[i].y;
+      const inLen = Math.hypot(inX, inY) || 1, outLen = Math.hypot(outX, outY) || 1;
+      vx = inX / inLen + outX / outLen;
+      vy = inY / inLen + outY / outLen;
+    }
     if (vx === 0 && vy === 0) { vx = dir.x; vy = dir.y; }
 
     let angle = Math.atan2(vy, vx);
@@ -702,7 +717,7 @@ function drawSegmentedSnake(pts, minCell) {
       angle = Math.atan2(vy, -vx); // reflete o ângulo pro semicírculo da frente
     }
 
-    const h = minCell * 0.88;
+    const h = minCell * 0.95;
     let w = h * (part.aspect || 1);
     if (partKey === 'grow') w = Math.max(w, minCell * EKANS_GROW_MIN_WIDTH_FACTOR);
 
