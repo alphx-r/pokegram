@@ -142,7 +142,7 @@
       </a>
     </div>
     <div class="gj-nav-user">
-      <button class="gj-week-trophy-btn" id="gj-week-trophy-btn" onclick="toggleWeekBlock()" aria-label="Vencedores da semana" title="Vencedores da semana">🏆</button>
+      <button class="gj-week-trophy-btn" id="gj-week-trophy-btn" onclick="openWeekModal()" aria-label="Vencedores da semana" title="Vencedores da semana">🏆</button>
       <div class="gj-avatar" id="gj-avatar" onclick="openMyRanking()" title="Ver minha classificação"></div>
     </div>
   </nav>
@@ -151,10 +151,6 @@
     <div class="gj-intro">
       <h1>Jogos</h1>
       <p>Encare os melhores treinadores nos rankings abaixo</p>
-    </div>
-
-    <div id="gj-week-block" hidden>
-      <div id="gj-week-winners"><div class="gj-lb-empty" id="gj-week-winners-empty">Ninguém pontuou essa semana ainda.</div></div>
     </div>
 
     <div class="gj-games">
@@ -221,6 +217,15 @@
   </div>
 </div>
 
+<div class="gj-modal-overlay" id="gj-week-modal" hidden onclick="if(event.target===this) closeWeekModal()">
+  <div class="gj-modal">
+    <button class="gj-modal-close" onclick="closeWeekModal()" aria-label="Fechar">✕</button>
+    <div class="gj-modal-title">🏆 Vencedores da Semana</div>
+    <div class="gj-modal-sub" id="gj-week-modal-sub">Top 3 e pontuação de cada jogo</div>
+    <div id="gj-week-winners"><div class="gj-lb-empty" id="gj-week-winners-empty">Ninguém pontuou essa semana ainda.</div></div>
+  </div>
+</div>
+
 <div class="gj-modal-overlay" id="gj-my-rank-modal" hidden onclick="if(event.target===this) closeMyRanking()">
   <div class="gj-modal">
     <button class="gj-modal-close" onclick="closeMyRanking()" aria-label="Fechar">✕</button>
@@ -279,6 +284,21 @@
     const start = new Date(startShifted.getTime() + GJ_BRT_OFFSET_MS);
     const end   = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
     return { start, end };
+  }
+
+  // Limites da semana ANTERIOR (a que já fechou) — usada pelo modal de
+  // vencedores da semana, já que aos domingos a "semana atual" acabou
+  // de começar e ainda não tem dados: o que se anuncia é o resultado
+  // da semana que acabou de terminar.
+  function gjPrevWeekBoundsBrasilia() {
+    const { start } = gjWeekBoundsBrasilia();
+    return { start: new Date(start.getTime() - 7 * 24 * 60 * 60 * 1000), end: start };
+  }
+
+  function gjFmtWeekRange(bounds) {
+    const opts = { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' };
+    const fim = new Date(bounds.end.getTime() - 1);
+    return `${bounds.start.toLocaleDateString('pt-BR', opts)} – ${fim.toLocaleDateString('pt-BR', opts)}`;
   }
 
   // O botão "Ranking" (por jogo) só faz sentido no dia em que a semana
@@ -351,6 +371,7 @@
       document.querySelectorAll('.gj-rank-btn').forEach(btn => btn.hidden = true);
     } else {
       document.getElementById('gj-week-trophy-btn').classList.add('active');
+      loadAllWeekWinners();
     }
 
     document.getElementById('gj-loading').style.display = 'none';
@@ -365,10 +386,13 @@
 
   // O troféu na nav só fica clicável aos domingos (ver classe "active"
   // aplicada em boot()); durante a semana fica cinza/opaco e não faz nada.
-  function toggleWeekBlock() {
+  function openWeekModal() {
     if (!isSundayBrasilia()) return;
-    const block = document.getElementById('gj-week-block');
-    block.hidden = !block.hidden;
+    document.getElementById('gj-week-modal').hidden = false;
+  }
+
+  function closeWeekModal() {
+    document.getElementById('gj-week-modal').hidden = true;
   }
 
   function toggleRanking(game, btn) {
@@ -434,13 +458,18 @@
     }));
   }
 
-  // Monta, dentro do bloco de vencedores da semana (topo da página, só
-  // aos domingos), a lista de vencedores de um jogo — ex: "1º lugar:
-  // Fulano". Reaproveita o "top" já calculado em loadLeaderboard.
+  // Remove o emoji líder do nome do jogo (ex: "🧩 Pokémon Tetris" →
+  // "Pokémon Tetris") — usado só na lista de vencedores da semana.
+  function gjStripGameEmoji(label) {
+    return (label || '').replace(/^\p{Extended_Pictographic}\s*/u, '');
+  }
+
+  // Monta, dentro do modal de vencedores da semana, a lista de
+  // vencedores de um jogo — ex: "1º lugar: Fulano — 900 pontos".
   function renderWeekWinners(game, top) {
-    const label = (GJ_GAMES.find(g => g.key === game) || {}).label || game;
+    const label = gjStripGameEmoji((GJ_GAMES.find(g => g.key === game) || {}).label || game);
     const rows = top.map((row, i) =>
-      `<div class="gj-week-game-row">${i + 1}º lugar: <b>${esc(row.author_name || '???')}</b></div>`
+      `<div class="gj-week-game-row">${i + 1}º lugar: <b>${esc(row.author_name || '???')}</b> — ${row.score} pontos</div>`
     ).join('');
     const block = `
       <div class="gj-week-game" id="gj-week-game-${game}">
@@ -455,6 +484,43 @@
     } else {
       wrap.insertAdjacentHTML('beforeend', block);
     }
+  }
+
+  // Busca o top 3 (melhor score por jogador) de um jogo na semana
+  // ANTERIOR — a que já fechou — e alimenta o modal de vencedores.
+  async function loadWeekWinnerGame(game) {
+    try {
+      const { start, end } = gjPrevWeekBoundsBrasilia();
+      const { data, error } = await db
+        .from('game_scores')
+        .select('score, author_name, user_id')
+        .eq('game', game)
+        .gte('created_at', start.toISOString())
+        .lt('created_at', end.toISOString())
+        .order('score', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+
+      const seen = new Set();
+      const top = [];
+      for (const row of (data || [])) {
+        if (seen.has(row.user_id)) continue;
+        seen.add(row.user_id);
+        top.push(row);
+        if (top.length >= 3) break;
+      }
+      if (top.length) renderWeekWinners(game, top);
+    } catch (e) {
+      console.warn('[loadWeekWinnerGame]', game, e);
+    }
+  }
+
+  // Carrega os vencedores da semana anterior de todos os jogos e
+  // atualiza o subtítulo do modal com o intervalo de datas dessa semana.
+  async function loadAllWeekWinners() {
+    const sub = document.getElementById('gj-week-modal-sub');
+    if (sub) sub.textContent = `Top 3 e pontuação de cada jogo — semana de ${gjFmtWeekRange(gjPrevWeekBoundsBrasilia())}`;
+    await Promise.all(GJ_GAMES.map(g => loadWeekWinnerGame(g.key)));
   }
 
   async function loadLeaderboard(game, elId) {
@@ -495,7 +561,6 @@
         </div>`
       ).join('');
 
-      if (isSundayBrasilia()) renderWeekWinners(game, top);
       return true;
     } catch (e) {
       console.warn('[loadLeaderboard]', game, e);
