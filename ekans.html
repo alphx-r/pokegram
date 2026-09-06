@@ -276,7 +276,40 @@ function resize() {
   canvas.style.width = canvas.width + 'px';
   canvas.style.height = canvas.height + 'px';
 
+  generateBackground();
   if (!started) draw();
+}
+
+// ── Fundo ilustrativo: textura de grama gerada uma vez por tamanho de tela,
+// sem relação 1:1 com a grade de movimento — é só cenário, não delimita nada. ──
+let bgCanvas = null;
+function generateBackground() {
+  bgCanvas = document.createElement('canvas');
+  bgCanvas.width = canvas.width;
+  bgCanvas.height = canvas.height;
+  const bctx = bgCanvas.getContext('2d');
+
+  const grad = bctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, '#2c5940');
+  grad.addColorStop(1, '#1b3423');
+  bctx.fillStyle = grad;
+  bctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // gerador pseudo-aleatório com seed fixa: sempre a mesma textura, sem
+  // recalcular do zero (parecer vivo) nem travar em algo idêntico à grade
+  let seed = 1337;
+  const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+
+  const patch = Math.max(canvas.width, canvas.height) * 0.1;
+  const blobCount = Math.floor((canvas.width * canvas.height) / (patch * patch * 2.6));
+  for (let i = 0; i < blobCount; i++) {
+    const x = rand() * canvas.width, y = rand() * canvas.height;
+    const r = patch * (0.35 + rand() * 0.75);
+    bctx.beginPath();
+    bctx.fillStyle = rand() > 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.07)';
+    bctx.ellipse(x, y, r, r * (0.55 + rand() * 0.3), rand() * Math.PI, 0, Math.PI * 2);
+    bctx.fill();
+  }
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 150));
@@ -284,12 +317,13 @@ document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 
 // ── Estado do jogo ──
-let snake, dir, nextDir, food, tickMs, acc, lastTs, rafId;
+let snake, prevSnake, dir, nextDir, food, tickMs, acc, lastTs, rafId;
 let started = false, gameOver = false, hintDismissedOnce = false;
 let score = 0, best = 0, shield = false, salacUntil = 0, user = null;
 
 function newGame() {
   snake = [{x:9,y:10},{x:8,y:10},{x:7,y:10}];
+  prevSnake = snake.map(s => ({x:s.x, y:s.y}));
   dir = {x:1,y:0};
   nextDir = dir;
   tickMs = BASE_TICK;
@@ -407,32 +441,34 @@ const KEY_DIRS = {
 window.addEventListener('keydown', (e) => {
   const d = KEY_DIRS[e.key];
   if (!d) return;
-  if (!started) { beginPlay(); return; }
+  if (!started) beginPlay();
   if (d.x === -dir.x && d.y === -dir.y) return;
   nextDir = d;
 });
 
-// ── Controles: ponteiro (swipe) — Pointer Events, mesmo padrão dos outros jogos ──
+// ── Controles: ponteiro (swipe) — reage durante o arrasto (pointermove),
+// não só quando solta o dedo, e permite virar de novo sem soltar ──
 let pointerDown = null;
-const SWIPE_THRESHOLD = 24;
+const SWIPE_THRESHOLD = 16;
 
 wrap.addEventListener('pointerdown', (e) => {
   pointerDown = { x: e.clientX, y: e.clientY };
   if (!started) beginPlay(); // primeiro toque/clique só fecha o hint
 });
 
-wrap.addEventListener('pointerup', (e) => {
-  if (!pointerDown || gameOver) { pointerDown = null; return; }
+wrap.addEventListener('pointermove', (e) => {
+  if (!pointerDown || gameOver) return;
   const dx = e.clientX - pointerDown.x;
   const dy = e.clientY - pointerDown.y;
-  pointerDown = null;
   if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
   let d;
   if (Math.abs(dx) > Math.abs(dy)) d = dx > 0 ? {x:1,y:0} : {x:-1,y:0};
   else d = dy > 0 ? {x:0,y:1} : {x:0,y:-1};
-  if (d.x === -dir.x && d.y === -dir.y) return;
-  nextDir = d;
+  if (!(d.x === -dir.x && d.y === -dir.y)) nextDir = d;
+  // reancora no ponto atual, pra dar pra virar de novo continuando o mesmo arrasto
+  pointerDown = { x: e.clientX, y: e.clientY };
 });
+wrap.addEventListener('pointerup', () => { pointerDown = null; });
 wrap.addEventListener('pointercancel', () => { pointerDown = null; });
 
 // ── HUD (Pontos/Recorde): toque oculta, toque no mesmo lugar mostra ──
@@ -451,6 +487,7 @@ wrap.addEventListener('pointercancel', () => { pointerDown = null; });
 
 // ── Loop principal ──
 function step() {
+  prevSnake = snake.map(s => ({x:s.x, y:s.y}));
   dir = nextDir;
   const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
   const hitWall = head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS;
@@ -497,7 +534,7 @@ function roundRect(x,y,w,h,r) {
 function drawFoodFallback(fx, fy, minCell) {
   ctx.beginPath();
   ctx.fillStyle = BERRIES[food.kind].color;
-  ctx.arc(fx, fy, minCell*0.32, 0, Math.PI*2);
+  ctx.arc(fx, fy, minCell*0.46, 0, Math.PI*2);
   ctx.fill();
   if (food.kind !== 'normal') {
     ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.stroke();
@@ -507,7 +544,7 @@ function drawFoodFallback(fx, fy, minCell) {
 function drawFood() {
   const fx = food.x*cellW + cellW/2, fy = food.y*cellH + cellH/2;
   const minCell = Math.min(cellW, cellH);
-  const size = minCell * 0.78;
+  const size = minCell * 1.1;
   const spriteInfo = berryImgs[food.kind];
   if (spriteInfo && spriteInfo.ready) {
     ctx.drawImage(spriteInfo.img, fx - size/2, fy - size/2, size, size);
@@ -518,7 +555,7 @@ function drawFood() {
       ctx.beginPath();
       ctx.fillStyle = BERRIES[food.kind].color;
       ctx.globalAlpha = 0.35;
-      ctx.arc(fx, fy, minCell*0.42, 0, Math.PI*2);
+      ctx.arc(fx, fy, minCell*0.6, 0, Math.PI*2);
       ctx.fill();
       ctx.restore();
     }
@@ -530,38 +567,74 @@ function drawFood() {
 function draw() {
   if (!snake || !food) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  for (let y=0;y<ROWS;y++){
-    for (let x=0;x<COLS;x++){
-      ctx.fillStyle = (x+y)%2===0 ? '#254a34' : '#22452f';
-      ctx.fillRect(x*cellW, y*cellH, cellW+1, cellH+1);
-    }
-  }
+
+  if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0);
 
   drawFood();
 
   const minCell = Math.min(cellW, cellH);
-  for (let i = snake.length-1; i>=0; i--) {
-    const s = snake[i];
-    const isHead = i===0;
-    ctx.fillStyle = isHead ? '#9b4fb0' : (i%2===0 ? '#9b4fb0' : '#6d3480');
-    roundRect(s.x*cellW+1, s.y*cellH+1, cellW-2, cellH-2, minCell*0.35);
-    ctx.fill();
-    if (shield) { ctx.strokeStyle = 'rgba(111,195,232,.85)'; ctx.lineWidth = 2; ctx.stroke(); }
-    if (isHead) {
-      const cx = s.x*cellW + cellW/2, cy = s.y*cellH + cellH/2;
-      const ex = dir.x*minCell*0.18, ey = dir.y*minCell*0.18;
-      ctx.fillStyle = '#d9a5e8';
-      ctx.beginPath();
-      ctx.arc(cx - minCell*0.12 + ex, cy - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
-      ctx.arc(cx + minCell*0.12 + ex, cy - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = '#1a1a1a';
-      ctx.beginPath();
-      ctx.arc(cx - minCell*0.12 + ex, cy - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
-      ctx.arc(cx + minCell*0.12 + ex, cy - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
-      ctx.fill();
-    }
+  // progresso entre o tick anterior e o próximo (0→1), pra cobra deslizar
+  // suavemente em vez de saltar de célula em célula
+  const t = gameOver ? 1 : Math.min(1, acc / tickMs);
+
+  const pts = snake.map((s, i) => {
+    const p = (prevSnake && prevSnake[i]) ? prevSnake[i] : s;
+    const ix = p.x + (s.x - p.x) * t;
+    const iy = p.y + (s.y - p.y) * t;
+    return { x: ix*cellW + cellW/2, y: iy*cellH + cellH/2 };
+  });
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (shield) {
+    ctx.strokeStyle = 'rgba(111,195,232,.85)';
+    ctx.lineWidth = minCell*0.95;
+    drawSmoothPath(pts);
+    ctx.stroke();
   }
+
+  ctx.strokeStyle = '#6d3480';
+  ctx.lineWidth = minCell*0.82;
+  drawSmoothPath(pts);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#9b4fb0';
+  ctx.lineWidth = minCell*0.66;
+  drawSmoothPath(pts);
+  ctx.stroke();
+
+  const head = pts[0];
+  const ex = dir.x*minCell*0.18, ey = dir.y*minCell*0.18;
+  ctx.fillStyle = '#d9a5e8';
+  ctx.beginPath();
+  ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
+  ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.07, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.arc(head.x - minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
+  ctx.arc(head.x + minCell*0.12 + ex, head.y - minCell*0.06 + ey, minCell*0.03, 0, Math.PI*2);
+  ctx.fill();
+}
+
+// Desenha o corpo da cobra como um trajeto único e curvo (não blocos
+// quadrados grudados na grade), suavizando os cantos com curvas quadráticas
+function drawSmoothPath(pts) {
+  ctx.beginPath();
+  if (pts.length === 1) {
+    ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.lineTo(pts[0].x + 0.01, pts[0].y + 0.01);
+    return;
+  }
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i+1].x) / 2;
+    const my = (pts[i].y + pts[i+1].y) / 2;
+    ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+  }
+  const last = pts[pts.length - 1];
+  ctx.lineTo(last.x, last.y);
 }
 
 function loop(ts) {
