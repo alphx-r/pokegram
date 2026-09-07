@@ -1626,7 +1626,7 @@ a:focus, a:active,
             style="width:100%;padding:10px 0;border-radius:10px;border:1.5px dashed #c8c8c8;background:transparent;color:#555;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
             ＋ Criar novo perfil
           </button>
-          <div id="perfis-novo-form" style="display:none;flex-direction:column;gap:6px;padding:12px;background:#fafafa;border-radius:10px">
+          <div id="perfis-novo-form" class="auth-form" style="display:none;flex-direction:column;gap:6px;padding:12px;background:#fafafa;border-radius:10px">
             <input type="text" id="perfis-novo-username" placeholder="username" autocomplete="off">
             <select id="perfis-novo-rpg">
               <option value="">Selecione seu RPG...</option>
@@ -1706,6 +1706,28 @@ a:focus, a:active,
         <h3>Trocar de conta</h3>
       </div>
       <div id="switch-account-body" style="padding:14px 20px 20px;display:flex;flex-direction:column;gap:8px"></div>
+
+      <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px;border-top:1px solid #efefef;margin-top:4px;padding-top:14px">
+        <button type="button" id="switch-btn-novo" onclick="toggleNovoPerfilFromSwitch()"
+          style="width:100%;padding:10px 0;border-radius:10px;border:1.5px dashed #c8c8c8;background:transparent;color:#555;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+          ＋ Criar novo perfil
+        </button>
+        <div id="switch-novo-form" style="display:none;flex-direction:column;gap:6px;padding:12px;background:#fafafa;border-radius:10px">
+          <input type="text" id="switch-novo-player" placeholder="Player" autocomplete="off">
+          <input type="password" id="switch-novo-senha" placeholder="Senha do KP">
+          <input type="text" id="switch-novo-username" placeholder="username" autocomplete="off">
+          <select id="switch-novo-pronoun">
+            <option value="">Pronomes *</option>
+            <option value="ele/dele">ele/dele</option>
+            <option value="ela/dela">ela/dela</option>
+            <option value="elu/delu">elu/delu</option>
+            <option value="ele/ela">ele/ela</option>
+            <option value="qualquer pronome">qualquer pronome</option>
+          </select>
+          <div id="switch-novo-error" style="display:none;color:#e53935;font-size:12px;text-align:center"></div>
+          <button class="btn-primary" onclick="criarNovoPerfilFromSwitch()">Cadastrar</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -4810,9 +4832,21 @@ async function openSwitchAccount() {
   const body = document.getElementById('switch-account-body');
   body.innerHTML = '<div style="text-align:center;color:#8e8e8e;font-size:13px;font-family:\'Nunito\',sans-serif;padding:12px 0">Carregando...</div>';
   openModal('modal-switch-account');
+
+  // Reseta o formulário de "criar novo perfil" toda vez que o modal abre
+  const novoForm = document.getElementById('switch-novo-form');
+  if (novoForm) novoForm.style.display = 'none';
+  ['switch-novo-senha','switch-novo-username'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const pronounEl = document.getElementById('switch-novo-pronoun'); if (pronounEl) pronounEl.value = '';
+  const novoErrEl = document.getElementById('switch-novo-error'); if (novoErrEl) novoErrEl.style.display = 'none';
+
   try {
     const rows = await kpFetch(`players?select=nome,pokegram_perfis&pokegram_perfis=cs.${encodeURIComponent(JSON.stringify([currentUser.username]))}`);
     const player = rows && rows[0];
+
+    const playerInput = document.getElementById('switch-novo-player');
+    if (playerInput) playerInput.value = player ? (player.nome || '') : '';
+
     if (!player) {
       body.innerHTML = '<div style="text-align:center;color:#8e8e8e;font-size:13px;font-family:\'Nunito\',sans-serif;padding:12px 0">Este perfil não está vinculado a nenhum player do KP ainda. Abra "Editar perfil" para vincular.</div>';
       return;
@@ -4834,6 +4868,72 @@ async function openSwitchAccount() {
     }).join('');
   } catch(e) {
     body.innerHTML = '<div style="text-align:center;color:#e53935;font-size:13px;font-family:\'Nunito\',sans-serif;padding:12px 0">Erro ao carregar contas.</div>';
+  }
+}
+
+function toggleNovoPerfilFromSwitch() {
+  const form = document.getElementById('switch-novo-form');
+  if (!form) return;
+  const isOpen = form.style.display === 'flex';
+  form.style.display = isOpen ? 'none' : 'flex';
+  const errEl = document.getElementById('switch-novo-error');
+  if (errEl) errEl.style.display = 'none';
+}
+
+async function criarNovoPerfilFromSwitch() {
+  const player = (document.getElementById('switch-novo-player').value || '').trim();
+  const senha  = document.getElementById('switch-novo-senha').value || '';
+  const rawUsername = document.getElementById('switch-novo-username').value || '';
+  const username = sanitizeUsername(rawUsername);
+  const pronoun  = document.getElementById('switch-novo-pronoun').value;
+  const errEl    = document.getElementById('switch-novo-error');
+  errEl.style.display = 'none';
+
+  if (!player || !senha) { errEl.textContent = 'Informe player e senha do KP.'; errEl.style.display = 'block'; return; }
+  if (!username || username.length < 2) { errEl.textContent = 'Informe um username válido.'; errEl.style.display = 'block'; return; }
+  if (!pronoun) { errEl.textContent = 'Selecione os pronomes.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.querySelector('#switch-novo-form button[onclick="criarNovoPerfilFromSwitch()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Criando...'; }
+
+  try {
+    const exists = await dbCheckUserExists(username);
+    if (exists) { errEl.textContent = 'Este username já está em uso.'; errEl.style.display = 'block'; return; }
+
+    // Gera uma senha real (aleatória) para o perfil — o login continua sendo
+    // sempre via player do KP, mas existe uma conta de verdade no Supabase
+    // Auth por trás, evitando que chat e outras funções com auth.uid() quebrem.
+    const generatedPassword = generateSecurePassword();
+    const { data: newUser, error: insErr } = await db.from('users').insert({
+      username, name: username, rpg: 'kingdom_platinum', pronoun, password_plain: generatedPassword
+    }).select('*').single();
+    if (insErr || !newUser) throw new Error(insErr?.message || 'Erro ao criar perfil.');
+
+    try {
+      const { error: signUpErr } = await db.auth.signUp({ email: username + '@pokegram.app', password: generatedPassword });
+      if (signUpErr) console.error('[criarNovoPerfilFromSwitch] falha ao criar conta de Auth', signUpErr);
+    } catch (e) { console.error('[criarNovoPerfilFromSwitch] erro inesperado ao criar conta de Auth', e); }
+
+    // Vínculo com o player do KP é obrigatório: se falhar, desfaz o perfil
+    // pra não deixar um perfil "fantasma" sem vínculo ocupando o username.
+    try {
+      const perfisAtualizados = await kpRpc('player_link_pokegram_perfil', { p_nome: player, p_senha: senha, p_username: username });
+      if (!Array.isArray(perfisAtualizados) || !perfisAtualizados.includes(username)) {
+        throw new Error('Não foi possível vincular o perfil ao player do KP.');
+      }
+    } catch (linkErr) {
+      try { await db.from('users').delete().eq('id', newUser.id); } catch (e) { console.error('[criarNovoPerfilFromSwitch] falha ao desfazer perfil órfão', e); }
+      throw linkErr;
+    }
+
+    closeModal('modal-switch-account');
+    await switchToAccount(username);
+  } catch (e) {
+    console.error('[criarNovoPerfilFromSwitch]', e);
+    errEl.textContent = 'Erro: ' + (e.message || 'falha ao criar perfil.');
+    errEl.style.display = 'block';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Cadastrar'; }
   }
 }
 
