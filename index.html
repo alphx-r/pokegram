@@ -161,6 +161,18 @@ a:focus, a:active,
   outline: none;
 }
 
+/* Modal editar perfil — garante que fique acima da bottom-tab-bar (mobile)
+   e que o conteúdo não fique escondido atrás dela */
+#modal-edit-profile {
+  z-index: 1200 !important;
+}
+@media (max-width: 768px) {
+  #modal-edit-profile .modal-box {
+    max-height: calc(90vh - 56px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 /* Comentário preview no feed */
 .post-comment-preview {
   padding: 1px 12px 6px;
@@ -1700,6 +1712,13 @@ a:focus, a:active,
   <!-- MAIN APP -->
   <div id="app" class="hidden">
 
+    <!-- BANNER: perfil KP ainda não vinculado a nenhum player — some sozinho assim que o vínculo é concluído -->
+    <div id="kp-link-banner" style="display:none;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;background:#fff3f2;border-bottom:1.5px solid #ffd6d3;padding:8px 14px;font-family:'Nunito',sans-serif;font-size:12.5px;color:#7a2a26;text-align:center">
+      <span>⚠️ Este perfil ainda não está vinculado a nenhum player do KP — ele não vai aparecer na tela "Escolha seu perfil".</span>
+      <button type="button" onclick="openModal('modal-vincular-kp')"
+        style="background:#e53935;color:#fff;border:none;border-radius:20px;padding:4px 12px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Vincular agora</button>
+    </div>
+
     <!-- TOP NAV -->
     <nav class="topnav" id="topnav" style="opacity:0;transition:opacity .15s">
       <div class="topnav-logo" onclick="showView('feed')">
@@ -2644,6 +2663,17 @@ a:focus, a:active,
               Salvar nova senha
             </button>
           </div>
+        </div>
+
+        <!-- Separador -->
+        <div style="height:1px;background:#efefef"></div>
+
+        <!-- Excluir perfil -->
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button type="button" id="ep-delete-btn" onclick="excluirPerfil()"
+            style="width:100%;padding:10px 0;background:#fde8e8;color:#e53935;border:1.5px solid #f6c6c6;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer">
+            🗑 Excluir perfil
+          </button>
         </div>
 
       </div>
@@ -4047,6 +4077,19 @@ async function doAuth() {
       if (password.length < 6)  { showAuthError('Senha deve ter ao menos 6 caracteres.'); return; }
       const user = await dbRegister(username, password, rpg, null, pronoun);
       if (!user) { showAuthError('Erro ao cadastrar. Tente novamente.'); return; }
+      // Se já existe uma sessão de player do KP ativa em memória (ex: veio da aba
+      // "Player" e voltou), vincula automaticamente o perfil recém-criado a ela —
+      // best-effort, não bloqueia o cadastro se o vínculo falhar.
+      if (_kpSession && _kpSession.id && _kpSession.senha) {
+        try {
+          const perfisAtualizados = await kpRpc('player_link_pokegram_perfil', {
+            p_nome: _kpSession.nome, p_senha: _kpSession.senha, p_username: username
+          });
+          if (Array.isArray(perfisAtualizados)) _kpSession.perfis = perfisAtualizados;
+        } catch (linkErr) {
+          console.error('[doAuth] falha ao vincular novo perfil ao player do KP logado', linkErr);
+        }
+      }
       currentUser = user; saveSession(user); enterApp(user);
     } else {
       const user = await dbLogin(username, password);
@@ -4474,7 +4517,11 @@ async function showPerfisScreen() {
   prefetchHomeFeedInBackground('kingdom_platinum');
 
   if (!_kpSession.perfis.length) {
-    lista.innerHTML = '';
+    lista.innerHTML = `<div style="text-align:center;color:#8e8e8e;font-size:12.5px;font-family:'Nunito',sans-serif;line-height:1.5;padding:4px 6px">
+      Nenhum perfil vinculado a ${_kpSession.nome} ainda.<br>
+      Se você já criou uma conta pelo login normal (usuário/senha), ela só aparece aqui depois de vinculada:
+      entre nela e, em "Editar perfil", use "Vincular ao Kingdom Platinum" — ou peça a um admin para vincular em /adm → Vínculos KP.
+    </div>`;
     return;
   }
   const { data: users } = await db.from('users').select('*').in('username', _kpSession.perfis);
@@ -4516,6 +4563,15 @@ async function criarNovoPerfilKp() {
   if (!rpg) { errEl.textContent = 'Selecione seu RPG.'; errEl.style.display = 'block'; return; }
   if (!pronoun) { errEl.textContent = 'Selecione seus pronomes.'; errEl.style.display = 'block'; return; }
 
+  // Sessão vinda de handoff (?kp_token=...) não tem a senha do KP em memória
+  // (por design — vide enterKpPlayerSession). Sem senha, a RPC de vínculo
+  // sempre falha, então nem tenta criar o perfil: pede pra logar manual.
+  if (!_kpSession.senha) {
+    errEl.textContent = 'Para criar um novo perfil é preciso ter entrado com player e senha do KP (não pelo link direto). Volte e faça login manual na aba "Player".';
+    errEl.style.display = 'block';
+    return;
+  }
+
   try {
     const exists = await dbCheckUserExists(username);
     if (exists) { errEl.textContent = 'Este username já está em uso.'; errEl.style.display = 'block'; return; }
@@ -4537,13 +4593,22 @@ async function criarNovoPerfilKp() {
 
     // A vinculação ao player do KP é obrigatória: se falhar, o cadastro é considerado
     // incompleto e o usuário não entra no perfil (evita perfis "fantasmas" sem vínculo).
-    const perfisAtualizados = await kpRpc('player_link_pokegram_perfil', {
-      p_nome: _kpSession.nome, p_senha: _kpSession.senha, p_username: username
-    });
-    if (!Array.isArray(perfisAtualizados) || !perfisAtualizados.includes(username)) {
-      throw new Error('Não foi possível vincular o perfil ao seu player do KP.');
+    try {
+      const perfisAtualizados = await kpRpc('player_link_pokegram_perfil', {
+        p_nome: _kpSession.nome, p_senha: _kpSession.senha, p_username: username
+      });
+      if (!Array.isArray(perfisAtualizados) || !perfisAtualizados.includes(username)) {
+        throw new Error('Não foi possível vincular o perfil ao seu player do KP.');
+      }
+      _kpSession.perfis = perfisAtualizados;
+    } catch (linkErr) {
+      // Vínculo falhou (senha do KP mudou, rede caiu, etc): desfaz o insert em
+      // 'users' pra não deixar um perfil órfão ocupando o username — a conta
+      // de Auth criada acima pode ficar fantasma (sem privilégio pra apagá-la
+      // no client), mas isso já é tratado pelo fluxo normal de dbRegister/dbLogin.
+      try { await db.from('users').delete().eq('id', newUser.id); } catch (e) { console.error('[criarNovoPerfilKp] falha ao desfazer perfil órfão', e); }
+      throw linkErr;
     }
-    _kpSession.perfis = perfisAtualizados;
 
     await enterKpProfile(username, newUser);
   } catch(e) {
@@ -4671,8 +4736,14 @@ async function checkKpLinkPrompt(user) {
     console.log('[checkKpLinkPrompt] resultado da query:', rows);
     if (rows && rows.length) {
       console.log('[checkKpLinkPrompt] já vinculado a:', rows[0]?.nome, '— não vai abrir modal');
+      setKpLinkBanner(false);
       return;
     }
+    // Ainda não vinculado: além do modal (que pode ser fechado com "Agora não"),
+    // deixa um aviso fixo e visível no app — sem isso, quem cria a conta pelo
+    // login normal e ignora/fecha o modal fica sem saber por que seu perfil
+    // nunca aparece na tela "Escolha seu perfil" do player do KP.
+    setKpLinkBanner(true);
     document.getElementById('vk-player').value = '';
     document.getElementById('vk-senha').value = '';
     document.getElementById('vk-error').style.display = 'none';
@@ -4680,6 +4751,12 @@ async function checkKpLinkPrompt(user) {
     openModal('modal-vincular-kp');
     console.log('[checkKpLinkPrompt] modal-vincular-kp classList após abrir:', document.getElementById('modal-vincular-kp')?.classList.toString());
   } catch(e) { console.error('[checkKpLinkPrompt] ERRO:', e); /* falha silenciosa pro usuário — não pode travar o uso do app */ }
+}
+
+// ── Mostra/esconde o aviso fixo de "perfil ainda não vinculado ao KP" ──
+function setKpLinkBanner(show) {
+  const el = document.getElementById('kp-link-banner');
+  if (el) el.style.display = show ? 'flex' : 'none';
 }
 
 async function confirmarVincularKp() {
@@ -4691,6 +4768,7 @@ async function confirmarVincularKp() {
   try {
     await kpRpc('player_link_pokegram_perfil', { p_nome: player, p_senha: senha, p_username: currentUser.username });
     closeModal('modal-vincular-kp');
+    setKpLinkBanner(false);
     toast('Perfil vinculado ao player! ✅');
     checkEpKpLinkStatus(); // atualiza o status na tela de edição de perfil, se estiver aberta
   } catch(e) {
@@ -4741,6 +4819,7 @@ async function confirmarVincularKpFromEdit() {
   try {
     await kpRpc('player_link_pokegram_perfil', { p_nome: player, p_senha: senha, p_username: currentUser.username });
     document.getElementById('ep-kp-link-form').style.display = 'none';
+    setKpLinkBanner(false);
     toast('Perfil vinculado ao player! ✅');
     checkEpKpLinkStatus(); // esconde a seção inteira, já que agora está vinculado
   } catch(e) {
@@ -11411,6 +11490,38 @@ async function submitEditProfile() {
   closeModal('modal-edit-profile');
   await renderProfile(currentUser.username);
   toast('Perfil atualizado! ✨');
+}
+
+// ── Excluir perfil ────────────────────────────────────────
+async function excluirPerfil() {
+  if (!currentUser) return;
+  const ok = confirm(`Você tem certeza que deseja excluir o perfil "${currentUser.username}"? Essa ação não pode ser desfeita.`);
+  if (!ok) return;
+
+  const btn = document.getElementById('ep-delete-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Excluindo...'; }
+
+  try {
+    const { error } = await db.from('users').delete().eq('id', currentUser.id);
+    if (error) throw error;
+
+    try { await db.auth.signOut(); } catch (e) {}
+    closeModal('modal-edit-profile');
+    clearSession();
+    try {
+      localStorage.removeItem('pg_pk_active_profile');
+      localStorage.removeItem('pg_pk_profiles_cache');
+      localStorage.removeItem('pg_pokeet_profiles_cache');
+      localStorage.removeItem('pg_via_kp_player');
+    } catch (e) {}
+    currentUser = null;
+    toast('Perfil excluído.');
+    location.reload();
+  } catch (e) {
+    console.error('[excluirPerfil]', e);
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 Excluir perfil'; }
+    toast('Erro ao excluir perfil: ' + (e.message || 'tente novamente.'));
+  }
 }
 
 // ── Alterar senha no editar perfil ───────────────────────
