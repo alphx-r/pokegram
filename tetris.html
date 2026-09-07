@@ -253,6 +253,7 @@ function gtGetIconImg(key) {
   if (!key) return null;
   if (!_gtIconImgCache[key]) {
     const img = new Image();
+    img.crossOrigin = 'anonymous'; // essencial p/ toDataURL() no compartilhamento (o board é "printado" no card do story)
     img.onload = () => { try { draw(); drawNext(); } catch (e) {} };
     img.src = gtTypeIconSrc(key);
     _gtIconImgCache[key] = img;
