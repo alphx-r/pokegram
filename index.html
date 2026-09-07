@@ -2623,58 +2623,34 @@ a:focus, a:active,
         <!-- Separador -->
         <div style="height:1px;background:#efefef"></div>
 
-        <!-- Alterar senha -->
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0" onclick="toggleEpPasswordSection()">
-            <label style="font-size:12px;font-weight:700;color:#8e8e8e;cursor:pointer">🔑 Alterar senha</label>
-            <span id="ep-pw-toggle-icon" style="font-size:13px;color:#8e8e8e;transition:transform .2s">▼</span>
-          </div>
-          <div id="ep-password-section" style="display:none;flex-direction:column;gap:10px;margin-top:4px">
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-size:12px;font-weight:700;color:#8e8e8e">Senha atual</label>
-              <div style="position:relative">
-                <input id="ep-pw-atual" type="password" placeholder="••••••••"
-                  style="padding:9px 38px 9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
-                <button type="button" onclick="epTogglePw('ep-pw-atual',this)"
-                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8e8e8e;font-size:15px;padding:0;line-height:1">👁</button>
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-size:12px;font-weight:700;color:#8e8e8e">Nova senha</label>
-              <div style="position:relative">
-                <input id="ep-pw-nova" type="password" placeholder="Mín. 6 caracteres"
-                  style="padding:9px 38px 9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
-                <button type="button" onclick="epTogglePw('ep-pw-nova',this)"
-                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8e8e8e;font-size:15px;padding:0;line-height:1">👁</button>
-              </div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-size:12px;font-weight:700;color:#8e8e8e">Confirmar nova senha</label>
-              <div style="position:relative">
-                <input id="ep-pw-conf" type="password" placeholder="••••••••"
-                  style="padding:9px 38px 9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
-                <button type="button" onclick="epTogglePw('ep-pw-conf',this)"
-                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8e8e8e;font-size:15px;padding:0;line-height:1">👁</button>
-              </div>
-            </div>
-            <div id="ep-pw-err" style="display:none;font-size:12px;color:#e53935;padding:8px;background:#fde8e8;border-radius:8px"></div>
-            <div id="ep-pw-ok" style="display:none;font-size:12px;color:#1a7a1a;padding:8px;background:#e0f0e0;border-radius:8px">Senha alterada com sucesso! ✅</div>
-            <button type="button" onclick="submitChangePw()"
-              style="align-self:flex-start;padding:8px 18px;background:#262626;color:#fff;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
-              Salvar nova senha
-            </button>
-          </div>
-        </div>
-
-        <!-- Separador -->
-        <div style="height:1px;background:#efefef"></div>
-
         <!-- Excluir perfil -->
         <div style="display:flex;flex-direction:column;gap:8px">
-          <button type="button" id="ep-delete-btn" onclick="excluirPerfil()"
-            style="width:100%;padding:10px 0;background:#fde8e8;color:#e53935;border:1.5px solid #f6c6c6;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer">
-            🗑 Excluir perfil
-          </button>
+          <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:4px 0" onclick="toggleEpDeleteSection()">
+            <label style="font-size:12px;font-weight:700;color:#e53935;cursor:pointer">🗑 Excluir perfil</label>
+            <span id="ep-del-toggle-icon" style="font-size:13px;color:#8e8e8e;transition:transform .2s">▼</span>
+          </div>
+          <div id="ep-delete-section" style="display:none;flex-direction:column;gap:10px;margin-top:4px">
+            <div style="font-size:12px;color:#8e8e8e;line-height:1.4">Para excluir este perfil, confirme com o Player e a senha do Kingdom Platinum vinculados a ele.</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;font-weight:700;color:#8e8e8e">Player</label>
+              <input id="ep-del-player" type="text" placeholder="Player" autocomplete="off"
+                style="padding:9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:12px;font-weight:700;color:#8e8e8e">Senha</label>
+              <div style="position:relative">
+                <input id="ep-del-senha" type="password" placeholder="••••••••"
+                  style="padding:9px 38px 9px 12px;border-radius:8px;border:1.5px solid #dbdbdb;font-family:'Nunito',sans-serif;font-size:14px;outline:none;width:100%;box-sizing:border-box">
+                <button type="button" onclick="epTogglePw('ep-del-senha',this)"
+                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#8e8e8e;font-size:15px;padding:0;line-height:1">👁</button>
+              </div>
+            </div>
+            <div id="ep-del-err" style="display:none;font-size:12px;color:#e53935;padding:8px;background:#fde8e8;border-radius:8px"></div>
+            <button type="button" id="ep-delete-btn" onclick="excluirPerfil()"
+              style="width:100%;padding:10px 0;background:#fde8e8;color:#e53935;border:1.5px solid #f6c6c6;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;cursor:pointer">
+              🗑 Excluir perfil
+            </button>
+          </div>
         </div>
 
       </div>
@@ -11486,13 +11462,64 @@ async function submitEditProfile() {
 }
 
 // ── Excluir perfil ────────────────────────────────────────
+function toggleEpDeleteSection() {
+  const section = document.getElementById('ep-delete-section');
+  const icon    = document.getElementById('ep-del-toggle-icon');
+  if (!section) return;
+  const open = section.style.display === 'flex';
+  section.style.display = open ? 'none' : 'flex';
+  if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+  if (open) {
+    const p = document.getElementById('ep-del-player'); if (p) p.value = '';
+    const s = document.getElementById('ep-del-senha');  if (s) s.value = '';
+    const e = document.getElementById('ep-del-err');    if (e) e.style.display = 'none';
+  }
+}
+
+function epTogglePw(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+  else { input.type = 'password'; btn.textContent = '👁'; }
+}
+
 async function excluirPerfil() {
   if (!currentUser) return;
-  const ok = confirm(`Você tem certeza que deseja excluir o perfil "${currentUser.username}"? Essa ação não pode ser desfeita.`);
-  if (!ok) return;
+
+  const player = (document.getElementById('ep-del-player')?.value || '').trim();
+  const senha  = document.getElementById('ep-del-senha')?.value || '';
+  const errEl  = document.getElementById('ep-del-err');
+  if (errEl) errEl.style.display = 'none';
+
+  if (!player || !senha) {
+    if (errEl) { errEl.textContent = 'Preencha player e senha.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  // 1ª confirmação
+  const ok1 = confirm(`Você tem certeza que deseja excluir o perfil "${currentUser.username}"? Essa ação não pode ser desfeita.`);
+  if (!ok1) return;
 
   const btn = document.getElementById('ep-delete-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Excluindo...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
+
+  try {
+    // Verifica o player + senha do Kingdom Platinum antes de prosseguir
+    await kpRpc('player_link_pokegram_perfil', { p_nome: player, p_senha: senha, p_username: currentUser.username });
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Erro: ' + (e.message || 'player ou senha inválidos.'); errEl.style.display = 'block'; }
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 Excluir perfil'; }
+    return;
+  }
+
+  // 2ª confirmação
+  const ok2 = confirm('Confirme novamente: esta ação é irreversível e todos os dados do perfil serão apagados. Excluir mesmo assim?');
+  if (!ok2) {
+    if (btn) { btn.disabled = false; btn.textContent = '🗑 Excluir perfil'; }
+    return;
+  }
+
+  if (btn) { btn.textContent = 'Excluindo...'; }
 
   try {
     const { error } = await db.from('users').delete().eq('id', currentUser.id);
@@ -11513,73 +11540,7 @@ async function excluirPerfil() {
   } catch (e) {
     console.error('[excluirPerfil]', e);
     if (btn) { btn.disabled = false; btn.textContent = '🗑 Excluir perfil'; }
-    toast('Erro ao excluir perfil: ' + (e.message || 'tente novamente.'));
-  }
-}
-
-// ── Alterar senha no editar perfil ───────────────────────
-function toggleEpPasswordSection() {
-  const section = document.getElementById('ep-password-section');
-  const icon    = document.getElementById('ep-pw-toggle-icon');
-  if (!section) return;
-  const open = section.style.display === 'flex';
-  section.style.display = open ? 'none' : 'flex';
-  if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
-  // limpa feedbacks ao fechar
-  if (open) {
-    ['ep-pw-atual','ep-pw-nova','ep-pw-conf'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    ['ep-pw-err','ep-pw-ok'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-  }
-}
-
-function epTogglePw(inputId, btn) {
-  const input = document.getElementById(inputId);
-  if (!input) return;
-  if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
-  else { input.type = 'password'; btn.textContent = '👁'; }
-}
-
-async function submitChangePw() {
-  const atual = document.getElementById('ep-pw-atual')?.value || '';
-  const nova  = document.getElementById('ep-pw-nova')?.value  || '';
-  const conf  = document.getElementById('ep-pw-conf')?.value  || '';
-  const errEl = document.getElementById('ep-pw-err');
-  const okEl  = document.getElementById('ep-pw-ok');
-  const btn   = document.querySelector('#ep-password-section button[onclick="submitChangePw()"]');
-
-  errEl.style.display = okEl.style.display = 'none';
-
-  if (!atual)          { errEl.textContent = 'Informe a senha atual.'; errEl.style.display = 'block'; return; }
-  if (nova.length < 6) { errEl.textContent = 'A nova senha deve ter ao menos 6 caracteres.'; errEl.style.display = 'block'; return; }
-  if (nova !== conf)   { errEl.textContent = 'As novas senhas não coincidem.'; errEl.style.display = 'block'; return; }
-
-  if (btn) { btn.textContent = 'Salvando...'; btn.disabled = true; }
-
-  try {
-    // Reautentica para verificar a senha atual
-    const userEmail = (await db.auth.getUser()).data?.user?.email;
-    if (!userEmail) throw new Error('Sessão expirada. Faça login novamente.');
-
-    const { error: signInErr } = await db.auth.signInWithPassword({ email: userEmail, password: atual });
-    if (signInErr) {
-      errEl.textContent = 'Senha atual incorreta.';
-      errEl.style.display = 'block';
-      return;
-    }
-
-    // Atualiza a senha
-    const { error: updateErr } = await db.auth.updateUser({ password: nova });
-    if (updateErr) throw updateErr;
-
-    // Limpa campos e mostra sucesso
-    ['ep-pw-atual','ep-pw-nova','ep-pw-conf'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    okEl.style.display = 'block';
-    setTimeout(() => { okEl.style.display = 'none'; toggleEpPasswordSection(); }, 2500);
-  } catch (err) {
-    errEl.textContent = 'Erro ao alterar senha: ' + (err.message || err);
-    errEl.style.display = 'block';
-  } finally {
-    if (btn) { btn.textContent = 'Salvar nova senha'; btn.disabled = false; }
+    if (errEl) { errEl.textContent = 'Erro ao excluir perfil: ' + (e.message || 'tente novamente.'); errEl.style.display = 'block'; }
   }
 }
 
