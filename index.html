@@ -1754,7 +1754,8 @@ a:focus, a:active,
         </button>
 
         <button class="tn-btn" id="btn-profile" onclick="showView('profile')" title="Perfil">
-          <div class="tn-avatar" id="sn-avatar"></div>
+          <svg class="tn-default-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="20" height="9" rx="4.5"/><line x1="7" y1="10.5" x2="7" y2="14.5"/><line x1="5" y1="12.5" x2="9" y2="12.5"/><circle cx="15" cy="11" r="1"/><circle cx="17.5" cy="13.5" r="1"/></svg>
+          <div class="tn-avatar" id="sn-avatar" style="display:none"></div>
         </button>
         <button class="tn-btn" onclick="doLogout()" title="Sair">
           <svg class="tn-default-icon" viewBox="0 0 24 24" style="display:none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -9292,12 +9293,13 @@ async function applyTopnavSprites() {
       spriteImg.src = val;
       spriteImg.style.display = 'block';
     } else {
-      // sem sprite: remove imagem e mostra o SVG padrão
+      // sem sprite: remove imagem e mostra o SVG padrão (nunca a foto de perfil)
       if (spriteImg) spriteImg.remove();
       if (def.key === 'nav_profile') {
         const avatar = tnBtn.querySelector('.tn-avatar');
-        if (avatar) avatar.style.display = '';
-      } else if (defaultSvg) {
+        if (avatar) avatar.style.display = 'none';
+      }
+      if (defaultSvg) {
         defaultSvg.style.display = 'block';
       }
     }
@@ -9403,19 +9405,10 @@ async function initApp(user) {
 function renderSidebarAvatar() {
   const el = document.getElementById('sn-avatar');
   if (!currentUser) return;
+  // A foto de perfil do usuário nunca deve aparecer no topnav — ele só exibe
+  // os ícones customizados (ou o SVG padrão de fallback quando não há sprite).
   if (el) {
-    el.style.overflow        = 'hidden';
-    el.style.display         = 'flex';
-    el.style.alignItems      = 'center';
-    el.style.justifyContent  = 'center';
-    el.style.borderRadius    = '50%';
-    el.style.background      = currentUser.avatar_url ? 'transparent' : (currentUser.color || '#e53935');
-    if (currentUser.avatar_url) {
-      el.innerHTML = `<img src="${currentUser.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`;
-    } else {
-      el.innerHTML = '';
-      el.textContent = initials(currentUser.username);
-    }
+    el.style.display = 'none';
   }
   // Preenche o "Seu story" com o avatar/cor corretos antes do renderStories para evitar flash
   const myPic = document.getElementById('my-story-pic');
