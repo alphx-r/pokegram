@@ -721,6 +721,17 @@ function smoothCorners(pts, factor, passes = 2) {
   return out;
 }
 
+// ── Ondulação artificial do corpo: como "cresce" é um único sprite reto
+// repetido, uma fileira dele fica sempre em linha reta, mesmo numa curva
+// suave — diferente da arte de referência, onde o corpo ondula em S. Sem
+// trocar a imagem, simulamos essa ondulação deslocando cada segmento um
+// pouco pro lado perpendicular ao trajeto (alternando função seno por
+// índice) e girando ele um pouco a mais na mesma direção. Cabeça e rabo
+// ficam de fora — só o meio ondula. ──
+const EKANS_WAVE_AMPLITUDE = 0.08; // fração de minCell deslocada perpendicularmente, no pico da onda
+const EKANS_WAVE_ANGLE = 0.08;     // radianos de rotação extra no pico da onda
+const EKANS_WAVE_LENGTH = 4;       // segmentos por ciclo completo da onda (maior = onda mais larga/suave)
+
 function drawSegmentedSnake(rawPts, minCell) {
   const n = rawPts.length;
   const pts = smoothCorners(rawPts, 0.4);
@@ -773,6 +784,20 @@ function drawSegmentedSnake(rawPts, minCell) {
     let w = h * (part.aspect || 1);
     if (partKey === 'grow') w = Math.max(w, minCell * EKANS_GROW_MIN_WIDTH_FACTOR * EKANS_SIZE_BOOST);
 
+    // ondulação: só nos segmentos do meio, desloca perpendicular ao trajeto
+    // e soma uma rotação extra, ambos seguindo uma onda senoidal pelo índice
+    let waveOffsetX = 0, waveOffsetY = 0, waveAngleExtra = 0;
+    if (partKey === 'grow') {
+      const wavePhase = (i / EKANS_WAVE_LENGTH) * Math.PI * 2;
+      const waveT = Math.sin(wavePhase);
+      // perpendicular ao ângulo bruto do trajeto (rotaciona vx,vy em 90°)
+      const dirLen = Math.hypot(vx, vy) || 1;
+      const perpX = -vy / dirLen, perpY = vx / dirLen;
+      waveOffsetX = perpX * waveT * minCell * EKANS_WAVE_AMPLITUDE;
+      waveOffsetY = perpY * waveT * minCell * EKANS_WAVE_AMPLITUDE;
+      waveAngleExtra = waveT * EKANS_WAVE_ANGLE;
+    }
+
     // distância (em graus) do ângulo bruto até o limiar de flip mais próximo
     // (±90°); perto dele, mistura as duas versões (normal e espelhada) em
     // vez de trocar de uma vez, pra não pular o desenho inteiro de lado
@@ -780,10 +805,10 @@ function drawSegmentedSnake(rawPts, minCell) {
     const distToFlipEdge = Math.abs(Math.abs(deg) - 90);
 
     function drawOne(useFlip, alpha) {
-      const drawAngle = useFlip ? Math.atan2(vy, -vx) : rawAngle;
+      const drawAngle = (useFlip ? Math.atan2(vy, -vx) : rawAngle) + (useFlip ? -waveAngleExtra : waveAngleExtra);
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.translate(pts[i].x, pts[i].y);
+      ctx.translate(pts[i].x + waveOffsetX, pts[i].y + waveOffsetY);
       ctx.rotate(drawAngle);
       if (partKey === 'head') ctx.translate(useFlip ? w * 0.09 : -w * 0.09, 0);
       if (useFlip) ctx.scale(-1, 1);
