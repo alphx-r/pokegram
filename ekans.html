@@ -361,6 +361,7 @@ function newGame() {
   score = 0; shield = false; salacUntil = 0;
   food = spawnFood();
   scoreEl.textContent = '0';
+  for (const k in ekansAngleCache) delete ekansAngleCache[k]; // limpa ângulos residuais da partida anterior
   document.getElementById('ek-pill-salac').classList.remove('show');
   document.getElementById('ek-pill-ganlon').classList.remove('show');
   document.getElementById('ek-overlay').classList.remove('show');
@@ -686,6 +687,25 @@ const EKANS_GROW_MIN_WIDTH_FACTOR = 1.05; // fração de minCell garantida pro c
 // cotovelo se desloca pra dentro, suavizando a quina em vez do quadrado
 // duro. A cabeça (i=0) e o rabo (i=n-1) ficam de fora, presos à posição
 // real da grade. ──
+// ── Suavização temporal de ângulo: cada posição i da cobra guarda o último
+// ângulo BRUTO (antes do clamp/flip) desenhado, e a cada frame gira só uma
+// fração do caminho até o ângulo novo, em vez de saltar direto pra ele. Sem
+// isso, quando a cobra faz duas curvas próximas em sequência (comum numa
+// cobra curta em espaço apertado), o ângulo de um segmento pode mudar
+// dezenas de graus de um frame de animação pro outro — o visual de "tudo se
+// reorganiza" numa curva. Suavizar o valor bruto (contínuo, sem a quebra do
+// clamp em ±90°) evita ambiguidade de "por qual lado girar" perto do
+// limiar. O suavizador roda a cada draw() (60fps), então converge bem antes
+// do próximo tick de movimento do jogo. ──
+const ekansAngleCache = {};
+const EKANS_ANGLE_SMOOTH = 0.28; // fração do caminho percorrida por frame (0-1; menor = mais suave/lento)
+const EKANS_FLIP_BLEND_DEG = 12; // janela (em graus) ao redor de ±90° onde as duas versões (normal/espelhada) se misturam, em vez de trocar de golpe
+
+function angleLerp(a, b, t) {
+  let diff = ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  return a + diff * t;
+}
+
 function smoothCorners(pts, factor, passes = 2) {
   let out = pts.map(p => ({ x: p.x, y: p.y }));
   for (let pass = 0; pass < passes; pass++) {
@@ -737,11 +757,15 @@ function drawSegmentedSnake(rawPts, minCell) {
     if (vx === 0 && vy === 0) { vx = dir.x; vy = dir.y; }
     else { vx = -vx; vy = -vy; } // os cálculos acima apontam pra trás; vira pra frente
 
-    let angle = Math.atan2(vy, vx);
-    let flip = false;
-    if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
-      flip = true;
-      angle = Math.atan2(vy, -vx); // reflete o ângulo pro semicírculo da frente
+    // ângulo BRUTO, contínuo, sem o clamp de ±90° ainda — é esse valor que
+    // suavizamos no tempo, porque ele não tem a descontinuidade que o
+    // ângulo já-espelhado teria ao cruzar o limiar
+    let rawAngle = Math.atan2(vy, vx);
+    if (ekansAngleCache[i] === undefined) {
+      ekansAngleCache[i] = rawAngle;
+    } else {
+      rawAngle = angleLerp(ekansAngleCache[i], rawAngle, EKANS_ANGLE_SMOOTH);
+      ekansAngleCache[i] = rawAngle;
     }
 
     const EKANS_SIZE_BOOST = 1.25; // cobra 25% maior
@@ -749,15 +773,36 @@ function drawSegmentedSnake(rawPts, minCell) {
     let w = h * (part.aspect || 1);
     if (partKey === 'grow') w = Math.max(w, minCell * EKANS_GROW_MIN_WIDTH_FACTOR * EKANS_SIZE_BOOST);
 
-    ctx.save();
-    ctx.translate(pts[i].x, pts[i].y);
-    ctx.rotate(angle);
-    // puxa a cabeça um pouco pra trás (sentido oposto ao movimento), já que
-    // ela estava avançando demais por cima do primeiro segmento de "cresce"
-    if (partKey === 'head') ctx.translate(flip ? w * 0.18 : -w * 0.18, 0);
-    if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(part.img, -w/2, -h/2, w, h);
-    ctx.restore();
+    // distância (em graus) do ângulo bruto até o limiar de flip mais próximo
+    // (±90°); perto dele, mistura as duas versões (normal e espelhada) em
+    // vez de trocar de uma vez, pra não pular o desenho inteiro de lado
+    const deg = rawAngle * 180 / Math.PI;
+    const distToFlipEdge = Math.abs(Math.abs(deg) - 90);
+
+    function drawOne(useFlip, alpha) {
+      const drawAngle = useFlip ? Math.atan2(vy, -vx) : rawAngle;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(pts[i].x, pts[i].y);
+      ctx.rotate(drawAngle);
+      if (partKey === 'head') ctx.translate(useFlip ? w * 0.09 : -w * 0.09, 0);
+      if (useFlip) ctx.scale(-1, 1);
+      ctx.drawImage(part.img, -w/2, -h/2, w, h);
+      ctx.restore();
+    }
+
+    if (distToFlipEdge > EKANS_FLIP_BLEND_DEG) {
+      // longe do limiar: desenha só a versão certa, sem custo extra
+      drawOne(Math.abs(deg) > 90, 1);
+    } else {
+      // perto do limiar: crossfade entre normal e espelhada
+      const t = distToFlipEdge / EKANS_FLIP_BLEND_DEG; // 0 no limiar, 1 na borda da janela
+      const alphaFar = 0.5 + 0.5 * t;   // versão do lado em que já estamos
+      const alphaNear = 1 - alphaFar;   // versão do lado pra onde vamos
+      const farIsFlip = Math.abs(deg) > 90;
+      drawOne(farIsFlip, alphaFar);
+      drawOne(!farIsFlip, alphaNear);
+    }
   }
 }
 
