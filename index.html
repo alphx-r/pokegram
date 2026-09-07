@@ -11061,7 +11061,9 @@ function buildProfileHTML(u, userPosts, followers, following, isMe) {
               ${u.rpg ? `<span class="rpg-profile-badge">${u.rpg === 'kingdom_platinum' ? 'KP' : 'PC'}</span>` : ''}
               ${isMe
                 ? `<button class="btn-edit-profile" onclick="openEditProfile()">Editar perfil</button>
-                   <button class="btn-edit-profile" onclick="openSwitchAccount()" title="Trocar de conta">🔄 Trocar</button>`
+                   <button class="btn-icon-profile" onclick="openSwitchAccount()" title="Trocar de conta" style="background:none;border:none;padding:0;margin:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center">
+                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                   </button>`
                 : (isSecondary
                   ? ''
                   : `<button class="btn-follow-profile ${followState[u.id]?'following':''}" id="follow-btn-prof-${u.id}" onclick="toggleFollow(this,'${u.id}','${u.username}')">${followState[u.id]?'Seguindo':'Seguir'}</button>
