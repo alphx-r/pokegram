@@ -1505,6 +1505,13 @@ a:focus, a:active,
   // Estado de autenticação — declarado aqui para evitar "before initialization"
   var isRegisterMode = false;
   var currentUser    = null;
+  // Incrementado toda vez que currentUser é trocado de forma definitiva
+  // (login, troca de conta, logout). Tarefas em background que buscam dados
+  // "frescos" pro usuário guardam o valor no início e, ao terminar, só
+  // aplicam o resultado se o valor não mudou — evita que uma resposta lenta
+  // de uma conta antiga sobrescreva currentUser depois que o usuário já
+  // trocou pra outra conta (causa da sessão "grudada" na conta errada).
+  var _sessionEpoch  = 0;
 
   // Controla o overlay de loading ao trocar de aba (Pokégram, Pokeet, etc) —
   // declarado aqui (primeiro <script> do arquivo) para ficar disponível a
@@ -4699,6 +4706,7 @@ async function enterKpProfile(username, preloadedUser) {
     }
 
     currentUser = user;
+    _sessionEpoch++;
     saveSession(user);
     document.getElementById('perfis-screen').style.display = 'none';
     _kpSession = null; // não precisa mais ficar guardado em memória
@@ -5135,9 +5143,27 @@ function isAuthInvalidError(err) {
 //    autenticação assim que a rede permitir. ──
 async function reestablishAuthSessionInBackground(user) {
   if (!user || !user.password_plain) return;
+  const myEpoch = _sessionEpoch;
   const fakeEmail = user.username + '@pokegram.app';
   try {
     const { error } = await db.auth.signInWithPassword({ email: fakeEmail, password: user.password_plain });
+
+    if (_sessionEpoch !== myEpoch) {
+      // A conta ativa mudou enquanto esse signIn estava em voo. O
+      // signInWithPassword acima, se bem-sucedido, ACABOU de sobrescrever a
+      // sessão real de Auth com a conta antiga por cima da troca que já
+      // aconteceu — currentUser mostraria a conta nova, mas auth.uid() (o
+      // que o RLS enxerga) ficaria preso na antiga. Corrige na hora,
+      // re-autenticando como a conta que está ativa agora.
+      if (!error && currentUser && currentUser.id !== user.id && currentUser.password_plain) {
+        db.auth.signInWithPassword({
+          email: currentUser.username + '@pokegram.app',
+          password: currentUser.password_plain
+        }).catch(() => {});
+      }
+      return;
+    }
+
     if (!error) {
       const { data: fresh } = await db.from('users').select('*').eq('id', user.id).maybeSingle();
       if (fresh) { currentUser = fresh; saveSession(fresh); renderSidebarAvatar(); }
@@ -5222,8 +5248,13 @@ async function initPokegram() {
     }
     if (blockedByKp) return; // sessão já encerrada — não segue com o refetch em background
     // Re-fetch em background para atualizar dados frescos
+    const _bgEpoch = _sessionEpoch;
     db.from('users').select('*').eq('id', session.user.id).maybeSingle()
       .then(async ({ data: fresh }) => {
+        // Descarta se a conta ativa já mudou enquanto esse fetch estava em
+        // voo (troca de conta pelo switcher) — evita sobrescrever a conta
+        // nova com dados da conta antiga que estava ativa no início do load.
+        if (_sessionEpoch !== _bgEpoch) return;
         if (fresh) {
           if (await blockIfLinkedToKpPlayer(fresh)) return; // vinculado nesse meio-tempo — encerra
           currentUser = fresh; saveSession(fresh);
