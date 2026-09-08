@@ -1136,9 +1136,17 @@ function drawItem(it) {
   drawItemBubble(cx, cy, r);
 }
 
+const ROCK_SPRITE_Y_OFFSET = 3; // desce o sprite 3px em relação à hitbox, só visual
+const ROCK_SPRITE_SCALE = 3; // sprite desenhado 3x maior que a hitbox de colisão (que continua no tamanho original)
 function drawRock(o) {
   if (rockImgReady) {
-    ctx.drawImage(rockImg, o.x, o.y, o.w, o.h);
+    // Cresce a partir do centro-base da hitbox original (que não muda de
+    // tamanho — só o desenho fica maior), pra continuar "plantado" no chão.
+    const drawW = o.w * ROCK_SPRITE_SCALE;
+    const drawH = o.h * ROCK_SPRITE_SCALE;
+    const drawX = o.x + o.w / 2 - drawW / 2;
+    const drawY = o.y + o.h + ROCK_SPRITE_Y_OFFSET - drawH;
+    ctx.drawImage(rockImg, drawX, drawY, drawW, drawH);
     return;
   }
   // Fallback vetorial (só aparece no instante antes do sprite carregar)
