@@ -2418,18 +2418,20 @@ a:focus, a:active,
       <!-- Header: pill avatar+nome+hora à esquerda, X redondo à direita -->
       <div style="position:absolute;top:14px;left:12px;right:12px;z-index:10;display:flex;align-items:center;gap:8px">
 
-        <!-- Pill esquerdo: avatar + nome + hora -->
-        <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(0,0,0,0.5);border-radius:999px;padding:7px 14px 7px 7px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);max-width:calc(100% - 52px)">
-          <div id="sv-avatar" style="width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,0.85);overflow:hidden;flex-shrink:0"></div>
+        <!-- Pill esquerdo: avatar + nome + hora (sem fundo) -->
+        <div style="display:inline-flex;align-items:center;gap:10px;padding:0;max-width:calc(100% - 52px)">
+          <div id="sv-avatar" style="width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,0.85);overflow:hidden;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>
           <div style="min-width:0">
-            <div id="sv-username" style="color:#fff;font-weight:700;font-size:14px;font-family:'Nunito',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2"></div>
-            <div id="sv-time" style="color:rgba(255,255,255,0.78);font-size:11px;font-family:'Nunito',sans-serif;line-height:1.2"></div>
+            <div id="sv-username" style="color:#fff;font-weight:700;font-size:14px;font-family:'Nunito',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;text-shadow:0 1px 4px rgba(0,0,0,.6)"></div>
+            <div id="sv-time" style="color:rgba(255,255,255,0.85);font-size:11px;font-family:'Nunito',sans-serif;line-height:1.2;text-shadow:0 1px 4px rgba(0,0,0,.6)"></div>
           </div>
         </div>
 
         <!-- Botões à direita: ... e X -->
         <div style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:8px;position:relative">
-          <!-- Botão ver visualizações (só dono) -->
+          <!-- Botão ver visualizações (só dono) — fica oculto; visível só
+               como indicador de que dá pra arrastar pra cima. O clique
+               direto nele também funciona como atalho. -->
           <button id="sv-views-btn" onclick="openStoryViewersModal(event)" style="display:none;background:rgba(0,0,0,0.5);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;padding:0 14px;height:40px;cursor:pointer;align-items:center;gap:6px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <span id="sv-views-count">0</span>
@@ -2449,10 +2451,20 @@ a:focus, a:active,
         </div>
       </div>
 
+      <!-- Indicador "arraste para cima" — visível só pro dono, na parte
+           inferior do story. O gesto de arrastar pra cima em qualquer
+           ponto do story abre a lista de visualizações. -->
+      <div id="sv-swipe-hint" style="display:none;position:absolute;left:0;right:0;bottom:18px;z-index:9;flex-direction:column;align-items:center;gap:4px;pointer-events:none">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+        <div style="display:flex;align-items:center;gap:6px;color:#fff;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;text-shadow:0 1px 4px rgba(0,0,0,.6)">
+          <span id="sv-views-count-hint">0</span> visualizações
+        </div>
+      </div>
+
       <!-- Navegação tap (esquerda / meio / direita) — o meio abre o link
            anexado (ex: pokeet compartilhado) automaticamente, sem precisar
            de um botão CTA separado -->
-      <div style="position:absolute;inset:0;display:flex;z-index:5">
+      <div id="sv-tap-zones" style="position:absolute;inset:0;display:flex;z-index:5">
         <div style="flex:1;cursor:pointer" onclick="storyNav(-1)"></div>
         <div style="flex:2;cursor:pointer" onclick="storyMiddleTap()"></div>
         <div style="flex:1;cursor:pointer" onclick="storyNav(1)"></div>
@@ -12199,6 +12211,7 @@ async function openStoryViewer(userId, targetStoryId) {
   _storyPaused     = false;
   document.getElementById('modal-story').style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  initStorySwipeGesture();
   showStory(_storyViewIdx);
   // atualiza URL para /usuario/stories
   const storyUsername = stories[0]?.users?.username;
@@ -12265,19 +12278,31 @@ function showStory(idx) {
     moreWrap.dataset.storyPath = new URL(story.image_url).pathname.split('/stories/')[1]?.split('?')[0] || '';
   }
 
-  // botão de visualizações (só dono)
+  // botão de visualizações (só dono) — mantido oculto (display:none fixo),
+  // pois a interação agora é via gesto de arrastar pra cima (ver
+  // sv-swipe-hint abaixo e o listener de touch/mouse no final do arquivo).
   const viewsBtn = document.getElementById('sv-views-btn');
-  if (viewsBtn) {
-    viewsBtn.style.display = isOwn ? 'flex' : 'none';
-    viewsBtn.dataset.storyId = story.id;
+  const swipeHint = document.getElementById('sv-swipe-hint');
+  if (viewsBtn) viewsBtn.dataset.storyId = story.id;
+  if (swipeHint) {
+    swipeHint.style.display = isOwn ? 'flex' : 'none';
+    swipeHint.dataset.storyId = story.id;
     if (isOwn && story.id) {
+      // guarda de corrida: se o usuário navegar rápido entre stories,
+      // uma resposta antiga (de um story anterior) pode chegar depois
+      // da resposta do story atual e sobrescrever a contagem errada,
+      // já que o <span> é reaproveitado entre todos os stories.
+      const requestedStoryId = story.id;
       db.from('story_views').select('viewer_id', { count: 'exact' }).eq('story_id', story.id)
         .then(({ data, count, error }) => {
-          const span = document.getElementById('sv-views-count');
-          if (!span) return;
-          if (error) { console.warn('story_views count error:', error); span.textContent = '0'; return; }
-          const c = (typeof count === 'number') ? count : (data ? data.length : 0);
-          span.textContent = c;
+          const hintSpan = document.getElementById('sv-views-count-hint');
+          const btnSpan  = document.getElementById('sv-views-count');
+          // se o viewer já avançou pra outro story, essa resposta é obsoleta — descarta
+          if (swipeHint.dataset.storyId !== requestedStoryId) return;
+          const c = error ? 0 : ((typeof count === 'number') ? count : (data ? data.length : 0));
+          if (error) console.warn('story_views count error:', error);
+          if (hintSpan) hintSpan.textContent = c;
+          if (btnSpan)  btnSpan.textContent  = c;
         }).catch(() => {});
     }
   }
@@ -12381,6 +12406,7 @@ function registerStoryView(story) {
 }
 
 async function storyNav(dir) {
+  if (_swipeConsumed) return; // gesto de arrastar pra cima já tratou essa interação
   const cur = _storyViewList[_storyViewIdx];
   void cur; // mantido para compatibilidade
 
@@ -12398,6 +12424,7 @@ async function storyNav(dir) {
 // compartilhado), abre automaticamente — sem precisar de um botão CTA.
 // Sem link anexado, se comporta como um toque normal (avança pro próximo).
 function storyMiddleTap() {
+  if (_swipeConsumed) return; // gesto de arrastar pra cima já tratou essa interação
   const link = document.getElementById('sv-cta-wrap')?.dataset.link;
   if (link) { storyGoToLink(); return; }
   storyNav(1);
@@ -12416,6 +12443,81 @@ function storyGoToLink() {
     return;
   }
   window.location.href = link;
+}
+
+// ── Gesto "arrastar para cima" para abrir a lista de visualizações
+// (só disponível pro dono do story, ver sv-swipe-hint em showStory()).
+// Detecta arraste vertical em cima do story: se o deslocamento pra
+// cima passar de um limite (SWIPE_UP_THRESHOLD), abre o modal de
+// visualizações e cancela a navegação por toque desse gesto.
+const SWIPE_UP_THRESHOLD = 60; // px
+let _swipeStartY = null;
+let _swipeStartX = null;
+let _swipeIsDragging = false;
+let _swipeConsumed = false;
+
+function _svSwipeStart(clientX, clientY) {
+  _swipeStartY = clientY;
+  _swipeStartX = clientX;
+  _swipeIsDragging = true;
+  _swipeConsumed = false;
+}
+
+function _svSwipeMove(clientX, clientY) {
+  if (!_swipeIsDragging || _swipeStartY === null) return;
+  const dy = _swipeStartY - clientY;
+  const dx = Math.abs(clientX - _swipeStartX);
+  // só considera arraste vertical (ignora swipes majoritariamente horizontais)
+  if (dy > SWIPE_UP_THRESHOLD && dy > dx && !_swipeConsumed) {
+    const hint = document.getElementById('sv-swipe-hint');
+    // só abre se o hint estiver visível (ou seja, é o dono do story)
+    if (hint && hint.style.display !== 'none') {
+      _swipeConsumed = true;
+      openStoryViewersModal();
+    }
+  }
+}
+
+function _svSwipeEnd() {
+  _swipeIsDragging = false;
+  _swipeStartY = null;
+  _swipeStartX = null;
+}
+
+// Inicializa os listeners de gesto uma única vez, sobre a área do
+// story (sv-container), sem interferir nas zonas de toque existentes.
+let _svSwipeInitialized = false;
+function initStorySwipeGesture() {
+  if (_svSwipeInitialized) return;
+  _svSwipeInitialized = true;
+  const container = document.getElementById('sv-container');
+  if (!container) return;
+
+  container.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    _svSwipeStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  container.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 1) return;
+    _svSwipeMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  container.addEventListener('touchend', _svSwipeEnd, { passive: true });
+  container.addEventListener('touchcancel', _svSwipeEnd, { passive: true });
+
+  // suporte a mouse (desktop/testes)
+  let mouseDown = false;
+  container.addEventListener('mousedown', (e) => {
+    mouseDown = true;
+    _svSwipeStart(e.clientX, e.clientY);
+  });
+  container.addEventListener('mousemove', (e) => {
+    if (!mouseDown) return;
+    _svSwipeMove(e.clientX, e.clientY);
+  });
+  container.addEventListener('mouseup', () => { mouseDown = false; _svSwipeEnd(); });
+  container.addEventListener('mouseleave', () => { mouseDown = false; _svSwipeEnd(); });
 }
 
 function closeStoryViewer() {
