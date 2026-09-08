@@ -538,6 +538,44 @@ Object.keys(ITEM_SPRITES).forEach(key => {
   img.onerror = () => { itemImgs[key].ready = false; };
   img.src = ITEM_SPRITES[key];
 });
+// ── Sprite das rochas (Stonjourner) ──────────────────────
+// Mesmo padrão dos itens: PNG com fundo transparente. A hitbox real de
+// colisão não usa o retângulo inteiro do sprite (o Stonjourner tem duas
+// "torres" com um vão vazio no meio e bastante espaço transparente ao
+// redor) — em vez disso, uma máscara de opacidade é montada a partir do
+// próprio PNG assim que ele carrega, e só pixels realmente opacos contam
+// como área de contato (ver rockPixelOverlap).
+const ROCK_SPRITE_DEFAULT = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/874.png';
+const rockImg = new Image();
+let rockImgReady = false;
+let rockMaskData = null, rockMaskW = 0, rockMaskH = 0;
+const ROCK_MASK_ALPHA_THRESHOLD = 40; // ignora pixels quase totalmente transparentes (antialiasing de borda)
+
+function buildRockMask(img) {
+  // Resolução da máscara é independente do tamanho exibido de cada rocha
+  // (que varia por obstáculo) — é só a "planta baixa" de onde o sprite
+  // é opaco, em proporção de 0 a 1, reamostrada depois pra cada rocha.
+  const mw = 32, mh = 40;
+  const off = document.createElement('canvas');
+  off.width = mw; off.height = mh;
+  const octx = off.getContext('2d');
+  octx.clearRect(0, 0, mw, mh);
+  octx.drawImage(img, 0, 0, mw, mh);
+  try {
+    const data = octx.getImageData(0, 0, mw, mh).data;
+    const mask = new Uint8Array(mw * mh);
+    for (let i = 0; i < mw * mh; i++) mask[i] = data[i * 4 + 3] > ROCK_MASK_ALPHA_THRESHOLD ? 1 : 0;
+    rockMaskData = mask; rockMaskW = mw; rockMaskH = mh;
+  } catch (e) {
+    console.warn('[buildRockMask] não deu pra ler os pixels (CORS?), colisão volta a usar o retângulo cheio', e);
+    rockMaskData = null;
+  }
+}
+rockImg.crossOrigin = 'anonymous'; // necessário pra poder ler os pixels (getImageData) sem "sujar" o canvas
+rockImg.onload = () => { rockImgReady = true; buildRockMask(rockImg); };
+rockImg.onerror = () => { rockImgReady = false; };
+rockImg.src = ROCK_SPRITE_DEFAULT;
+
 let salacUntil = 0, tamatoUntil = 0, xAttackCharges = 0;
 let items = [];
 let itemSpawnTimer = 0, nextItemSpawnInterval = 6500 + Math.random() * 4500;
@@ -831,13 +869,37 @@ function boxesOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
+// Colisão fina com as rochas: primeiro descarta rápido pelo retângulo
+// (boxesOverlap) e, só se os retângulos realmente se tocarem, varre a
+// região de interseção contra a máscara de opacidade do sprite — assim o
+// vão entre as duas torres do Stonjourner, e toda a margem transparente
+// ao redor dele, nunca contam como contato. Sem máscara pronta ainda
+// (imagem não carregou / falhou), cai de volta no retângulo cheio, pra
+// nunca ficar sem colisão nenhuma.
+function rockPixelOverlap(pb, o) {
+  if (!boxesOverlap(pb, o)) return false;
+  if (!rockMaskData) return true;
+  const ix0 = Math.max(pb.x, o.x), ix1 = Math.min(pb.x + pb.w, o.x + o.w);
+  const iy0 = Math.max(pb.y, o.y), iy1 = Math.min(pb.y + pb.h, o.y + o.h);
+  const STEP = 2; // resolução (em px do canvas lógico) da varredura — fina o bastante sem pesar
+  for (let y = iy0; y < iy1; y += STEP) {
+    const my = Math.min(rockMaskH - 1, Math.max(0, Math.floor(((y - o.y) / o.h) * rockMaskH)));
+    for (let x = ix0; x < ix1; x += STEP) {
+      const mx = Math.min(rockMaskW - 1, Math.max(0, Math.floor(((x - o.x) / o.w) * rockMaskW)));
+      if (rockMaskData[my * rockMaskW + mx]) return true;
+    }
+  }
+  return false;
+}
+
 // Colisão com obstáculo: se houver carga de X Attack disponível, quebra o
 // obstáculo em vez de acabar o jogo (consome 1 carga); sem carga, Game Over.
 function checkCollisions() {
   const pb = playerBBox();
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    if (boxesOverlap(pb, { x: o.x, y: o.y, w: o.w, h: o.h })) {
+    const hit = o.type === 'rock' ? rockPixelOverlap(pb, o) : boxesOverlap(pb, { x: o.x, y: o.y, w: o.w, h: o.h });
+    if (hit) {
       if (xAttackCharges > 0) {
         xAttackCharges--;
         spawnBreakParticles(o);
@@ -1075,6 +1137,11 @@ function drawItem(it) {
 }
 
 function drawRock(o) {
+  if (rockImgReady) {
+    ctx.drawImage(rockImg, o.x, o.y, o.w, o.h);
+    return;
+  }
+  // Fallback vetorial (só aparece no instante antes do sprite carregar)
   ctx.fillStyle = '#8a8a92';
   ctx.strokeStyle = '#5c5c64';
   ctx.lineWidth = 2;
