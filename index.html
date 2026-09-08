@@ -4714,6 +4714,22 @@ async function enterKpProfile(username, preloadedUser) {
         authOk = !signInErr;
         if (signInErr) {
           console.error('[enterKpProfile] signInWithPassword falhou (2x)', signInErr);
+          // password_plain existe mas está dessincronizado da senha real do
+          // Auth (ex.: foi trocada por fora, ou nunca esteve certa). Mesmo
+          // reparo do perfil "órfão" serve aqui: reseta a senha real e tenta
+          // logar de novo com a senha nova.
+          const repaired = await repairProfileAuthViaKp(user.username);
+          if (repaired) {
+            user.password_plain = repaired;
+            console.log('[enterKpProfile] senha dessincronizada reparada via repair-profile-auth para', user.username);
+            const { error: retryErr } = await db.auth.signInWithPassword({ email: fakeEmail, password: repaired });
+            authOk = !retryErr;
+            if (retryErr) {
+              console.error('[enterKpProfile] signInWithPassword falhou mesmo após reparo', retryErr);
+            } else {
+              try { localStorage.setItem('pg_via_kp_player', '1'); } catch(e) {}
+            }
+          }
         } else {
           const { data: sessCheck } = await db.auth.getSession();
           console.log('[enterKpProfile] login real OK, sessão criada:', !!sessCheck?.session, sessCheck?.session?.user?.id);
