@@ -538,72 +538,6 @@ Object.keys(ITEM_SPRITES).forEach(key => {
   img.onerror = () => { itemImgs[key].ready = false; };
   img.src = ITEM_SPRITES[key];
 });
-// ── Sprite das rochas (Stonjourner) ──────────────────────
-// Mesmo padrão dos itens: PNG com fundo transparente. A hitbox real de
-// colisão não usa o retângulo inteiro do sprite (o Stonjourner tem duas
-// "torres" com um vão vazio no meio e bastante espaço transparente ao
-// redor) — em vez disso, uma máscara de opacidade é montada a partir do
-// próprio PNG assim que ele carrega, e só pixels realmente opacos contam
-// como área de contato (ver rockPixelOverlap).
-const ROCK_SPRITE_DEFAULT = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/874.png';
-const rockImg = new Image();
-let rockImgReady = false;
-let rockMaskData = null, rockMaskW = 0, rockMaskH = 0;
-let rockTrim = null; // {sx, sy, sw, sh} — recorte só da região opaca do PNG, sem a margem transparente ao redor (é essa margem que fazia o Stonjourner parecer flutuar acima do chão)
-let rockAspect = 1;  // sw/sh do recorte — usado pra nunca esticar o sprite, só escalar mantendo a proporção real
-const ROCK_MASK_ALPHA_THRESHOLD = 40; // ignora pixels quase totalmente transparentes (antialiasing de borda)
-
-function buildRockMask(img) {
-  const iw = img.naturalWidth || img.width;
-  const ih = img.naturalHeight || img.height;
-  const off = document.createElement('canvas');
-  off.width = iw; off.height = ih;
-  const octx = off.getContext('2d');
-  octx.drawImage(img, 0, 0, iw, ih);
-  let data;
-  try {
-    data = octx.getImageData(0, 0, iw, ih).data;
-  } catch (e) {
-    console.warn('[buildRockMask] não deu pra ler os pixels (CORS?), recorte e colisão fina ficam desativados', e);
-    rockMaskData = null; rockTrim = null; rockAspect = 1;
-    return;
-  }
-  // Caixa justa dos pixels realmente opacos do PNG original — remove a
-  // margem transparente que o próprio sprite tem (é ela que fazia a base
-  // do Stonjourner "flutuar" acima da linha do chão).
-  let minX = iw, minY = ih, maxX = -1, maxY = -1;
-  for (let y = 0; y < ih; y++) {
-    for (let x = 0; x < iw; x++) {
-      if (data[(y * iw + x) * 4 + 3] > ROCK_MASK_ALPHA_THRESHOLD) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-  if (maxX < minX || maxY < minY) { rockTrim = null; rockAspect = 1; rockMaskData = null; return; }
-  const sw = maxX - minX + 1, sh = maxY - minY + 1;
-  rockTrim = { sx: minX, sy: minY, sw, sh };
-  rockAspect = sw / sh;
-
-  // Máscara de colisão montada a partir do MESMO recorte que é desenhado,
-  // pra bater exatamente com a silhueta visível (sem a margem transparente).
-  const mw = 32, mh = 40;
-  const moff = document.createElement('canvas');
-  moff.width = mw; moff.height = mh;
-  const mctx = moff.getContext('2d');
-  mctx.drawImage(img, minX, minY, sw, sh, 0, 0, mw, mh);
-  const mdata = mctx.getImageData(0, 0, mw, mh).data;
-  const mask = new Uint8Array(mw * mh);
-  for (let i = 0; i < mw * mh; i++) mask[i] = mdata[i * 4 + 3] > ROCK_MASK_ALPHA_THRESHOLD ? 1 : 0;
-  rockMaskData = mask; rockMaskW = mw; rockMaskH = mh;
-}
-rockImg.crossOrigin = 'anonymous'; // necessário pra poder ler os pixels (getImageData) sem "sujar" o canvas
-rockImg.onload = () => { rockImgReady = true; buildRockMask(rockImg); };
-rockImg.onerror = () => { rockImgReady = false; };
-rockImg.src = ROCK_SPRITE_DEFAULT;
-
 let salacUntil = 0, tamatoUntil = 0, xAttackCharges = 0;
 let items = [];
 let itemSpawnTimer = 0, nextItemSpawnInterval = 6500 + Math.random() * 4500;
@@ -750,8 +684,8 @@ function spawnObstacle() {
     const h = 16;
     obstacles.push({ type: 'bird', x: BASE_W + 20, y: groundY - bottomOffset - h, w: 32, h, passed: false });
   } else {
-    // cluster de 1 ou 2 rochas (no máximo 2 juntas, o Stonjourner é grande demais pra empilhar 3)
-    const count = Math.random() < 0.3 ? 2 : 1;
+    // cluster de 1 a 3 rochas, como os cactos do original
+    const count = Math.random() < 0.3 ? (Math.random() < 0.5 ? 2 : 3) : 1;
     let x = BASE_W + 20;
     for (let i = 0; i < count; i++) {
       const h = 26 + Math.random() * 26;
@@ -897,42 +831,13 @@ function boxesOverlap(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-// Colisão fina com as rochas: primeiro descarta rápido pelo retângulo
-// (boxesOverlap) e, só se os retângulos realmente se tocarem, varre a
-// região de interseção contra a máscara de opacidade do sprite — assim o
-// vão entre as duas torres do Stonjourner, e toda a margem transparente
-// ao redor dele, nunca contam como contato. Sem máscara pronta ainda
-// (imagem não carregou / falhou), cai de volta no retângulo cheio, pra
-// nunca ficar sem colisão nenhuma.
-// A hitbox usada aqui é a mesma posição de o.x/o.y/o.w/o.h, só deslocada
-// verticalmente por ROCK_SPRITE_Y_OFFSET — o mesmo deslocamento aplicado
-// ao desenho em drawRock — pra colisão e visual ficarem sempre alinhados.
-function rockPixelOverlap(pb, o) {
-  const oy = o.y + ROCK_SPRITE_Y_OFFSET;
-  const rb = { x: o.x, y: oy, w: o.w, h: o.h };
-  if (!boxesOverlap(pb, rb)) return false;
-  if (!rockMaskData) return true;
-  const ix0 = Math.max(pb.x, rb.x), ix1 = Math.min(pb.x + pb.w, rb.x + rb.w);
-  const iy0 = Math.max(pb.y, rb.y), iy1 = Math.min(pb.y + pb.h, rb.y + rb.h);
-  const STEP = 2; // resolução (em px do canvas lógico) da varredura — fina o bastante sem pesar
-  for (let y = iy0; y < iy1; y += STEP) {
-    const my = Math.min(rockMaskH - 1, Math.max(0, Math.floor(((y - rb.y) / rb.h) * rockMaskH)));
-    for (let x = ix0; x < ix1; x += STEP) {
-      const mx = Math.min(rockMaskW - 1, Math.max(0, Math.floor(((x - rb.x) / rb.w) * rockMaskW)));
-      if (rockMaskData[my * rockMaskW + mx]) return true;
-    }
-  }
-  return false;
-}
-
 // Colisão com obstáculo: se houver carga de X Attack disponível, quebra o
 // obstáculo em vez de acabar o jogo (consome 1 carga); sem carga, Game Over.
 function checkCollisions() {
   const pb = playerBBox();
   for (let i = 0; i < obstacles.length; i++) {
     const o = obstacles[i];
-    const hit = o.type === 'rock' ? rockPixelOverlap(pb, o) : boxesOverlap(pb, { x: o.x, y: o.y, w: o.w, h: o.h });
-    if (hit) {
+    if (boxesOverlap(pb, { x: o.x, y: o.y, w: o.w, h: o.h })) {
       if (xAttackCharges > 0) {
         xAttackCharges--;
         spawnBreakParticles(o);
@@ -1169,25 +1074,7 @@ function drawItem(it) {
   drawItemBubble(cx, cy, r);
 }
 
-const ROCK_SPRITE_Y_OFFSET = 6; // desce o sprite 6px em relação à hitbox, só visual (3px + 3px extra pra encostar no chão)
-const ROCK_SPRITE_SCALE = 3; // sprite desenhado 3x maior que a hitbox de colisão (que continua no tamanho original)
 function drawRock(o) {
-  if (rockImgReady) {
-    // A altura escala com o.h (3x) e a largura é sempre derivada dela pela
-    // proporção real do recorte (rockAspect) — nunca escala w e h de forma
-    // independente, senão o sprite estica/achata.
-    const drawH = o.h * ROCK_SPRITE_SCALE;
-    const drawW = rockTrim ? drawH * rockAspect : o.w * ROCK_SPRITE_SCALE;
-    const drawX = o.x + o.w / 2 - drawW / 2;
-    const drawY = o.y + o.h + ROCK_SPRITE_Y_OFFSET - drawH;
-    if (rockTrim) {
-      ctx.drawImage(rockImg, rockTrim.sx, rockTrim.sy, rockTrim.sw, rockTrim.sh, drawX, drawY, drawW, drawH);
-    } else {
-      ctx.drawImage(rockImg, drawX, drawY, drawW, drawH);
-    }
-    return;
-  }
-  // Fallback vetorial (só aparece no instante antes do sprite carregar)
   ctx.fillStyle = '#8a8a92';
   ctx.strokeStyle = '#5c5c64';
   ctx.lineWidth = 2;
