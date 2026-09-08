@@ -10107,14 +10107,35 @@ async function toggleLike(postId, btn) {
   btn.style.color = !liked ? _uc : '';
 
   const countEl = document.getElementById('likes-' + postId);
-  if (countEl) {
+  const applyCountDelta = (delta) => {
+    if (!countEl) return;
     const cur = parseInt(countEl.textContent) || 0;
-    const next = !liked ? cur + 1 : Math.max(0, cur - 1);
+    const next = Math.max(0, cur + delta);
     countEl.textContent = `${fmtNum(next)} curtida${next !== 1 ? 's' : ''}`;
-  }
+  };
+  applyCountDelta(!liked ? 1 : -1);
+
+  // Reverte a mudança otimista da UI (usado se a escrita no banco falhar).
+  const rollbackUI = () => {
+    btn.classList.toggle('liked', liked);
+    if (svg) svg.style.cssText = liked ? `fill:${_uc};stroke:${_uc};stroke-width:2` : 'fill:none;stroke-width:2';
+    btn.style.color = liked ? _uc : '';
+    applyCountDelta(!liked ? -1 : 1);
+  };
 
   if (!liked) {
-    await db.from('likes').insert({ post_id: postId, user_id: currentUser.id });
+    // upsert em vez de insert puro: evita erro de chave duplicada se o
+    // usuário tentar de novo achando que não pegou (ex.: rede instável).
+    const { error } = await db.from('likes').upsert(
+      { post_id: postId, user_id: currentUser.id },
+      { onConflict: 'post_id,user_id' }
+    );
+    if (error) {
+      console.error('[likes] falha ao curtir, revertendo UI:', error);
+      rollbackUI();
+      toast('Não foi possível curtir agora. Tente de novo.');
+      return;
+    }
     // usa cache local primeiro, senão busca no banco
     let ownerId = (appPosts || []).find(p => p.id === postId)?.user_id;
     if (!ownerId) {
@@ -10129,7 +10150,13 @@ async function toggleLike(postId, btn) {
       sendPushToUser(ownerId, 'PokéGram', `${currentUser.username} curtiu sua publicação.`, '/');
     }
   } else {
-    await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+    const { error } = await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+    if (error) {
+      console.error('[likes] falha ao descurtir, revertendo UI:', error);
+      rollbackUI();
+      toast('Não foi possível descurtir agora. Tente de novo.');
+      return;
+    }
     await db.from('notifications').delete()
       .eq('type', 'like')
       .eq('post_id', postId)
@@ -12390,9 +12417,13 @@ function registerStoryView(story) {
     setTimeout(() => registerStoryView(story), 500);
     return;
   }
-  const ownerId = story.users?.id;
+  // Fallback: normalmente o dono vem do join (story.users.id), mas esse join
+  // pode falhar intermitentemente pra alguma linha específica da lista. Como
+  // todos os stories dessa sessão pertencem ao usuário que foi passado pra
+  // openStoryViewer(), _storyViewOwnerId é uma fonte confiável de reserva.
+  const ownerId = story.users?.id || _storyViewOwnerId;
   if (!ownerId) {
-    console.warn('[story_views] story sem users.id (join falhou?), visualização NÃO registrada:', story);
+    console.warn('[story_views] sem owner id (join falhou e sem fallback), visualização NÃO registrada:', story);
     return;
   }
   if (ownerId === currentUser.id) return; // dono não conta view no próprio story
@@ -12800,10 +12831,19 @@ async function storyToggleLike() {
     btn.dataset.liked = 'false';
     icon.setAttribute('fill', 'none');
     icon.setAttribute('stroke', '#fff');
-    await db.from('story_likes')
+    const { error } = await db.from('story_likes')
       .delete()
       .eq('story_id', storyId)
       .eq('user_id', currentUser.id);
+    if (error) {
+      console.error('[story_likes] falha ao descurtir, revertendo UI:', error);
+      btn.dataset.liked = 'true';
+      const lc = currentUser.color || '#e53935';
+      icon.setAttribute('fill', lc);
+      icon.setAttribute('stroke', lc);
+      toast('Não foi possível descurtir agora. Tente de novo.');
+      return;
+    }
   } else {
     // Curtir
     btn.dataset.liked = 'true';
@@ -12811,11 +12851,18 @@ async function storyToggleLike() {
     icon.setAttribute('fill', likeColor);
     icon.setAttribute('stroke', likeColor);
 
-    // Evita duplicata
-    const { data: existing } = await db.from('story_likes')
-      .select('id').eq('story_id', storyId).eq('user_id', currentUser.id).maybeSingle();
-    if (!existing) {
-      await db.from('story_likes').insert({ story_id: storyId, user_id: currentUser.id });
+    // upsert em vez de insert+check: evita duplicata E deixa o erro visível
+    const { error } = await db.from('story_likes').upsert(
+      { story_id: storyId, user_id: currentUser.id },
+      { onConflict: 'story_id,user_id' }
+    );
+    if (error) {
+      console.error('[story_likes] falha ao curtir, revertendo UI:', error);
+      btn.dataset.liked = 'false';
+      icon.setAttribute('fill', 'none');
+      icon.setAttribute('stroke', '#fff');
+      toast('Não foi possível curtir agora. Tente de novo.');
+      return;
     }
 
     // Busca o user_id do dono para notificação
