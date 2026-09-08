@@ -4958,15 +4958,13 @@ async function criarNovoPerfilFromSwitch() {
 
 async function switchToAccount(username) {
   closeModal('modal-switch-account');
-  const { data: user } = await db.from('users').select('*').eq('username', username).maybeSingle();
-  if (!user) { toast('Perfil não encontrado.'); return; }
-  try { localStorage.removeItem('pg_via_kp_player'); } catch(e) {}
-  currentUser = user;
-  saveSession(user);
-  if (typeof initApp === 'function') initApp(user).catch(() => {});
-  renderSidebarAvatar();
-  applyUserColor(user.color);
-  showView('feed');
+  if (currentUser && username === currentUser.username) return;
+  // Reaproveita enterKpProfile: além de trocar currentUser/localStorage, ele
+  // cria uma sessão REAL de Supabase Auth pro perfil de destino e marca
+  // pg_via_kp_player, evitando que auth.uid() fique "preso" no perfil antigo
+  // (afetando RLS de chat/pokeets/etc) e que um F5 derrube a sessão por
+  // blockIfLinkedToKpPlayer() achar que é um login indevido.
+  await enterKpProfile(username);
   toast(`Entrou como ${username}`);
 }
 
@@ -5362,11 +5360,21 @@ async function initPushNotifications(user) {
 
 async function sendPushToUser(userId, title, body, url) {
   try {
-    await fetch(PUSH_ENDPOINT, {
+    const { data: sess } = await db.auth.getSession();
+    const token = sess?.session?.access_token || SUPABASE_ANON;
+    const resp = await fetch(PUSH_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON,
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({ user_id: userId, title, body, url: url || '/' })
     });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn('Push send error:', resp.status, text);
+    }
   } catch(e) { console.warn('Push send error:', e); }
 }
 
@@ -10354,36 +10362,65 @@ function closeModalPostMenu(postId) {
 }
 
 async function modalToggleLike(postId, btn) {
-  const { data: existing } = await db.from('likes').select('id').eq('post_id', postId).eq('user_id', currentUser.id).maybeSingle();
+  const liked  = btn.classList.contains('liked');
+  const svg    = btn.querySelector('svg');
   const countEl = document.getElementById('modal-like-count-' + postId);
-  if (existing) {
-    await db.from('likes').delete().eq('id', existing.id);
-    btn.querySelector('svg').setAttribute('fill', 'none');
-    btn.querySelector('svg').setAttribute('stroke', 'currentColor');
-    if (countEl) {
-      const n = Math.max(0, parseInt(countEl.textContent) - 1);
+  const feedBtn = document.querySelector(`#post-${postId} .post-action-btn`);
+  const _mc = currentUser.color || '#e53935';
+
+  const applyModalUI = (isLiked, delta) => {
+    if (svg) {
+      svg.setAttribute('fill', isLiked ? _mc : 'none');
+      svg.setAttribute('stroke', isLiked ? _mc : 'currentColor');
+      svg.style.stroke = isLiked ? _mc : '';
+    }
+    btn.classList.toggle('liked', isLiked);
+    if (countEl && delta) {
+      const n = Math.max(0, (parseInt(countEl.textContent) || 0) + delta);
       countEl.textContent = n === 1 ? '1 curtida' : n > 1 ? `${n} curtidas` : '';
     }
-  } else {
-    await db.from('likes').insert({ post_id: postId, user_id: currentUser.id });
-    const _mc = currentUser.color || '#e53935';
-    btn.querySelector('svg').setAttribute('fill', _mc);
-    btn.querySelector('svg').setAttribute('stroke', _mc);
-    btn.querySelector('svg').style.stroke = _mc;
-    if (countEl) {
-      const n = (parseInt(countEl.textContent) || 0) + 1;
-      countEl.textContent = n === 1 ? '1 curtida' : `${n} curtidas`;
-    }
+  };
+
+  // Atualização otimista
+  applyModalUI(!liked, !liked ? 1 : -1);
+
+  // Uma única escrita no banco (upsert evita erro de chave duplicada em retry)
+  const { error } = !liked
+    ? await db.from('likes').upsert({ post_id: postId, user_id: currentUser.id }, { onConflict: 'post_id,user_id' })
+    : await db.from('likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+
+  if (error) {
+    console.error('[likes] falha ao curtir/descurtir (modal), revertendo UI:', error);
+    applyModalUI(liked, !liked ? -1 : 1);
+    toast('Não foi possível curtir agora. Tente de novo.');
+    return;
+  }
+
+  if (!liked) {
     // Notifica dono se não for ele mesmo
     const post = (appPosts || []).find(p => p.id === postId);
     if (post && post.user_id && post.user_id !== currentUser.id) {
-      await db.from('notifications').insert({ user_id: post.user_id, actor_id: currentUser.id, type: 'like', post_id: postId }).catch(()=>{});
+      const { error: ne } = await db.from('notifications').insert({ user_id: post.user_id, actor_id: currentUser.id, type: 'like', post_id: postId });
+      if (ne) console.error('notif like error:', ne);
       sendPushToUser(post.user_id, 'PokéGram', `${currentUser.username} curtiu sua publicação.`, '/');
     }
+  } else {
+    await db.from('notifications').delete().eq('type', 'like').eq('post_id', postId).eq('actor_id', currentUser.id);
   }
-  // Sincroniza o like no card do feed também
-  const feedBtn = document.querySelector(`#post-${postId} .post-action-btn`);
-  if (feedBtn) toggleLike(postId, feedBtn);
+
+  // Sincroniza o coração do feed SÓ visualmente — sem chamar toggleLike(),
+  // que faria uma segunda escrita duplicada da mesma curtida no banco.
+  if (feedBtn) {
+    feedBtn.classList.toggle('liked', !liked);
+    const feedSvg = feedBtn.querySelector('svg');
+    if (feedSvg) feedSvg.style.cssText = !liked ? `fill:${_mc};stroke:${_mc};stroke-width:2` : 'fill:none;stroke-width:2;stroke:currentColor';
+    feedBtn.style.color = !liked ? _mc : '';
+    const feedCountEl = document.getElementById('likes-' + postId);
+    if (feedCountEl) {
+      const n = Math.max(0, (parseInt(feedCountEl.textContent) || 0) + (!liked ? 1 : -1));
+      feedCountEl.textContent = `${fmtNum(n)} curtida${n !== 1 ? 's' : ''}`;
+    }
+  }
 }
 
 async function modalToggleSave(postId, btn) {
