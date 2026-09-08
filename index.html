@@ -4659,11 +4659,20 @@ async function enterKpProfile(username, preloadedUser) {
     }
 
     if (user.password_plain) {
+      const trySignIn = () => db.auth.signInWithPassword({ email: fakeEmail, password: user.password_plain });
       try {
-        const { error: signInErr } = await db.auth.signInWithPassword({ email: fakeEmail, password: user.password_plain });
+        let { error: signInErr } = await trySignIn();
+        // Retry único: falha aqui costuma ser instabilidade momentânea, e
+        // continuar com a troca sem isso resolvido é o que causa a sessão
+        // "presa" na conta antiga (auth.uid() antigo com currentUser novo).
+        if (signInErr) {
+          console.warn('[enterKpProfile] signInWithPassword falhou, tentando de novo...', signInErr);
+          await new Promise(r => setTimeout(r, 600));
+          ({ error: signInErr } = await trySignIn());
+        }
         authOk = !signInErr;
         if (signInErr) {
-          console.error('[enterKpProfile] signInWithPassword falhou', signInErr);
+          console.error('[enterKpProfile] signInWithPassword falhou (2x)', signInErr);
         } else {
           const { data: sessCheck } = await db.auth.getSession();
           console.log('[enterKpProfile] login real OK, sessão criada:', !!sessCheck?.session, sessCheck?.session?.user?.id);
@@ -4679,7 +4688,14 @@ async function enterKpProfile(username, preloadedUser) {
       console.error('[enterKpProfile] usuário sem password_plain — não foi possível gerar sessão real de auth para', user.username);
     }
     if (!authOk) {
-      toast('Aviso: algumas funções (como chat) podem não funcionar até você logar normalmente com usuário e senha.');
+      // Não prossegue com a troca: se a sessão real de Auth não foi criada
+      // pro perfil novo, a sessão continua sendo a do perfil antigo. Deixar
+      // currentUser apontando pro perfil novo nesse estado é o que causava
+      // "resíduos" da conta anterior (curtidas/escritas indo pro auth.uid()
+      // errado) e o F5 pedindo login de novo (perfil novo não tem o flag
+      // pg_via_kp_player, então blockIfLinkedToKpPlayer() derruba a sessão).
+      toast('Não foi possível trocar de conta agora. Tente de novo em instantes.');
+      return;
     }
 
     currentUser = user;
@@ -9456,6 +9472,14 @@ async function initApp(user) {
   _pkActiveProfileId = null;
   pkLoadActiveId();
   await pkFetchMyProfiles().catch((e) => console.error('[initApp] pkFetchMyProfiles falhou', e));
+
+  // Limpa cache de feed/likes/follows da conta anterior — sem isso, ao
+  // trocar de conta pelo switcher, posts/curtidas/follows da conta antiga
+  // podiam continuar em memória até um refresh forçado.
+  appPosts = [];
+  followState = {};
+  _feedCache.feed = null;
+  _feedCache.following = null;
 
   document.documentElement.style.setProperty('--user-color', user.color || '#e53935');
   renderSidebarAvatar();
