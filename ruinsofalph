@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Ruínas de Alph · Pokégram</title>
+<link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/201.png">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  *{
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
+  html,body{
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#f4f4f4;color:#1a1a1a;
+    overflow:hidden;position:fixed;inset:0;
+    display:flex;flex-direction:column;
+  }
+  :root{
+    --brand:#4a2e7a;--brand-mid:#7c4fc9;--accent:#f2c94c;--border:#e0e0e0;--muted:#6b7280;--stone:#c9a86a;
+  }
+  .ap-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;flex:0 0 52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;
+  }
+  .ap-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .ap-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .ap-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .ap-title span{color:var(--accent)}
+
+  .ap-wrap{
+    flex:1 1 auto;min-height:0;position:relative;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    touch-action:none;overflow:hidden;
+    background:radial-gradient(ellipse at 50% 20%, #2f2050 0%, #150e29 70%);
+  }
+
+  .ap-hud{
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
+  }
+  .ap-hud-box{
+    display:flex;gap:clamp(14px,5vw,26px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.9);border-radius:10px;
+    padding:9px clamp(18px,5vw,26px);box-shadow:0 2px 8px rgba(0,0,0,.3);
+    pointer-events:auto;
+  }
+  .ap-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .ap-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .ap-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,17px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
+
+  .ap-board-outer{
+    position:relative;
+    display:grid;
+    grid-template-columns:34px auto 34px;
+    grid-template-rows:34px auto 34px;
+    gap:6px;
+    transform-origin:center center;
+  }
+  .ap-board{
+    grid-column:2;grid-row:2;
+    position:relative;overflow:hidden;border-radius:6px;
+    box-shadow:0 0 0 3px var(--stone), 0 10px 30px rgba(0,0,0,.5);
+    background:#000;
+  }
+  .ap-tile{
+    position:absolute;top:0;left:0;
+    background-repeat:no-repeat;
+    transition:transform .18s cubic-bezier(.4,0,.2,1);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);
+  }
+  .ap-arrow{
+    border:none;border-radius:8px;cursor:pointer;
+    background:linear-gradient(160deg, var(--stone), #a3823f);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.3);
+    transition:transform .1s ease;
+    touch-action:manipulation;
+  }
+  .ap-arrow:active{transform:scale(.88);background:linear-gradient(160deg, #a3823f, var(--stone))}
+  .ap-arrow svg{width:16px;height:16px;stroke:#2f2010;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  .ap-arrow-row{grid-column:2;display:flex;justify-content:space-around}
+  .ap-arrow-row.ap-top{grid-row:1}
+  .ap-arrow-row.ap-bottom{grid-row:3}
+  .ap-arrow-col{grid-row:2;display:flex;flex-direction:column;justify-content:space-around}
+  .ap-arrow-col.ap-left{grid-column:1}
+  .ap-arrow-col.ap-right{grid-column:3}
+  .ap-arrow-cell{width:34px;height:34px}
+
+  .ap-ref-box{
+    position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));right:14px;z-index:15;
+    width:56px;height:56px;border-radius:10px;overflow:hidden;
+    border:2px solid rgba(255,255,255,.4);box-shadow:0 4px 12px rgba(0,0,0,.4);
+    background-size:cover;background-position:center;
+    opacity:.85;transition:width .2s ease, height .2s ease;
+  }
+  .ap-ref-box.ap-ref-big{width:140px;height:140px}
+  .ap-ref-label{
+    position:absolute;bottom:calc(74px + env(safe-area-inset-bottom,0px));right:14px;z-index:15;
+    font-size:9px;font-weight:800;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.4px;
+  }
+
+  .ap-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:100;pointer-events:auto;
+    background:rgba(10,10,20,0.8);
+    opacity:1;transition:opacity .35s ease;
+  }
+  .ap-hint.hide{opacity:0;pointer-events:none}
+  .ap-hint-card{
+    background:rgba(30,20,50,0.92);
+    border:1.5px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:20px 22px;
+    max-width:280px;
+    text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+    pointer-events:auto;
+  }
+  .ap-hint-title{
+    font-family:'Cinzel',serif;color:var(--accent);font-size:15px;font-weight:700;
+    margin:0 0 12px;
+  }
+  .ap-hint-row{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:10px;text-align:left;
+  }
+  .ap-hint-row:last-of-type{margin-bottom:0}
+  .ap-hint-icon{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:rgba(255,255,255,0.08);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+  }
+  .ap-hint-text{font-size:12px;color:#fff;line-height:1.35}
+  .ap-hint-text b{color:var(--accent)}
+  .ap-hint-dismiss{
+    margin-top:14px;font-size:11px;color:rgba(255,255,255,0.55);
+    font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  }
+
+  .ap-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .ap-overlay.show{display:flex}
+  .ap-modal{
+    background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
+    max-height:86vh;overflow:auto;
+  }
+  .ap-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .ap-modal p{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .ap-solved-img{width:120px;height:120px;border-radius:10px;object-fit:cover;margin:0 auto 14px;display:block;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  .ap-final-score{font-family:'Cinzel',serif;font-size:36px;color:var(--brand-mid);margin-bottom:2px}
+  .ap-stats-line{font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .ap-best-line{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .ap-best-line b{color:var(--brand)}
+  .ap-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left}
+  .ap-lb-box{text-align:left;margin-bottom:18px}
+  .ap-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px}
+  .ap-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .ap-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ap-lb-score{font-weight:800}
+  .ap-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
+  .ap-btn{
+    padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;
+  }
+  .ap-btn:hover{background:var(--brand)}
+  #ap-share-btn{background:#f2a33c;margin-top:8px}
+  #ap-share-btn:hover{background:#d98a1f}
+</style>
+</head>
+<body>
+
+<nav class="ap-nav">
+  <a class="ap-back" href="/jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="ap-title">Ruínas de <span>Alph</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="ap-wrap" id="ap-wrap">
+  <div class="ap-hud" id="ap-hud">
+    <div class="ap-hud-box">
+      <div class="ap-hud-item">
+        <div class="ap-hud-label">Movimentos</div>
+        <div class="ap-hud-value" id="ap-moves">0</div>
+      </div>
+      <div class="ap-hud-item">
+        <div class="ap-hud-label">Tempo</div>
+        <div class="ap-hud-value" id="ap-time">0:00</div>
+      </div>
+      <div class="ap-hud-item">
+        <div class="ap-hud-label">Recorde</div>
+        <div class="ap-hud-value" id="ap-best">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ap-board-outer" id="ap-board-outer"></div>
+
+  <div class="ap-ref-label" id="ap-ref-label">referência</div>
+  <div class="ap-ref-box" id="ap-ref-box"></div>
+
+  <div class="ap-hint" id="ap-hint">
+    <div class="ap-hint-card">
+      <div class="ap-hint-title">Como jogar</div>
+      <div class="ap-hint-row">
+        <div class="ap-hint-icon">🧩</div>
+        <div class="ap-hint-text">As peças formam uma imagem escondida, igual aos murais das <b>Ruínas de Alph</b></div>
+      </div>
+      <div class="ap-hint-row">
+        <div class="ap-hint-icon">⬅️➡️</div>
+        <div class="ap-hint-text">Toque nas <b>setas ao redor</b> do tabuleiro pra empurrar uma linha ou coluna inteira (a peça que sai de um lado volta do outro)</div>
+      </div>
+      <div class="ap-hint-row">
+        <div class="ap-hint-icon">🖼️</div>
+        <div class="ap-hint-text">Use a <b>referência</b> no canto pra saber como a imagem deve ficar — toque nela pra ampliar</div>
+      </div>
+      <div class="ap-hint-row">
+        <div class="ap-hint-icon">⏱️</div>
+        <div class="ap-hint-text">Quanto <b>menos movimentos e tempo</b>, maior sua pontuação</div>
+      </div>
+      <div class="ap-hint-dismiss">Toque em qualquer lugar para começar</div>
+    </div>
+  </div>
+</div>
+
+<div class="ap-overlay" id="ap-overlay">
+  <div class="ap-modal">
+    <h2>Enigma resolvido!</h2>
+    <img class="ap-solved-img" id="ap-solved-img" src="" alt="">
+    <div class="ap-final-score" id="ap-final-score">0</div>
+    <div class="ap-stats-line" id="ap-stats-line">0 movimentos · 0:00</div>
+    <div class="ap-best-line">Seu recorde: <b id="ap-best-line-val">–</b></div>
+    <div class="ap-lb-box">
+      <div class="ap-panel-title">Top treinadores</div>
+      <div id="ap-leaderboard"><div class="ap-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="ap-btn" id="ap-restart-btn">Jogar novamente</button>
+    <button class="ap-btn" id="ap-share-btn">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="/games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// Ruínas de Alph — puzzle de deslizar linha/coluna (cíclico,
+// sem espaço vazio), igual às câmaras de imagem do jogo
+// original. Chave de leaderboard: 'ruinasdealph'.
+//
+// IMPORTANTE (rodar antes de usar em produção):
+// se a tabela `game_scores` tiver uma CHECK constraint restringindo
+// os valores aceitos pra coluna `game` (ex.: enum de 'tetris',
+// 'flapidgey', 'voltorbolha'), é preciso adicionar 'ruinasdealph'
+// nela, senão gSaveScore vai falhar silenciosamente (cai na fila de
+// pendentes em localStorage e nunca é aceito).
+// ════════════════════════════════════════════════════════
+
+const N = 4; // tamanho do grid (4x4 — mesmo tamanho das câmaras de imagem originais)
+const BOARD_SIZE = 320; // tamanho lógico do tabuleiro em px (antes da escala responsiva)
+const CELL = BOARD_SIZE / N;
+
+// Imagens do puzzle: por padrão usa só o Ditto (via PokeAPI), mas pode
+// ser sobrescrito/expandido salvando uma lista separada por vírgula na
+// tabela `settings` (mesmo padrão do tyrunt_sprite_normal etc.):
+//   insert into settings (key, value) values
+//     ('ruinasdealph_images', 'https://url1.png,https://url2.png')
+//   on conflict (key) do update set value = excluded.value;
+// A cada partida nova, uma imagem da lista é escolhida aleatoriamente.
+// Requisito: a imagem deve ser QUADRADA (mesma largura e altura) pra
+// as peças ficarem com o recorte correto.
+const PUZZLE_IMAGES_DEFAULT = [
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/132.png',
+];
+let PUZZLE_IMAGES = [...PUZZLE_IMAGES_DEFAULT];
+
+async function loadPuzzleImages() {
+  try {
+    const { data, error } = await gdb.from('settings').select('value').eq('key', 'ruinasdealph_images').maybeSingle();
+    if (error) { console.warn('[loadPuzzleImages] erro ao buscar imagens', error); return; }
+    if (data && data.value) {
+      const list = data.value.split(',').map(s => s.trim()).filter(Boolean);
+      if (list.length) PUZZLE_IMAGES = list;
+    }
+  } catch (e) { console.warn('[loadPuzzleImages]', e); }
+}
+
+let currentImage = PUZZLE_IMAGES_DEFAULT[0];
+let user, best = 0;
+let moves = 0;
+let startTime = null;
+let elapsedMs = 0;
+let timerHandle = null;
+let solved = false;
+let scale = 1;
+
+// pos[tileId] = {row, col} — posição ATUAL da peça no tabuleiro.
+// A peça `tileId` pertence, por definição, à posição "casa"
+// row = floor(tileId / N), col = tileId % N — é essa posição de
+// origem que decide qual pedaço da imagem aparece nela (a peça em si
+// nunca muda de recorte, só de posição no tabuleiro).
+let pos = [];
+let tileEls = [];
+
+const boardOuter = document.getElementById('ap-board-outer');
+const movesEl = document.getElementById('ap-moves');
+const timeEl = document.getElementById('ap-time');
+const bestEl = document.getElementById('ap-best');
+const refBox = document.getElementById('ap-ref-box');
+
+function homeRowCol(id) { return { row: Math.floor(id / N), col: id % N }; }
+
+function buildBoardDom() {
+  boardOuter.innerHTML = '';
+
+  // setas de cima (empurram coluna pra CIMA)
+  const topRow = document.createElement('div');
+  topRow.className = 'ap-arrow-row ap-top';
+  for (let c = 0; c < N; c++) topRow.appendChild(makeArrowBtn('up', () => shiftCol(c, -1)));
+  boardOuter.appendChild(topRow);
+
+  // setas da esquerda (empurram linha pra ESQUERDA)
+  const leftCol = document.createElement('div');
+  leftCol.className = 'ap-arrow-col ap-left';
+  for (let r = 0; r < N; r++) leftCol.appendChild(makeArrowBtn('left', () => shiftRow(r, -1)));
+  boardOuter.appendChild(leftCol);
+
+  // tabuleiro
+  const board = document.createElement('div');
+  board.className = 'ap-board';
+  board.id = 'ap-board';
+  board.style.width = BOARD_SIZE + 'px';
+  board.style.height = BOARD_SIZE + 'px';
+  boardOuter.appendChild(board);
+
+  // setas da direita (empurram linha pra DIREITA)
+  const rightCol = document.createElement('div');
+  rightCol.className = 'ap-arrow-col ap-right';
+  for (let r = 0; r < N; r++) rightCol.appendChild(makeArrowBtn('right', () => shiftRow(r, 1)));
+  boardOuter.appendChild(rightCol);
+
+  // setas de baixo (empurram coluna pra BAIXO)
+  const bottomRow = document.createElement('div');
+  bottomRow.className = 'ap-arrow-row ap-bottom';
+  for (let c = 0; c < N; c++) bottomRow.appendChild(makeArrowBtn('down', () => shiftCol(c, 1)));
+  boardOuter.appendChild(bottomRow);
+
+  tileEls = [];
+  for (let id = 0; id < N * N; id++) {
+    const { row, col } = homeRowCol(id);
+    const el = document.createElement('div');
+    el.className = 'ap-tile';
+    el.style.width = CELL + 'px';
+    el.style.height = CELL + 'px';
+    el.style.backgroundImage = `url("${currentImage}")`;
+    el.style.backgroundSize = `${BOARD_SIZE}px ${BOARD_SIZE}px`;
+    el.style.backgroundPosition = `-${col * CELL}px -${row * CELL}px`;
+    board.appendChild(el);
+    tileEls[id] = el;
+  }
+}
+
+const ARROW_ICON = {
+  up: '<polyline points="18 15 12 9 6 15"/>',
+  down: '<polyline points="6 9 12 15 18 9"/>',
+  left: '<polyline points="15 18 9 12 15 6"/>',
+  right: '<polyline points="9 18 15 12 9 6"/>',
+};
+function makeArrowBtn(dir, onClick) {
+  const btn = document.createElement('button');
+  btn.className = 'ap-arrow ap-arrow-cell';
+  btn.innerHTML = `<svg viewBox="0 0 24 24">${ARROW_ICON[dir]}</svg>`;
+  btn.addEventListener('click', () => { if (!solved) onClick(); });
+  return btn;
+}
+
+function render() {
+  for (let id = 0; id < N * N; id++) {
+    const { row, col } = pos[id];
+    tileEls[id].style.transform = `translate(${col * CELL}px, ${row * CELL}px)`;
+  }
+}
+
+// Lê a linha `r` (peças em cada coluna, na ordem 0..N-1) ou a coluna `c`
+// (peças em cada linha, na ordem 0..N-1) — a mesma função de rotação
+// cíclica serve pra ambos os casos.
+function getRowTiles(r) {
+  const arr = new Array(N);
+  for (let id = 0; id < N * N; id++) if (pos[id].row === r) arr[pos[id].col] = id;
+  return arr;
+}
+function getColTiles(c) {
+  const arr = new Array(N);
+  for (let id = 0; id < N * N; id++) if (pos[id].col === c) arr[pos[id].row] = id;
+  return arr;
+}
+function rotateCyclic(arr, dir) {
+  // dir -1 = desloca "pra trás" (índice 0 vai pro fim); dir +1 = desloca "pra frente" (fim vai pro início)
+  return dir < 0 ? arr.slice(1).concat(arr[0]) : [arr[arr.length - 1], ...arr.slice(0, arr.length - 1)];
+}
+
+function shiftRow(r, dir, silent) {
+  const shifted = rotateCyclic(getRowTiles(r), dir);
+  shifted.forEach((id, col) => { pos[id].col = col; });
+  if (!silent) afterMove();
+}
+function shiftCol(c, dir, silent) {
+  const shifted = rotateCyclic(getColTiles(c), dir);
+  shifted.forEach((id, row) => { pos[id].row = row; });
+  if (!silent) afterMove();
+}
+
+function afterMove() {
+  moves++;
+  movesEl.textContent = moves;
+  render();
+  if (checkSolved()) onSolved();
+}
+
+function checkSolved() {
+  for (let id = 0; id < N * N; id++) {
+    const h = homeRowCol(id);
+    if (pos[id].row !== h.row || pos[id].col !== h.col) return false;
+  }
+  return true;
+}
+
+function shuffleBoard() {
+  pos = [];
+  for (let id = 0; id < N * N; id++) pos[id] = homeRowCol(id);
+  // Só linhas/colunas cíclicas são usadas pra embaralhar, então o
+  // estado embaralhado É, por construção, sempre resolvível (basta
+  // desfazer os mesmos movimentos na ordem inversa).
+  const SHUFFLE_STEPS = 60;
+  for (let i = 0; i < SHUFFLE_STEPS; i++) {
+    const useRow = Math.random() < 0.5;
+    const idx = Math.floor(Math.random() * N);
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    if (useRow) shiftRow(idx, dir, true); else shiftCol(idx, dir, true);
+  }
+  if (checkSolved()) shuffleBoard(); // (extremamente raro, mas por garantia)
+  render();
+}
+
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function startTimer() {
+  startTime = Date.now();
+  elapsedMs = 0;
+  timeEl.textContent = '0:00';
+  clearInterval(timerHandle);
+  timerHandle = setInterval(() => {
+    elapsedMs = Date.now() - startTime;
+    timeEl.textContent = formatTime(elapsedMs);
+  }, 500);
+}
+function stopTimer() {
+  clearInterval(timerHandle);
+  elapsedMs = Date.now() - startTime;
+  timeEl.textContent = formatTime(elapsedMs);
+}
+
+// Pontuação: começa em 3000 e perde 12 pontos por movimento e 3 por
+// segundo gasto, nunca fica negativa. É só uma fórmula inicial — dá
+// pra ajustar os pesos livremente sem quebrar nada mais (o leaderboard
+// só entende "maior é melhor").
+function computeScore() {
+  const secs = Math.floor(elapsedMs / 1000);
+  return Math.max(0, 3000 - moves * 12 - secs * 3);
+}
+
+let finalScore = 0;
+function onSolved() {
+  solved = true;
+  stopTimer();
+  finalScore = computeScore();
+  document.getElementById('ap-final-score').textContent = finalScore;
+  document.getElementById('ap-stats-line').textContent = `${moves} movimentos · ${formatTime(elapsedMs)}`;
+  document.getElementById('ap-solved-img').src = currentImage;
+  document.getElementById('ap-overlay').classList.add('show');
+  if (user) gSaveScore('ruinasdealph', finalScore, user).then(refreshBest);
+  refreshLeaderboard();
+}
+
+function newGame() {
+  solved = false;
+  moves = 0;
+  movesEl.textContent = '0';
+  document.getElementById('ap-overlay').classList.remove('show');
+  currentImage = PUZZLE_IMAGES[Math.floor(Math.random() * PUZZLE_IMAGES.length)];
+  refBox.style.backgroundImage = `url("${currentImage}")`;
+  buildBoardDom();
+  shuffleBoard();
+  startTimer();
+}
+document.getElementById('ap-restart-btn').addEventListener('click', newGame);
+
+// ── Referência ampliável (toque pra crescer/encolher) ────
+refBox.addEventListener('click', () => refBox.classList.toggle('ap-ref-big'));
+
+// ── Responsivo: escala o tabuleiro+setas pra caber na tela ─
+function resize() {
+  const wrap = document.getElementById('ap-wrap');
+  const availW = wrap.clientWidth - 24;
+  const availH = wrap.clientHeight - 24;
+  const natural = BOARD_SIZE + 2 * 40; // tabuleiro + setas dos dois lados
+  scale = Math.min(1, availW / natural, availH / natural);
+  boardOuter.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+
+// ── Ranking ───────────────────────────────────────────────
+async function refreshLeaderboard() {
+  const el = document.getElementById('ap-leaderboard');
+  const top = await gLoadTopScores('ruinasdealph', 5);
+  if (top.length === 0) {
+    el.innerHTML = '<div class="ap-lb-empty">Nenhum recorde ainda.</div>';
+    return;
+  }
+  el.innerHTML = top.map((row, i) => `
+    <div class="ap-lb-row">
+      <span class="ap-lb-pos">${i + 1}º</span>
+      <span class="ap-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="ap-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+
+async function refreshBest() {
+  if (!user) return;
+  best = await gLoadMyBest('ruinasdealph', user.id);
+  bestEl.textContent = best || '–';
+  document.getElementById('ap-best-line-val').textContent = best || '–';
+}
+
+// ── Compartilhar resultado no Stories ──────────────────────
+function buildResultCanvas() {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#2f2050');
+  bg.addColorStop(1, '#150e29');
+  c2.fillStyle = bg;
+  c2.fillRect(0, 0, W, H);
+
+  c2.textAlign = 'center';
+  c2.fillStyle = '#f2c94c';
+  c2.font = "800 64px 'Cinzel', serif";
+  c2.fillText('Ruínas de Alph', W / 2, 300);
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const finish = () => {
+      const size = 500, x = W / 2 - size / 2, y = 420;
+      c2.save();
+      c2.strokeStyle = '#c9a86a';
+      c2.lineWidth = 8;
+      c2.strokeRect(x - 4, y - 4, size + 8, size + 8);
+      try { c2.drawImage(img, x, y, size, size); } catch (e) { /* imagem não carregou a tempo — segue sem ela */ }
+      c2.restore();
+
+      c2.fillStyle = 'rgba(255,255,255,.9)';
+      const cardW = 760, cardH = 300, cardX = (W - cardW) / 2, cardY = y + size + 60;
+      c2.beginPath();
+      c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+      c2.fill();
+
+      c2.fillStyle = '#6b7280';
+      c2.font = "800 32px 'Nunito', sans-serif";
+      c2.fillText('PONTOS', W / 2, cardY + 66);
+
+      c2.fillStyle = '#4a2e7a';
+      c2.font = "800 120px 'Cinzel', serif";
+      c2.fillText(String(finalScore), W / 2, cardY + 190);
+
+      c2.fillStyle = '#7c4fc9';
+      c2.font = "700 34px 'Nunito', sans-serif";
+      c2.fillText(`${moves} movimentos · ${formatTime(elapsedMs)}`, W / 2, cardY + 250);
+
+      c2.fillStyle = '#fff';
+      c2.font = "800 50px 'Nunito', sans-serif";
+      c2.shadowColor = 'rgba(0,0,0,.35)';
+      c2.shadowBlur = 10;
+      c2.shadowOffsetY = 2;
+      const ctaLines = wrapCanvasText(c2, `Eu resolvi o enigma de Alph, venha jogar também!`, W - 140);
+      let ctaY = cardY + cardH + 90;
+      ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += 64; });
+      c2.shadowColor = 'transparent';
+      c2.shadowBlur = 0;
+      c2.shadowOffsetY = 0;
+
+      resolve(c);
+    };
+    img.onload = finish;
+    img.onerror = finish;
+    img.src = currentImage;
+  });
+}
+
+function wrapCanvasText(ctx2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx2d.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+async function shareResultToStories() {
+  let dataUrl = null;
+  try {
+    const canvas = await buildResultCanvas();
+    dataUrl = canvas.toDataURL('image/png');
+  } catch (e) {
+    console.warn('[shareResultToStories] falhou ao gerar imagem do resultado', e);
+  }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl,
+        gameLink: '/ruinasdealph.html'
+      }));
+    } catch (e) {
+      console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
+    }
+  }
+  window.location.href = '/';
+}
+document.getElementById('ap-share-btn').addEventListener('click', shareResultToStories);
+
+// ── Dica inicial ──────────────────────────────────────────
+const hintEl = document.getElementById('ap-hint');
+hintEl.addEventListener('click', () => hintEl.classList.add('hide'));
+
+// ── Boot ──────────────────────────────────────────────────
+function tryEnterFullscreenNow() {
+  try {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen || !gIsMobileLike()) return;
+    el.requestFullscreen().catch(() => {});
+  } catch (e) {}
+}
+tryEnterFullscreenNow();
+gSetupFullscreenOnFirstInteraction();
+
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  await loadPuzzleImages();
+  newGame();
+  resize();
+  setTimeout(resize, 300);
+  refreshBest();
+  refreshLeaderboard();
+})();
+</script>
+</body>
+</html>
