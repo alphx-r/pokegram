@@ -9748,10 +9748,13 @@ async function renderStories() {
   const { data: followRows } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id);
   const followingIds = (followRows || []).map(r => r.following_id);
 
+  const followingSet = new Set(followingIds);
+
+  // stories de TODO MUNDO (não só de quem eu sigo) — quem eu sigo aparece
+  // primeiro e ganha destaque visual; quem eu não sigo aparece depois com
+  // uma borda opaca/neutra pra diferenciar.
   const [{ data: stories }, { data: myStories }] = await Promise.all([
-    followingIds.length
-      ? db.from('stories').select('id, user_id, users(id, username, color, avatar_url, is_npc)').gt('expires_at', now).neq('user_id', currentUser.id).in('user_id', followingIds)
-      : Promise.resolve({ data: [] }),
+    db.from('stories').select('id, user_id, users(id, username, color, avatar_url, is_npc)').gt('expires_at', now).neq('user_id', currentUser.id),
     db.from('stories').select('id').eq('user_id', currentUser.id).gt('expires_at', now).limit(1),
   ]);
 
@@ -9813,29 +9816,52 @@ async function renderStories() {
     });
   }
 
-  // não-vistos primeiro, vistos depois
-  const unviewed = unique.filter(s => !viewedOwners.has(s.users?.id));
-  const viewed   = unique.filter(s =>  viewedOwners.has(s.users?.id));
-  const sorted   = [...unviewed, ...viewed];
+  // Ordena em 4 grupos: sigo+não-visto, sigo+visto, não-sigo+não-visto, não-sigo+visto.
+  // Assim quem eu sigo sempre aparece primeiro, e dentro de cada bloco os
+  // stories novos vêm antes dos já vistos.
+  const isFollowedOwner = s => followingSet.has(s.users?.id);
+  const followedUnviewed    = unique.filter(s =>  isFollowedOwner(s) && !viewedOwners.has(s.users?.id));
+  const followedViewed      = unique.filter(s =>  isFollowedOwner(s) &&  viewedOwners.has(s.users?.id));
+  const notFollowedUnviewed = unique.filter(s => !isFollowedOwner(s) && !viewedOwners.has(s.users?.id));
+  const notFollowedViewed   = unique.filter(s => !isFollowedOwner(s) &&  viewedOwners.has(s.users?.id));
+  const sorted = [...followedUnviewed, ...followedViewed, ...notFollowedUnviewed, ...notFollowedViewed];
 
   list.innerHTML = sorted.map(s => {
     const u       = s.users || {};
     const count   = countMap[u.id] || 1;
     const color   = u.color || '#e53935';
-    const isViewed = viewedOwners.has(u.id);
-    const ringGradient = isViewed ? '' : makeStoryGradient(color);
-    const ringBorder   = '';
+    const isViewed  = viewedOwners.has(u.id);
+    const isFollowing = followingSet.has(u.id);
+
+    // Anel: quem eu sigo mantém o destaque colorido (gradiente na cor do
+    // usuário se não-visto, cinza fino se visto). Quem eu não sigo ganha
+    // uma borda opaca/neutra pra diferenciar visualmente de quem eu sigo,
+    // independente de já ter visto ou não.
+    let ringStyle, ringClass;
+    if (!isFollowing) {
+      ringStyle = 'background:rgba(120,120,120,.45);border:2px solid rgba(0,0,0,.18)';
+      ringClass = 'story-ring-notfollowing';
+    } else if (!isViewed) {
+      ringStyle = makeStoryGradient(color);
+      ringClass = 'story-ring-active';
+    } else {
+      ringStyle = '';
+      ringClass = 'story-ring-viewed';
+    }
+
+    const itemOpacity = isViewed ? 0.6 : (isFollowing ? 1 : 0.85);
     const badgeStyle   = `background:${color}`;
 
+    const picBg = (!isFollowing || isViewed) ? '#b0b0b0' : color;
     const pic = u.avatar_url
-      ? `<div class="story-pic" style="background:transparent;overflow:hidden"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
-      : `<div class="story-pic" style="background:${isViewed ? '#b0b0b0' : color}">${initials(u.username||'?')}</div>`;
+      ? `<div class="story-pic" style="background:transparent;overflow:hidden;${!isFollowing ? 'filter:grayscale(35%)' : ''}"><img src="${u.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
+      : `<div class="story-pic" style="background:${picBg}">${initials(u.username||'?')}</div>`;
     const badge = count > 1
       ? `<div class="story-count-badge" style="${badgeStyle}">${count}</div>`
       : '';
-    return `<div class="story-item" style="${isViewed ? 'opacity:0.6' : ''}" onclick="openStoryViewer('${u.id}')">
-      <div class="story-ring ${isViewed ? 'story-ring-viewed' : 'story-ring-active'}" style="position:relative;${ringGradient}">${pic}${badge}</div>
-      <span style="color:${isViewed ? '#999' : ''}">${u.username}</span>
+    return `<div class="story-item" style="opacity:${itemOpacity}" onclick="openStoryViewer('${u.id}')">
+      <div class="story-ring ${ringClass}" style="position:relative;${ringStyle}">${pic}${badge}</div>
+      <span style="color:${isViewed || !isFollowing ? '#999' : ''}">${u.username}</span>
     </div>`;
   }).join('');
 }
