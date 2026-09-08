@@ -1720,7 +1720,7 @@ a:focus, a:active,
           style="width:100%;padding:10px 0;border-radius:10px;border:1.5px dashed #c8c8c8;background:transparent;color:#555;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
           ＋ Criar novo perfil
         </button>
-        <div id="switch-novo-form" style="display:none;flex-direction:column;gap:6px;padding:12px;background:#fafafa;border-radius:10px">
+        <div id="switch-novo-form" class="auth-form" style="display:none;flex-direction:column;gap:6px;padding:12px;background:#fafafa;border-radius:10px">
           <input type="text" id="switch-novo-player" placeholder="Player" autocomplete="off">
           <input type="password" id="switch-novo-senha" placeholder="Senha do KP">
           <input type="text" id="switch-novo-username" placeholder="username" autocomplete="off">
@@ -4391,6 +4391,30 @@ async function kpFetch(path) {
 // e player_unlink_pokegram_perfil_admin). Troque os dois lados juntos.
 const KP_ADMIN_SERVICE_KEY = '054e5ce5-ff43-47fc-8c2b-192c027622d8';
 
+// ── Repara perfis "órfãos" (conta de Auth já existe mas password_plain é
+//    desconhecido/vazio). Só funciona se temos a senha real do KP em memória
+//    (_kpSession.senha — login manual via player+senha; não funciona no
+//    handoff automático, que não guarda a senha). A Edge Function revalida
+//    essa senha e a posse do perfil direto no banco do KP antes de resetar
+//    a senha real no Supabase Auth, então é seguro chamar sem confirmação. ──
+const REPAIR_AUTH_ENDPOINT = "https://cofqapsaxrqlmxzpzbkr.supabase.co/functions/v1/repair-profile-auth";
+async function repairProfileAuthViaKp(username) {
+  if (!_kpSession || !_kpSession.senha) return null;
+  try {
+    const resp = await fetch(REPAIR_AUTH_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` },
+      body: JSON.stringify({ username, kp_nome: _kpSession.nome, kp_senha: _kpSession.senha })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) { console.error('[repairProfileAuthViaKp] falhou', data); return null; }
+    return data.password;
+  } catch (e) {
+    console.error('[repairProfileAuthViaKp] erro', e);
+    return null;
+  }
+}
+
 // Confirma que existe sessão real de Auth antes de liberar qualquer ação
 // administrativa sensível — não elimina a exposição da chave de serviço no
 // client, mas impede que a ação rode sem passar pelo login do admin.
@@ -4662,7 +4686,17 @@ async function enterKpProfile(username, preloadedUser) {
     // chat não funciona, repara isso na hora gerando uma senha e criando a
     // conta agora, para que o login real abaixo tenha como funcionar.
     if (!user.password_plain) {
-      await ensureKpProfileAuthAccount(user, fakeEmail);
+      const generated = await ensureKpProfileAuthAccount(user, fakeEmail);
+      if (!generated) {
+        // Conta de Auth já existe com senha desconhecida (perfil "órfão") —
+        // repara via Edge Function, que revalida a senha do player no KP
+        // e a posse do perfil antes de resetar a senha real.
+        const repaired = await repairProfileAuthViaKp(user.username);
+        if (repaired) {
+          user.password_plain = repaired;
+          console.log('[enterKpProfile] perfil órfão reparado via repair-profile-auth para', user.username);
+        }
+      }
     }
 
     if (user.password_plain) {
@@ -9755,7 +9789,7 @@ async function renderFeed() {
 
   // Garante que followState esteja carregado antes de renderizar sugestões
   if (!Object.keys(followState).length) {
-    const { data } = await db.from('follows').select('following_id').eq('follower_id', currentUser.id).catch(() => ({ data: [] }));
+    const { data } = await Promise.resolve(db.from('follows').select('following_id').eq('follower_id', currentUser.id)).catch(() => ({ data: [] }));
     if (data) data.forEach(r => { followState[r.following_id] = true; });
   }
   renderSuggestions().catch(e => console.warn('suggestions error:', e));
