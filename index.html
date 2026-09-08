@@ -12345,15 +12345,39 @@ function showStory(idx) {
   _storyTimer = setTimeout(() => storyNav(1), STORY_DURATION);
 
   // marca o story atual como visto imediatamente ao exibi-lo
-  const _cur = _storyViewList[idx];
-  if (_cur && _cur.users?.id && _cur.users.id !== currentUser.id) {
-    db.from('story_views').upsert(
-      { viewer_id: currentUser.id, owner_id: _cur.users.id, story_id: _cur.id, viewed_at: new Date().toISOString() },
-      { onConflict: 'viewer_id,story_id' }
-    ).then(({ error }) => {
-      if (error) console.warn('Erro ao registrar visualização do story:', error);
-    });
+  registerStoryView(_storyViewList[idx]);
+}
+
+// Registra a visualização de um story (upsert em story_views).
+// Isolado em função própria para poder validar pré-condições, logar
+// falhas de forma visível e permitir retry manual se necessário.
+function registerStoryView(story) {
+  if (!story || !story.id) {
+    console.warn('[story_views] story inválido/sem id, visualização NÃO registrada:', story);
+    return;
   }
+  if (!currentUser || !currentUser.id) {
+    console.warn('[story_views] currentUser ainda não carregado, visualização NÃO registrada. Tentando novamente em 500ms...');
+    setTimeout(() => registerStoryView(story), 500);
+    return;
+  }
+  const ownerId = story.users?.id;
+  if (!ownerId) {
+    console.warn('[story_views] story sem users.id (join falhou?), visualização NÃO registrada:', story);
+    return;
+  }
+  if (ownerId === currentUser.id) return; // dono não conta view no próprio story
+
+  db.from('story_views').upsert(
+    { viewer_id: currentUser.id, owner_id: ownerId, story_id: story.id, viewed_at: new Date().toISOString() },
+    { onConflict: 'viewer_id,story_id' }
+  ).then(({ error }) => {
+    if (error) {
+      console.error('[story_views] FALHA ao registrar visualização:', error, { storyId: story.id, ownerId, viewerId: currentUser.id });
+    }
+  }).catch(err => {
+    console.error('[story_views] Exceção ao registrar visualização:', err, { storyId: story.id });
+  });
 }
 
 async function storyNav(dir) {
