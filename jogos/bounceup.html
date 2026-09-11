@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Sky Jump · Pokégram</title>
+<title>Bounce Up! · Pokégram</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -132,7 +132,7 @@
     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     Jogos
   </a>
-  <div class="sj-title">Sky <span>Jump</span></div>
+  <div class="sj-title">Bounce <span>Up!</span></div>
   <div style="width:56px"></div>
 </nav>
 
@@ -158,11 +158,11 @@
       <div class="sj-hint-title">Como jogar</div>
       <div class="sj-hint-row">
         <div class="sj-hint-icon">👆</div>
-        <div class="sj-hint-text"><b>Arraste o dedo</b> <span style="opacity:.7">(ou ← →)</span> para guiar o Hoppip entre as plataformas</div>
+        <div class="sj-hint-text"><b>Arraste o dedo</b> <span style="opacity:.7">(ou ← →)</span> para guiar o Spoink entre as plataformas</div>
       </div>
       <div class="sj-hint-row">
         <div class="sj-hint-icon">☁️</div>
-        <div class="sj-hint-text">Não deixe o Hoppip cair da tela — suba o quanto conseguir!</div>
+        <div class="sj-hint-text">Não deixe o Spoink cair da tela — suba o quanto conseguir!</div>
       </div>
       <div class="sj-hint-dismiss">Toque em qualquer lugar para começar</div>
     </div>
@@ -171,7 +171,7 @@
 
 <div class="sj-overlay" id="sj-overlay">
   <div class="sj-modal">
-    <h2>Hoppip caiu!</h2>
+    <h2>Spoink caiu!</h2>
     <p>Sua pontuação foi registrada no ranking.</p>
     <div class="sj-final-score" id="sj-final-score">0 m</div>
     <div class="sj-best-line">Seu recorde: <b id="sj-best-line-val">–</b></div>
@@ -187,7 +187,7 @@
 <script src="/games-common.js"></script>
 <script>
 // ════════════════════════════════════════════════════════
-// Sky Jump — Hoppip subindo de plataforma em plataforma,
+// Bounce Up! — Spoink subindo de plataforma em plataforma,
 // estilo Doodle Jump. Segue o mesmo layout/HUD do tyRUNt.
 // ════════════════════════════════════════════════════════
 
@@ -198,13 +198,36 @@ const scoreEl = document.getElementById('sj-score');
 const bestEl = document.getElementById('sj-best');
 let user, best = 0;
 
-const HOPPIP_SPRITE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/187.png';
-let spriteReady = false;
+// GIF animado do Spoink. Um <img> desenhado via ctx.drawImage() NÃO anima
+// (o canvas só "fotografa" o frame decodificado naquele instante) — por
+// isso o sprite de gameplay é uma <img> real e visível (#sj-sprite),
+// posicionada sobre o canvas a cada frame (mesma técnica do tr-sprite no
+// tyrunt.html). Só usamos ctx.drawImage() com uma Image() separada
+// (spriteImg) pra montar a imagem estática de compartilhamento no Stories.
+const SPOINK_SPRITE = 'https://projectpokemon.org/home/uploads/monthly_2021_09/large.Animated.gif.bad7c5d42dbf8fc7df2f31cc65037224.gif';
+let spriteReady = false;   // controla o fallback vetorial no compartilhamento
+let spriteElReady = false; // controla o fallback vetorial no canvas do jogo
+
 const spriteImg = new Image();
 spriteImg.crossOrigin = 'anonymous'; // essencial p/ toDataURL() no compartilhamento
 spriteImg.onload = () => { spriteReady = true; };
 spriteImg.onerror = () => { spriteReady = false; };
-spriteImg.src = HOPPIP_SPRITE;
+spriteImg.src = SPOINK_SPRITE;
+
+spriteEl.crossOrigin = 'anonymous';
+spriteEl.onload = () => { spriteElReady = true; spriteEl.style.display = 'block'; };
+spriteEl.onerror = () => { spriteElReady = false; spriteEl.style.display = 'none'; };
+spriteEl.src = SPOINK_SPRITE;
+
+function updateSpritePosition() {
+  if (!spriteElReady || !player) return;
+  spriteEl.style.width = PLAYER_W + 'px';
+  spriteEl.style.height = PLAYER_H + 'px';
+  const x = canvas.offsetLeft + player.x;
+  const y = canvas.offsetTop + player.y;
+  const flip = player.facing < 0 ? ' scaleX(-1)' : '';
+  spriteEl.style.transform = `translate(${x}px, ${y}px)${flip}`;
+}
 
 // ── Estado do jogo ───────────────────────────────────────
 const BASE_W_MIN = 260, BASE_H_MIN = 340;
@@ -387,18 +410,17 @@ function draw() {
     ctx.fill();
   }
 
-  ctx.save();
-  ctx.translate(player.x + PLAYER_W / 2, player.y + PLAYER_H / 2);
-  if (player.facing < 0) ctx.scale(-1, 1);
-  if (spriteReady) {
-    ctx.drawImage(spriteImg, -PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H);
+  if (spriteElReady) {
+    updateSpritePosition();
   } else {
-    ctx.fillStyle = '#8fd67a';
+    ctx.save();
+    ctx.translate(player.x + PLAYER_W / 2, player.y + PLAYER_H / 2);
+    ctx.fillStyle = '#f2b6e0';
     ctx.beginPath();
     ctx.arc(0, 0, PLAYER_W / 2, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
   }
-  ctx.restore();
 }
 
 function loop(ts) {
@@ -444,7 +466,7 @@ setTimeout(resize, 300);
 // ── Ranking ───────────────────────────────────────────────
 async function refreshLeaderboard() {
   const el = document.getElementById('sj-leaderboard');
-  const top = await gLoadTopScores('skyjump', 5);
+  const top = await gLoadTopScores('bounceup', 5);
   if (top.length === 0) {
     el.innerHTML = '<div class="sj-lb-empty">Nenhum recorde ainda.</div>';
     return;
@@ -459,7 +481,7 @@ async function refreshLeaderboard() {
 
 async function refreshBest() {
   if (!user) return;
-  best = await gLoadMyBest('skyjump', user.id);
+  best = await gLoadMyBest('bounceup', user.id);
   bestEl.textContent = best || '–';
   const el = document.getElementById('sj-best-line-val');
   if (el) el.textContent = best || '–';
@@ -468,7 +490,7 @@ async function refreshBest() {
 async function endGame() {
   gameOver = true;
   started = false;
-  if (user) await gSaveScore('skyjump', score, user);
+  if (user) await gSaveScore('bounceup', score, user);
   document.getElementById('sj-final-score').textContent = score + ' m';
   if (score > best) best = score;
   bestEl.textContent = best || '–';
@@ -500,14 +522,14 @@ function buildResultCanvas(useSprite = true) {
   c2.textAlign = 'center';
   c2.fillStyle = '#2f8f5b';
   c2.font = "800 74px 'Cinzel', serif";
-  c2.fillText('Sky Jump', W / 2, 320);
+  c2.fillText('Bounce Up!', W / 2, 320);
 
   const finalScore = Math.floor(score);
   const size = 260;
   if (useSprite && spriteReady) {
     c2.drawImage(spriteImg, W / 2 - size / 2, 620 - size / 2, size, size);
   } else {
-    c2.fillStyle = '#8fd67a';
+    c2.fillStyle = '#f2b6e0';
     c2.beginPath(); c2.arc(W / 2, 700, size / 2, 0, Math.PI * 2); c2.fill();
   }
 
@@ -536,7 +558,7 @@ function buildResultCanvas(useSprite = true) {
   c2.shadowColor = 'rgba(0,0,0,.35)';
   c2.shadowBlur = 10;
   c2.shadowOffsetY = 2;
-  const ctaLines = wrapCanvasText(c2, `Hoppip subiu ${finalScore} m, venha jogar Sky Jump também!`, W - 140);
+  const ctaLines = wrapCanvasText(c2, `Spoink pulou ${finalScore} m, venha jogar Bounce Up! também!`, W - 140);
   const ctaLineHeight = 68;
   let ctaY = cardY + cardH + (best ? 200 : 140);
   ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += ctaLineHeight; });
@@ -580,7 +602,7 @@ function shareResultToStories() {
     try {
       sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
         image: dataUrl,
-        gameLink: '/skyjump.html'
+        gameLink: '/bounceup.html'
       }));
     } catch (e) {
       console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
