@@ -280,8 +280,8 @@ Object.keys(ITEM_SPRITES_B64).forEach(key => {
   img.onerror = () => { itemImgs[key].ready = false; };
   img.src = ITEM_SPRITES_B64[key];
 });
-const SWIFT_SPAWN_CHANCE = 0.05;  // checado antes, é mais rara
-const RESIST_SPAWN_CHANCE = 0.10;
+const SWIFT_SPAWN_CHANCE = 0.02;  // checado antes, é mais rara
+const RESIST_SPAWN_CHANCE = 0.05;
 
 let toastTimer = null;
 function showToast(text) {
@@ -366,15 +366,22 @@ let clouds = [];
 // Espaçamento vertical entre plataformas — a mesma faixa é usada tanto na
 // geração inicial (resetGame) quanto na geração contínua durante o jogo,
 // pra não ter um "salto" de ritmo entre o começo e o resto da partida.
-const PLATFORM_GAP_MIN = 70, PLATFORM_GAP_RANGE = 30;
+// Faixa mais curta e confortável (55 a 90px) — alcance máximo do pulo
+// normal é v²/2g ≈ 136px, então isso deixa boa folga mesmo nos gaps maiores.
+const PLATFORM_GAP_MIN = 55, PLATFORM_GAP_RANGE = 35;
 const FRAGILE_CHANCE = 0.22;      // chance de uma plataforma nascer frágil
 const FRAGILE_BREAK_MS = 180;     // duração da animação de quebra antes de sumir
 
 function randomPlatform(y) {
   const w = 60 + Math.random() * 20;
+  const moving = Math.random() < 0.3;
   return {
     x: Math.random() * (BASE_W - w), y, w, h: 14,
-    wobble: Math.random() < 0.18,
+    wobble: false,
+    moving,
+    // velocidade horizontal (px/s), direção aleatória — atravessa a tela
+    // inteira e reaparece do outro lado (wraparound), não só balança.
+    vx: moving ? (60 + Math.random() * 60) * (Math.random() < 0.5 ? -1 : 1) : 0,
     fragile: Math.random() < FRAGILE_CHANCE,
     breaking: 0, // timestamp de quando começou a quebrar (0 = intacta)
   };
@@ -514,7 +521,12 @@ function update(dt) {
 
   const t = performance.now() / 500;
   for (const p of platforms) {
-    if (p.wobble) p.x += Math.sin(t + p.y) * 0.6 * (dt * 60);
+    if (p.moving) {
+      p.x += p.vx * dt;
+      // wraparound: some de um lado, reaparece do outro
+      if (p.x > BASE_W) p.x = -p.w;
+      else if (p.x + p.w < 0) p.x = BASE_W;
+    }
   }
 
   platforms = platforms.filter(p => p.y < BASE_H + 40 && (!p.breaking || performance.now() - p.breaking < FRAGILE_BREAK_MS));
@@ -598,18 +610,16 @@ function draw() {
 
   for (const it of items) {
     const cx = it.x + it.w / 2, cy = it.y + it.h / 2, r = it.w / 2;
-    const fill = it.kind === 'swift' ? 'rgba(247,201,224,.55)' : 'rgba(166,200,240,.55)';
-    const glow = it.kind === 'swift' ? '#fde8f2' : '#d6e8fb';
-    // bolha translúcida (mesmo estilo das berries dos outros jogos)
+    // bolha branca translúcida (mesma pra ambos os tipos de pena)
     ctx.save();
     ctx.shadowColor = 'rgba(255,255,255,.6)';
     ctx.shadowBlur = 6;
-    ctx.fillStyle = fill;
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-    ctx.fillStyle = glow;
+    ctx.fillStyle = '#ffffff';
     ctx.globalAlpha = 0.6;
     ctx.beginPath();
     ctx.ellipse(cx - r * 0.3, cy - r * 0.35, r * 0.35, r * 0.22, -0.5, 0, Math.PI * 2);
