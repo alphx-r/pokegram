@@ -64,6 +64,18 @@
   .sj-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
   .sj-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
 
+  .sj-hud-coins{transition:transform .15s ease, filter .15s ease}
+  .sj-hud-coins.sj-coins-ready{cursor:pointer}
+  .sj-hud-coins.sj-coins-ready .sj-hud-value{color:#e8b23a}
+  .sj-hud-coins.sj-coins-ready{
+    filter:drop-shadow(0 0 4px rgba(232,178,58,.7));
+    animation:sj-coins-pulse 1s ease-in-out infinite;
+  }
+  @keyframes sj-coins-pulse{
+    0%,100%{transform:scale(1)}
+    50%{transform:scale(1.12)}
+  }
+
   .sj-hint{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     z-index:100;pointer-events:auto;
@@ -161,6 +173,10 @@
         <div class="sj-hud-label">Recorde</div>
         <div class="sj-hud-value" id="sj-best">–</div>
       </div>
+      <div class="sj-hud-item sj-hud-coins" id="sj-coins-btn">
+        <div class="sj-hud-label">Moedas</div>
+        <div class="sj-hud-value" id="sj-coins">0</div>
+      </div>
     </div>
   </div>
 
@@ -213,6 +229,7 @@ const ctx = canvas.getContext('2d');
 const spriteEl = document.getElementById('sj-sprite');
 const scoreEl = document.getElementById('sj-score');
 const bestEl = document.getElementById('sj-best');
+const coinsEl = document.getElementById('sj-coins');
 let user, best = 0;
 
 // GIF animado do Spoink. Um <img> desenhado via ctx.drawImage() NÃO anima
@@ -257,7 +274,7 @@ function updateSpritePosition() {
   let transform = `translate(${x}px, ${y}px)`;
   if (flip < 0) transform += ' scaleX(-1)';
   if (performance.now() < featherBoostUntil) {
-    transform += ` scale(1.25) rotate(${flip * 25}deg)`;
+    transform += ` scale(1.2125) rotate(${flip * 25}deg)`;
   }
   spriteEl.style.transform = transform;
 }
@@ -282,6 +299,61 @@ Object.keys(ITEM_SPRITES_B64).forEach(key => {
 });
 const SWIFT_SPAWN_CHANCE = 0.02;  // checado antes, é mais rara
 const RESIST_SPAWN_CHANCE = 0.05;
+
+// ── Moedas ────────────────────────────────────────────────
+// Nascem em cima de plataformas normais (não frágeis, não douradas).
+// São uma reserva: ao juntar COINS_PER_GOLDEN, o ícone de moedas na HUD
+// acende. Se o player estiver sem plataforma por perto pra pular, ele toca
+// no ícone e uma plataforma dourada (aguenta 2 saltos) aparece perto dele.
+const COIN_SPAWN_CHANCE = 0.35;
+const COIN_SIZE = 16;
+const COINS_PER_GOLDEN = 25;
+let coins = 0;
+const coinsBtn = document.getElementById('sj-coins-btn');
+
+function maybeSpawnCoin(p) {
+  if (p.fragile || p.golden) return; // moeda só em cima de plataforma normal
+  if (Math.random() > COIN_SPAWN_CHANCE) return;
+  coinItems.push({
+    x: p.x + p.w / 2 - COIN_SIZE / 2,
+    y: p.y - COIN_SIZE - 4,
+    w: COIN_SIZE, h: COIN_SIZE,
+    platformRef: p, // segue a plataforma se ela se mover
+    collected: false,
+  });
+}
+
+function updateCoinsUI() {
+  coinsEl.textContent = coins;
+  coinsBtn.classList.toggle('sj-coins-ready', coins >= COINS_PER_GOLDEN);
+}
+
+function collectCoin(c) {
+  c.collected = true;
+  coins++;
+  updateCoinsUI();
+  showToast(`Moeda! (${coins})`);
+}
+
+// Cria uma plataforma dourada perto do player, num alcance pulável, gastando
+// COINS_PER_GOLDEN moedas. Usado quando ele toca no ícone de moedas.
+function spawnGoldenNearPlayer() {
+  if (coins < COINS_PER_GOLDEN) return;
+  coins -= COINS_PER_GOLDEN;
+  updateCoinsUI();
+  const w = 60;
+  const p = randomPlatform(player.y - 90, false, true);
+  p.x = Math.min(BASE_W - w, Math.max(0, player.x + PLAYER_W / 2 - w / 2));
+  p.w = w;
+  p.moving = false;
+  p.moveMode = null;
+  p.vx = 0;
+  platforms.push(p);
+  showToast('Plataforma dourada!');
+}
+coinsBtn.addEventListener('click', spawnGoldenNearPlayer);
+coinsBtn.addEventListener('pointerdown', e => e.stopPropagation());
+coinsBtn.addEventListener('pointerup', e => e.stopPropagation());
 
 let toastTimer = null;
 function showToast(text) {
@@ -356,6 +428,7 @@ const MOVE_SPEED = 260;      // px/s (teclado)
 
 let player, platforms, camY;
 let items = [];
+let coinItems = [];
 let score = 0, best_m = 0;
 let started = false, gameOver = false;
 let lastTs = 0, rafId = null;
@@ -372,21 +445,23 @@ const PLATFORM_GAP_MIN = 55, PLATFORM_GAP_RANGE = 35;
 const FRAGILE_CHANCE = 0.22;      // chance de uma plataforma nascer frágil
 const FRAGILE_BREAK_MS = 180;     // duração da animação de quebra antes de sumir
 
-function randomPlatform(y, prevFragile) {
+function randomPlatform(y, prevFragile, forceGolden) {
   const w = 60 + Math.random() * 20;
-  const moving = Math.random() < 0.15;
+  const moving = !forceGolden && Math.random() < 0.15;
   // Plataformas móveis variam entre "wrap" (atravessa a tela e reaparece do
   // outro lado) e "bounce" (ricocheteia nas bordas, nunca atravessa). Se a
   // plataforma logo abaixo é frágil, essa nunca atravessa — só bounce —
   // pra não ficar cruzando o espaço logo acima de uma plataforma que quebra.
-  const canWrap = moving && !prevFragile && Math.random() < 0.5;
+  const canWrap = moving && !prevFragile && Math.random() < 0.3;
   return {
     x: Math.random() * (BASE_W - w), y, w, h: 14,
     wobble: false,
     moving,
     moveMode: moving ? (canWrap ? 'wrap' : 'bounce') : null,
     vx: moving ? (60 + Math.random() * 60) * (Math.random() < 0.5 ? -1 : 1) : 0,
-    fragile: Math.random() < FRAGILE_CHANCE,
+    golden: !!forceGolden,
+    hitsLeft: forceGolden ? 2 : 1, // plataforma dourada aguenta 2 saltos antes de quebrar
+    fragile: forceGolden ? false : Math.random() < FRAGILE_CHANCE,
     breaking: 0, // timestamp de quando começou a quebrar (0 = intacta)
   };
 }
@@ -397,14 +472,19 @@ function makeCloud(y) {
 
 function resetGame() {
   player = { x: BASE_W / 2 - PLAYER_W / 2, y: BASE_H - 140, vx: 0, vy: 0, facing: 1 };
-  platforms = [{ x: BASE_W / 2 - 35, y: BASE_H - 60, w: 70, h: 14, wobble: false, fragile: false, breaking: 0 }];
+  platforms = [{ x: BASE_W / 2 - 35, y: BASE_H - 60, w: 70, h: 14, wobble: false, fragile: false, golden: false, hitsLeft: 1, breaking: 0 }];
   items = [];
+  coinItems = [];
+  coins = 0;
+  updateCoinsUI();
   let y = BASE_H - 60;
   while (y > -BASE_H) {
     y -= PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE;
     const prev = platforms[platforms.length - 1];
-    platforms.push(randomPlatform(y, prev && prev.fragile));
+    const p = randomPlatform(y, prev && prev.fragile);
+    platforms.push(p);
     maybeSpawnItem(y);
+    maybeSpawnCoin(p);
   }
   clouds = [];
   for (let i = 0; i < 6; i++) clouds.push(makeCloud());
@@ -497,7 +577,10 @@ function update(dt) {
         player.y + PLAYER_H < p.y + p.h + player.vy * dt + 4
       ) {
         player.vy = JUMP_VELOCITY;
-        if (p.fragile) p.breaking = performance.now();
+        if (p.golden || p.fragile) {
+          p.hitsLeft--;
+          if (p.hitsLeft <= 0) p.breaking = performance.now();
+        }
       }
     }
   }
@@ -514,12 +597,25 @@ function update(dt) {
     }
   }
 
+  for (const c of coinItems) {
+    if (c.collected) continue;
+    if (
+      player.x + PLAYER_W > c.x &&
+      player.x < c.x + c.w &&
+      player.y + PLAYER_H > c.y &&
+      player.y < c.y + c.h
+    ) {
+      collectCoin(c);
+    }
+  }
+
   if (player.y < BASE_H * 0.45) {
     const dy = BASE_H * 0.45 - player.y;
     player.y = BASE_H * 0.45;
     camY += dy;
     for (const p of platforms) p.y += dy;
     for (const it of items) it.y += dy;
+    for (const c of coinItems) c.y += dy;
     score = Math.max(score, Math.floor(camY / 10));
     scoreEl.textContent = score + ' m';
   }
@@ -544,8 +640,14 @@ function update(dt) {
     let topPlatform = platforms[0];
     for (const p of platforms) if (p.y < topPlatform.y) topPlatform = p;
     const newY = topPlatform.y - (PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE);
-    platforms.push(randomPlatform(newY, topPlatform.fragile));
+    const p = randomPlatform(newY, topPlatform.fragile);
+    platforms.push(p);
     maybeSpawnItem(newY);
+    maybeSpawnCoin(p);
+  }
+  coinItems = coinItems.filter(c => !c.collected && c.y < BASE_H + 40);
+  for (const c of coinItems) {
+    if (c.platformRef) { c.x = c.platformRef.x + c.platformRef.w / 2 - c.w / 2; }
   }
   items = items.filter(it => !it.collected && it.y < BASE_H + 40);
 
@@ -590,6 +692,29 @@ function draw() {
       ctx.restore();
       continue;
     }
+    if (p.golden) {
+      // plataforma dourada: brilho amarelo/laranja, aguenta 2 saltos
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,210,80,.8)';
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = '#e8b23a';
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = '#ffe293';
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2 - 2, p.w / 2 - 4, p.h / 2 - 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // marcador de "hits restantes" (1 ou 2 pontinhos)
+      ctx.fillStyle = '#a9701a';
+      for (let i = 0; i < p.hitsLeft; i++) {
+        ctx.beginPath();
+        ctx.arc(p.x + p.w / 2 - 5 + i * 10, p.y + p.h / 2, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      continue;
+    }
     if (p.fragile) {
       // plataforma frágil: tom bege esbranquiçado com "rachaduras" — só aguenta um bounce
       ctx.fillStyle = '#d9c19a';
@@ -617,6 +742,28 @@ function draw() {
     ctx.beginPath();
     ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2 - 2, p.w / 2 - 4, p.h / 2 - 3, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  for (const c of coinItems) {
+    if (c.collected) continue;
+    const cx = c.x + c.w / 2, cy = c.y + c.h / 2, r = c.w / 2;
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,210,80,.7)';
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = '#f5c542';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#fde79a';
+    ctx.beginPath();
+    ctx.ellipse(cx - r * 0.3, cy - r * 0.3, r * 0.35, r * 0.2, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#c98f1a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 1, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   for (const it of items) {
