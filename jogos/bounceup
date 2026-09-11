@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Sky Jump · Pokégram</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  *{
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
+  html,body{
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#eaf6ff;color:#1a2b1a;
+    overflow:hidden;position:fixed;inset:0;
+    display:flex;flex-direction:column;
+  }
+  :root{
+    --brand:#2f8f5b;--brand-mid:#4bbf7d;--sky:#5aa9e6;--accent:#ffd54f;--border:#e0e0e0;--muted:#5c7268;
+  }
+  .sj-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;flex:0 0 52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;
+  }
+  .sj-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .sj-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .sj-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .sj-title span{color:var(--accent)}
+
+  .sj-wrap{
+    flex:1 1 auto;min-height:0;position:relative;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    touch-action:none;overflow:hidden;
+    background:linear-gradient(to bottom, var(--sky), #dff2ff);
+  }
+  #sj-canvas{touch-action:none;display:block;max-width:100%;max-height:100%;}
+  #sj-sprite{
+    position:absolute;top:0;left:0;pointer-events:none;display:none;
+    image-rendering:pixelated;transform-origin:center center;
+  }
+
+  .sj-hud{
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
+  }
+  .sj-hud-box{
+    display:flex;gap:clamp(14px,5vw,28px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.85);border-radius:10px;
+    padding:9px clamp(20px,5vw,28px);box-shadow:0 2px 8px rgba(0,0,0,.2);
+    pointer-events:auto;cursor:pointer;transition:opacity .25s ease;
+  }
+  .sj-hud-box.sj-hud-hidden{opacity:0}
+  .sj-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .sj-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .sj-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
+
+  .sj-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:100;pointer-events:auto;
+    background:rgba(10,10,20,0.55);
+    opacity:1;transition:opacity .35s ease;
+  }
+  .sj-hint.hide{opacity:0;pointer-events:none}
+  .sj-hint-card{
+    background:rgba(255,255,255,0.95);
+    border:1.5px solid rgba(0,0,0,0.06);
+    border-radius:16px;
+    padding:20px 22px;
+    max-width:270px;
+    text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.3);
+    pointer-events:auto;
+  }
+  .sj-hint-title{
+    font-family:'Cinzel',serif;color:var(--brand);font-size:15px;font-weight:700;
+    margin:0 0 12px;
+  }
+  .sj-hint-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;text-align:left;}
+  .sj-hint-row:last-of-type{margin-bottom:0}
+  .sj-hint-icon{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:rgba(47,143,91,0.1);
+    display:flex;align-items:center;justify-content:center;font-size:15px;
+  }
+  .sj-hint-text{font-size:12px;color:#233047;line-height:1.35}
+  .sj-hint-text b{color:var(--brand)}
+  .sj-hint-dismiss{
+    margin-top:14px;font-size:11px;color:rgba(0,0,0,0.4);
+    font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  }
+
+  .sj-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .sj-overlay.show{display:flex}
+  .sj-modal{
+    background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
+    max-height:86vh;overflow:auto;
+  }
+  .sj-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .sj-modal p{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .sj-final-score{font-family:'Cinzel',serif;font-size:36px;color:var(--brand-mid);margin-bottom:6px}
+  .sj-best-line{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .sj-best-line b{color:var(--brand)}
+  .sj-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left}
+  .sj-lb-box{text-align:left;margin-bottom:18px}
+  .sj-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px}
+  .sj-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .sj-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sj-lb-score{font-weight:800}
+  .sj-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
+  .sj-btn{
+    padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;margin-top:8px;
+  }
+  .sj-btn:hover{background:var(--brand)}
+  #sj-share-btn{background:var(--accent);color:#3a2e00}
+  #sj-share-btn:hover{background:#f0c22e}
+</style>
+</head>
+<body>
+
+<nav class="sj-nav">
+  <a class="sj-back" href="/jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="sj-title">Sky <span>Jump</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="sj-wrap" id="sj-wrap">
+  <canvas id="sj-canvas"></canvas>
+  <img id="sj-sprite" alt="">
+
+  <div class="sj-hud" id="sj-hud">
+    <div class="sj-hud-box" id="sj-hud-box">
+      <div class="sj-hud-item">
+        <div class="sj-hud-label">Altura</div>
+        <div class="sj-hud-value" id="sj-score">0 m</div>
+      </div>
+      <div class="sj-hud-item">
+        <div class="sj-hud-label">Recorde</div>
+        <div class="sj-hud-value" id="sj-best">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sj-hint" id="sj-hint">
+    <div class="sj-hint-card">
+      <div class="sj-hint-title">Como jogar</div>
+      <div class="sj-hint-row">
+        <div class="sj-hint-icon">👆</div>
+        <div class="sj-hint-text"><b>Arraste o dedo</b> <span style="opacity:.7">(ou ← →)</span> para guiar o Hoppip entre as plataformas</div>
+      </div>
+      <div class="sj-hint-row">
+        <div class="sj-hint-icon">☁️</div>
+        <div class="sj-hint-text">Não deixe o Hoppip cair da tela — suba o quanto conseguir!</div>
+      </div>
+      <div class="sj-hint-dismiss">Toque em qualquer lugar para começar</div>
+    </div>
+  </div>
+</div>
+
+<div class="sj-overlay" id="sj-overlay">
+  <div class="sj-modal">
+    <h2>Hoppip caiu!</h2>
+    <p>Sua pontuação foi registrada no ranking.</p>
+    <div class="sj-final-score" id="sj-final-score">0 m</div>
+    <div class="sj-best-line">Seu recorde: <b id="sj-best-line-val">–</b></div>
+    <div class="sj-lb-box">
+      <div class="sj-panel-title">Top treinadores</div>
+      <div id="sj-leaderboard"><div class="sj-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="sj-btn" id="sj-restart-btn">Jogar novamente</button>
+    <button class="sj-btn" id="sj-share-btn">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="/games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// Sky Jump — Hoppip subindo de plataforma em plataforma,
+// estilo Doodle Jump. Segue o mesmo layout/HUD do tyRUNt.
+// ════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('sj-canvas');
+const ctx = canvas.getContext('2d');
+const spriteEl = document.getElementById('sj-sprite');
+const scoreEl = document.getElementById('sj-score');
+const bestEl = document.getElementById('sj-best');
+let user, best = 0;
+
+const HOPPIP_SPRITE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/187.png';
+let spriteReady = false;
+const spriteImg = new Image();
+spriteImg.crossOrigin = 'anonymous'; // essencial p/ toDataURL() no compartilhamento
+spriteImg.onload = () => { spriteReady = true; };
+spriteImg.onerror = () => { spriteReady = false; };
+spriteImg.src = HOPPIP_SPRITE;
+
+// ── Estado do jogo ───────────────────────────────────────
+const BASE_W_MIN = 260, BASE_H_MIN = 340;
+let BASE_W = 360, BASE_H = 480;
+let baseSized = false;
+
+const PLAYER_W = 40, PLAYER_H = 40;
+const GRAVITY = 1800;        // px/s²
+const JUMP_VELOCITY = -700;  // px/s
+const MOVE_SPEED = 260;      // px/s (teclado)
+
+let player, platforms, camY;
+let score = 0, best_m = 0;
+let started = false, gameOver = false;
+let lastTs = 0, rafId = null;
+let keys = { left: false, right: false };
+let dragging = false;
+let clouds = [];
+
+function randomPlatform(y) {
+  const w = 60 + Math.random() * 20;
+  return { x: Math.random() * (BASE_W - w), y, w, h: 14, wobble: Math.random() < 0.18 };
+}
+
+function makeCloud(y) {
+  return { x: Math.random() * BASE_W, y: y !== undefined ? y : Math.random() * BASE_H, scale: 0.6 + Math.random() * 0.8 };
+}
+
+function resetGame() {
+  player = { x: BASE_W / 2 - PLAYER_W / 2, y: BASE_H - 140, vx: 0, vy: 0, facing: 1 };
+  platforms = [{ x: BASE_W / 2 - 35, y: BASE_H - 60, w: 70, h: 14 }];
+  let y = BASE_H - 60;
+  while (y > -BASE_H) {
+    y -= 60 + Math.random() * 40;
+    platforms.push(randomPlatform(y));
+  }
+  clouds = [];
+  for (let i = 0; i < 6; i++) clouds.push(makeCloud());
+  camY = 0;
+  score = 0;
+  gameOver = false;
+}
+
+function startGame() {
+  document.getElementById('sj-overlay').classList.remove('show');
+  resetGame();
+  started = true;
+  scoreEl.textContent = '0 m';
+  lastTs = performance.now();
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── Input ─────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') keys.left = true;
+  if (e.key === 'ArrowRight') keys.right = true;
+  dismissHint();
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft') keys.left = false;
+  if (e.key === 'ArrowRight') keys.right = false;
+});
+
+const wrapEl = document.getElementById('sj-wrap');
+wrapEl.addEventListener('pointerdown', e => {
+  dragging = true;
+  dismissHint();
+});
+window.addEventListener('pointermove', e => {
+  if (!dragging || !started || gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const relX = (e.clientX - rect.left) * (BASE_W / rect.width);
+  player.x = Math.min(BASE_W - PLAYER_W, Math.max(0, relX - PLAYER_W / 2));
+});
+window.addEventListener('pointerup', () => dragging = false);
+
+let hintDismissed = false;
+function dismissHint() {
+  if (hintDismissed) return;
+  hintDismissed = true;
+  document.getElementById('sj-hint').classList.add('hide');
+  if (!started) startGame();
+}
+
+// ── HUD toggle ao tocar na caixa ──────────────────────────
+(function () {
+  const hudBox = document.getElementById('sj-hud-box');
+  let hidden = false;
+  function toggleHud(e) {
+    e.stopPropagation();
+    hidden = !hidden;
+    hudBox.classList.toggle('sj-hud-hidden', hidden);
+  }
+  hudBox.addEventListener('click', toggleHud);
+  hudBox.addEventListener('pointerdown', e => e.stopPropagation());
+  hudBox.addEventListener('pointerup', e => e.stopPropagation());
+})();
+
+// ── Loop ──────────────────────────────────────────────────
+function update(dt) {
+  if (!keys.left && !keys.right) {
+    // arrasto controla direto; nada a fazer aqui
+  } else {
+    if (keys.left) { player.x -= MOVE_SPEED * dt; player.facing = -1; }
+    if (keys.right) { player.x += MOVE_SPEED * dt; player.facing = 1; }
+  }
+  if (player.x < -PLAYER_W) player.x = BASE_W;
+  if (player.x > BASE_W) player.x = -PLAYER_W;
+
+  player.vy += GRAVITY * dt;
+  player.y += player.vy * dt;
+
+  if (player.vy > 0) {
+    for (const p of platforms) {
+      if (
+        player.x + PLAYER_W * 0.7 > p.x &&
+        player.x + PLAYER_W * 0.3 < p.x + p.w &&
+        player.y + PLAYER_H > p.y &&
+        player.y + PLAYER_H < p.y + p.h + player.vy * dt + 4
+      ) {
+        player.vy = JUMP_VELOCITY;
+      }
+    }
+  }
+
+  if (player.y < BASE_H * 0.45) {
+    const dy = BASE_H * 0.45 - player.y;
+    player.y = BASE_H * 0.45;
+    camY += dy;
+    for (const p of platforms) p.y += dy;
+    score = Math.max(score, Math.floor(camY / 10));
+    scoreEl.textContent = score + ' m';
+  }
+
+  const t = performance.now() / 500;
+  for (const p of platforms) {
+    if (p.wobble) p.x += Math.sin(t + p.y) * 0.6 * (dt * 60);
+  }
+
+  platforms = platforms.filter(p => p.y < BASE_H + 40);
+  while (platforms.length < 12) {
+    const topY = Math.min(...platforms.map(p => p.y));
+    platforms.push(randomPlatform(topY - (60 + Math.random() * 50)));
+  }
+
+  for (const c of clouds) {
+    c.y += 9 * dt;
+    if (c.y > BASE_H + 30) { c.y = -30; c.x = Math.random() * BASE_W; }
+  }
+
+  if (player.y > BASE_H + 60) endGame();
+}
+
+function drawCloud(x, y, scale) {
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(scale, scale);
+  ctx.fillStyle = 'rgba(255,255,255,.9)';
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, Math.PI * 2);
+  ctx.arc(20, 4, 14, 0, Math.PI * 2);
+  ctx.arc(-18, 6, 13, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+  for (const c of clouds) drawCloud(c.x, c.y, c.scale);
+
+  for (const p of platforms) {
+    ctx.fillStyle = '#3d7a30';
+    ctx.beginPath();
+    ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#5fae4a';
+    ctx.beginPath();
+    ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2 - 2, p.w / 2 - 4, p.h / 2 - 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.save();
+  ctx.translate(player.x + PLAYER_W / 2, player.y + PLAYER_H / 2);
+  if (player.facing < 0) ctx.scale(-1, 1);
+  if (spriteReady) {
+    ctx.drawImage(spriteImg, -PLAYER_W / 2, -PLAYER_H / 2, PLAYER_W, PLAYER_H);
+  } else {
+    ctx.fillStyle = '#8fd67a';
+    ctx.beginPath();
+    ctx.arc(0, 0, PLAYER_W / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function loop(ts) {
+  const dt = Math.min(0.033, (ts - lastTs) / 1000);
+  lastTs = ts;
+  if (started && !gameOver) update(dt);
+  draw();
+  rafId = requestAnimationFrame(loop);
+}
+
+// ── Canvas sizing responsivo (mesmo padrão do tyRUNt) ────
+function computeBaseDims(maxW, maxH) {
+  BASE_W = Math.max(BASE_W_MIN, Math.round(maxW));
+  BASE_H = Math.max(BASE_H_MIN, Math.round(maxH));
+}
+
+function resize() {
+  const nav = document.querySelector('.sj-nav');
+  const navH = nav ? nav.getBoundingClientRect().height : 52;
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - navH;
+
+  const midRun = started && !gameOver;
+  const prevW = BASE_W, prevH = BASE_H;
+  if (!baseSized || !midRun) {
+    computeBaseDims(maxW, maxH);
+    baseSized = true;
+  }
+  const sizeChanged = canvas.width !== BASE_W || canvas.height !== BASE_H;
+  if (sizeChanged) { canvas.width = BASE_W; canvas.height = BASE_H; }
+  canvas.style.width = BASE_W + 'px';
+  canvas.style.height = BASE_H + 'px';
+
+  if (!midRun && sizeChanged && player) draw();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+window.addEventListener('load', () => resize());
+setTimeout(resize, 300);
+
+// ── Ranking ───────────────────────────────────────────────
+async function refreshLeaderboard() {
+  const el = document.getElementById('sj-leaderboard');
+  const top = await gLoadTopScores('skyjump', 5);
+  if (top.length === 0) {
+    el.innerHTML = '<div class="sj-lb-empty">Nenhum recorde ainda.</div>';
+    return;
+  }
+  el.innerHTML = top.map((row, i) => `
+    <div class="sj-lb-row">
+      <span class="sj-lb-pos">${i + 1}º</span>
+      <span class="sj-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="sj-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+
+async function refreshBest() {
+  if (!user) return;
+  best = await gLoadMyBest('skyjump', user.id);
+  bestEl.textContent = best || '–';
+  const el = document.getElementById('sj-best-line-val');
+  if (el) el.textContent = best || '–';
+}
+
+async function endGame() {
+  gameOver = true;
+  started = false;
+  if (user) await gSaveScore('skyjump', score, user);
+  document.getElementById('sj-final-score').textContent = score + ' m';
+  if (score > best) best = score;
+  bestEl.textContent = best || '–';
+  document.getElementById('sj-best-line-val').textContent = best || '–';
+  document.getElementById('sj-overlay').classList.add('show');
+  refreshLeaderboard();
+}
+
+document.getElementById('sj-restart-btn').addEventListener('click', startGame);
+
+// ── Compartilhar resultado no Stories ──────────────────────
+function buildResultCanvas(useSprite = true) {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#5aa9e6');
+  bg.addColorStop(1, '#dff2ff');
+  c2.fillStyle = bg;
+  c2.fillRect(0, 0, W, H);
+
+  c2.fillStyle = 'rgba(255,255,255,0.75)';
+  [[220, 320, 70], [820, 520, 90], [300, 1500, 65], [780, 1650, 55]].forEach(([x, y, r]) => {
+    c2.beginPath(); c2.arc(x, y, r, 0, Math.PI * 2); c2.fill();
+  });
+
+  c2.textAlign = 'center';
+  c2.fillStyle = '#2f8f5b';
+  c2.font = "800 74px 'Cinzel', serif";
+  c2.fillText('Sky Jump', W / 2, 320);
+
+  const finalScore = Math.floor(score);
+  const size = 260;
+  if (useSprite && spriteReady) {
+    c2.drawImage(spriteImg, W / 2 - size / 2, 620 - size / 2, size, size);
+  } else {
+    c2.fillStyle = '#8fd67a';
+    c2.beginPath(); c2.arc(W / 2, 700, size / 2, 0, Math.PI * 2); c2.fill();
+  }
+
+  c2.fillStyle = 'rgba(255,255,255,.9)';
+  const cardW = 760, cardH = 260, cardX = (W - cardW) / 2, cardY = 940;
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+  c2.fill();
+
+  c2.fillStyle = '#5c7268';
+  c2.font = "800 34px 'Nunito', sans-serif";
+  c2.fillText('ALTURA', W / 2, cardY + 70);
+
+  c2.fillStyle = '#2f8f5b';
+  c2.font = "800 130px 'Cinzel', serif";
+  c2.fillText(finalScore + ' m', W / 2, cardY + 210);
+
+  if (best) {
+    c2.fillStyle = 'rgba(255,255,255,.9)';
+    c2.font = "700 40px 'Nunito', sans-serif";
+    c2.fillText(`Recorde: ${best} m`, W / 2, cardY + cardH + 90);
+  }
+
+  c2.fillStyle = '#fff';
+  c2.font = "800 56px 'Nunito', sans-serif";
+  c2.shadowColor = 'rgba(0,0,0,.35)';
+  c2.shadowBlur = 10;
+  c2.shadowOffsetY = 2;
+  const ctaLines = wrapCanvasText(c2, `Hoppip subiu ${finalScore} m, venha jogar Sky Jump também!`, W - 140);
+  const ctaLineHeight = 68;
+  let ctaY = cardY + cardH + (best ? 200 : 140);
+  ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += ctaLineHeight; });
+  c2.shadowColor = 'transparent';
+  c2.shadowBlur = 0;
+  c2.shadowOffsetY = 0;
+
+  return c;
+}
+
+function wrapCanvasText(ctx2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx2d.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function shareResultToStories() {
+  let dataUrl = null;
+  try {
+    dataUrl = buildResultCanvas(true).toDataURL('image/png');
+  } catch (e) {
+    console.warn('[shareResultToStories] falhou com sprite, tentando sem sprite', e);
+    try {
+      dataUrl = buildResultCanvas(false).toDataURL('image/png');
+    } catch (e2) {
+      console.warn('[shareResultToStories] falhou ao gerar imagem mesmo sem sprite', e2);
+    }
+  }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl,
+        gameLink: '/skyjump.html'
+      }));
+    } catch (e) {
+      console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
+    }
+  }
+  window.location.href = '/';
+}
+document.getElementById('sj-share-btn').addEventListener('click', shareResultToStories);
+
+// ── Boot ──────────────────────────────────────────────────
+function tryEnterFullscreenNow() {
+  try {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen || !gIsMobileLike()) return;
+    el.requestFullscreen().catch(() => {});
+  } catch (e) {}
+}
+tryEnterFullscreenNow();
+gSetupFullscreenOnFirstInteraction();
+
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  resize();
+  resetGame();
+  draw();
+  refreshBest();
+})();
+</script>
+</body>
+</html>
