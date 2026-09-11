@@ -13,12 +13,12 @@
     -webkit-touch-callout:none;
   }
   html,body{
-    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#eaf6ff;color:#1a2b1a;
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#e8e6f7;color:#4a4560;
     overflow:hidden;position:fixed;inset:0;
     display:flex;flex-direction:column;
   }
   :root{
-    --brand:#2f8f5b;--brand-mid:#4bbf7d;--sky:#5aa9e6;--accent:#ffd54f;--border:#e0e0e0;--muted:#5c7268;
+    --brand:#8d7fc7;--brand-mid:#b3a4e3;--sky:#cdd6f6;--accent:#f7c9e0;--border:#e0e0e0;--muted:#7a7396;
   }
   .sj-nav{
     display:flex;align-items:center;justify-content:space-between;
@@ -34,7 +34,7 @@
     flex:1 1 auto;min-height:0;position:relative;
     display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
     touch-action:none;overflow:hidden;
-    background:linear-gradient(to bottom, var(--sky), #dff2ff);
+    background:linear-gradient(to bottom, var(--sky), #f4dcf0 55%, #ffe9e0);
   }
   #sj-canvas{touch-action:none;display:block;max-width:100%;max-height:100%;}
   #sj-sprite{
@@ -85,7 +85,7 @@
   .sj-hint-row:last-of-type{margin-bottom:0}
   .sj-hint-icon{
     width:30px;height:30px;flex:none;border-radius:8px;
-    background:rgba(47,143,91,0.1);
+    background:rgba(141,127,199,0.12);
     display:flex;align-items:center;justify-content:center;font-size:15px;
   }
   .sj-hint-text{font-size:12px;color:#233047;line-height:1.35}
@@ -123,6 +123,13 @@
   .sj-btn:hover{background:var(--brand)}
   #sj-share-btn{background:var(--accent);color:#3a2e00}
   #sj-share-btn:hover{background:#f0c22e}
+  .sj-toast{
+    position:absolute;top:64px;left:50%;transform:translate(-50%,-8px);z-index:30;
+    background:rgba(70,60,100,.88);color:#fff;padding:8px 16px;border-radius:20px;
+    font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3);
+    opacity:0;transition:opacity .2s ease, transform .2s ease;pointer-events:none;white-space:nowrap;
+  }
+  .sj-toast.show{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
@@ -153,6 +160,8 @@
     </div>
   </div>
 
+  <div class="sj-toast" id="sj-toast"></div>
+
   <div class="sj-hint" id="sj-hint">
     <div class="sj-hint-card">
       <div class="sj-hint-title">Como jogar</div>
@@ -163,6 +172,10 @@
       <div class="sj-hint-row">
         <div class="sj-hint-icon">☁️</div>
         <div class="sj-hint-text">Não deixe o Spoink cair da tela — suba o quanto conseguir!</div>
+      </div>
+      <div class="sj-hint-row">
+        <div class="sj-hint-icon">🪶</div>
+        <div class="sj-hint-text">Pegue a <b>Resist Feather</b> (+250m) e a <b>Swift Feather</b> (+550m) pra subir um baita pedaço de uma vez</div>
       </div>
       <div class="sj-hint-dismiss">Toque em qualquer lugar para começar</div>
     </div>
@@ -204,9 +217,10 @@ let user, best = 0;
 // posicionada sobre o canvas a cada frame (mesma técnica do tr-sprite no
 // tyrunt.html). Só usamos ctx.drawImage() com uma Image() separada
 // (spriteImg) pra montar a imagem estática de compartilhamento no Stories.
-const SPOINK_SPRITE = 'https://64.media.tumblr.com/c6be6be46fceb16d9196e7a566766d99/4603906cfe87268f-95/s100x200/18c687a06d882ca263adba3be9d64758bd58c4de.gif';
+const SPOINK_SPRITE = 'https://64.media.tumblr.com/c6be6be46fceb16d9196e7a566766d99/4603906cfe87268f-95/s100x200/18c687a06d882ca263adba3be9d64758bd58c4de.gifv';
 let spriteReady = false;   // controla o fallback vetorial no compartilhamento
 let spriteElReady = false; // controla o fallback vetorial no canvas do jogo
+let spriteAspect = 1;      // largura/altura reais do gif, pra nunca esticar/achatar
 
 const spriteImg = new Image();
 spriteImg.crossOrigin = 'anonymous'; // essencial p/ toDataURL() no compartilhamento
@@ -215,18 +229,85 @@ spriteImg.onerror = () => { spriteReady = false; };
 spriteImg.src = SPOINK_SPRITE;
 
 spriteEl.crossOrigin = 'anonymous';
-spriteEl.onload = () => { spriteElReady = true; spriteEl.style.display = 'block'; };
+spriteEl.onload = () => {
+  spriteElReady = true;
+  spriteEl.style.display = 'block';
+  if (spriteEl.naturalWidth && spriteEl.naturalHeight) spriteAspect = spriteEl.naturalWidth / spriteEl.naturalHeight;
+};
 spriteEl.onerror = () => { spriteElReady = false; spriteEl.style.display = 'none'; };
 spriteEl.src = SPOINK_SPRITE;
 
+// A altura visual fica travada em PLAYER_H (mesmo tamanho da hitbox); a
+// largura é derivada da proporção real do gif, então o Spoink nunca fica
+// esticado/achatado — só a "moldura" da imagem muda de largura.
 function updateSpritePosition() {
   if (!spriteElReady || !player) return;
-  spriteEl.style.width = PLAYER_W + 'px';
-  spriteEl.style.height = PLAYER_H + 'px';
-  const x = canvas.offsetLeft + player.x;
+  const h = PLAYER_H;
+  const w = h * spriteAspect;
+  spriteEl.style.width = w + 'px';
+  spriteEl.style.height = h + 'px';
+  const x = canvas.offsetLeft + player.x + PLAYER_W / 2 - w / 2;
   const y = canvas.offsetTop + player.y;
   const flip = player.facing < 0 ? ' scaleX(-1)' : '';
   spriteEl.style.transform = `translate(${x}px, ${y}px)${flip}`;
+}
+
+// ── Itens: Resist Feather e Swift Feather ────────────────
+// Bônus de altura instantâneo ao coletar (some sozinho, não é uma
+// plataforma). Mesmo repositório de sprites de itens do PokeAPI já usado
+// nos outros jogos (salac-berry etc. no tyrunt); sem imagem carregada, cai
+// no desenho vetorial (bolinha colorida).
+const ITEM_SPRITES = {
+  resist: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/resist-feather.png',
+  swift: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/swift-feather.png',
+};
+const itemImgs = {};
+Object.keys(ITEM_SPRITES).forEach(key => {
+  const img = new Image();
+  itemImgs[key] = { img, ready: false };
+  img.onload = () => { itemImgs[key].ready = true; };
+  img.onerror = () => { itemImgs[key].ready = false; };
+  img.src = ITEM_SPRITES[key];
+});
+const ITEM_SIZE = 26;
+const RESIST_BOOST_M = 250;
+const SWIFT_BOOST_M = 550;
+const SWIFT_SPAWN_CHANCE = 0.02;  // checado antes, é mais rara
+const RESIST_SPAWN_CHANCE = 0.05;
+
+let toastTimer = null;
+function showToast(text) {
+  const el = document.getElementById('sj-toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 900);
+}
+
+function maybeSpawnItem(nearY) {
+  const roll = Math.random();
+  let kind = null;
+  if (roll < SWIFT_SPAWN_CHANCE) kind = 'swift';
+  else if (roll < SWIFT_SPAWN_CHANCE + RESIST_SPAWN_CHANCE) kind = 'resist';
+  if (!kind) return;
+  items.push({
+    x: Math.random() * (BASE_W - ITEM_SIZE),
+    y: nearY - 30 - Math.random() * 40,
+    w: ITEM_SIZE, h: ITEM_SIZE,
+    kind,
+  });
+}
+
+function collectItem(it) {
+  it.collected = true;
+  const boostM = it.kind === 'swift' ? SWIFT_BOOST_M : RESIST_BOOST_M;
+  const dy = boostM * 10; // mesma escala de score = floor(camY/10)
+  camY += dy;
+  for (const p of platforms) p.y += dy;
+  for (const other of items) other.y += dy;
+  score = Math.max(score, Math.floor(camY / 10));
+  scoreEl.textContent = score + ' m';
+  showToast(`${it.kind === 'swift' ? 'Swift Feather' : 'Resist Feather'} +${boostM}m!`);
 }
 
 // ── Estado do jogo ───────────────────────────────────────
@@ -240,6 +321,7 @@ const JUMP_VELOCITY = -700;  // px/s
 const MOVE_SPEED = 260;      // px/s (teclado)
 
 let player, platforms, camY;
+let items = [];
 let score = 0, best_m = 0;
 let started = false, gameOver = false;
 let lastTs = 0, rafId = null;
@@ -247,9 +329,21 @@ let keys = { left: false, right: false };
 let dragging = false;
 let clouds = [];
 
+// Espaçamento vertical entre plataformas — a mesma faixa é usada tanto na
+// geração inicial (resetGame) quanto na geração contínua durante o jogo,
+// pra não ter um "salto" de ritmo entre o começo e o resto da partida.
+const PLATFORM_GAP_MIN = 70, PLATFORM_GAP_RANGE = 30;
+const FRAGILE_CHANCE = 0.22;      // chance de uma plataforma nascer frágil
+const FRAGILE_BREAK_MS = 180;     // duração da animação de quebra antes de sumir
+
 function randomPlatform(y) {
   const w = 60 + Math.random() * 20;
-  return { x: Math.random() * (BASE_W - w), y, w, h: 14, wobble: Math.random() < 0.18 };
+  return {
+    x: Math.random() * (BASE_W - w), y, w, h: 14,
+    wobble: Math.random() < 0.18,
+    fragile: Math.random() < FRAGILE_CHANCE,
+    breaking: 0, // timestamp de quando começou a quebrar (0 = intacta)
+  };
 }
 
 function makeCloud(y) {
@@ -258,11 +352,13 @@ function makeCloud(y) {
 
 function resetGame() {
   player = { x: BASE_W / 2 - PLAYER_W / 2, y: BASE_H - 140, vx: 0, vy: 0, facing: 1 };
-  platforms = [{ x: BASE_W / 2 - 35, y: BASE_H - 60, w: 70, h: 14 }];
+  platforms = [{ x: BASE_W / 2 - 35, y: BASE_H - 60, w: 70, h: 14, wobble: false, fragile: false, breaking: 0 }];
+  items = [];
   let y = BASE_H - 60;
   while (y > -BASE_H) {
-    y -= 60 + Math.random() * 40;
+    y -= PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE;
     platforms.push(randomPlatform(y));
+    maybeSpawnItem(y);
   }
   clouds = [];
   for (let i = 0; i < 6; i++) clouds.push(makeCloud());
@@ -293,15 +389,19 @@ window.addEventListener('keyup', e => {
 });
 
 const wrapEl = document.getElementById('sj-wrap');
+let lastPointerX = 0;
 wrapEl.addEventListener('pointerdown', e => {
   dragging = true;
+  lastPointerX = e.clientX;
   dismissHint();
 });
 window.addEventListener('pointermove', e => {
   if (!dragging || !started || gameOver) return;
   const rect = canvas.getBoundingClientRect();
-  const relX = (e.clientX - rect.left) * (BASE_W / rect.width);
-  player.x = Math.min(BASE_W - PLAYER_W, Math.max(0, relX - PLAYER_W / 2));
+  const scale = BASE_W / rect.width;
+  const deltaX = (e.clientX - lastPointerX) * scale;
+  lastPointerX = e.clientX;
+  player.x = Math.min(BASE_W - PLAYER_W, Math.max(0, player.x + deltaX));
 });
 window.addEventListener('pointerup', () => dragging = false);
 
@@ -343,6 +443,7 @@ function update(dt) {
 
   if (player.vy > 0) {
     for (const p of platforms) {
+      if (p.breaking) continue; // já quebrada, não sustenta mais
       if (
         player.x + PLAYER_W * 0.7 > p.x &&
         player.x + PLAYER_W * 0.3 < p.x + p.w &&
@@ -350,7 +451,20 @@ function update(dt) {
         player.y + PLAYER_H < p.y + p.h + player.vy * dt + 4
       ) {
         player.vy = JUMP_VELOCITY;
+        if (p.fragile) p.breaking = performance.now();
       }
+    }
+  }
+
+  for (const it of items) {
+    if (it.collected) continue;
+    if (
+      player.x + PLAYER_W > it.x &&
+      player.x < it.x + it.w &&
+      player.y + PLAYER_H > it.y &&
+      player.y < it.y + it.h
+    ) {
+      collectItem(it);
     }
   }
 
@@ -359,6 +473,7 @@ function update(dt) {
     player.y = BASE_H * 0.45;
     camY += dy;
     for (const p of platforms) p.y += dy;
+    for (const it of items) it.y += dy;
     score = Math.max(score, Math.floor(camY / 10));
     scoreEl.textContent = score + ' m';
   }
@@ -368,11 +483,14 @@ function update(dt) {
     if (p.wobble) p.x += Math.sin(t + p.y) * 0.6 * (dt * 60);
   }
 
-  platforms = platforms.filter(p => p.y < BASE_H + 40);
+  platforms = platforms.filter(p => p.y < BASE_H + 40 && (!p.breaking || performance.now() - p.breaking < FRAGILE_BREAK_MS));
   while (platforms.length < 12) {
     const topY = Math.min(...platforms.map(p => p.y));
-    platforms.push(randomPlatform(topY - (60 + Math.random() * 50)));
+    const newY = topY - (PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE);
+    platforms.push(randomPlatform(newY));
+    maybeSpawnItem(newY);
   }
+  items = items.filter(it => !it.collected && it.y < BASE_H + 40);
 
   for (const c of clouds) {
     c.y += 9 * dt;
@@ -400,14 +518,60 @@ function draw() {
   for (const c of clouds) drawCloud(c.x, c.y, c.scale);
 
   for (const p of platforms) {
-    ctx.fillStyle = '#3d7a30';
+    if (p.breaking) {
+      // animação de quebra: encolhe e desaparece rápido
+      const elapsed = performance.now() - p.breaking;
+      const t2 = Math.min(1, elapsed / FRAGILE_BREAK_MS);
+      const alpha = 1 - t2;
+      const shrink = 1 - t2 * 0.5;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#e0c9a6';
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2, (p.w / 2) * shrink, (p.h / 2) * shrink, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      continue;
+    }
+    if (p.fragile) {
+      // plataforma frágil: tom bege esbranquiçado com "rachaduras" — só aguenta um bounce
+      ctx.fillStyle = '#d9c19a';
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#efe0c6';
+      ctx.beginPath();
+      ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2 - 2, p.w / 2 - 4, p.h / 2 - 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(120,95,55,.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(p.x + p.w * 0.3, p.y + 2);
+      ctx.lineTo(p.x + p.w * 0.45, p.y + p.h - 3);
+      ctx.lineTo(p.x + p.w * 0.6, p.y + 3);
+      ctx.stroke();
+      continue;
+    }
+    ctx.fillStyle = '#a9c9a0';
     ctx.beginPath();
     ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#5fae4a';
+    ctx.fillStyle = '#cfe8c4';
     ctx.beginPath();
     ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2 - 2, p.w / 2 - 4, p.h / 2 - 3, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  for (const it of items) {
+    const spr = itemImgs[it.kind];
+    if (spr && spr.ready) {
+      ctx.drawImage(spr.img, it.x, it.y, it.w, it.h);
+    } else {
+      ctx.fillStyle = it.kind === 'swift' ? '#f7c9e0' : '#a6c8f0';
+      ctx.beginPath();
+      ctx.ellipse(it.x + it.w / 2, it.y + it.h / 2, it.w / 2, it.h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   if (spriteElReady) {
@@ -509,8 +673,9 @@ function buildResultCanvas(useSprite = true) {
   const c2 = c.getContext('2d');
 
   const bg = c2.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#5aa9e6');
-  bg.addColorStop(1, '#dff2ff');
+  bg.addColorStop(0, '#cdd6f6');
+  bg.addColorStop(0.55, '#f4dcf0');
+  bg.addColorStop(1, '#ffe9e0');
   c2.fillStyle = bg;
   c2.fillRect(0, 0, W, H);
 
@@ -520,7 +685,7 @@ function buildResultCanvas(useSprite = true) {
   });
 
   c2.textAlign = 'center';
-  c2.fillStyle = '#2f8f5b';
+  c2.fillStyle = '#8d7fc7';
   c2.font = "800 74px 'Cinzel', serif";
   c2.fillText('Bounce Up!', W / 2, 320);
 
@@ -539,11 +704,11 @@ function buildResultCanvas(useSprite = true) {
   c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
   c2.fill();
 
-  c2.fillStyle = '#5c7268';
+  c2.fillStyle = '#7a7396';
   c2.font = "800 34px 'Nunito', sans-serif";
   c2.fillText('ALTURA', W / 2, cardY + 70);
 
-  c2.fillStyle = '#2f8f5b';
+  c2.fillStyle = '#8d7fc7';
   c2.font = "800 130px 'Cinzel', serif";
   c2.fillText(finalScore + ' m', W / 2, cardY + 210);
 
