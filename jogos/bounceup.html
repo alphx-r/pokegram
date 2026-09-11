@@ -372,15 +372,19 @@ const PLATFORM_GAP_MIN = 55, PLATFORM_GAP_RANGE = 35;
 const FRAGILE_CHANCE = 0.22;      // chance de uma plataforma nascer frágil
 const FRAGILE_BREAK_MS = 180;     // duração da animação de quebra antes de sumir
 
-function randomPlatform(y) {
+function randomPlatform(y, prevFragile) {
   const w = 60 + Math.random() * 20;
-  const moving = Math.random() < 0.3;
+  const moving = Math.random() < 0.15;
+  // Plataformas móveis variam entre "wrap" (atravessa a tela e reaparece do
+  // outro lado) e "bounce" (ricocheteia nas bordas, nunca atravessa). Se a
+  // plataforma logo abaixo é frágil, essa nunca atravessa — só bounce —
+  // pra não ficar cruzando o espaço logo acima de uma plataforma que quebra.
+  const canWrap = moving && !prevFragile && Math.random() < 0.5;
   return {
     x: Math.random() * (BASE_W - w), y, w, h: 14,
     wobble: false,
     moving,
-    // velocidade horizontal (px/s), direção aleatória — atravessa a tela
-    // inteira e reaparece do outro lado (wraparound), não só balança.
+    moveMode: moving ? (canWrap ? 'wrap' : 'bounce') : null,
     vx: moving ? (60 + Math.random() * 60) * (Math.random() < 0.5 ? -1 : 1) : 0,
     fragile: Math.random() < FRAGILE_CHANCE,
     breaking: 0, // timestamp de quando começou a quebrar (0 = intacta)
@@ -398,7 +402,8 @@ function resetGame() {
   let y = BASE_H - 60;
   while (y > -BASE_H) {
     y -= PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE;
-    platforms.push(randomPlatform(y));
+    const prev = platforms[platforms.length - 1];
+    platforms.push(randomPlatform(y, prev && prev.fragile));
     maybeSpawnItem(y);
   }
   clouds = [];
@@ -521,19 +526,25 @@ function update(dt) {
 
   const t = performance.now() / 500;
   for (const p of platforms) {
-    if (p.moving) {
-      p.x += p.vx * dt;
-      // wraparound: some de um lado, reaparece do outro
+    if (!p.moving) continue;
+    p.x += p.vx * dt;
+    if (p.moveMode === 'wrap') {
+      // atravessa a tela e reaparece do outro lado
       if (p.x > BASE_W) p.x = -p.w;
       else if (p.x + p.w < 0) p.x = BASE_W;
+    } else {
+      // bounce: ricocheteia nas bordas, nunca atravessa
+      if (p.x < 0) { p.x = 0; p.vx = Math.abs(p.vx); }
+      else if (p.x + p.w > BASE_W) { p.x = BASE_W - p.w; p.vx = -Math.abs(p.vx); }
     }
   }
 
   platforms = platforms.filter(p => p.y < BASE_H + 40 && (!p.breaking || performance.now() - p.breaking < FRAGILE_BREAK_MS));
   while (platforms.length < 12) {
-    const topY = Math.min(...platforms.map(p => p.y));
-    const newY = topY - (PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE);
-    platforms.push(randomPlatform(newY));
+    let topPlatform = platforms[0];
+    for (const p of platforms) if (p.y < topPlatform.y) topPlatform = p;
+    const newY = topPlatform.y - (PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE);
+    platforms.push(randomPlatform(newY, topPlatform.fragile));
     maybeSpawnItem(newY);
   }
   items = items.filter(it => !it.collected && it.y < BASE_H + 40);
