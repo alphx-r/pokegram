@@ -41,6 +41,10 @@
     position:absolute;top:0;left:0;pointer-events:none;display:none;
     image-rendering:pixelated;transform-origin:center center;
   }
+  #sj-sprite.sj-feather-boost{
+    transition:transform .45s cubic-bezier(.2,.9,.3,1.4), filter .45s ease;
+    filter:drop-shadow(0 0 10px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(247,201,224,.8));
+  }
 
   .sj-hud{
     position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
@@ -175,7 +179,7 @@
       </div>
       <div class="sj-hint-row">
         <div class="sj-hint-icon">🪶</div>
-        <div class="sj-hint-text">Pegue a <b>Resist Feather</b> (+250m) e a <b>Swift Feather</b> (+550m) pra subir um baita pedaço de uma vez</div>
+        <div class="sj-hint-text">Pegue a <b>Resist Feather</b> e a <b>Swift Feather</b> pra dar um baita salto de altura</div>
       </div>
       <div class="sj-hint-dismiss">Toque em qualquer lugar para começar</div>
     </div>
@@ -240,6 +244,7 @@ spriteEl.src = SPOINK_SPRITE;
 // A altura visual fica travada em PLAYER_H (mesmo tamanho da hitbox); a
 // largura é derivada da proporção real do gif, então o Spoink nunca fica
 // esticado/achatado — só a "moldura" da imagem muda de largura.
+let featherBoostUntil = 0; // performance.now() até quando o efeito de arremesso deve continuar
 function updateSpritePosition() {
   if (!spriteElReady || !player) return;
   const h = PLAYER_H;
@@ -248,32 +253,35 @@ function updateSpritePosition() {
   spriteEl.style.height = h + 'px';
   const x = canvas.offsetLeft + player.x + PLAYER_W / 2 - w / 2;
   const y = canvas.offsetTop + player.y;
-  const flip = player.facing < 0 ? ' scaleX(-1)' : '';
-  spriteEl.style.transform = `translate(${x}px, ${y}px)${flip}`;
+  const flip = player.facing < 0 ? -1 : 1;
+  let transform = `translate(${x}px, ${y}px)`;
+  if (flip < 0) transform += ' scaleX(-1)';
+  if (performance.now() < featherBoostUntil) {
+    transform += ` scale(1.25) rotate(${flip * 25}deg)`;
+  }
+  spriteEl.style.transform = transform;
 }
 
 // ── Itens: Resist Feather e Swift Feather ────────────────
 // Bônus de altura instantâneo ao coletar (some sozinho, não é uma
-// plataforma). Mesmo repositório de sprites de itens do PokeAPI já usado
-// nos outros jogos (salac-berry etc. no tyrunt); sem imagem carregada, cai
-// no desenho vetorial (bolinha colorida).
-const ITEM_SPRITES = {
-  resist: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/resist-feather.png',
-  swift: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/swift-feather.png',
+// plataforma). Desenhados como bolha translúcida com a pena dentro, no
+// mesmo estilo das berries dos outros jogos. Sprites embutidos em base64
+// pra não depender de link externo.
+const ITEM_SIZE = 30;
+const ITEM_SPRITES_B64 = {
+  resist: 'data:image/png;base64,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',
+  swift: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAB3RJTUUH5gsPBxonMxIqTQAAAAlwSFlzAAAOwwAADsMBx2+oZAAAAARnQU1BAACxjwv8YQUAAAmySURBVHja7Vh7cFTlFf/dfWezzyS7SQxLCAYUBEoqwSIOJTR1qqUjSJUWkYfQakdt4qOVsSOQOGUQH8PDPzqt8qi2pY3Q2AF5WJ5CaCdgUEAgxZqNCSGPzb4f9+7d+/V8NxCICQkEpjPteGbu3N3vu/e7v3N+55zvnA/4Wv7PRbjyD2Pspiy6ceNGbNq0CTU1NTCbzTCZTEhLS4MoijaadgKadEEQREWROw0Gg5/GEQqFMGLECOzfvx8OhwM0f/MBcmCVlZXo6OhARkYGNBpNVjwen0lTU2VZvisjK9vjzMww2Cw2lkjE4WtvQ0tri1ev1dbQt9dFo9F/FBcXY/Xq1SgqKur9AQ5wMFddXR2mTp0Ki8WC/Px8eDyeSS6Xa+vYceOkZRUVbPe+g6yxPciaIzJrjqZYRFKUINkvqTDWEQixV9esVTIzM3fk5ubB6XSqyvUpgwG3YcMGEBjk5ORwcIVut/uD75R+V9myfYcSTCQZB9IeV1h7PMXq/SKLyQoL0JiUUphCAONJRVmwaBGz2WxeWqc+KytrmcvlvjkAy8rKYDQaUVBQgNzc3LLbRo2Ov/veFhWQX0ypAPyJLoDnApI6FiNAAbrLKX5XlMZwiu2q/YwdPuNl//z8AnNlZ3s9nvwbBzh//nyQ1igsLDSR5lU/njtXaWj1sy5rKSxM/IlyFziVWrqIWtahzqVUi57pTLHPvnJNmHRPiugecgmTZjDBsHz5cmzduhVEh4Wib+fCp8p+uPp3m4R0m737GR2FXzzV9ZvohEGrUf/zMPQngPY4oFyxZntCQn0wCs/wQo2iKHd2r3O94Kqrq7Fy5UpOqZ6irvqZF5ZMmTb3ScQkwGK4/BxPD0mF35gK7iJHCIoEWOm5ZkiSYdFp4TIZkO3K4Clm6KAsGAgEsHjxYjUgYrHYunmLFk+bvahMaI4mVOvIV6SpZPdvQQVI7MIX7w2Oi82gQxoBjCZlxJmGXEjQDsqC5eXl6p1y2gMjioofn//cMiTog2ad9iKtl9NqQr78Oy4zRJJ9r0luCj9ZMC6nYCJFhESE+3jougE2NDRg8+bNyMvLMyUkad2TlauguayoKmIqxM7HP0co2YEUZBg1ZqRr8wW6eq0XlJLkmwxcJ7u+i14uzV4vJXjUXjfFPDDsdjvI737+yGOLPblDCrrn7HqgrvN9nAjvhaxrg8OmEZxWnZA0nBeOB7dCVPy91rMb9HClGZBFwAzaS4qmUH/6bIC+c+q6AHLf27ZtG99X9YJG8/TDjz1FntVFoaIk2O62VfBr6uCyWgWDXidQCoY/2UY2FGFPT2dtic+vyQin62oQiUcOiOJlT70minnkJpNJvtnfd9/0H+RZbU5YwN1fwZbmV4U0iw8Zlq7UJSsyAnIbxWtXjhF6bvf9yvb3qqDT6f4UiYS7x/oFyC3HC4C1a9eqFQk57wPfvn+GcEm9g+3vghnPw2a2UXSKvcBxSSTjgkuXPiC4zrYvsXPLe43mdPMWmaqbASk+fvw43yVQUVHBLadu4LIsTRlXPEmdb42fwrn4frjtti4gLIIm8WwPcOGUH590nEGWsQADydurV5G5tL8OBkPy9OnTu8f7LLc4uNLSUrU6kSTpYaL3cYqsoe6cvMItB46CP7ah4Zc0AGi1PSOZU6qBnmBKaO4M4A7TTDbO+b0+eY5RaknRYqeOHsALCx45St+7i3Ympba2FsOHD786xTNnzrwEruLO4okvPb/sZWHE8AIcPFKD1UufY6XPTheMpjCBc/R6l6k2lNAWCsPORqvgLsRESkGXMzTPeZdSphTy45Xnn42n2WwLOjt8Snl5mVp8XNWC3Od4lUKhfk/B8FsPbn5/h5BG6SBdp0FIZHj99RUITjiHO8Y6e1mPC0+8jb5ODNXdzaa5Fwo8qV1NkpSUyx+dhbOnP5uXSinv5ObmqLWlCuyiBr3e5hHLrUf57hc/W7JM0FM5RdjUpMrVuWtKCURvZ5/gLgRD8LZKKHWWsWk5i/oFl4gG8ezC2Th96uQSqrzfSSYltbb8qvSi+NChQ0hPTzc5HM7ScRPuRkRifNNXyYvRdmV3uiAGk7hwJgDvxy0ItYhgSS2CLIwH5/0EDw+bS2prhIBIOwVZ88omQn8RcOuX9Vjx1E/lJu8Xz1A9+WYkEsGePXswfvz4gQHyh6nBGZZfONIsiRIEra67bOLySW0N4p9SHnROxpySbyE7Zwh0JjMCHQ1Yv24dSirmqc85jPoe63IflJMJ/GHTb1D15pomptXMFQTtgf7A9QLIo5dTR1HrtpjMrK2xSfDcPrLHC/fOfBRT738ItQd3IOBrga/1S/y7vh47/7oVL77yRp8fkSUC8X4Vfr9urdTa3vpbk9X6YsjnD9vtVuzYsf2q4PoEqFKh14cSclLwNZ+HNcMBh7tnj0DzyMrxoLWpkSyswdjiyVRojsSGNa+y5W9uJKNrEAkFceLoIRzZtw/bq6tDspTYqDEY3iCreVubmjB79my1e+MtZn/SI4p5MUB9KlKp1ELPsIL1S371Gg9tDBszGna3CwNJ1fq1OHPiUzSc+xfO1Z/1Eh0HtDpdtcFo3CVGorFwOISJEydi6dKlKCkp6R/YxSjuYcFEIsEpfnDsN4vXjymaCCVFzkeNzxcnTgmZebcgJ98DPTXgV5NTxz/G3g93P240GP5Gyl4IhyOIBoPw0bpz5sxR+5iBgPVLMRfKhUk5nmBpWgOO1OzF6DuKYLc6WEdjE3wtLYLV7oDdlYk0qxV6Y1cNx+8fVG3Avl07D1stlrdaWlqUUaNGYfLkyWq/PGPGjAGpvCaKeQanUp6nh3upc/nz7IVPOIYWjESktZ1lZLqQfcsQroHArUrVKlVeWtbc7MX+Pdtw5PC+A5Q/H/L5Ojtefrmyu/oerPRJcdderKFBZeKkknsdo4qK8WHVH5lriEfIynKzFZXPCHl5QxmP9Fg0xhq9X4ihkP8jKpHeMpstfyFwmDXrwRsGd1WK/X4/rFbrBEdm9kv3z5qD2r1/Z4c/2tNx99RSV3bJ9wUxlmAnPjl2JymiJ1BRRaM5p9cbxWg0rNaLN8Ny/QJ0Op0m2uLWz1n8tKHh5Em2e2c1P32acrTmo123DrvNE41FmxWF1fGTKIp0UsaCMWPGYMGCBTfkZ9cs1Ig//ciiJ9iKNW+zMd8oSrrd7vv4OQndbyfwr7lcrgl2ChJeTAz2oOlarz6FH2GUv1jJJt9TohCopTk5t/AjNLWatlistAWa1azPXeG/BbBHFBNFPyLfqqQH1lMgrOTnfMeOHVNf8FI7yBP59eaxwYogXHsv87X8T8t/AITc5PMTiV4uAAAAAElFTkSuQmCC',
 };
 const itemImgs = {};
-Object.keys(ITEM_SPRITES).forEach(key => {
+Object.keys(ITEM_SPRITES_B64).forEach(key => {
   const img = new Image();
   itemImgs[key] = { img, ready: false };
   img.onload = () => { itemImgs[key].ready = true; };
   img.onerror = () => { itemImgs[key].ready = false; };
-  img.src = ITEM_SPRITES[key];
+  img.src = ITEM_SPRITES_B64[key];
 });
-const ITEM_SIZE = 26;
-const RESIST_BOOST_M = 250;
-const SWIFT_BOOST_M = 550;
-const SWIFT_SPAWN_CHANCE = 0.02;  // checado antes, é mais rara
-const RESIST_SPAWN_CHANCE = 0.05;
+const SWIFT_SPAWN_CHANCE = 0.05;  // checado antes, é mais rara
+const RESIST_SPAWN_CHANCE = 0.10;
 
 let toastTimer = null;
 function showToast(text) {
@@ -298,16 +306,42 @@ function maybeSpawnItem(nearY) {
   });
 }
 
+// Velocidade vertical instantânea aplicada ao Spoink ao pegar a pena — é
+// isso que faz ele voar tela acima "de verdade" (não só a câmera subindo).
+// Swift dá um arremesso mais forte que Resist.
+const SWIFT_LAUNCH_VY = -1900;
+const RESIST_LAUNCH_VY = -1400;
+const FEATHER_BOOST_MS = 450; // tem que bater com a duration da transition CSS
+
+// Altura extra aproximada que o impulso rende (v²/2g em px, convertida pra
+// escala de score = px/10) — só pra exibir um número coerente no toast.
+function launchGainM(vy) {
+  return Math.round((vy * vy) / (2 * GRAVITY) / 10);
+}
+
 function collectItem(it) {
   it.collected = true;
-  const boostM = it.kind === 'swift' ? SWIFT_BOOST_M : RESIST_BOOST_M;
-  const dy = boostM * 10; // mesma escala de score = floor(camY/10)
-  camY += dy;
-  for (const p of platforms) p.y += dy;
-  for (const other of items) other.y += dy;
-  score = Math.max(score, Math.floor(camY / 10));
-  scoreEl.textContent = score + ' m';
+  const vy = it.kind === 'swift' ? SWIFT_LAUNCH_VY : RESIST_LAUNCH_VY;
+  const boostM = launchGainM(vy);
   showToast(`${it.kind === 'swift' ? 'Swift Feather' : 'Resist Feather'} +${boostM}m!`);
+
+  // Arremesso real: dá uma velocidade vertical bem negativa (pra cima) no
+  // Spoink. O avanço de câmera/pontuação acontece organicamente pelo
+  // update() normal conforme ele sobe — nada é teleportado, então
+  // plataformas e itens continuam existindo no caminho.
+  player.vy = vy;
+  launchFeatherEffect();
+}
+
+// Efeito visual de "jogado pra cima": um giro + esticada rápida no sprite,
+// suavizado pela transition CSS declarada em #sj-sprite.sj-feather-boost.
+function launchFeatherEffect() {
+  if (!spriteElReady) return;
+  spriteEl.classList.add('sj-feather-boost');
+  featherBoostUntil = performance.now() + FEATHER_BOOST_MS;
+  setTimeout(() => {
+    spriteEl.classList.remove('sj-feather-boost');
+  }, FEATHER_BOOST_MS);
 }
 
 // ── Estado do jogo ───────────────────────────────────────
@@ -315,7 +349,7 @@ const BASE_W_MIN = 260, BASE_H_MIN = 340;
 let BASE_W = 360, BASE_H = 480;
 let baseSized = false;
 
-const PLAYER_W = 40, PLAYER_H = 40;
+const PLAYER_W = 60, PLAYER_H = 60;
 const GRAVITY = 1800;        // px/s²
 const JUMP_VELOCITY = -700;  // px/s
 const MOVE_SPEED = 260;      // px/s (teclado)
@@ -563,14 +597,34 @@ function draw() {
   }
 
   for (const it of items) {
+    const cx = it.x + it.w / 2, cy = it.y + it.h / 2, r = it.w / 2;
+    const fill = it.kind === 'swift' ? 'rgba(247,201,224,.55)' : 'rgba(166,200,240,.55)';
+    const glow = it.kind === 'swift' ? '#fde8f2' : '#d6e8fb';
+    // bolha translúcida (mesmo estilo das berries dos outros jogos)
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,255,255,.6)';
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = glow;
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.ellipse(cx - r * 0.3, cy - r * 0.35, r * 0.35, r * 0.22, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(255,255,255,.8)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 1, 0, Math.PI * 2);
+    ctx.stroke();
+    // pena desenhada dentro da bolha
     const spr = itemImgs[it.kind];
     if (spr && spr.ready) {
-      ctx.drawImage(spr.img, it.x, it.y, it.w, it.h);
-    } else {
-      ctx.fillStyle = it.kind === 'swift' ? '#f7c9e0' : '#a6c8f0';
-      ctx.beginPath();
-      ctx.ellipse(it.x + it.w / 2, it.y + it.h / 2, it.w / 2, it.h / 2, 0, 0, Math.PI * 2);
-      ctx.fill();
+      const iw = r * 1.5;
+      ctx.drawImage(spr.img, cx - iw / 2, cy - iw / 2, iw, iw);
     }
   }
 
