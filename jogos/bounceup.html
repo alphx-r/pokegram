@@ -502,6 +502,13 @@ function launchFeatherEffect() {
 
 // ── Estado do jogo ───────────────────────────────────────
 const BASE_W_MIN = 260, BASE_H_MIN = 340;
+// Em telas de desktop a janela pode ser muito maior que um celular; sem
+// limite, o campo de jogo ficaria enorme e a jogabilidade (movimento,
+// alcance de pulo, distância entre plataformas) mudaria bastante em
+// relação ao mobile. Limitando a um tamanho máximo tipo "tela de celular",
+// o jogo se comporta igual nos dois — só sobra espaço vazio ao redor no
+// desktop, centralizado pelo próprio .sj-wrap.
+const BASE_W_MAX = 480, BASE_H_MAX = 900;
 let BASE_W = 360, BASE_H = 480;
 let baseSized = false;
 
@@ -527,6 +534,7 @@ let clouds = [];
 // normal é v²/2g ≈ 136px, então isso deixa boa folga mesmo nos gaps maiores.
 const PLATFORM_GAP_MIN = 55, PLATFORM_GAP_RANGE = 35;
 const FRAGILE_CHANCE = 0.22;      // chance de uma plataforma nascer frágil
+const FRAGILE_MIN_HEIGHT_M = 300; // plataforma frágil só passa a poder nascer a partir dessa altura
 const FRAGILE_BREAK_MS = 180;     // duração da animação de quebra antes de sumir
 
 function randomPlatform(y, prevFragile, forceGolden) {
@@ -537,6 +545,7 @@ function randomPlatform(y, prevFragile, forceGolden) {
   // plataforma logo abaixo é frágil, essa nunca atravessa — só bounce —
   // pra não ficar cruzando o espaço logo acima de uma plataforma que quebra.
   const canWrap = moving && !prevFragile && Math.random() < 0.3;
+  const canBeFragile = !forceGolden && score >= FRAGILE_MIN_HEIGHT_M;
   return {
     x: Math.random() * (BASE_W - w), y, w, h: 14,
     wobble: false,
@@ -545,7 +554,7 @@ function randomPlatform(y, prevFragile, forceGolden) {
     vx: moving ? (60 + Math.random() * 60) * (Math.random() < 0.5 ? -1 : 1) : 0,
     golden: !!forceGolden,
     hitsLeft: forceGolden ? 2 : 1, // plataforma dourada aguenta 2 saltos antes de quebrar
-    fragile: forceGolden ? false : Math.random() < FRAGILE_CHANCE,
+    fragile: canBeFragile && Math.random() < FRAGILE_CHANCE,
     breaking: 0, // timestamp de quando começou a quebrar (0 = intacta)
   };
 }
@@ -583,6 +592,7 @@ function startGame() {
   document.getElementById('sj-overlay').classList.remove('show');
   if (typeof exitAimMode === 'function') exitAimMode();
   resetGame();
+  if (spriteElReady) spriteEl.style.display = 'block';
   started = true;
   scoreEl.textContent = '0 m';
   lastTs = performance.now();
@@ -958,8 +968,8 @@ function loop(ts) {
 
 // ── Canvas sizing responsivo (mesmo padrão do tyRUNt) ────
 function computeBaseDims(maxW, maxH) {
-  BASE_W = Math.max(BASE_W_MIN, Math.round(maxW));
-  BASE_H = Math.max(BASE_H_MIN, Math.round(maxH));
+  BASE_W = Math.min(BASE_W_MAX, Math.max(BASE_W_MIN, Math.round(maxW)));
+  BASE_H = Math.min(BASE_H_MAX, Math.max(BASE_H_MIN, Math.round(maxH)));
 }
 
 function resize() {
@@ -1015,6 +1025,7 @@ async function refreshBest() {
 async function endGame() {
   gameOver = true;
   started = false;
+  spriteEl.style.display = 'none';
   if (user) await gSaveScore('bounceup', score, user);
   document.getElementById('sj-final-score').textContent = score + ' m';
   if (score > best) best = score;
