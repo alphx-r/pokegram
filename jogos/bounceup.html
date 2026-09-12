@@ -139,6 +139,24 @@
   .sj-btn:hover{background:var(--brand)}
   #sj-share-btn{background:var(--accent);color:#3a2e00}
   #sj-share-btn:hover{background:#f0c22e}
+  .sj-aim-ui{
+    position:absolute;left:0;right:0;bottom:0;z-index:40;
+    display:none;flex-direction:column;align-items:center;gap:10px;
+    padding:0 16px 22px;pointer-events:none;
+  }
+  .sj-aim-ui.show{display:flex}
+  .sj-aim-hint{
+    background:rgba(255,255,255,.9);color:#4a4560;font-weight:800;font-size:12px;
+    padding:6px 14px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,.2);
+    pointer-events:none;text-align:center;
+  }
+  .sj-aim-btns{display:flex;gap:12px;pointer-events:auto}
+  .sj-aim-btn{
+    padding:10px 22px;border:none;border-radius:24px;font-family:'Nunito',sans-serif;
+    font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+  .sj-aim-cancel{background:#fff;color:var(--muted)}
+  .sj-aim-confirm{background:#e8b23a;color:#3a2e00}
   .sj-toast{
     position:absolute;top:64px;left:50%;transform:translate(-50%,-8px);z-index:30;
     background:rgba(70,60,100,.88);color:#fff;padding:8px 16px;border-radius:20px;
@@ -181,6 +199,14 @@
   </div>
 
   <div class="sj-toast" id="sj-toast"></div>
+
+  <div class="sj-aim-ui" id="sj-aim-ui">
+    <div class="sj-aim-hint">Arraste para posicionar a plataforma dourada</div>
+    <div class="sj-aim-btns">
+      <button class="sj-aim-btn sj-aim-cancel" id="sj-aim-cancel">Cancelar</button>
+      <button class="sj-aim-btn sj-aim-confirm" id="sj-aim-confirm">Confirmar</button>
+    </div>
+  </div>
 
   <div class="sj-hint" id="sj-hint">
     <div class="sj-hint-card">
@@ -261,6 +287,11 @@ spriteEl.src = SPOINK_SPRITE;
 // A altura visual fica travada em PLAYER_H (mesmo tamanho da hitbox); a
 // largura é derivada da proporção real do gif, então o Spoink nunca fica
 // esticado/achatado — só a "moldura" da imagem muda de largura.
+// O gif original tem uma margem transparente embaixo, então o corpo do
+// Spoink "flutua" um pouco acima do fundo real do quadro. Esse offset só
+// desloca a exibição visual pra baixo (a hitbox/colisão continua usando
+// player.y/PLAYER_H sem alteração), pra cauda parecer encostar na plataforma.
+const SPRITE_VISUAL_OFFSET_RATIO = 0.12;
 let featherBoostUntil = 0; // performance.now() até quando o efeito de arremesso deve continuar
 function updateSpritePosition() {
   if (!spriteElReady || !player) return;
@@ -269,12 +300,12 @@ function updateSpritePosition() {
   spriteEl.style.width = w + 'px';
   spriteEl.style.height = h + 'px';
   const x = canvas.offsetLeft + player.x + PLAYER_W / 2 - w / 2;
-  const y = canvas.offsetTop + player.y;
+  const y = canvas.offsetTop + player.y + h * SPRITE_VISUAL_OFFSET_RATIO;
   const flip = player.facing < 0 ? -1 : 1;
   let transform = `translate(${x}px, ${y}px)`;
   if (flip < 0) transform += ' scaleX(-1)';
   if (performance.now() < featherBoostUntil) {
-    transform += ` scale(1.2125) rotate(${flip * 25}deg)`;
+    transform += ` rotate(${flip * 25}deg)`;
   }
   spriteEl.style.transform = transform;
 }
@@ -299,6 +330,11 @@ Object.keys(ITEM_SPRITES_B64).forEach(key => {
 });
 const SWIFT_SPAWN_CHANCE = 0.02;  // checado antes, é mais rara
 const RESIST_SPAWN_CHANCE = 0.05;
+// Distância mínima (em px de altura, mesma escala do score em metros * 10)
+// que precisa ser percorrida depois de uma pena nascer antes da próxima
+// poder aparecer — evita sequências de penas muito próximas.
+const MIN_FEATHER_GAP = 2000; // 200m
+let distSinceFeather = MIN_FEATHER_GAP; // já "pronto" pra nascer desde o início
 
 // ── Moedas ────────────────────────────────────────────────
 // Nascem em cima de plataformas normais (não frágeis, não douradas).
@@ -335,25 +371,66 @@ function collectCoin(c) {
   showToast(`Moeda! (${coins})`);
 }
 
-// Cria uma plataforma dourada perto do player, num alcance pulável, gastando
-// COINS_PER_GOLDEN moedas. Usado quando ele toca no ícone de moedas.
-function spawnGoldenNearPlayer() {
-  if (coins < COINS_PER_GOLDEN) return;
+// Modo de mira: em vez de a plataforma dourada nascer automaticamente,
+// o player entra num modo pausado onde arrasta uma prévia semi-transparente
+// pra escolher a posição X (Y fica fixo, num alcance de pulo acima dele) e
+// confirma antes de gastar as moedas. Usado ao tocar no ícone de moedas.
+let aiming = false;
+let aimPlatform = null;
+let aimDragging = false;
+let lastAimPointerX = 0;
+const aimUiEl = document.getElementById('sj-aim-ui');
+const aimConfirmBtn = document.getElementById('sj-aim-confirm');
+const aimCancelBtn = document.getElementById('sj-aim-cancel');
+
+function enterAimMode() {
+  if (coins < COINS_PER_GOLDEN || aiming || !started || gameOver) return;
+  const w = 60;
+  aiming = true;
+  aimPlatform = {
+    x: Math.min(BASE_W - w, Math.max(0, player.x + PLAYER_W / 2 - w / 2)),
+    y: player.y - 90,
+    w, h: 14,
+  };
+  aimUiEl.classList.add('show');
+}
+
+function confirmAim() {
+  if (!aiming || !aimPlatform) return;
   coins -= COINS_PER_GOLDEN;
   updateCoinsUI();
-  const w = 60;
-  const p = randomPlatform(player.y - 90, false, true);
-  p.x = Math.min(BASE_W - w, Math.max(0, player.x + PLAYER_W / 2 - w / 2));
-  p.w = w;
+  const p = randomPlatform(aimPlatform.y, false, true);
+  p.x = aimPlatform.x;
+  p.w = aimPlatform.w;
   p.moving = false;
   p.moveMode = null;
   p.vx = 0;
   platforms.push(p);
   showToast('Plataforma dourada!');
+  exitAimMode();
 }
-coinsBtn.addEventListener('click', spawnGoldenNearPlayer);
+
+function cancelAim() {
+  exitAimMode();
+}
+
+function exitAimMode() {
+  aiming = false;
+  aimPlatform = null;
+  aimDragging = false;
+  aimUiEl.classList.remove('show');
+}
+
+coinsBtn.addEventListener('click', enterAimMode);
 coinsBtn.addEventListener('pointerdown', e => e.stopPropagation());
 coinsBtn.addEventListener('pointerup', e => e.stopPropagation());
+
+aimConfirmBtn.addEventListener('click', e => { e.stopPropagation(); confirmAim(); });
+aimCancelBtn.addEventListener('click', e => { e.stopPropagation(); cancelAim(); });
+aimConfirmBtn.addEventListener('pointerdown', e => e.stopPropagation());
+aimCancelBtn.addEventListener('pointerdown', e => e.stopPropagation());
+aimConfirmBtn.addEventListener('pointerup', e => e.stopPropagation());
+aimCancelBtn.addEventListener('pointerup', e => e.stopPropagation());
 
 let toastTimer = null;
 function showToast(text) {
@@ -364,12 +441,15 @@ function showToast(text) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 900);
 }
 
-function maybeSpawnItem(nearY) {
+function maybeSpawnItem(nearY, gap) {
+  distSinceFeather += gap;
+  if (distSinceFeather < MIN_FEATHER_GAP) return;
   const roll = Math.random();
   let kind = null;
   if (roll < SWIFT_SPAWN_CHANCE) kind = 'swift';
   else if (roll < SWIFT_SPAWN_CHANCE + RESIST_SPAWN_CHANCE) kind = 'resist';
   if (!kind) return;
+  distSinceFeather = 0;
   items.push({
     x: Math.random() * (BASE_W - ITEM_SIZE),
     y: nearY - 30 - Math.random() * 40,
@@ -421,7 +501,7 @@ const BASE_W_MIN = 260, BASE_H_MIN = 340;
 let BASE_W = 360, BASE_H = 480;
 let baseSized = false;
 
-const PLAYER_W = 60, PLAYER_H = 60;
+const PLAYER_W = 90, PLAYER_H = 90;
 const GRAVITY = 1800;        // px/s²
 const JUMP_VELOCITY = -700;  // px/s
 const MOVE_SPEED = 260;      // px/s (teclado)
@@ -478,12 +558,14 @@ function resetGame() {
   coins = 0;
   updateCoinsUI();
   let y = BASE_H - 60;
+  distSinceFeather = MIN_FEATHER_GAP;
   while (y > -BASE_H) {
-    y -= PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE;
+    const gap = PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE;
+    y -= gap;
     const prev = platforms[platforms.length - 1];
     const p = randomPlatform(y, prev && prev.fragile);
     platforms.push(p);
-    maybeSpawnItem(y);
+    maybeSpawnItem(y, gap);
     maybeSpawnCoin(p);
   }
   clouds = [];
@@ -495,6 +577,7 @@ function resetGame() {
 
 function startGame() {
   document.getElementById('sj-overlay').classList.remove('show');
+  if (typeof exitAimMode === 'function') exitAimMode();
   resetGame();
   started = true;
   scoreEl.textContent = '0 m';
@@ -517,11 +600,25 @@ window.addEventListener('keyup', e => {
 const wrapEl = document.getElementById('sj-wrap');
 let lastPointerX = 0;
 wrapEl.addEventListener('pointerdown', e => {
+  if (aiming) {
+    aimDragging = true;
+    lastAimPointerX = e.clientX;
+    return;
+  }
   dragging = true;
   lastPointerX = e.clientX;
   dismissHint();
 });
 window.addEventListener('pointermove', e => {
+  if (aiming) {
+    if (!aimDragging || !aimPlatform) return;
+    const rect = canvas.getBoundingClientRect();
+    const scale = BASE_W / rect.width;
+    const deltaX = (e.clientX - lastAimPointerX) * scale;
+    lastAimPointerX = e.clientX;
+    aimPlatform.x = Math.min(BASE_W - aimPlatform.w, Math.max(0, aimPlatform.x + deltaX));
+    return;
+  }
   if (!dragging || !started || gameOver) return;
   const rect = canvas.getBoundingClientRect();
   const scale = BASE_W / rect.width;
@@ -529,7 +626,7 @@ window.addEventListener('pointermove', e => {
   lastPointerX = e.clientX;
   player.x = Math.min(BASE_W - PLAYER_W, Math.max(0, player.x + deltaX));
 });
-window.addEventListener('pointerup', () => dragging = false);
+window.addEventListener('pointerup', () => { dragging = false; aimDragging = false; });
 
 let hintDismissed = false;
 function dismissHint() {
@@ -639,10 +736,11 @@ function update(dt) {
   while (platforms.length < 12) {
     let topPlatform = platforms[0];
     for (const p of platforms) if (p.y < topPlatform.y) topPlatform = p;
-    const newY = topPlatform.y - (PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE);
+    const gap = PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE;
+    const newY = topPlatform.y - gap;
     const p = randomPlatform(newY, topPlatform.fragile);
     platforms.push(p);
-    maybeSpawnItem(newY);
+    maybeSpawnItem(newY, gap);
     maybeSpawnCoin(p);
   }
   coinItems = coinItems.filter(c => !c.collected && c.y < BASE_H + 40);
@@ -656,7 +754,7 @@ function update(dt) {
     if (c.y > BASE_H + 30) { c.y = -30; c.x = Math.random() * BASE_W; }
   }
 
-  if (player.y > BASE_H + 60) endGame();
+  if (player.y + PLAYER_H > BASE_H) endGame();
 }
 
 function drawCloud(x, y, scale) {
@@ -716,16 +814,16 @@ function draw() {
       continue;
     }
     if (p.fragile) {
-      // plataforma frágil: tom bege esbranquiçado com "rachaduras" — só aguenta um bounce
-      ctx.fillStyle = '#d9c19a';
+      // plataforma frágil: rosa pastel esbranquiçado com "rachaduras" — só aguenta um bounce
+      ctx.fillStyle = '#f0b6cc';
       ctx.beginPath();
       ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#efe0c6';
+      ctx.fillStyle = '#fbdcea';
       ctx.beginPath();
       ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2 - 2, p.w / 2 - 4, p.h / 2 - 3, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(120,95,55,.5)';
+      ctx.strokeStyle = 'rgba(150,75,110,.5)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(p.x + p.w * 0.3, p.y + 2);
@@ -734,11 +832,11 @@ function draw() {
       ctx.stroke();
       continue;
     }
-    ctx.fillStyle = '#a9c9a0';
+    ctx.fillStyle = '#b3a6e6';
     ctx.beginPath();
     ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2, p.w / 2, p.h / 2, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#cfe8c4';
+    ctx.fillStyle = '#ded3f7';
     ctx.beginPath();
     ctx.ellipse(p.x + p.w / 2, p.y + p.h / 2 - 2, p.w / 2 - 4, p.h / 2 - 3, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -796,6 +894,25 @@ function draw() {
     }
   }
 
+  if (aiming && aimPlatform) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.shadowColor = 'rgba(255,210,80,.8)';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#e8b23a';
+    ctx.beginPath();
+    ctx.ellipse(aimPlatform.x + aimPlatform.w / 2, aimPlatform.y + aimPlatform.h / 2, aimPlatform.w / 2, aimPlatform.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#ffe293';
+    ctx.beginPath();
+    ctx.ellipse(aimPlatform.x + aimPlatform.w / 2, aimPlatform.y + aimPlatform.h / 2 - 2, aimPlatform.w / 2 - 4, aimPlatform.h / 2 - 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   if (spriteElReady) {
     updateSpritePosition();
   } else {
@@ -812,7 +929,7 @@ function draw() {
 function loop(ts) {
   const dt = Math.min(0.033, (ts - lastTs) / 1000);
   lastTs = ts;
-  if (started && !gameOver) update(dt);
+  if (started && !gameOver && !aiming) update(dt);
   draw();
   rafId = requestAnimationFrame(loop);
 }
