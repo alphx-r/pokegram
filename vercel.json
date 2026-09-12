@@ -2,6 +2,8 @@
   "rewrites": [
     { "source": "/jogos", "destination": "/jogos.html" },
     { "source": "/jogos/", "destination": "/jogos.html" },
+    { "source": "/jogos/bounceup", "destination": "/jogos/bounceup.html" },
+    { "source": "/jogos/bounceup/", "destination": "/jogos/bounceup.html" },
     { "source": "/jogos/flapidgey", "destination": "/flapidgey.html" },
     { "source": "/jogos/flapidgey/", "destination": "/flapidgey.html" },
     { "source": "/jogos/tetris", "destination": "/tetris.html" },
