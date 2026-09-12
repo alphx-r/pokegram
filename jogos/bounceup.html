@@ -42,7 +42,7 @@
     image-rendering:pixelated;transform-origin:center center;
   }
   #sj-sprite.sj-feather-boost{
-    transition:transform .45s cubic-bezier(.2,.9,.3,1.4), filter .45s ease;
+    transition:filter .45s ease;
     filter:drop-shadow(0 0 10px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(247,201,224,.8));
   }
 
@@ -462,6 +462,128 @@ function maybeSpawnItem(nearY, gap) {
   });
 }
 
+// ── Inimigo voador (empecilho) ───────────────────────────
+// Atravessa a tela horizontalmente numa altura fixa. Não é game over ao
+// encostar nele: dá um "soco" que arremessa o Spoink pra baixo (perde o
+// embalo do pulo), obrigando a se recuperar em outra plataforma. Só passa
+// a aparecer depois de uma altura mínima, e tem um intervalo mínimo entre
+// aparições (mesmo padrão de "cooldown por distância" usado nas penas).
+// Assim como o Spoink, é um gif animado: precisa de uma <img> real (não dá
+// pra animar via ctx.drawImage()) — usamos um "pool" de <img> reaproveitadas
+// pra cada inimigo ativo na tela, na mesma técnica do #sj-sprite.
+const ENEMY_SPRITE = 'https://64.media.tumblr.com/a1bf32f111913c60bb33483b41efaced/4603906cfe87268f-6c/s100x200/3ac76837b432a3ee25f41090bddbce41c7437040.gifv';
+let enemySpriteReady = false;
+let enemySpriteAspect = 1;
+const enemySpriteProbe = new Image();
+enemySpriteProbe.crossOrigin = 'anonymous';
+enemySpriteProbe.onload = () => {
+  enemySpriteReady = true;
+  if (enemySpriteProbe.naturalWidth && enemySpriteProbe.naturalHeight) {
+    enemySpriteAspect = enemySpriteProbe.naturalWidth / enemySpriteProbe.naturalHeight;
+  }
+};
+enemySpriteProbe.onerror = () => { enemySpriteReady = false; };
+enemySpriteProbe.src = ENEMY_SPRITE;
+
+const enemySpriteEls = [];
+function getEnemySpriteEl(i) {
+  while (enemySpriteEls.length <= i) {
+    const img = document.createElement('img');
+    img.src = ENEMY_SPRITE;
+    img.crossOrigin = 'anonymous';
+    img.style.position = 'absolute';
+    img.style.left = '0';
+    img.style.top = '0';
+    img.style.pointerEvents = 'none';
+    img.style.zIndex = '5';
+    img.style.display = 'none';
+    wrapEl.appendChild(img);
+    enemySpriteEls.push(img);
+  }
+  return enemySpriteEls[i];
+}
+// Altura visual do inimigo (independente da hitbox, que continua pequena
+// pra colisão justa) — a largura segue a proporção real do gif.
+const ENEMY_VISUAL_H = 46;
+function updateEnemySprites() {
+  enemies.forEach((en, i) => {
+    const el = getEnemySpriteEl(i);
+    if (en.hit || !enemySpriteReady) { el.style.display = 'none'; return; }
+    const h = ENEMY_VISUAL_H;
+    const w = h * enemySpriteAspect;
+    el.style.display = 'block';
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    const cx = en.x + en.w / 2, cy = en.y + en.h / 2;
+    const x = canvas.offsetLeft + cx - w / 2;
+    const y = canvas.offsetTop + cy - h / 2;
+    const flip = en.vx < 0 ? -1 : 1;
+    el.style.transform = `translate(${x}px, ${y}px)${flip < 0 ? ' scaleX(-1)' : ''}`;
+  });
+  for (let i = enemies.length; i < enemySpriteEls.length; i++) enemySpriteEls[i].style.display = 'none';
+}
+
+const ENEMY_SIZE = 34;
+const ENEMY_SPAWN_CHANCE = 0.05;
+const ENEMY_MIN_GAP = 1500;       // distância mínima (mesma escala das penas) entre inimigos
+const ENEMY_MIN_HEIGHT_M = 1000;  // só começa a poder aparecer a partir dessa altura
+const ENEMY_KNOCKBACK_VY = 900;   // empurrão pra baixo ao ser atingido
+const ENEMY_INVULN_MS = 700;      // janela de invencibilidade após ser atingido
+let distSinceEnemy = 0;
+let enemies = [];
+
+function maybeSpawnEnemy(nearY, gap) {
+  distSinceEnemy += gap;
+  if (score < ENEMY_MIN_HEIGHT_M) return;
+  if (distSinceEnemy < ENEMY_MIN_GAP) return;
+  if (Math.random() > ENEMY_SPAWN_CHANCE) return;
+  distSinceEnemy = 0;
+  const dir = Math.random() < 0.5 ? -1 : 1;
+  const w = ENEMY_SIZE, h = ENEMY_SIZE * 0.7;
+  enemies.push({
+    x: dir > 0 ? -w : BASE_W,
+    y: nearY - 40 - Math.random() * 40,
+    w, h,
+    vx: (70 + Math.random() * 40) * dir,
+    hit: false,
+  });
+}
+
+function hitEnemy(en) {
+  en.hit = true;
+  player.vy = ENEMY_KNOCKBACK_VY;
+  player.invulnUntil = performance.now() + ENEMY_INVULN_MS;
+  showToast('Ai! Cuidado com o inimigo!');
+}
+
+// ── Nuvem de tempestade (empecilho) ──────────────────────
+// Não machuca nem derruba o Spoink — é um empecilho "de leitura": uma
+// nuvem escura atravessa a tela e, enquanto estiver visível, escurece a
+// tela com um filtro de chuva, dificultando ver as plataformas com
+// clareza. Passa a poder aparecer numa altura maior que o inimigo voador,
+// pra escalar a dificuldade aos poucos.
+const STORM_MIN_HEIGHT_M = 1500;
+const STORM_MIN_GAP = 2500;      // 250m mínimo entre nuvens de tempestade
+const STORM_SPAWN_CHANCE = 0.04;
+let distSinceStorm = 0;
+let stormClouds = [];
+
+function maybeSpawnStorm(nearY, gap) {
+  distSinceStorm += gap;
+  if (score < STORM_MIN_HEIGHT_M) return;
+  if (distSinceStorm < STORM_MIN_GAP) return;
+  if (Math.random() > STORM_SPAWN_CHANCE) return;
+  distSinceStorm = 0;
+  const dir = Math.random() < 0.5 ? -1 : 1;
+  const w = 150 + Math.random() * 70;
+  stormClouds.push({
+    x: dir > 0 ? -w : BASE_W,
+    y: nearY - 60 - Math.random() * 90,
+    w, h: w * 0.55,
+    vx: (35 + Math.random() * 20) * dir,
+  });
+}
+
 // Velocidade vertical instantânea aplicada ao Spoink ao pegar a pena — é
 // isso que faz ele voar tela acima "de verdade" (não só a câmera subindo).
 // Swift dá um arremesso mais forte que Resist.
@@ -489,8 +611,11 @@ function collectItem(it) {
   launchFeatherEffect();
 }
 
-// Efeito visual de "jogado pra cima": um giro + esticada rápida no sprite,
-// suavizado pela transition CSS declarada em #sj-sprite.sj-feather-boost.
+// Efeito visual de "jogado pra cima": um brilho rápido no sprite. Só a
+// transição de "filter" é suavizada — a posição (transform: translate) tem
+// que ser aplicada instantaneamente a cada frame por updateSpritePosition(),
+// senão o navegador suaviza o próprio movimento do Spoink junto e ele
+// parece subir bem menos do que a física real do pulo.
 function launchFeatherEffect() {
   if (!spriteElReady) return;
   spriteEl.classList.add('sj-feather-boost');
@@ -564,14 +689,18 @@ function makeCloud(y) {
 }
 
 function resetGame() {
-  player = { x: BASE_W / 2 - PLAYER_W / 2, y: BASE_H - 140, vx: 0, vy: 0, facing: 1 };
+  player = { x: BASE_W / 2 - PLAYER_W / 2, y: BASE_H - 140, vx: 0, vy: 0, facing: 1, invulnUntil: 0 };
   platforms = [{ x: BASE_W / 2 - 35, y: BASE_H - 60, w: 70, h: 14, wobble: false, fragile: false, golden: false, hitsLeft: 1, breaking: 0 }];
   items = [];
   coinItems = [];
+  enemies = [];
+  stormClouds = [];
   coins = 0;
   updateCoinsUI();
   let y = BASE_H - 60;
   distSinceFeather = MIN_FEATHER_GAP;
+  distSinceEnemy = 0;
+  distSinceStorm = 0;
   while (y > -BASE_H) {
     const gap = PLATFORM_GAP_MIN + Math.random() * PLATFORM_GAP_RANGE;
     y -= gap;
@@ -580,6 +709,8 @@ function resetGame() {
     platforms.push(p);
     maybeSpawnItem(y, gap);
     maybeSpawnCoin(p);
+    maybeSpawnEnemy(y, gap);
+    maybeSpawnStorm(y, gap);
   }
   clouds = [];
   for (let i = 0; i < 6; i++) clouds.push(makeCloud());
@@ -738,6 +869,23 @@ function update(dt) {
     }
   }
 
+  const enemyHitMarginX = PLAYER_W * 0.15;
+  const enemyHitMarginY = PLAYER_H * 0.15;
+  if (performance.now() >= (player.invulnUntil || 0)) {
+    for (const en of enemies) {
+      if (en.hit) continue;
+      if (
+        player.x + enemyHitMarginX < en.x + en.w &&
+        player.x + PLAYER_W - enemyHitMarginX > en.x &&
+        player.y + enemyHitMarginY < en.y + en.h &&
+        player.y + PLAYER_H - enemyHitMarginY > en.y
+      ) {
+        hitEnemy(en);
+        break;
+      }
+    }
+  }
+
   if (player.y < BASE_H * 0.45) {
     const dy = BASE_H * 0.45 - player.y;
     player.y = BASE_H * 0.45;
@@ -745,6 +893,8 @@ function update(dt) {
     for (const p of platforms) p.y += dy;
     for (const it of items) it.y += dy;
     for (const c of coinItems) c.y += dy;
+    for (const en of enemies) en.y += dy;
+    for (const s of stormClouds) s.y += dy;
     score = Math.max(score, Math.floor(camY / 10));
     scoreEl.textContent = score + ' m';
   }
@@ -765,6 +915,13 @@ function update(dt) {
   }
 
   platforms = platforms.filter(p => p.y < BASE_H + 40 && (!p.breaking || performance.now() - p.breaking < FRAGILE_BREAK_MS));
+
+  for (const en of enemies) en.x += en.vx * dt;
+  enemies = enemies.filter(en => !en.hit && en.y < BASE_H + 40 && en.x > -en.w * 2 - 60 && en.x < BASE_W + en.w * 2 + 60);
+
+  for (const s of stormClouds) s.x += s.vx * dt;
+  stormClouds = stormClouds.filter(s => s.y < BASE_H + 100 && s.x > -s.w * 2 - 80 && s.x < BASE_W + s.w * 2 + 80);
+
   while (platforms.length < 12) {
     let topPlatform = platforms[0];
     for (const p of platforms) if (p.y < topPlatform.y) topPlatform = p;
@@ -774,6 +931,8 @@ function update(dt) {
     platforms.push(p);
     maybeSpawnItem(newY, gap);
     maybeSpawnCoin(p);
+    maybeSpawnEnemy(newY, gap);
+    maybeSpawnStorm(newY, gap);
   }
   coinItems = coinItems.filter(c => !c.collected && c.y < BASE_H + 40);
   for (const c of coinItems) {
@@ -801,10 +960,26 @@ function drawCloud(x, y, scale) {
   ctx.restore();
 }
 
+function drawStormCloud(s) {
+  const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+  const r = s.h / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(s.w / s.h, 1);
+  ctx.fillStyle = 'rgba(90,95,120,.85)';
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.arc(r * 1.05, r * 0.2, r * 0.8, 0, Math.PI * 2);
+  ctx.arc(-r * 1.05, r * 0.25, r * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function draw() {
   ctx.clearRect(0, 0, BASE_W, BASE_H);
 
   for (const c of clouds) drawCloud(c.x, c.y, c.scale);
+  for (const s of stormClouds) drawStormCloud(s);
 
   for (const p of platforms) {
     if (p.breaking) {
@@ -896,6 +1071,8 @@ function draw() {
     ctx.stroke();
   }
 
+  updateEnemySprites();
+
   for (const it of items) {
     const cx = it.x + it.w / 2, cy = it.y + it.h / 2, r = it.w / 2;
     // bolha branca translúcida (mesma pra ambos os tipos de pena)
@@ -954,6 +1131,28 @@ function draw() {
     ctx.beginPath();
     ctx.arc(0, 0, PLAYER_W / 2, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  }
+
+  // Enquanto alguma nuvem de tempestade estiver visível, escurece a tela e
+  // desenha riscos de chuva por cima de tudo — dificulta enxergar as
+  // plataformas com clareza sem causar dano/queda.
+  const activeStorm = stormClouds.some(s => s.y + s.h > -40 && s.y < BASE_H + 40);
+  if (activeStorm) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(35,35,55,.28)';
+    ctx.fillRect(0, 0, BASE_W, BASE_H);
+    ctx.strokeStyle = 'rgba(210,220,255,.35)';
+    ctx.lineWidth = 1.5;
+    const rainT = performance.now() / 40;
+    for (let i = 0; i < 26; i++) {
+      const rx = (i * 53 + rainT * 7) % (BASE_W + 40) - 20;
+      const ry = (i * 97 + rainT * 22) % (BASE_H + 40) - 20;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 4, ry + 14);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 }
@@ -1026,6 +1225,9 @@ async function endGame() {
   gameOver = true;
   started = false;
   spriteEl.style.display = 'none';
+  enemies = [];
+  stormClouds = [];
+  for (const el of enemySpriteEls) el.style.display = 'none';
   if (user) await gSaveScore('bounceup', score, user);
   document.getElementById('sj-final-score').textContent = score + ' m';
   if (score > best) best = score;
