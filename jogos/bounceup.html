@@ -304,9 +304,6 @@ function updateSpritePosition() {
   const flip = player.facing < 0 ? -1 : 1;
   let transform = `translate(${x}px, ${y}px)`;
   if (flip < 0) transform += ' scaleX(-1)';
-  if (performance.now() < featherBoostUntil) {
-    transform += ` rotate(${flip * 25}deg)`;
-  }
   spriteEl.style.transform = transform;
 }
 
@@ -373,15 +370,22 @@ function collectCoin(c) {
 
 // Modo de mira: em vez de a plataforma dourada nascer automaticamente,
 // o player entra num modo pausado onde arrasta uma prévia semi-transparente
-// pra escolher a posição X (Y fica fixo, num alcance de pulo acima dele) e
-// confirma antes de gastar as moedas. Usado ao tocar no ícone de moedas.
+// pra escolher a posição, tanto horizontal quanto vertical (dentro de um
+// alcance pulável acima dele), e confirma antes de gastar as moedas. Usado
+// ao tocar no ícone de moedas.
 let aiming = false;
 let aimPlatform = null;
 let aimDragging = false;
 let lastAimPointerX = 0;
+let lastAimPointerY = 0;
 const aimUiEl = document.getElementById('sj-aim-ui');
 const aimConfirmBtn = document.getElementById('sj-aim-confirm');
 const aimCancelBtn = document.getElementById('sj-aim-cancel');
+// Faixa vertical permitida pra prévia, relativa ao player: entre bem perto
+// dele (AIM_Y_MIN_OFFSET) e o limite aproximado do alcance de um pulo normal
+// (AIM_Y_MAX_OFFSET), pra garantir que a plataforma escolhida seja alcançável.
+const AIM_Y_MIN_OFFSET = 20;
+const AIM_Y_MAX_OFFSET = 130;
 
 function enterAimMode() {
   if (coins < COINS_PER_GOLDEN || aiming || !started || gameOver) return;
@@ -501,7 +505,7 @@ const BASE_W_MIN = 260, BASE_H_MIN = 340;
 let BASE_W = 360, BASE_H = 480;
 let baseSized = false;
 
-const PLAYER_W = 90, PLAYER_H = 90;
+const PLAYER_W = 67.5, PLAYER_H = 67.5;
 const GRAVITY = 1800;        // px/s²
 const JUMP_VELOCITY = -700;  // px/s
 const MOVE_SPEED = 260;      // px/s (teclado)
@@ -603,6 +607,7 @@ wrapEl.addEventListener('pointerdown', e => {
   if (aiming) {
     aimDragging = true;
     lastAimPointerX = e.clientX;
+    lastAimPointerY = e.clientY;
     return;
   }
   dragging = true;
@@ -613,10 +618,16 @@ window.addEventListener('pointermove', e => {
   if (aiming) {
     if (!aimDragging || !aimPlatform) return;
     const rect = canvas.getBoundingClientRect();
-    const scale = BASE_W / rect.width;
-    const deltaX = (e.clientX - lastAimPointerX) * scale;
+    const scaleX = BASE_W / rect.width;
+    const scaleY = BASE_H / rect.height;
+    const deltaX = (e.clientX - lastAimPointerX) * scaleX;
+    const deltaY = (e.clientY - lastAimPointerY) * scaleY;
     lastAimPointerX = e.clientX;
+    lastAimPointerY = e.clientY;
     aimPlatform.x = Math.min(BASE_W - aimPlatform.w, Math.max(0, aimPlatform.x + deltaX));
+    const minY = player.y - AIM_Y_MAX_OFFSET;
+    const maxY = player.y - AIM_Y_MIN_OFFSET;
+    aimPlatform.y = Math.min(maxY, Math.max(minY, aimPlatform.y + deltaY));
     return;
   }
   if (!dragging || !started || gameOver) return;
@@ -682,13 +693,24 @@ function update(dt) {
     }
   }
 
+  // Hitbox de coleta (moedas/penas) mais "apertada" que a hitbox de colisão
+  // com plataformas: usa só a região central do player, senão os itens
+  // são coletados de longe demais (a caixa cheia de PLAYER_W/H é bem maior
+  // que o corpo visível do Spoink no sprite).
+  const PICKUP_INSET_X = PLAYER_W * 0.28;
+  const PICKUP_INSET_Y = PLAYER_H * 0.15;
+  const pickupLeft = player.x + PICKUP_INSET_X;
+  const pickupRight = player.x + PLAYER_W - PICKUP_INSET_X;
+  const pickupTop = player.y + PICKUP_INSET_Y;
+  const pickupBottom = player.y + PLAYER_H - PICKUP_INSET_Y;
+
   for (const it of items) {
     if (it.collected) continue;
     if (
-      player.x + PLAYER_W > it.x &&
-      player.x < it.x + it.w &&
-      player.y + PLAYER_H > it.y &&
-      player.y < it.y + it.h
+      pickupRight > it.x &&
+      pickupLeft < it.x + it.w &&
+      pickupBottom > it.y &&
+      pickupTop < it.y + it.h
     ) {
       collectItem(it);
     }
@@ -697,10 +719,10 @@ function update(dt) {
   for (const c of coinItems) {
     if (c.collected) continue;
     if (
-      player.x + PLAYER_W > c.x &&
-      player.x < c.x + c.w &&
-      player.y + PLAYER_H > c.y &&
-      player.y < c.y + c.h
+      pickupRight > c.x &&
+      pickupLeft < c.x + c.w &&
+      pickupBottom > c.y &&
+      pickupTop < c.y + c.h
     ) {
       collectCoin(c);
     }
