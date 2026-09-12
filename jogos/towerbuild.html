@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Tower Builder! · Pokégram</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  *{
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
+  html,body{
+    margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#f0e6d8;color:#4a3a28;
+    overflow:hidden;position:fixed;inset:0;
+    display:flex;flex-direction:column;
+  }
+  :root{
+    --brand:#b5652f;--brand-mid:#d98f4e;--sky:#bfe0f2;--accent:#f7c94a;--border:#e0e0e0;--muted:#8a7360;
+  }
+  .tb-nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;height:52px;flex:0 0 52px;background:var(--brand);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;
+  }
+  .tb-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+  .tb-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .tb-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+  .tb-title span{color:var(--accent)}
+
+  .tb-wrap{
+    flex:1 1 auto;min-height:0;position:relative;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    touch-action:none;overflow:hidden;
+    background:linear-gradient(to bottom, var(--sky), #f3e0c4 65%, #e7c48f);
+  }
+  #tb-canvas{touch-action:none;display:block;max-width:100%;max-height:100%;}
+
+  .tb-hud{
+    position:absolute;top:0;left:0;right:0;z-index:20;margin-top:12px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
+  }
+  .tb-hud-box{
+    display:flex;gap:clamp(14px,5vw,28px);align-items:center;justify-content:center;
+    background:rgba(255,255,255,.85);border-radius:10px;
+    padding:9px clamp(20px,5vw,28px);box-shadow:0 2px 8px rgba(0,0,0,.2);
+    pointer-events:auto;cursor:pointer;transition:opacity .25s ease;
+  }
+  .tb-hud-box.tb-hud-hidden{opacity:0}
+  .tb-hud-item{
+    flex:0 1 auto;white-space:nowrap;text-align:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .tb-hud-label{font-size:clamp(7px,2.2vw,9px);font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;line-height:1}
+  .tb-hud-value{font-family:'Cinzel',serif;font-size:clamp(13px,4vw,18px);color:var(--brand);font-weight:700;white-space:nowrap;line-height:1}
+
+  .tb-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:100;pointer-events:auto;
+    background:rgba(10,10,20,0.55);
+    opacity:1;transition:opacity .35s ease;
+  }
+  .tb-hint.hide{opacity:0;pointer-events:none}
+  .tb-hint-card{
+    background:rgba(255,255,255,0.95);
+    border:1.5px solid rgba(0,0,0,0.06);
+    border-radius:16px;
+    padding:20px 22px;
+    max-width:270px;
+    text-align:center;
+    box-shadow:0 8px 30px rgba(0,0,0,.3);
+    pointer-events:auto;
+  }
+  .tb-hint-title{
+    font-family:'Cinzel',serif;color:var(--brand);font-size:15px;font-weight:700;
+    margin:0 0 12px;
+  }
+  .tb-hint-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;text-align:left;}
+  .tb-hint-row:last-of-type{margin-bottom:0}
+  .tb-hint-icon{
+    width:30px;height:30px;flex:none;border-radius:8px;
+    background:rgba(181,101,47,0.12);
+    display:flex;align-items:center;justify-content:center;font-size:15px;
+  }
+  .tb-hint-text{font-size:12px;color:#3a2c1c;line-height:1.35}
+  .tb-hint-text b{color:var(--brand)}
+  .tb-hint-dismiss{
+    margin-top:14px;font-size:11px;color:rgba(0,0,0,0.4);
+    font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  }
+
+  .tb-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
+    align-items:center;justify-content:center;z-index:300;
+  }
+  .tb-overlay.show{display:flex}
+  .tb-modal{
+    background:#fff;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;
+    max-height:86vh;overflow:auto;
+  }
+  .tb-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px}
+  .tb-modal p{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .tb-final-score{font-family:'Cinzel',serif;font-size:36px;color:var(--brand-mid);margin-bottom:6px}
+  .tb-best-line{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+  .tb-best-line b{color:var(--brand)}
+  .tb-panel-title{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left}
+  .tb-lb-box{text-align:left;margin-bottom:18px}
+  .tb-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px}
+  .tb-lb-pos{width:16px;font-weight:800;color:var(--brand-mid)}
+  .tb-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tb-lb-score{font-weight:800}
+  .tb-lb-empty{font-size:11.5px;color:var(--muted);font-style:italic}
+  .tb-btn{
+    padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;
+    font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;margin-top:8px;
+  }
+  .tb-btn:hover{background:var(--brand)}
+  #tb-share-btn{background:var(--accent);color:#3a2c00}
+  #tb-share-btn:hover{background:#f0c22e}
+  .tb-toast{
+    position:absolute;top:64px;left:50%;transform:translate(-50%,-8px);z-index:30;
+    background:rgba(80,55,30,.88);color:#fff;padding:8px 16px;border-radius:20px;
+    font-size:12.5px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.3);
+    opacity:0;transition:opacity .2s ease, transform .2s ease;pointer-events:none;white-space:nowrap;
+  }
+  .tb-toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<nav class="tb-nav">
+  <a class="tb-back" href="/jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="tb-title">Tower <span>Builder!</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="tb-wrap" id="tb-wrap">
+  <canvas id="tb-canvas"></canvas>
+
+  <div class="tb-hud" id="tb-hud">
+    <div class="tb-hud-box" id="tb-hud-box">
+      <div class="tb-hud-item">
+        <div class="tb-hud-label">Blocos</div>
+        <div class="tb-hud-value" id="tb-score">0</div>
+      </div>
+      <div class="tb-hud-item">
+        <div class="tb-hud-label">Recorde</div>
+        <div class="tb-hud-value" id="tb-best">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tb-toast" id="tb-toast"></div>
+
+  <div class="tb-hint" id="tb-hint">
+    <div class="tb-hint-card">
+      <div class="tb-hint-title">Como jogar</div>
+      <div class="tb-hint-row">
+        <div class="tb-hint-icon">👆</div>
+        <div class="tb-hint-text"><b>Toque na tela</b> para soltar o bloco e empilhar sobre a torre</div>
+      </div>
+      <div class="tb-hint-row">
+        <div class="tb-hint-icon">🧱</div>
+        <div class="tb-hint-text">Alinhe certinho com o bloco de baixo — a parte que sobrar é cortada</div>
+      </div>
+      <div class="tb-hint-row">
+        <div class="tb-hint-icon">⭐</div>
+        <div class="tb-hint-text">Encaixes <b>perfeitos</b> seguidos recuperam a largura do bloco</div>
+      </div>
+      <div class="tb-hint-row">
+        <div class="tb-hint-icon">🔨</div>
+        <div class="tb-hint-text">Se errar o bloco todo, o Timburr deixa a torre cair!</div>
+      </div>
+      <div class="tb-hint-dismiss">Toque em qualquer lugar para começar</div>
+    </div>
+  </div>
+</div>
+
+<div class="tb-overlay" id="tb-overlay">
+  <div class="tb-modal">
+    <h2>A torre caiu!</h2>
+    <p>Sua pontuação foi registrada no ranking.</p>
+    <div class="tb-final-score" id="tb-final-score">0</div>
+    <div class="tb-best-line">Seu recorde: <b id="tb-best-line-val">–</b></div>
+    <div class="tb-lb-box">
+      <div class="tb-panel-title">Top treinadores</div>
+      <div id="tb-leaderboard"><div class="tb-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="tb-btn" id="tb-restart-btn">Jogar novamente</button>
+    <button class="tb-btn" id="tb-share-btn">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="/games-common.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// Tower Builder! — empilhe blocos alinhando com o de baixo,
+// no estilo Stack/Tower Bloxx, com o Timburr equilibrando os
+// blocos no topo. Segue o mesmo layout/HUD do Bounce Up!
+// ════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('tb-canvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('tb-score');
+const bestEl = document.getElementById('tb-best');
+let user, best = 0;
+
+// Sprite estático (artwork oficial via PokeAPI, com CORS liberado — dá pra
+// desenhar direto no canvas com ctx.drawImage e ainda usar no toDataURL()
+// do compartilhamento, sem precisar do truque de <img> sobreposto usado
+// no Bounce Up! pra GIFs animados).
+const TIMBURR_SPRITE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/532.png';
+const spriteImg = new Image();
+spriteImg.crossOrigin = 'anonymous';
+let spriteReady = false;
+spriteImg.onload = () => { spriteReady = true; };
+spriteImg.onerror = () => { spriteReady = false; };
+spriteImg.src = TIMBURR_SPRITE;
+
+// ── Sprites dos blocos: fachadas de Mart e Centro Pokémon ──
+// (embutidas em base64 pra não depender de asset externo)
+const BUILDING_SPRITES = [
+  { name: 'mart', img: new Image() },
+  { name: 'pc', img: new Image() },
+];
+BUILDING_SPRITES[0].img.src = 'data:image/png;base64,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';
+BUILDING_SPRITES[1].img.src = 'data:image/png;base64,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';
+BUILDING_SPRITES.forEach(s => { s.ready = false; s.img.onload = () => { s.ready = true; }; });
+
+// ── Dimensões responsivas (mesmo padrão do Bounce Up!) ────
+const BASE_W_MIN = 260, BASE_H_MIN = 340;
+const BASE_W_MAX = 480, BASE_H_MAX = 900;
+let BASE_W = 360, BASE_H = 480;
+let baseSized = false;
+
+const BLOCK_H = 32;
+let SCROLL_LINE_Y = 190; // recalculado em resize() a partir de BASE_H
+
+const PERFECT_PX = 5;    // diferença máxima (px) pra contar como encaixe perfeito
+const MIN_BLOCK_W = 14;  // largura mínima antes de encerrar o jogo
+const MOVE_SPEED_BASE = 100, MOVE_SPEED_INC = 2.6, MOVE_SPEED_MAX = 340;
+
+let stack = [];
+let active = null;
+let debris = [];
+let score = 0, combo = 0;
+let started = false, gameOver = false;
+let lastTs = 0, rafId = null;
+let idleRafId = null, idleT = 0;
+
+function blockColor(level) {
+  const hue = (18 + level * 9) % 360;
+  return `hsl(${hue}, 60%, 55%)`;
+}
+
+function randomSprite() {
+  return BUILDING_SPRITES[Math.floor(Math.random() * BUILDING_SPRITES.length)];
+}
+
+function initialWidth() { return Math.round(BASE_W * 0.52); }
+
+function spawnActive(level) {
+  const top = stack[stack.length - 1];
+  let y = top.y - BLOCK_H;
+  // Mesmo truque de "linha de scroll" do Bounce Up!: quando o próximo bloco
+  // nasceria acima da linha, a câmera "gruda" nele nessa linha e empurra o
+  // resto da torre pra baixo, dando a ilusão de que ela continua crescendo.
+  if (y < SCROLL_LINE_Y) {
+    const dy = SCROLL_LINE_Y - y;
+    for (const b of stack) b.y += dy;
+    for (const d of debris) d.y += dy;
+    y = SCROLL_LINE_Y;
+  }
+  const w = top.w;
+  const speed = Math.min(MOVE_SPEED_MAX, MOVE_SPEED_BASE + level * MOVE_SPEED_INC);
+  const fromLeft = level % 2 === 0;
+  active = {
+    x: fromLeft ? -w : BASE_W,
+    y, w,
+    vx: (fromLeft ? 1 : -1) * speed,
+    color: blockColor(level),
+    sprite: randomSprite(),
+    // srcOffset01: de 0 a 1, marca de onde (na largura original 0..1 da
+    // imagem-fonte) o recorte atual começa — recalculado no drop se cortar
+    srcOffset01: 0,
+    srcWidth01: 1,
+  };
+}
+
+function resetGame() {
+  stack = [{ x: (BASE_W - initialWidth()) / 2, y: BASE_H - 70, w: initialWidth(), color: blockColor(0), sprite: randomSprite(), srcOffset01: 0, srcWidth01: 1 }];
+  debris = [];
+  score = 0;
+  combo = 0;
+  gameOver = false;
+  spawnActive(1);
+}
+
+function startGame() {
+  document.getElementById('tb-overlay').classList.remove('show');
+  if (idleRafId) cancelAnimationFrame(idleRafId);
+  idleBaseSprite = null; idlePreviewSprite = null;
+  resetGame();
+  started = true;
+  scoreEl.textContent = '0';
+  lastTs = performance.now();
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
+}
+
+function showToast(msg) {
+  const el = document.getElementById('tb-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove('show'), 900);
+}
+
+// ── Soltar o bloco ativo ───────────────────────────────────
+function dropBlock() {
+  if (!started || gameOver || !active) return;
+  const prev = stack[stack.length - 1];
+  const left = Math.max(prev.x, active.x);
+  const right = Math.min(prev.x + prev.w, active.x + active.w);
+  const overlapW = right - left;
+
+  if (overlapW <= 0) {
+    // errou geral — o bloco cai inteiro e a torre desmorona
+    debris.push({ x: active.x, y: active.y, w: active.w, h: BLOCK_H, vy: 0, vx: active.vx * 0.4, rot: 0, vr: (Math.random() < 0.5 ? -1 : 1) * 4, color: active.color, life: 1200, t: 0, sprite: active.sprite, srcOffset01: active.srcOffset01, srcWidth01: active.srcWidth01 });
+    active = null;
+    endGame();
+    return;
+  }
+
+  const diff = Math.abs(active.x - prev.x);
+  const perfect = diff <= PERFECT_PX && Math.abs(active.w - prev.w) <= PERFECT_PX;
+
+  let newX, newW, newSrcOffset01 = active.srcOffset01, newSrcWidth01 = active.srcWidth01;
+  if (perfect) {
+    combo++;
+    newX = prev.x;
+    newW = Math.min(initialWidth(), active.w + Math.min(combo, 6) * 2);
+    showToast(combo >= 3 ? `PERFEITO x${combo}!` : 'PERFEITO!');
+  } else {
+    combo = 0;
+    newX = left;
+    newW = overlapW;
+    // recorta a fatia da imagem-fonte que corresponde à parte que sobrou
+    const cutFracLeft = (left - active.x) / active.w;
+    const cutFracRight = (active.x + active.w - right) / active.w;
+    newSrcOffset01 = active.srcOffset01 + cutFracLeft * active.srcWidth01;
+    newSrcWidth01 = active.srcWidth01 * (1 - cutFracLeft - cutFracRight);
+    // o pedaço cortado vira um destroço caindo, pra dar feedback visual
+    if (active.x < left) {
+      const cutW = left - active.x;
+      debris.push({ x: active.x, y: active.y, w: cutW, h: BLOCK_H, vy: 0, vx: -60, rot: 0, vr: -4, color: active.color, life: 900, t: 0, sprite: active.sprite, srcOffset01: active.srcOffset01, srcWidth01: active.srcWidth01 * (cutW / active.w) });
+    } else if (active.x + active.w > right) {
+      const cutW = (active.x + active.w) - right;
+      debris.push({ x: right, y: active.y, w: cutW, h: BLOCK_H, vy: 0, vx: 60, rot: 0, vr: 4, color: active.color, life: 900, t: 0, sprite: active.sprite, srcOffset01: newSrcOffset01 + newSrcWidth01, srcWidth01: active.srcWidth01 * (cutW / active.w) });
+    }
+  }
+
+  stack.push({ x: newX, y: active.y, w: newW, color: active.color, sprite: active.sprite, srcOffset01: newSrcOffset01, srcWidth01: newSrcWidth01, cutLeft: !perfect && active.x < left, cutRight: !perfect && active.x + active.w > right });
+  score = stack.length - 1;
+  scoreEl.textContent = String(score);
+
+  if (newW < MIN_BLOCK_W) {
+    active = null;
+    endGame();
+    return;
+  }
+
+  spawnActive(stack.length);
+}
+
+function update(dt) {
+  if (active) {
+    active.x += active.vx * dt;
+    if (active.vx > 0 && active.x > BASE_W) active.x = -active.w;
+    if (active.vx < 0 && active.x + active.w < 0) active.x = BASE_W;
+  }
+  for (const d of debris) {
+    d.t += dt * 1000;
+    d.vy += 900 * dt;
+    d.y += d.vy * dt;
+    d.x += d.vx * dt;
+    d.rot += d.vr * dt;
+  }
+  debris = debris.filter(d => d.t < d.life && d.y < BASE_H + 80);
+}
+
+// Desenha um bloco (torre) usando a sprite de fachada, recortada pela
+// fatia srcOffset01..srcOffset01+srcWidth01 da imagem original, esticada
+// pra caber em (x,y,w,h). Se cutLeft/cutRight, desenha um contorno leve
+// na(s) aresta(s) onde o corte aconteceu.
+function drawBuildingBlock(x, y, w, h, block) {
+  const spr = block.sprite;
+  if (spr && spr.ready) {
+    const iw = spr.img.naturalWidth, ih = spr.img.naturalHeight;
+    const sOff = Math.max(0, Math.min(1, block.srcOffset01 || 0));
+    const sW = Math.max(0.001, Math.min(1 - sOff, block.srcWidth01 == null ? 1 : block.srcWidth01));
+    ctx.drawImage(spr.img, sOff * iw, 0, sW * iw, ih, x, y, w, h);
+  } else {
+    ctx.fillStyle = block.color;
+    ctx.fillRect(x, y, w, h);
+  }
+  if (block.cutLeft) {
+    ctx.strokeStyle = 'rgba(255,255,255,.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + 0.75, y); ctx.lineTo(x + 0.75, y + h); ctx.stroke();
+  }
+  if (block.cutRight) {
+    ctx.strokeStyle = 'rgba(255,255,255,.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + w - 0.75, y); ctx.lineTo(x + w - 0.75, y + h); ctx.stroke();
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+  for (const b of stack) {
+    if (b.y > BASE_H || b.y + BLOCK_H < -40) continue;
+    drawBuildingBlock(b.x, b.y, b.w, BLOCK_H, b);
+  }
+
+  for (const d of debris) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - d.t / d.life);
+    ctx.translate(d.x + d.w / 2, d.y + d.h / 2);
+    ctx.rotate(d.rot * Math.PI / 180);
+    drawBuildingBlock(-d.w / 2, -d.h / 2, d.w, d.h, d);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  if (active) {
+    drawBuildingBlock(active.x, active.y, active.w, BLOCK_H, active);
+
+    if (spriteReady) {
+      const spH = 46, spW = spH * (spriteImg.naturalWidth / spriteImg.naturalHeight || 1);
+      ctx.drawImage(spriteImg, active.x + active.w / 2 - spW / 2, active.y - spH + 6, spW, spH);
+    }
+  }
+}
+
+function loop(ts) {
+  const dt = Math.min(0.033, (ts - lastTs) / 1000);
+  lastTs = ts;
+  if (started && !gameOver) update(dt);
+  draw();
+  if (started && !gameOver) rafId = requestAnimationFrame(loop);
+}
+
+// ── Preview animado por trás da tela de instruções ─────────
+let idleBaseSprite = null, idlePreviewSprite = null;
+function idleLoop() {
+  idleT += 0.016;
+  if (!idleBaseSprite) idleBaseSprite = randomSprite();
+  if (!idlePreviewSprite) idlePreviewSprite = randomSprite();
+  ctx.clearRect(0, 0, BASE_W, BASE_H);
+  const baseW = initialWidth();
+  const baseX = (BASE_W - baseW) / 2;
+  const baseY = BASE_H - 70;
+  drawBuildingBlock(baseX, baseY, baseW, BLOCK_H, { sprite: idleBaseSprite, color: blockColor(0), srcOffset01: 0, srcWidth01: 1 });
+  const previewX = BASE_W / 2 - baseW / 2 + Math.sin(idleT * 1.4) * (BASE_W * 0.22);
+  const previewY = baseY - BLOCK_H;
+  drawBuildingBlock(previewX, previewY, baseW, BLOCK_H, { sprite: idlePreviewSprite, color: blockColor(1), srcOffset01: 0, srcWidth01: 1 });
+  if (spriteReady) {
+    const spH = 46, spW = spH * (spriteImg.naturalWidth / spriteImg.naturalHeight || 1);
+    ctx.drawImage(spriteImg, previewX + baseW / 2 - spW / 2, previewY - spH + 6, spW, spH);
+  }
+  idleRafId = requestAnimationFrame(idleLoop);
+}
+
+// ── Canvas sizing responsivo (mesmo padrão do Bounce Up!) ──
+function computeBaseDims(maxW, maxH) {
+  BASE_W = Math.min(BASE_W_MAX, Math.max(BASE_W_MIN, Math.round(maxW)));
+  BASE_H = Math.min(BASE_H_MAX, Math.max(BASE_H_MIN, Math.round(maxH)));
+}
+
+function resize() {
+  const nav = document.querySelector('.tb-nav');
+  const navH = nav ? nav.getBoundingClientRect().height : 52;
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight - navH;
+
+  const midRun = started && !gameOver;
+  if (!baseSized || !midRun) {
+    computeBaseDims(maxW, maxH);
+    baseSized = true;
+    SCROLL_LINE_Y = BASE_H * 0.4;
+  }
+  const sizeChanged = canvas.width !== BASE_W || canvas.height !== BASE_H;
+  if (sizeChanged) { canvas.width = BASE_W; canvas.height = BASE_H; }
+  canvas.style.width = BASE_W + 'px';
+  canvas.style.height = BASE_H + 'px';
+
+  if (!midRun && sizeChanged) draw();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+document.addEventListener('fullscreenchange', () => setTimeout(resize, 150));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+window.addEventListener('load', () => resize());
+setTimeout(resize, 300);
+
+// ── Input ───────────────────────────────────────────────────
+const wrapEl = document.getElementById('tb-wrap');
+wrapEl.addEventListener('pointerdown', () => {
+  if (!started) { dismissHint(); return; }
+  dropBlock();
+});
+window.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!started) dismissHint();
+    else dropBlock();
+  }
+});
+
+let hintDismissed = false;
+function dismissHint() {
+  if (hintDismissed) return;
+  hintDismissed = true;
+  document.getElementById('tb-hint').classList.add('hide');
+  startGame();
+}
+
+// ── HUD toggle ao tocar na caixa ──────────────────────────
+(function () {
+  const hudBox = document.getElementById('tb-hud-box');
+  let hidden = false;
+  function toggleHud(e) {
+    e.stopPropagation();
+    hidden = !hidden;
+    hudBox.classList.toggle('tb-hud-hidden', hidden);
+  }
+  hudBox.addEventListener('click', toggleHud);
+  hudBox.addEventListener('pointerdown', e => e.stopPropagation());
+  hudBox.addEventListener('pointerup', e => e.stopPropagation());
+})();
+
+// ── Ranking ───────────────────────────────────────────────
+async function refreshLeaderboard() {
+  const el = document.getElementById('tb-leaderboard');
+  const top = await gLoadTopScores('towerbuilder', 5);
+  if (top.length === 0) {
+    el.innerHTML = '<div class="tb-lb-empty">Nenhum recorde ainda.</div>';
+    return;
+  }
+  el.innerHTML = top.map((row, i) => `
+    <div class="tb-lb-row">
+      <span class="tb-lb-pos">${i + 1}º</span>
+      <span class="tb-lb-name">${gEsc(row.author_name || '???')}</span>
+      <span class="tb-lb-score">${row.score}</span>
+    </div>`).join('');
+}
+
+async function refreshBest() {
+  if (!user) return;
+  best = await gLoadMyBest('towerbuilder', user.id);
+  bestEl.textContent = best || '–';
+  const el = document.getElementById('tb-best-line-val');
+  if (el) el.textContent = best || '–';
+}
+
+async function endGame() {
+  gameOver = true;
+  started = false;
+  if (user) await gSaveScore('towerbuilder', score, user);
+  document.getElementById('tb-final-score').textContent = score;
+  if (score > best) best = score;
+  bestEl.textContent = best || '–';
+  document.getElementById('tb-best-line-val').textContent = best || '–';
+  document.getElementById('tb-overlay').classList.add('show');
+  refreshLeaderboard();
+  // continua animando os destroços caindo por baixo do modal de fim de jogo
+  const fallLoop = (ts) => {
+    const dt = Math.min(0.033, (ts - (lastTs || ts)) / 1000);
+    lastTs = ts;
+    update(dt);
+    draw();
+    if (debris.length > 0) requestAnimationFrame(fallLoop);
+  };
+  requestAnimationFrame(fallLoop);
+}
+
+document.getElementById('tb-restart-btn').addEventListener('click', startGame);
+
+// ── Compartilhar resultado no Stories ──────────────────────
+function buildResultCanvas(useSprite = true) {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const c2 = c.getContext('2d');
+
+  const bg = c2.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#bfe0f2');
+  bg.addColorStop(0.55, '#f3e0c4');
+  bg.addColorStop(1, '#e7c48f');
+  c2.fillStyle = bg;
+  c2.fillRect(0, 0, W, H);
+
+  c2.textAlign = 'center';
+  c2.fillStyle = '#b5652f';
+  c2.font = "800 74px 'Cinzel', serif";
+  c2.fillText('Tower Builder!', W / 2, 320);
+
+  const finalScore = score;
+  const size = 260;
+  if (useSprite && spriteReady) {
+    const ratio = spriteImg.naturalWidth / spriteImg.naturalHeight || 1;
+    const w = size * ratio, h = size;
+    c2.drawImage(spriteImg, W / 2 - w / 2, 620 - h / 2, w, h);
+  } else {
+    c2.fillStyle = '#d98f4e';
+    c2.beginPath(); c2.arc(W / 2, 700, size / 2, 0, Math.PI * 2); c2.fill();
+  }
+
+  c2.fillStyle = 'rgba(255,255,255,.9)';
+  const cardW = 760, cardH = 260, cardX = (W - cardW) / 2, cardY = 940;
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX, cardY, cardW, cardH, 28) : c2.rect(cardX, cardY, cardW, cardH);
+  c2.fill();
+
+  c2.fillStyle = '#8a7360';
+  c2.font = "800 34px 'Nunito', sans-serif";
+  c2.fillText('BLOCOS', W / 2, cardY + 70);
+
+  c2.fillStyle = '#b5652f';
+  c2.font = "800 130px 'Cinzel', serif";
+  c2.fillText(String(finalScore), W / 2, cardY + 210);
+
+  if (best) {
+    c2.fillStyle = 'rgba(255,255,255,.9)';
+    c2.font = "700 40px 'Nunito', sans-serif";
+    c2.fillText(`Recorde: ${best}`, W / 2, cardY + cardH + 90);
+  }
+
+  c2.fillStyle = '#fff';
+  c2.font = "800 56px 'Nunito', sans-serif";
+  c2.shadowColor = 'rgba(0,0,0,.35)';
+  c2.shadowBlur = 10;
+  c2.shadowOffsetY = 2;
+  const ctaLines = wrapCanvasText(c2, `Timburr empilhou ${finalScore} blocos, venha jogar Tower Builder também!`, W - 140);
+  const ctaLineHeight = 68;
+  let ctaY = cardY + cardH + (best ? 200 : 140);
+  ctaLines.forEach(line => { c2.fillText(line, W / 2, ctaY); ctaY += ctaLineHeight; });
+  c2.shadowColor = 'transparent';
+  c2.shadowBlur = 0;
+  c2.shadowOffsetY = 0;
+
+  return c;
+}
+
+function wrapCanvasText(ctx2d, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  words.forEach(word => {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx2d.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function shareResultToStories() {
+  let dataUrl = null;
+  try {
+    dataUrl = buildResultCanvas(true).toDataURL('image/png');
+  } catch (e) {
+    console.warn('[shareResultToStories] falhou com sprite, tentando sem sprite', e);
+    try {
+      dataUrl = buildResultCanvas(false).toDataURL('image/png');
+    } catch (e2) {
+      console.warn('[shareResultToStories] falhou ao gerar imagem mesmo sem sprite', e2);
+    }
+  }
+  if (dataUrl) {
+    try {
+      sessionStorage.setItem('pg_pending_story_image', JSON.stringify({
+        image: dataUrl,
+        gameLink: '/towerbuilder.html'
+      }));
+    } catch (e) {
+      console.warn('[shareResultToStories] falhou ao guardar imagem no sessionStorage', e);
+    }
+  }
+  window.location.href = '/';
+}
+document.getElementById('tb-share-btn').addEventListener('click', shareResultToStories);
+
+// ── Boot ──────────────────────────────────────────────────
+function tryEnterFullscreenNow() {
+  try {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen || !gIsMobileLike()) return;
+    el.requestFullscreen().catch(() => {});
+  } catch (e) {}
+}
+tryEnterFullscreenNow();
+gSetupFullscreenOnFirstInteraction();
+
+(async function boot() {
+  user = await gRequireSession();
+  if (!user) return;
+  resize();
+  resetGame();
+  idleRafId = requestAnimationFrame(idleLoop);
+  refreshBest();
+})();
+</script>
+</body>
+</html>
