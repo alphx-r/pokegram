@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Eevee Run - Pokégram</title>
+<style>
+  :root{
+    --pk-accent:#c17a3a;
+    --pk-bg:#1a1410;
+    --sky-top:#ffd9a0;
+    --sky-bot:#ff9d5c;
+    --road:#6b5744;
+    --road-line:#f4e4c8;
+    --grass1:#3f6b3a;
+    --grass2:#355a31;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%; overflow:hidden; background:#000; font-family:'Segoe UI',Arial,sans-serif; touch-action:none;}
+  #wrap{position:relative; width:100%; height:100%; max-width:480px; margin:0 auto; background:#000; overflow:hidden;}
+  canvas{display:block; width:100%; height:100%;}
+  #hud{position:absolute; top:0; left:0; right:0; padding:14px 16px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; z-index:5;}
+  .hud-pill{background:rgba(20,14,8,0.55); backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,0.15); border-radius:14px; padding:6px 14px; color:#fff; font-weight:700; font-size:15px; display:flex; align-items:center; gap:6px;}
+  .hud-pill .ic{font-size:16px;}
+  #screen{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#fff; background:linear-gradient(180deg, rgba(20,12,6,0.75), rgba(10,6,3,0.92)); z-index:10; padding:24px;}
+  #screen.hidden{display:none;}
+  #screen h1{font-size:30px; margin:0 0 4px; color:#ffcf8a; text-shadow:0 2px 0 rgba(0,0,0,0.4);}
+  #screen p{margin:4px 0 18px; opacity:0.85; font-size:14px; max-width:280px; line-height:1.5;}
+  .eevee-emoji{font-size:64px; margin-bottom:6px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));}
+  .btn{background:linear-gradient(180deg,#ffb35c,#e8823a); color:#3a1f0a; border:none; padding:14px 34px; border-radius:30px; font-size:17px; font-weight:800; box-shadow:0 4px 0 #a5591f, 0 6px 10px rgba(0,0,0,0.4); cursor:pointer; letter-spacing:0.3px;}
+  .btn:active{transform:translateY(3px); box-shadow:0 1px 0 #a5591f;}
+  #score-big{font-size:46px; font-weight:900; color:#fff; margin:4px 0 2px;}
+  #best-line{font-size:13px; opacity:0.75; margin-bottom:14px;}
+  .controls-hint{position:absolute; bottom:14px; left:0; right:0; text-align:center; color:rgba(255,255,255,0.55); font-size:11px; z-index:4; pointer-events:none;}
+  #touchzones{position:absolute; inset:0; display:flex; z-index:3;}
+  #touchzones div{flex:1;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="hud-pill"><span class="ic">🏃</span><span id="scoreLabel">0</span></div>
+    <div class="hud-pill"><span class="ic">🍇</span><span id="berryLabel">0</span></div>
+  </div>
+
+  <div class="controls-hint">Deslize ← → para trocar de pista • ↑ pular • ↓ agachar</div>
+
+  <div id="touchzones">
+    <div id="tz-left"></div>
+    <div id="tz-right"></div>
+  </div>
+
+  <div id="screen">
+    <div class="eevee-emoji">🦊</div>
+    <h1>Eevee Run</h1>
+    <p>Fuja pela trilha da floresta! Troque de pista, pule pedras e se abaixe sob galhos. Colete berries pelo caminho.</p>
+    <button class="btn" id="startBtn">Começar corrida</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var wrap = document.getElementById('wrap');
+  var screenEl = document.getElementById('screen');
+  var startBtn = document.getElementById('startBtn');
+  var scoreLabel = document.getElementById('scoreLabel');
+  var berryLabel = document.getElementById('berryLabel');
+
+  var W, H, DPR;
+  function resize(){
+    var rect = wrap.getBoundingClientRect();
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = rect.width; H = rect.height;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- Pseudo-3D road engine (segment based, OutRun-style) ----------
+  var SEG_LEN = 160;          // length of a road segment in world units
+  var ROAD_W = 2000;          // half width of the road in world units
+  var CAMERA_HEIGHT = 900;
+  var CAMERA_DEPTH;           // computed from FOV
+  var FOV = 100;
+  var DRAW_DIST = 180;        // segments drawn ahead
+  var LANES = 3;
+
+  var segments = [];
+  var trackLength = 0;
+
+  function lastY(){ return segments.length===0 ? 0 : segments[segments.length-1].p2.world.y; }
+
+  function addSegment(curve, y){
+    var n = segments.length;
+    segments.push({
+      index:n,
+      p1:{world:{x:0,y:lastY(),z:n*SEG_LEN}, screen:{}},
+      p2:{world:{x:0,y:y, z:(n+1)*SEG_LEN}, screen:{}},
+      curve:curve,
+      obstacle:null,
+      berry:null,
+      color:(Math.floor(n/4)%2===0)?0:1
+    });
+  }
+
+  function addRoad(enter, hold, leave, curve, y0, y1){
+    var total = enter+hold+leave;
+    var startY = y0===undefined?lastY():y0;
+    var endY = y1===undefined?lastY():y1;
+    for(var i=0;i<total;i++){
+      var c = 0;
+      if(i<enter) c = easeIn(0,curve,i/enter);
+      else if(i>=enter+hold) c = easeInOut(curve,0,(i-enter-hold)/leave);
+      else c = curve;
+      var y = startY + (endY-startY) * ( (i)/(total) );
+      addSegment(c, y);
+    }
+  }
+  function easeIn(a,b,t){ return a + (b-a)*t*t; }
+  function easeInOut(a,b,t){ return a + (b-a)*((-Math.cos(t*Math.PI)/2)+0.5); }
+
+  function buildTrack(){
+    segments = [];
+    addRoad(20,20,20,0);
+    var patterns = [
+      [30,40,30, 2.2],
+      [20,60,20,-2.6],
+      [40,40,40, 1.6],
+      [20,30,20,-3.0],
+      [30,50,30, 2.8],
+      [15,20,15, 0],
+    ];
+    for(var i=0;i<40;i++){
+      var p = patterns[(i + Math.floor(Math.random()*patterns.length)) % patterns.length];
+      var curve = p[3] * (Math.random()<0.5?1:-1) * (0.6+Math.random()*0.6);
+      if(Math.abs(curve) < 0.4) curve = 0;
+      addRoad(p[0],p[1],p[2], curve);
+    }
+    trackLength = segments.length * SEG_LEN;
+    placeEntities();
+  }
+
+  function laneX(lane){ // lane: -1,0,1 -> world x offset
+    return lane * (ROAD_W*0.62);
+  }
+
+  function placeEntities(){
+    var minGap = 9; // segments between entities
+    var lastEntitySeg = 24;
+    for(var n=lastEntitySeg; n<segments.length-10; n++){
+      if(n - lastEntitySeg < minGap) continue;
+      if(Math.random() < 0.32){
+        var seg = segments[n];
+        var lane = Math.floor(Math.random()*3)-1;
+        var kinds = ['rock','branch','pit'];
+        var kind = kinds[Math.floor(Math.random()*kinds.length)];
+        seg.obstacle = {lane:lane, kind:kind, hit:false};
+        lastEntitySeg = n;
+        // sprinkle a berry in a free lane nearby
+        if(Math.random()<0.7){
+          var freeLanes = [-1,0,1].filter(function(l){return l!==lane;});
+          var bl = freeLanes[Math.floor(Math.random()*freeLanes.length)];
+          var bn = n + 2 + Math.floor(Math.random()*3);
+          if(bn < segments.length && !segments[bn].obstacle){
+            segments[bn].berry = {lane:bl, taken:false};
+          }
+        }
+      } else if(Math.random() < 0.5){
+        var seg2 = segments[n];
+        if(!seg2.berry){
+          seg2.berry = {lane:Math.floor(Math.random()*3)-1, taken:false};
+        }
+        lastEntitySeg = n - Math.floor(minGap*0.6);
+      }
+    }
+  }
+
+  // ---------- Player state ----------
+  var player = {
+    lane: 0,          // -1, 0, 1 (current)
+    targetLane: 0,
+    x: 0,             // interpolated world x
+    z: 0,
+    state: 'run',     // run | jump | duck
+    jumpT: 0,
+    duckT: 0,
+    speed: 0,
+    maxSpeed: 5200,
+    baseAccel: 720,
+    dead: false
+  };
+
+  var position = 0;
+  var score = 0;
+  var berries = 0;
+  var running = false;
+  var lastTime = 0;
+  var camDepth;
+
+  function projectPoint(p, camX, camY, camZ){
+    camDepth = 1/Math.tan((FOV/2)*Math.PI/180);
+    var transX = p.world.x - camX;
+    var transY = p.world.y - camY;
+    var transZ = p.world.z - camZ;
+    var scale = camDepth / (transZ || 1);
+    p.screen.scale = scale;
+    p.screen.x = Math.round((W/2) + (scale * transX * W/2));
+    p.screen.y = Math.round((H/2) - (scale * transY * H/2));
+    p.screen.w = Math.round(scale * ROAD_W * W/2);
+  }
+
+  function segAt(z){
+    var n = Math.floor(z / SEG_LEN) % segments.length;
+    if(n<0) n+=segments.length;
+    return segments[n];
+  }
+
+  // ---------- Input ----------
+  var touchStartX=0, touchStartY=0, touchActive=false;
+
+  function tryChangeLane(dir){
+    var nl = player.targetLane + dir;
+    if(nl<-1) nl=-1; if(nl>1) nl=1;
+    player.targetLane = nl;
+  }
+  function tryJump(){
+    if(player.state==='run'){ player.state='jump'; player.jumpT=0; }
+  }
+  function tryDuck(down){
+    if(down){ if(player.state==='run'){ player.state='duck'; player.duckT=0; } }
+    else { if(player.state==='duck'){ player.state='run'; } }
+  }
+
+  window.addEventListener('keydown', function(e){
+    if(!running) return;
+    if(e.key==='ArrowLeft'||e.key==='a') tryChangeLane(-1);
+    else if(e.key==='ArrowRight'||e.key==='d') tryChangeLane(1);
+    else if(e.key==='ArrowUp'||e.key==='w'||e.key===' ') tryJump();
+    else if(e.key==='ArrowDown'||e.key==='s') tryDuck(true);
+  });
+  window.addEventListener('keyup', function(e){
+    if(e.key==='ArrowDown'||e.key==='s') tryDuck(false);
+  });
+
+  function onTouchStart(e){
+    if(!running) return;
+    var t = e.touches[0];
+    touchStartX = t.clientX; touchStartY = t.clientY; touchActive = true;
+  }
+  function onTouchMove(e){
+    if(!running || !touchActive) return;
+    var t = e.touches[0];
+    var dx = t.clientX - touchStartX;
+    var dy = t.clientY - touchStartY;
+    if(Math.abs(dx) > 46){
+      tryChangeLane(dx>0?1:-1);
+      touchStartX = t.clientX;
+    }
+    if(dy < -50 && Math.abs(dy) > Math.abs(dx)){
+      tryJump();
+      touchStartY = t.clientY;
+    } else if(dy > 50 && Math.abs(dy) > Math.abs(dx)){
+      tryDuck(true);
+      touchStartY = t.clientY;
+      clearTimeout(onTouchMove._t);
+      onTouchMove._t = setTimeout(function(){ tryDuck(false); }, 420);
+    }
+  }
+  function onTouchEnd(){ touchActive = false; }
+
+  wrap.addEventListener('touchstart', onTouchStart, {passive:true});
+  wrap.addEventListener('touchmove', onTouchMove, {passive:true});
+  wrap.addEventListener('touchend', onTouchEnd, {passive:true});
+
+  // ---------- Game loop ----------
+  function resetGame(){
+    buildTrack();
+    position = 0;
+    score = 0;
+    berries = 0;
+    player.lane = 0; player.targetLane = 0; player.x = 0;
+    player.state = 'run'; player.jumpT = 0; player.duckT=0;
+    player.speed = player.maxSpeed*0.5;
+    player.dead = false;
+    scoreLabel.textContent = '0';
+    berryLabel.textContent = '0';
+  }
+
+  function update(dt){
+    if(player.dead) return;
+
+    player.speed = Math.min(player.maxSpeed, player.speed + player.baseAccel*dt);
+    position += player.speed*dt;
+    if(position >= trackLength) position -= trackLength;
+
+    score += player.speed*dt*0.01;
+    scoreLabel.textContent = Math.floor(score);
+
+    // lane easing
+    var targetX = laneX(player.targetLane);
+    player.x += (targetX - player.x) * Math.min(1, dt*10);
+
+    if(player.state==='jump'){
+      player.jumpT += dt;
+      if(player.jumpT > 0.62){ player.state='run'; player.jumpT=0; }
+    }
+    if(player.state==='duck'){
+      player.duckT += dt;
+      if(player.duckT > 1.2){ player.state='run'; player.duckT=0; }
+    }
+
+    // collision check: look at segment currently under player
+    var pseg = segAt(position);
+    var playerLaneNow = player.targetLane;
+    if(pseg.obstacle && !pseg.obstacle.hit){
+      var ob = pseg.obstacle;
+      if(ob.lane === playerLaneNow){
+        var avoided = false;
+        if(ob.kind==='rock' && player.state==='jump') avoided = true;
+        if(ob.kind==='pit' && player.state==='jump') avoided = true;
+        if(ob.kind==='branch' && player.state==='duck') avoided = true;
+        if(!avoided){
+          player.dead = true;
+          endGame();
+          return;
+        }
+      }
+      ob.hit = true;
+    }
+    if(pseg.berry && !pseg.berry.taken && pseg.berry.lane===playerLaneNow){
+      pseg.berry.taken = true;
+      berries++;
+      score += 15;
+      berryLabel.textContent = berries;
+    }
+  }
+
+  function jumpHeight(){
+    if(player.state!=='jump') return 0;
+    var t = player.jumpT/0.62;
+    return Math.sin(Math.min(1,t)*Math.PI) * 480;
+  }
+  function duckAmount(){
+    return player.state==='duck' ? 1 : 0;
+  }
+
+  function drawSky(){
+    var grad = ctx.createLinearGradient(0,0,0,H*0.55);
+    grad.addColorStop(0, getVar('--sky-top'));
+    grad.addColorStop(1, getVar('--sky-bot'));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H*0.58);
+    // sun
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.arc(W*0.78, H*0.22, 46, 0, Math.PI*2);
+    ctx.fill();
+    // distant hill silhouette
+    ctx.fillStyle = 'rgba(50,40,30,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(0,H*0.5);
+    for(var i=0;i<=8;i++){
+      ctx.lineTo(W*i/8, H*0.5 - Math.sin(i*1.3)*22 - 18);
+    }
+    ctx.lineTo(W,H*0.58); ctx.lineTo(0,H*0.58); ctx.closePath();
+    ctx.fill();
+  }
+  function getVar(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function drawSegmentQuad(p1,p2,color1,color2){
+    ctx.beginPath();
+    ctx.moveTo(p1.screen.x - p1.screen.w, p1.screen.y);
+    ctx.lineTo(p2.screen.x - p2.screen.w, p2.screen.y);
+    ctx.lineTo(p2.screen.x + p2.screen.w, p2.screen.y);
+    ctx.lineTo(p1.screen.x + p1.screen.w, p1.screen.y);
+    ctx.closePath();
+    ctx.fillStyle = color1;
+    ctx.fill();
+    // lane markers (2 lines dividing 3 lanes)
+    ctx.strokeStyle = color2;
+    ctx.lineWidth = Math.max(1, p1.screen.w*0.012);
+    [-1/3,1/3].forEach(function(f){
+      ctx.beginPath();
+      ctx.moveTo(p1.screen.x + p1.screen.w*f, p1.screen.y);
+      ctx.lineTo(p2.screen.x + p2.screen.w*f, p2.screen.y);
+      ctx.stroke();
+    });
+  }
+
+  function drawObstacle(kind, sx, sy, scale){
+    var s = scale;
+    ctx.save();
+    ctx.translate(sx, sy);
+    if(kind==='rock'){
+      ctx.fillStyle = '#8a7a6a';
+      ctx.beginPath();
+      ctx.moveTo(-40*s,0); ctx.lineTo(-30*s,-46*s); ctx.lineTo(10*s,-60*s);
+      ctx.lineTo(42*s,-30*s); ctx.lineTo(38*s,0); ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.15)';
+      ctx.beginPath(); ctx.moveTo(-10*s,-50*s); ctx.lineTo(10*s,-58*s); ctx.lineTo(4*s,-30*s); ctx.closePath(); ctx.fill();
+    } else if(kind==='branch'){
+      ctx.strokeStyle = '#5b3d22';
+      ctx.lineWidth = 14*s;
+      ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(-70*s,-92*s);
+      ctx.quadraticCurveTo(0,-104*s,70*s,-90*s);
+      ctx.stroke();
+      ctx.fillStyle='#3f6b3a';
+      for(var i=-3;i<=3;i++){
+        ctx.beginPath();
+        ctx.ellipse(i*20*s, -95*s + Math.abs(i)*2*s, 10*s, 6*s, 0.3*i, 0, Math.PI*2);
+        ctx.fill();
+      }
+    } else if(kind==='pit'){
+      ctx.fillStyle = '#241a12';
+      ctx.beginPath();
+      ctx.ellipse(0, -2*s, 46*s, 16*s, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,0.5)';
+      ctx.lineWidth=3*s;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawBerry(sx, sy, scale){
+    var s = scale;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.fillStyle = '#8e5bd6';
+    [[-8,-4],[8,-4],[0,-14],[-4,4],[4,4]].forEach(function(o){
+      ctx.beginPath();
+      ctx.arc(o[0]*s, o[1]*s, 8*s, 0, Math.PI*2);
+      ctx.fill();
+    });
+    ctx.strokeStyle='#3f6b3a';
+    ctx.lineWidth=3*s;
+    ctx.beginPath();
+    ctx.moveTo(0,-14*s); ctx.lineTo(0,-24*s);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawEevee(sx, sy, scale, jt, dt){
+    // simple vector Eevee: body, ears, tail, fluff collar
+    var s = scale;
+    var bob = Math.sin(performance.now()*0.014) * (player.state==='run'?4:0) * s;
+    var squash = dt>0 ? 0.55 : 1;
+    ctx.save();
+    ctx.translate(sx, sy - jt);
+    ctx.scale(1, squash);
+
+    // shadow
+    ctx.save();
+    ctx.scale(1,1/squash);
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, 6*s + jt*0.02, 34*s, 9*s, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // tail
+    ctx.fillStyle = '#d19a52';
+    ctx.beginPath();
+    ctx.ellipse(-40*s, -20*s+bob, 20*s, 12*s, -0.6, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff3df';
+    ctx.beginPath();
+    ctx.ellipse(-48*s, -26*s+bob, 10*s, 7*s, -0.6, 0, Math.PI*2);
+    ctx.fill();
+
+    // body
+    ctx.fillStyle = '#c9863f';
+    ctx.beginPath();
+    ctx.ellipse(0, -34*s+bob, 30*s, 26*s, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // collar fluff
+    ctx.fillStyle = '#fff3df';
+    ctx.beginPath();
+    ctx.ellipse(0, -18*s+bob, 26*s, 12*s, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // head
+    ctx.fillStyle = '#c9863f';
+    ctx.beginPath();
+    ctx.arc(0, -58*s+bob, 20*s, 0, Math.PI*2);
+    ctx.fill();
+
+    // ears
+    ctx.fillStyle = '#8a5a2a';
+    ctx.beginPath();
+    ctx.moveTo(-16*s,-72*s+bob); ctx.lineTo(-26*s,-100*s+bob); ctx.lineTo(-4*s,-78*s+bob); ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(16*s,-72*s+bob); ctx.lineTo(26*s,-100*s+bob); ctx.lineTo(4*s,-78*s+bob); ctx.closePath();
+    ctx.fill();
+
+    // face
+    ctx.fillStyle = '#241a12';
+    ctx.beginPath(); ctx.arc(-7*s,-58*s+bob,2.6*s,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(7*s,-58*s+bob,2.6*s,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0,-52*s+bob,2*s,0,Math.PI*2); ctx.fill();
+
+    // legs (simple running suggestion)
+    ctx.fillStyle = '#8a5a2a';
+    var legPhase = Math.sin(performance.now()*0.02);
+    ctx.fillRect(-18*s, -12*s+bob, 9*s, 14*s + legPhase*4*s);
+    ctx.fillRect(9*s, -12*s+bob, 9*s, 14*s - legPhase*4*s);
+
+    ctx.restore();
+  }
+
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    drawSky();
+
+    var baseSeg = segAt(position);
+    var baseIndex = baseSeg.index;
+    var baseZOffset = position - baseIndex*SEG_LEN; // fraction into current seg (world units)
+
+    var camHeight = CAMERA_HEIGHT + laneYOffset();
+    var camX = player.x;
+    var camZ = position - 0; // camera trails at player's world z (player runs "in place" visually; road moves)
+    var x = 0, dx = 0;
+
+    // ground fill first (grass)
+    ctx.fillStyle = getVar('--grass1');
+    ctx.fillRect(0, H*0.5, W, H*0.5);
+
+    var maxY = H;
+    var segDraws = [];
+
+    for(var n=0; n<DRAW_DIST; n++){
+      var segIndex = (baseIndex + n) % segments.length;
+      var seg = segments[segIndex];
+      var loopOffset = (Math.floor((baseIndex+n)/segments.length)) * trackLength;
+
+      var p1 = {world:{x:0,y:seg.p1.world.y,z:seg.p1.world.z + loopOffset}, screen:{}};
+      var p2 = {world:{x:0,y:seg.p2.world.y,z:seg.p2.world.z + loopOffset}, screen:{}};
+
+      x += dx;
+      dx += seg.curve;
+      p1.world.x = x*ROAD_W*0.9;
+      p2.world.x = (x+dx)*ROAD_W*0.9;
+
+      projectPoint(p1, camX, camHeight, camZ - baseZOffset);
+      projectPoint(p2, camX, camHeight, camZ - baseZOffset);
+
+      if(p1.screen.y >= p2.screen.y) continue; // behind camera / degenerate
+      if(p2.screen.y > maxY) continue;
+
+      seg._p1 = p1; seg._p2 = p2;
+      segDraws.push(seg);
+    }
+
+    // draw far to near
+    for(var i=segDraws.length-1;i>=0;i--){
+      var s = segDraws[i];
+      var grassColor = s.color ? getVar('--grass1') : getVar('--grass2');
+      ctx.fillStyle = grassColor;
+      ctx.fillRect(0, s._p2.screen.y, W, Math.max(1, s._p1.screen.y - s._p2.screen.y));
+      drawSegmentQuad(s._p1, s._p2, getVar('--road'), getVar('--road-line'));
+    }
+
+    // draw obstacles & berries (near to far order doesn't matter much, use far->near already reversed)
+    for(var j=segDraws.length-1;j>=0;j--){
+      var sg = segDraws[j];
+      var scale = sg._p2.screen.scale;
+      if(scale<=0) continue;
+      var laneScreenX = function(lane){
+        var mid = (sg._p1.screen.x+sg._p2.screen.x)/2;
+        var w = sg._p2.screen.w;
+        return mid + lane*w*0.62;
+      };
+      if(sg.obstacle && !sg.obstacle.hit){
+        drawObstacle(sg.obstacle.kind, laneScreenX(sg.obstacle.lane), sg._p2.screen.y, Math.max(0.25, scale*220));
+      }
+      if(sg.berry && !sg.berry.taken){
+        drawBerry(laneScreenX(sg.berry.lane), sg._p2.screen.y - 30*Math.max(0.25,scale*220)/60, Math.max(0.25, scale*220)/2.2);
+      }
+    }
+
+    // player (drawn at fixed screen position near bottom-center, offset by lane interpolation vs road curvature at camera)
+    var playerScreenX = W/2 + ((player.x - camX) * (camDepth / (SEG_LEN*0.6)) * W/2)*0;
+    // player x already tracks camX by design (camera follows player.x), so keep centered but allow slight lane visual via road width at near plane
+    var nearScale = (segDraws.length? segDraws[segDraws.length-1]._p1.screen.scale : 0.9);
+    drawEevee(W/2, H*0.86, Math.max(0.9, 620*Math.max(nearScale,0.14)) , jumpHeight()*Math.max(nearScale,0.5)*0.001*H, duckAmount());
+  }
+
+  function laneYOffset(){ return 0; }
+
+  var raf;
+  function loop(ts){
+    if(!lastTime) lastTime = ts;
+    var dt = Math.min(0.05, (ts-lastTime)/1000);
+    lastTime = ts;
+    if(running){
+      update(dt);
+      render();
+    }
+    raf = requestAnimationFrame(loop);
+  }
+
+  function endGame(){
+    running = false;
+    showEndScreen();
+  }
+
+  function showEndScreen(){
+    var best = parseInt(localStorage.getItem('eeveerun_best')||'0',10);
+    var finalScore = Math.floor(score);
+    if(finalScore > best){ best = finalScore; localStorage.setItem('eeveerun_best', String(best)); }
+    screenEl.innerHTML =
+      '<div class="eevee-emoji">💫</div>' +
+      '<h1>Ops!</h1>' +
+      '<div id="score-big">'+finalScore+'</div>' +
+      '<div id="best-line">Recorde: '+best+' &nbsp;•&nbsp; Berries: '+berries+'</div>' +
+      '<button class="btn" id="retryBtn">Correr de novo</button>';
+    screenEl.classList.remove('hidden');
+    document.getElementById('retryBtn').addEventListener('click', startGame);
+  }
+
+  function startGame(){
+    screenEl.classList.add('hidden');
+    resetGame();
+    running = true;
+  }
+
+  startBtn.addEventListener('click', startGame);
+
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
