@@ -584,30 +584,36 @@ function maybeSpawnStorm(nearY, gap) {
   });
 }
 
-// Velocidade vertical instantânea aplicada ao Spoink ao pegar a pena — é
-// isso que faz ele voar tela acima "de verdade" (não só a câmera subindo).
-// Swift dá um arremesso mais forte que Resist.
-const SWIFT_LAUNCH_VY = -1900;
-const RESIST_LAUNCH_VY = -1400;
+// Ganho de altura GARANTIDO ao pegar cada pena, em metros — independente de
+// onde na tela o Spoink estiver no momento da coleta. A velocidade de
+// arremesso é calculada na hora (ver collectItem), somando a distância que
+// falta até a linha de scroll da câmera, pra sempre render o valor cheio.
+const SWIFT_BOOST_M = 350;
+const RESIST_BOOST_M = 175;
 const FEATHER_BOOST_MS = 450; // tem que bater com a duration da transition CSS
-
-// Altura extra aproximada que o impulso rende (v²/2g em px, convertida pra
-// escala de score = px/10) — só pra exibir um número coerente no toast.
-function launchGainM(vy) {
-  return Math.round((vy * vy) / (2 * GRAVITY) / 10);
-}
 
 function collectItem(it) {
   it.collected = true;
-  const vy = it.kind === 'swift' ? SWIFT_LAUNCH_VY : RESIST_LAUNCH_VY;
-  const boostM = launchGainM(vy);
+  const boostM = it.kind === 'swift' ? SWIFT_BOOST_M : RESIST_BOOST_M;
   showToast(`${it.kind === 'swift' ? 'Swift Feather' : 'Resist Feather'} +${boostM}m!`);
 
   // Arremesso real: dá uma velocidade vertical bem negativa (pra cima) no
   // Spoink. O avanço de câmera/pontuação acontece organicamente pelo
   // update() normal conforme ele sobe — nada é teleportado, então
   // plataformas e itens continuam existindo no caminho.
-  player.vy = vy;
+  //
+  // A câmera só soma altura (camY) enquanto player.y está abaixo da linha
+  // de scroll (BASE_H*0.45) — e assim que ele cruza pra cima dela, o jogo
+  // já "gruda" player.y de volta na linha no mesmo frame. Ou seja, a
+  // distância entre a posição atual e essa linha (d) é "desperdiçada": o
+  // impulso precisa vencer ela antes de começar a valer como metro de
+  // verdade. Somando d ao alvo em px, o ganho real de altura bate sempre
+  // com o valor prometido no toast, não importa em que ponto da tela a
+  // pena foi coletada.
+  const scrollLineY = BASE_H * 0.45;
+  const d = Math.max(0, player.y - scrollLineY);
+  const neededPx = boostM * 10 + d;
+  player.vy = -Math.sqrt(2 * GRAVITY * neededPx);
   launchFeatherEffect();
 }
 
