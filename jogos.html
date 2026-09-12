@@ -73,6 +73,7 @@
   .gj-tile.voltorbolha{background:linear-gradient(135deg,#b71c1c,#f4efe2)}
   .gj-tile.tyrunt{background:linear-gradient(135deg,#8a5a30,#c77b3e)}
   .gj-tile.pokebubbles{background:linear-gradient(135deg,#78C850,#6890F0,#F08030)}
+  .gj-tile.bounceup{background:linear-gradient(135deg,#8d7fc7,#f7c9e0)}
   .gj-tile-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .gj-tile-overlay{
     position:absolute;inset:0;background:rgba(0,0,0,.8);z-index:2;
@@ -213,6 +214,18 @@
         <a class="gj-card-name" href="/jogos/pokebubbles">Pokébubbles</a>
         <button class="gj-rank-btn" onclick="toggleRanking('pokebubbles', this)">🏆 Ranking</button>
       </div>
+
+      <div class="gj-card" id="gj-card-bounceup">
+        <a class="gj-tile bounceup" href="/bounceup.html" aria-label="Jogar Bounce Up!">
+          <img class="gj-tile-cover" id="gj-cover-bounceup" src="" alt="" hidden>
+          <div class="gj-tile-overlay" id="gj-overlay-bounceup" hidden>
+            <div id="gj-lb-bounceup"><div class="gj-lb-empty">Carregando...</div></div>
+          </div>
+          🐷
+        </a>
+        <a class="gj-card-name" href="/bounceup.html">Bounce Up!</a>
+        <button class="gj-rank-btn" onclick="toggleRanking('bounceup', this)">🏆 Ranking</button>
+      </div>
     </div>
   </div>
 </div>
@@ -270,6 +283,7 @@
     { key: 'voltorbolha', label: '🫧 Voltorbolha' },
     { key: 'tyrunt',      label: '🦖 tyRUNt' },
     { key: 'pokebubbles', label: '🫧 Pokébubbles' },
+    { key: 'bounceup',    label: '🐷 Bounce Up!' },
   ];
 
   // Brasília não usa mais horário de verão desde 2019, então o offset
@@ -382,6 +396,7 @@
     loadLeaderboard('voltorbolha', 'gj-lb-voltorbolha');
     loadLeaderboard('tyrunt', 'gj-lb-tyrunt');
     loadLeaderboard('pokebubbles', 'gj-lb-pokebubbles');
+    loadLeaderboard('bounceup', 'gj-lb-bounceup');
   }
 
   // O troféu na nav só fica clicável aos domingos (ver classe "active"
