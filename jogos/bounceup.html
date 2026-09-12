@@ -369,7 +369,7 @@ function collectCoin(c) {
   c.collected = true;
   coins++;
   updateCoinsUI();
-  showToast(`Moeda! (${coins})`);
+
 }
 
 // Modo de mira: em vez de a plataforma dourada nascer automaticamente,
@@ -380,7 +380,7 @@ function collectCoin(c) {
 let aiming = false;
 let aimPlatform = null;
 let aimDragging = false;
-let lastAimPointerX = 0;
+let aimGrabOffsetX = 0;
 let lastAimPointerY = 0;
 const aimUiEl = document.getElementById('sj-aim-ui');
 const aimConfirmBtn = document.getElementById('sj-aim-confirm');
@@ -569,10 +569,12 @@ function hitEnemy(en) {
 const STORM_MIN_HEIGHT_M = 1500;
 const STORM_MIN_GAP = 2500;      // 250m mínimo entre nuvens de tempestade
 const STORM_SPAWN_CHANCE = 0.04;
-const STORM_EFFECT_HOLD_MS = 650; // quanto tempo o efeito de chuva persiste após tocar a nuvem
+const STORM_EFFECT_MIN_MS = 3000; // duração mínima do efeito de chuva, uma vez ativado
 let distSinceStorm = 0;
 let stormClouds = [];
-let stormEffectUntil = 0; // performance.now() até quando o efeito de chuva deve continuar visível
+let stormEffectActive = false;   // se o efeito de chuva está ativo agora
+let stormEffectStart = 0;        // performance.now() de quando o efeito foi ativado
+let stormEffectCloud = null;     // referência da nuvem que ativou o efeito
 
 function maybeSpawnStorm(nearY, gap) {
   distSinceStorm += gap;
@@ -581,7 +583,7 @@ function maybeSpawnStorm(nearY, gap) {
   if (Math.random() > STORM_SPAWN_CHANCE) return;
   distSinceStorm = 0;
   const dir = Math.random() < 0.5 ? -1 : 1;
-  const w = 150 + Math.random() * 70;
+  const w = 65 + Math.random() * 35;
   stormClouds.push({
     x: dir > 0 ? -w : BASE_W,
     y: nearY - 60 - Math.random() * 90,
@@ -723,7 +725,9 @@ function resetGame() {
   distSinceFeather = MIN_FEATHER_GAP;
   distSinceEnemy = 0;
   distSinceStorm = 0;
-  stormEffectUntil = 0;
+  stormEffectActive = false;
+  stormEffectStart = 0;
+  stormEffectCloud = null;
   bounceStreak = 0;
   bounceStreakPlatform = null;
   while (y > -BASE_H) {
@@ -773,7 +777,10 @@ let lastPointerX = 0;
 wrapEl.addEventListener('pointerdown', e => {
   if (aiming) {
     aimDragging = true;
-    lastAimPointerX = e.clientX;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = BASE_W / rect.width;
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    aimGrabOffsetX = canvasX - aimPlatform.x;
     lastAimPointerY = e.clientY;
     return;
   }
@@ -787,11 +794,10 @@ window.addEventListener('pointermove', e => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = BASE_W / rect.width;
     const scaleY = BASE_H / rect.height;
-    const deltaX = (e.clientX - lastAimPointerX) * scaleX;
+    const canvasX = (e.clientX - rect.left) * scaleX;
     const deltaY = (e.clientY - lastAimPointerY) * scaleY;
-    lastAimPointerX = e.clientX;
     lastAimPointerY = e.clientY;
-    aimPlatform.x = Math.min(BASE_W - aimPlatform.w, Math.max(0, aimPlatform.x + deltaX));
+    aimPlatform.x = Math.min(BASE_W - aimPlatform.w, Math.max(0, canvasX - aimGrabOffsetX));
     const minY = player.y - AIM_Y_MAX_OFFSET;
     const maxY = player.y - AIM_Y_MIN_OFFSET;
     aimPlatform.y = Math.min(maxY, Math.max(minY, aimPlatform.y + deltaY));
@@ -863,7 +869,6 @@ function update(dt) {
         if (bounceStreak >= SAME_PLATFORM_COMBO_COUNT) {
           player.vy = JUMP_VELOCITY * SAME_PLATFORM_COMBO_MULT;
           bounceStreak = 0;
-          showToast('Combo de plataforma! Super pulo!');
           launchFeatherEffect();
         } else {
           player.vy = JUMP_VELOCITY;
@@ -929,7 +934,9 @@ function update(dt) {
   }
 
   // Efeito de chuva só ativa quando o Spoink realmente encosta na nuvem
-  // de tempestade (não basta ela estar em algum lugar da tela).
+  // de tempestade (não basta ela estar em algum lugar da tela). Uma vez
+  // ativado, dura no mínimo 3s e só desativa depois disso E da nuvem
+  // sumir da tela (o que demorar mais).
   for (const s of stormClouds) {
     if (
       player.x < s.x + s.w &&
@@ -937,8 +944,20 @@ function update(dt) {
       player.y < s.y + s.h &&
       player.y + PLAYER_H > s.y
     ) {
-      stormEffectUntil = performance.now() + STORM_EFFECT_HOLD_MS;
+      if (!stormEffectActive) {
+        stormEffectActive = true;
+        stormEffectStart = performance.now();
+      }
+      stormEffectCloud = s;
       break;
+    }
+  }
+  if (stormEffectActive) {
+    const cloudStillOnScreen = stormEffectCloud && stormClouds.includes(stormEffectCloud);
+    const minTimeElapsed = performance.now() - stormEffectStart >= STORM_EFFECT_MIN_MS;
+    if (!cloudStillOnScreen && minTimeElapsed) {
+      stormEffectActive = false;
+      stormEffectCloud = null;
     }
   }
 
@@ -1045,22 +1064,6 @@ function drawStormCloud(s) {
   ctx.beginPath();
   ctx.arc(-r * 0.2, -r * 0.5, r * 0.42, 0, Math.PI * 2);
   ctx.fill();
-  ctx.restore();
-
-  // gotinhas de chuva caindo dela, só decorativo — deixa claro que é
-  // uma nuvem de chuva mesmo antes de encostar
-  ctx.save();
-  ctx.strokeStyle = 'rgba(160,180,230,.65)';
-  ctx.lineWidth = 1.4;
-  const dropT = performance.now() / 90;
-  for (let i = 0; i < 4; i++) {
-    const dx = cx + (i - 1.5) * (s.w / 4.2);
-    const dy = s.y + s.h * 0.65 + ((dropT + i * 17) % 18);
-    ctx.beginPath();
-    ctx.moveTo(dx, dy);
-    ctx.lineTo(dx - 2, dy + 8);
-    ctx.stroke();
-  }
   ctx.restore();
 }
 
@@ -1224,10 +1227,10 @@ function draw() {
   }
 
   // Só escurece a tela e desenha riscos de chuva por cima de tudo quando o
-  // Spoink encostou de fato na nuvem de tempestade há pouco (ver
-  // stormEffectUntil no update()) — dificulta enxergar as plataformas com
-  // clareza por um instante, sem causar dano/queda.
-  const activeStorm = performance.now() < stormEffectUntil;
+  // Spoink encostou de fato na nuvem de tempestade (ver stormEffectActive
+  // no update()) — dificulta enxergar as plataformas com clareza por um
+  // tempo, sem causar dano/queda.
+  const activeStorm = stormEffectActive;
   if (activeStorm) {
     ctx.save();
     ctx.fillStyle = 'rgba(35,35,55,.28)';
