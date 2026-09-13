@@ -273,7 +273,7 @@
 
   // ---------- physics helpers ----------
   const GRAVITY = 1400;
-  const DAMPING = 0.996;
+  const DAMPING = 0.999;
   const SEGMENTS = 5;
 
   function makePoint(x,y){ return {x,y,ox:x,oy:y,pinned:false}; }
@@ -507,7 +507,7 @@
     }
     verlet(candy, dt);
 
-    for(let iter=0; iter<3; iter++){
+    for(let iter=0; iter<1; iter++){
       for(const rope of ropes){
         if(!rope.active) continue;
         rope.points[0].x = rope.anchor.x;
