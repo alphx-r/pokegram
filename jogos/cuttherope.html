@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Corta a Corda | Kingdom Platinum</title>
+<style>
+  :root{
+    --lav:#c9b6e4;
+    --rosa:#f3b6d3;
+    --pessego:#ffd9b0;
+    --creme:#fff6ef;
+    --ink:#5b4a6a;
+    --ink-dark:#3c3049;
+    --corda:#8a6a4a;
+    --accent:#ff6f91;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    overflow:hidden; overscroll-behavior:none;
+    background:linear-gradient(160deg,var(--lav),var(--rosa) 55%,var(--pessego));
+    font-family:'Segoe UI',system-ui,sans-serif;
+    color:var(--ink-dark);
+  }
+  .cr-nav{
+    position:fixed; top:0; left:0; right:0; z-index:30;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top));
+    background:rgba(255,255,255,.35); backdrop-filter:blur(6px);
+  }
+  .cr-back{
+    display:flex; align-items:center; gap:6px;
+    text-decoration:none; color:var(--ink-dark); font-weight:600; font-size:14px;
+    background:rgba(255,255,255,.6); padding:6px 12px; border-radius:999px;
+  }
+  .cr-title{font-weight:700; font-size:14px; letter-spacing:.2px; opacity:.85;}
+  .cr-wrap{position:fixed; inset:0;}
+  canvas#game{display:block; width:100%; height:100%; touch-action:none;}
+
+  .cr-hud-box{
+    position:fixed; top:56px; right:12px; z-index:25;
+    background:rgba(255,255,255,.55); backdrop-filter:blur(6px);
+    border-radius:16px; padding:8px 14px; font-size:13px; font-weight:600;
+    transition:opacity .25s, transform .25s;
+  }
+  .cr-hud-box.hidden{opacity:0; transform:translateY(-8px); pointer-events:none;}
+  .cr-hud-row{display:flex; align-items:center; gap:6px; margin:2px 0;}
+  .cr-hearts{letter-spacing:2px;}
+
+  .cr-overlay{
+    position:fixed; inset:0; z-index:40;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(60,48,73,.35); backdrop-filter:blur(2px);
+    padding:20px;
+  }
+  .cr-overlay.hidden{display:none;}
+  .cr-card{
+    background:var(--creme); border-radius:24px; padding:26px 24px;
+    max-width:340px; width:100%; text-align:center;
+    box-shadow:0 12px 30px rgba(60,48,73,.25);
+  }
+  .cr-card h2{margin:0 0 8px; font-size:20px; color:var(--ink-dark);}
+  .cr-card p{margin:6px 0; font-size:14px; line-height:1.5; color:var(--ink);}
+  .cr-card .cr-score-big{font-size:34px; font-weight:800; color:var(--accent); margin:10px 0 2px;}
+  .cr-btn{
+    display:inline-block; margin-top:14px; border:none; cursor:pointer;
+    background:var(--accent); color:#fff; font-weight:700; font-size:15px;
+    padding:12px 26px; border-radius:999px; box-shadow:0 6px 14px rgba(255,111,145,.4);
+  }
+  .cr-btn.secondary{background:transparent; color:var(--ink-dark); box-shadow:none; border:2px solid var(--ink-dark); padding:10px 22px;}
+  .cr-lb{list-style:none; margin:10px 0; padding:0; text-align:left; font-size:13px;}
+  .cr-lb li{display:flex; justify-content:space-between; padding:4px 2px; border-bottom:1px dashed rgba(0,0,0,.08);}
+  .cr-lb li b{color:var(--ink-dark);}
+  .cr-banner{
+    position:fixed; top:40%; left:50%; transform:translate(-50%,-50%);
+    font-size:30px; font-weight:800; color:#fff; text-shadow:0 3px 10px rgba(0,0,0,.25);
+    z-index:35; pointer-events:none; opacity:0; transition:opacity .2s, transform .2s;
+  }
+  .cr-banner.show{opacity:1; transform:translate(-50%,-60%);}
+</style>
+</head>
+<body>
+
+<nav class="cr-nav">
+  <a href="/jogos.html" class="cr-back">‹ Jogos</a>
+  <div class="cr-title">Corta a Corda</div>
+  <div style="width:64px"></div>
+</nav>
+
+<div class="cr-hud-box" id="hud">
+  <div class="cr-hud-row">🍬 <span id="hud-score">0</span></div>
+  <div class="cr-hud-row">⭐ <span id="hud-stars">0</span>/<span id="hud-stars-total">0</span></div>
+  <div class="cr-hud-row cr-hearts" id="hud-lives">❤❤❤</div>
+  <div class="cr-hud-row" style="opacity:.7; font-size:11px;">Recorde: <span id="hud-best">–</span></div>
+</div>
+
+<div class="cr-wrap"><canvas id="game"></canvas></div>
+<div class="cr-banner" id="banner"></div>
+
+<div class="cr-overlay" id="hint">
+  <div class="cr-card">
+    <h2>🍬 Corta a Corda</h2>
+    <p>O Snorlax está com fome! Arraste o dedo sobre as cordas pra cortá-las e deixe a Rare Candy cair certinho na boca dele.</p>
+    <p>Pegue as estrelas no caminho, mas cuidado com os espinhos do Cacnea — se a bala cair fora ou bater neles, você perde uma vida.</p>
+    <button class="cr-btn" id="btn-start">Começar</button>
+  </div>
+</div>
+
+<div class="cr-overlay hidden" id="gameover">
+  <div class="cr-card">
+    <h2 id="go-title">Fim de jogo</h2>
+    <div class="cr-score-big" id="go-score">0</div>
+    <p id="go-sub">estrelas coletadas: <b id="go-stars">0</b></p>
+    <ul class="cr-lb" id="go-lb"></ul>
+    <button class="cr-btn" id="btn-retry">Jogar de novo</button>
+    <button class="cr-btn secondary" id="btn-share">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="games-common.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- infra opcional (games-common.js) ----------
+  const GAME_ID = "cuttherope";
+  const has = (fn) => typeof window[fn] === "function";
+  let currentUser = null;
+
+  async function boot(){
+    try{
+      if(has("gRequireSession")) currentUser = await gRequireSession();
+    }catch(e){ currentUser = null; }
+    try{
+      if(has("gLoadMyBest") && currentUser){
+        const best = await gLoadMyBest(GAME_ID, currentUser.id);
+        document.getElementById("hud-best").textContent = (best && best.score) ? best.score : "–";
+      }
+    }catch(e){}
+    try{
+      if(has("gSetupFullscreenOnFirstInteraction")) gSetupFullscreenOnFirstInteraction();
+    }catch(e){}
+  }
+  boot();
+
+  async function saveScore(score){
+    try{
+      if(has("gSaveScore")) await gSaveScore(GAME_ID, score);
+    }catch(e){}
+  }
+  async function loadLeaderboard(){
+    const ul = document.getElementById("go-lb");
+    ul.innerHTML = "";
+    try{
+      if(has("gLoadTopScores")){
+        const rows = await gLoadTopScores(GAME_ID, 5);
+        (rows||[]).forEach((r,i)=>{
+          const li = document.createElement("li");
+          li.innerHTML = "<span>"+(i+1)+". "+(r.name||r.username||"Treinador")+"</span><b>"+r.score+"</b>";
+          ul.appendChild(li);
+        });
+      }
+    }catch(e){}
+    if(!ul.children.length){
+      ul.innerHTML = "<li><span>Top treinadores</span><b>—</b></li>";
+    }
+  }
+
+  // ---------- canvas / virtual coords ----------
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const VW = 400, VH = 700;
+  let scale = 1, offX = 0, offY = 0, dpr = Math.max(1, window.devicePixelRatio||1);
+
+  function resize(){
+    dpr = Math.max(1, window.devicePixelRatio||1);
+    canvas.width = Math.floor(window.innerWidth*dpr);
+    canvas.height = Math.floor(window.innerHeight*dpr);
+    scale = Math.min(canvas.width/VW, canvas.height/VH);
+    offX = (canvas.width - VW*scale)/2;
+    offY = (canvas.height - VH*scale)/2;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function toVirtual(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const x = (clientX-rect.left)*dpr;
+    const y = (clientY-rect.top)*dpr;
+    return { x:(x-offX)/scale, y:(y-offY)/scale };
+  }
+
+  // ---------- sprites ----------
+  const snorlaxImg = new Image();
+  snorlaxImg.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/143.png";
+  const candyImg = new Image();
+  candyImg.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png";
+  const cacneaImg = new Image();
+  cacneaImg.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/332.png";
+
+  // ---------- physics helpers ----------
+  const GRAVITY = 1400;
+  const DAMPING = 0.996;
+  const SEGMENTS = 5;
+
+  function makePoint(x,y){ return {x,y,ox:x,oy:y,pinned:false}; }
+
+  function verlet(p, dt){
+    if(p.pinned) return;
+    const vx = (p.x-p.ox)*DAMPING;
+    const vy = (p.y-p.oy)*DAMPING;
+    p.ox = p.x; p.oy = p.y;
+    p.x += vx;
+    p.y += vy + GRAVITY*dt*dt;
+  }
+
+  function constrain(a,b,len){
+    if(a.pinned && b.pinned) return;
+    const dx=b.x-a.x, dy=b.y-a.y;
+    const dist = Math.max(0.0001, Math.hypot(dx,dy));
+    const diff = (dist-len)/dist;
+    let corrA=0.5, corrB=0.5;
+    if(a.pinned){corrA=0; corrB=1;}
+    if(b.pinned){corrA=1; corrB=0;}
+    a.x += dx*diff*corrA; a.y += dy*diff*corrA;
+    b.x -= dx*diff*corrB; b.y -= dy*diff*corrB;
+  }
+
+  function segIntersect(p1,p2,p3,p4){
+    const d = (p2.x-p1.x)*(p4.y-p3.y) - (p2.y-p1.y)*(p4.x-p3.x);
+    if(Math.abs(d) < 1e-6) return false;
+    const t = ((p3.x-p1.x)*(p4.y-p3.y) - (p3.y-p1.y)*(p4.x-p3.x)) / d;
+    const u = ((p3.x-p1.x)*(p2.y-p1.y) - (p3.y-p1.y)*(p2.x-p1.x)) / d;
+    return t>=0 && t<=1 && u>=0 && u<=1;
+  }
+
+  function pointInTriangle(p, a, b, c){
+    function sign(p1,p2,p3){ return (p1.x-p3.x)*(p2.y-p3.y)-(p2.x-p3.x)*(p1.y-p3.y); }
+    const d1=sign(p,a,b), d2=sign(p,b,c), d3=sign(p,c,a);
+    const hasNeg=(d1<0)||(d2<0)||(d3<0);
+    const hasPos=(d1>0)||(d2>0)||(d3>0);
+    return !(hasNeg && hasPos);
+  }
+
+  // ---------- levels (virtual coords, 400x700) ----------
+  const LEVELS = [
+    {
+      anchors:[{x:120,y:60},{x:280,y:60}],
+      candyStart:{x:200,y:230},
+      stars:[{x:120,y:280},{x:280,y:280},{x:200,y:400}],
+      spikes:[],
+      target:{x:200,y:600}
+    },
+    {
+      anchors:[{x:80,y:50},{x:320,y:120}],
+      candyStart:{x:170,y:250},
+      stars:[{x:100,y:320},{x:300,y:200},{x:200,y:430}],
+      spikes:[[{x:150,y:520},{x:210,y:480},{x:230,y:540}]],
+      target:{x:200,y:610}
+    },
+    {
+      anchors:[{x:60,y:70},{x:200,y:40},{x:340,y:70}],
+      candyStart:{x:200,y:250},
+      stars:[{x:120,y:330},{x:280,y:330},{x:200,y:460}],
+      spikes:[[{x:60,y:560},{x:110,y:500},{x:140,y:560}]],
+      target:{x:200,y:620}
+    },
+    {
+      anchors:[{x:70,y:60},{x:330,y:60}],
+      candyStart:{x:200,y:210},
+      stars:[{x:200,y:260},{x:90,y:400},{x:310,y:400},{x:200,y:500}],
+      spikes:[[{x:170,y:560},{x:200,y:500},{x:230,y:560}]],
+      target:{x:200,y:630}
+    },
+    {
+      anchors:[{x:50,y:90},{x:200,y:50},{x:350,y:90}],
+      candyStart:{x:200,y:270},
+      stars:[{x:110,y:250},{x:290,y:250},{x:200,y:380},{x:200,y:500}],
+      spikes:[[{x:120,y:560},{x:160,y:500},{x:190,y:560}],[{x:260,y:560},{x:230,y:500},{x:300,y:560}]],
+      target:{x:200,y:640}
+    }
+  ];
+
+  // ---------- game state ----------
+  let state = "hint"; // hint | playing | levelclear | win | dead
+  let levelIdx = 0;
+  let ropes = [];
+  let candy = null;
+  let candyRadius = 16;
+  let stars = [];
+  let spikes = [];
+  let target = null;
+  let score = 0;
+  let starsTotal = 0;
+  let lives = 3;
+  let drag = null; // {x,y} last point
+  let dragTrail = [];
+  let lastTime = null;
+  let bannerTimer = 0;
+
+  function setBanner(text, ms){
+    const el = document.getElementById("banner");
+    el.textContent = text;
+    el.classList.add("show");
+    bannerTimer = ms||1100;
+  }
+
+  function loadLevel(idx){
+    const lv = LEVELS[idx % LEVELS.length];
+    ropes = lv.anchors.map(a=>{
+      const dx = lv.candyStart.x-a.x, dy = lv.candyStart.y-a.y;
+      const totalLen = Math.hypot(dx,dy);
+      const segLen = totalLen/(SEGMENTS-1);
+      const pts = [];
+      for(let i=0;i<SEGMENTS;i++){
+        const t = i/(SEGMENTS-1);
+        const p = makePoint(a.x+dx*t, a.y+dy*t);
+        if(i===0) p.pinned = true;
+        pts.push(p);
+      }
+      return { anchor:a, points:pts, segLen, active:true };
+    });
+    candy = makePoint(lv.candyStart.x, lv.candyStart.y);
+    stars = lv.stars.map(s=>({x:s.x,y:s.y,r:12,got:false}));
+    spikes = lv.spikes.map(tri=>tri);
+    target = { x: lv.target.x, y: lv.target.y, r: 40 };
+    starsTotal = stars.length;
+    updateHud();
+  }
+
+  function updateHud(){
+    document.getElementById("hud-score").textContent = score;
+    document.getElementById("hud-stars").textContent = stars.filter(s=>s.got).length;
+    document.getElementById("hud-stars-total").textContent = starsTotal;
+    document.getElementById("hud-lives").textContent = "❤".repeat(Math.max(0,lives)) + "♡".repeat(Math.max(0,3-lives));
+  }
+
+  function resetAfterFail(){
+    lives -= 1;
+    updateHud();
+    if(lives<=0){
+      endGame(false);
+    }else{
+      setBanner("Ops! 🥺", 900);
+      loadLevel(levelIdx);
+    }
+  }
+
+  function nextLevel(){
+    score += 200;
+    if(levelIdx >= LEVELS.length-1){
+      endGame(true);
+      return;
+    }
+    setBanner("Fase " + (levelIdx+2) + "!", 1100);
+    levelIdx += 1;
+    loadLevel(levelIdx);
+  }
+
+  function endGame(won){
+    state = "dead";
+    saveScore(score);
+    document.getElementById("go-title").textContent = won ? "O Snorlax comeu tudo! 🎉" : "Fim de jogo";
+    document.getElementById("go-score").textContent = score;
+    document.getElementById("go-stars").textContent = stars.filter(s=>s.got).length + "/" + starsTotal;
+    loadLeaderboard();
+    document.getElementById("gameover").classList.remove("hidden");
+  }
+
+  function startGame(){
+    score = 0; lives = 3; levelIdx = 0;
+    document.getElementById("hint").classList.add("hidden");
+    document.getElementById("gameover").classList.add("hidden");
+    document.getElementById("hud").classList.remove("hidden");
+    loadLevel(0);
+    state = "playing";
+  }
+
+  // ---------- input ----------
+  function onDown(e){
+    if(state !== "playing") return;
+    const p = pointFromEvent(e);
+    drag = p; dragTrail = [p];
+  }
+  function onMove(e){
+    if(state !== "playing" || !drag) return;
+    const p = pointFromEvent(e);
+    tryCut(drag, p);
+    drag = p;
+    dragTrail.push(p);
+    if(dragTrail.length>8) dragTrail.shift();
+  }
+  function onUp(){ drag = null; dragTrail = []; }
+
+  function pointFromEvent(e){
+    if(e.touches && e.touches[0]) return toVirtual(e.touches[0].clientX, e.touches[0].clientY);
+    return toVirtual(e.clientX, e.clientY);
+  }
+
+  canvas.addEventListener("mousedown", onDown);
+  canvas.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+  canvas.addEventListener("touchstart", (e)=>{ onDown(e); }, {passive:true});
+  canvas.addEventListener("touchmove", (e)=>{ onMove(e); e.preventDefault(); }, {passive:false});
+  canvas.addEventListener("touchend", onUp);
+
+  function tryCut(a,b){
+    for(const rope of ropes){
+      if(!rope.active) continue;
+      const pts = rope.points;
+      for(let i=0;i<pts.length-1;i++){
+        if(segIntersect(a,b,pts[i],pts[i+1])){
+          rope.active = false;
+          break;
+        }
+      }
+      if(rope.active){
+        // segmento final até a bala
+        if(segIntersect(a,b,pts[pts.length-1], candy)) rope.active = false;
+      }
+    }
+  }
+
+  // ---------- update ----------
+  function update(dt){
+    if(bannerTimer>0){
+      bannerTimer -= dt*1000;
+      if(bannerTimer<=0) document.getElementById("banner").classList.remove("show");
+    }
+    if(state !== "playing") return;
+
+    for(const rope of ropes){
+      if(!rope.active) continue;
+      for(let i=1;i<rope.points.length;i++) verlet(rope.points[i], dt);
+    }
+    verlet(candy, dt);
+
+    for(let iter=0; iter<6; iter++){
+      for(const rope of ropes){
+        if(!rope.active) continue;
+        rope.points[0].x = rope.anchor.x;
+        rope.points[0].y = rope.anchor.y;
+        for(let i=0;i<rope.points.length-1;i++){
+          constrain(rope.points[i], rope.points[i+1], rope.segLen);
+        }
+        constrain(rope.points[rope.points.length-1], candy, rope.segLen);
+      }
+    }
+
+    // paredes
+    if(candy.x < candyRadius){ candy.x = candyRadius; candy.ox = candy.x+ (candy.x-candy.ox); }
+    if(candy.x > VW-candyRadius){ candy.x = VW-candyRadius; candy.ox = candy.x+(candy.x-candy.ox); }
+
+    // estrelas
+    for(const s of stars){
+      if(s.got) continue;
+      if(Math.hypot(candy.x-s.x, candy.y-s.y) < candyRadius+s.r){
+        s.got = true; score += 50; updateHud();
+      }
+    }
+
+    // espinhos
+    for(const tri of spikes){
+      if(pointInTriangle(candy, tri[0], tri[1], tri[2])){
+        resetAfterFail();
+        return;
+      }
+    }
+
+    // alvo (Snorlax)
+    if(Math.hypot(candy.x-target.x, candy.y-target.y) < target.r*0.55){
+      nextLevel();
+      return;
+    }
+
+    // caiu fora
+    if(candy.y > VH+40){
+      resetAfterFail();
+      return;
+    }
+  }
+
+  // ---------- draw ----------
+  function draw(){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.setTransform(scale,0,0,scale,offX,offY);
+
+    // fundo
+    const g = ctx.createLinearGradient(0,0,0,VH);
+    g.addColorStop(0,"#d9c8ef");
+    g.addColorStop(0.55,"#f6c6dd");
+    g.addColorStop(1,"#ffdfb8");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,VW,VH);
+
+    // alvo / snorlax
+    if(target){
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.beginPath(); ctx.ellipse(target.x, target.y+18, 60, 22, 0,0,Math.PI*2);
+      ctx.fillStyle="#3c3049"; ctx.fill();
+      ctx.restore();
+      const sw=110, sh=110;
+      if(snorlaxImg.complete && snorlaxImg.naturalWidth){
+        ctx.drawImage(snorlaxImg, target.x-sw/2, target.y-sh+30, sw, sh);
+      }
+    }
+
+    // espinhos (Cacnea)
+    for(const tri of spikes){
+      ctx.beginPath();
+      ctx.moveTo(tri[0].x,tri[0].y);
+      ctx.lineTo(tri[1].x,tri[1].y);
+      ctx.lineTo(tri[2].x,tri[2].y);
+      ctx.closePath();
+      ctx.fillStyle = "#5a8f5a";
+      ctx.fill();
+      ctx.strokeStyle = "#2e5a2e"; ctx.lineWidth=2; ctx.stroke();
+    }
+
+    // cordas
+    ctx.strokeStyle = "#8a6a4a";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    for(const rope of ropes){
+      if(!rope.active) continue;
+      ctx.beginPath();
+      ctx.moveTo(rope.points[0].x, rope.points[0].y);
+      for(let i=1;i<rope.points.length;i++) ctx.lineTo(rope.points[i].x, rope.points[i].y);
+      ctx.lineTo(candy.x, candy.y);
+      ctx.stroke();
+      // pino de fixação
+      ctx.beginPath();
+      ctx.arc(rope.anchor.x, rope.anchor.y, 6, 0, Math.PI*2);
+      ctx.fillStyle = "#6a4a2a";
+      ctx.fill();
+    }
+
+    // estrelas
+    for(const s of stars){
+      if(s.got) continue;
+      drawStar(s.x, s.y, s.r);
+    }
+
+    // bala / candy
+    if(candyImg.complete && candyImg.naturalWidth){
+      ctx.drawImage(candyImg, candy.x-candyRadius, candy.y-candyRadius, candyRadius*2, candyRadius*2);
+    }else{
+      ctx.beginPath();
+      ctx.arc(candy.x, candy.y, candyRadius, 0, Math.PI*2);
+      ctx.fillStyle = "#ff6f91";
+      ctx.fill();
+    }
+
+    // rastro do dedo
+    if(dragTrail.length>1){
+      ctx.strokeStyle = "rgba(255,255,255,.7)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(dragTrail[0].x, dragTrail[0].y);
+      for(let i=1;i<dragTrail.length;i++) ctx.lineTo(dragTrail[i].x, dragTrail[i].y);
+      ctx.stroke();
+    }
+  }
+
+  function drawStar(cx,cy,r){
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.beginPath();
+    for(let i=0;i<5;i++){
+      const a1 = -Math.PI/2 + i*(2*Math.PI/5);
+      const a2 = a1 + Math.PI/5;
+      ctx.lineTo(Math.cos(a1)*r, Math.sin(a1)*r);
+      ctx.lineTo(Math.cos(a2)*(r*0.45), Math.sin(a2)*(r*0.45));
+    }
+    ctx.closePath();
+    ctx.fillStyle = "#ffd23f";
+    ctx.strokeStyle = "#e0a800";
+    ctx.lineWidth = 1.5;
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------- loop ----------
+  function loop(t){
+    if(lastTime==null) lastTime = t;
+    let dt = (t-lastTime)/1000;
+    lastTime = t;
+    dt = Math.min(dt, 1/30);
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---------- HUD toggle ao tocar na tela ----------
+  let hudVisible = true;
+  document.addEventListener("click", (e)=>{
+    if(e.target.closest(".cr-card") || e.target.closest(".cr-nav")) return;
+  });
+
+  // ---------- botões ----------
+  document.getElementById("btn-start").addEventListener("click", startGame);
+  document.getElementById("btn-retry").addEventListener("click", ()=>{
+    document.getElementById("gameover").classList.add("hidden");
+    startGame();
+  });
+  document.getElementById("btn-share").addEventListener("click", shareToStory);
+
+  function shareToStory(){
+    const out = document.createElement("canvas");
+    out.width = 1080; out.height = 1920;
+    const c = out.getContext("2d");
+    const g = c.createLinearGradient(0,0,0,1920);
+    g.addColorStop(0,"#c9b6e4"); g.addColorStop(0.55,"#f3b6d3"); g.addColorStop(1,"#ffd9b0");
+    c.fillStyle = g; c.fillRect(0,0,1080,1920);
+    if(snorlaxImg.complete && snorlaxImg.naturalWidth){
+      c.drawImage(snorlaxImg, 1080/2-260, 560, 520,520);
+    }
+    c.textAlign = "center";
+    c.fillStyle = "#3c3049";
+    c.font = "700 64px sans-serif";
+    c.fillText("Corta a Corda", 540, 300);
+    c.font = "800 120px sans-serif";
+    c.fillStyle = "#ff6f91";
+    c.fillText(String(score), 540, 1230);
+    c.font = "600 44px sans-serif";
+    c.fillStyle = "#3c3049";
+    c.fillText("pontos alimentando o Snorlax", 540, 1300);
+    c.font = "600 40px sans-serif";
+    c.fillText("⭐ " + stars.filter(s=>s.got).length + "/" + starsTotal + " estrelas", 540, 1370);
+
+    try{
+      const dataUrl = out.toDataURL("image/png");
+      sessionStorage.setItem("pg_pending_story_image", JSON.stringify({image:dataUrl, gameLink:"/cuttherope.html"}));
+      location.href = "/";
+    }catch(e){
+      alert("Não foi possível gerar a imagem pra compartilhar.");
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
