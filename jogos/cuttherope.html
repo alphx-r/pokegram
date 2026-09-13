@@ -38,15 +38,24 @@
   .cr-wrap{position:fixed; inset:0;}
   canvas#game{display:block; width:100%; height:100%; touch-action:none;}
 
-  .cr-hud-box{
-    position:fixed; top:56px; right:12px; z-index:25;
-    background:rgba(255,255,255,.55); backdrop-filter:blur(6px);
-    border-radius:16px; padding:8px 14px; font-size:13px; font-weight:600;
-    transition:opacity .25s, transform .25s;
+  .cr-hud{
+    position:fixed; top:56px; left:0; right:0; z-index:20;
+    display:flex; flex-direction:column; align-items:center; gap:6px; pointer-events:none;
   }
-  .cr-hud-box.hidden{opacity:0; transform:translateY(-8px); pointer-events:none;}
-  .cr-hud-row{display:flex; align-items:center; gap:6px; margin:2px 0;}
-  .cr-hearts{letter-spacing:2px;}
+  .cr-hud-box{
+    display:flex; gap:clamp(10px,4vw,22px); align-items:center; justify-content:center;
+    background:rgba(255,255,255,.85); border-radius:10px;
+    padding:9px clamp(16px,4vw,24px); box-shadow:0 2px 8px rgba(0,0,0,.2);
+    pointer-events:auto; cursor:pointer; transition:opacity .25s ease;
+  }
+  .cr-hud-box.cr-hud-hidden{opacity:0;}
+  .cr-hud-item{
+    flex:0 1 auto; white-space:nowrap; text-align:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  }
+  .cr-hud-label{font-size:clamp(7px,2.2vw,9px); font-weight:800; color:var(--ink); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; line-height:1;}
+  .cr-hud-value{font-size:clamp(13px,4vw,18px); color:var(--ink-dark); font-weight:700; white-space:nowrap; line-height:1;}
+  .cr-hud-value.cr-hearts{letter-spacing:2px; font-size:clamp(11px,3.4vw,15px);}
 
   .cr-overlay{
     position:fixed; inset:0; z-index:40;
@@ -72,6 +81,32 @@
   .cr-lb{list-style:none; margin:10px 0; padding:0; text-align:left; font-size:13px;}
   .cr-lb li{display:flex; justify-content:space-between; padding:4px 2px; border-bottom:1px dashed rgba(0,0,0,.08);}
   .cr-lb li b{color:var(--ink-dark);}
+
+  .cr-hint{
+    position:fixed; inset:0; z-index:100;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(20,10,25,.55); backdrop-filter:blur(2px);
+    opacity:1; transition:opacity .35s ease; padding:20px;
+  }
+  .cr-hint.hide{opacity:0; pointer-events:none;}
+  .cr-hint-card{
+    background:rgba(255,246,239,.97); border:1.5px solid rgba(0,0,0,.06);
+    border-radius:20px; padding:22px 22px; max-width:290px; width:100%;
+    text-align:center; box-shadow:0 8px 30px rgba(60,48,73,.35);
+  }
+  .cr-hint-title{font-weight:800; color:var(--ink-dark); font-size:16px; margin:0 0 12px;}
+  .cr-hint-row{display:flex; align-items:center; gap:10px; margin-bottom:10px; text-align:left;}
+  .cr-hint-row:last-of-type{margin-bottom:0;}
+  .cr-hint-icon{
+    width:32px; height:32px; flex:none; border-radius:8px;
+    background:rgba(255,111,145,.14); display:flex; align-items:center; justify-content:center; font-size:16px;
+  }
+  .cr-hint-text{font-size:12.5px; color:var(--ink); line-height:1.35;}
+  .cr-hint-text b{color:var(--ink-dark);}
+  .cr-hint-dismiss{
+    margin-top:14px; font-size:11px; color:rgba(60,48,73,.45);
+    font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+  }
   .cr-banner{
     position:fixed; top:40%; left:50%; transform:translate(-50%,-50%);
     font-size:30px; font-weight:800; color:#fff; text-shadow:0 3px 10px rgba(0,0,0,.25);
@@ -88,22 +123,46 @@
   <div style="width:64px"></div>
 </nav>
 
-<div class="cr-hud-box" id="hud">
-  <div class="cr-hud-row">🍬 <span id="hud-score">0</span></div>
-  <div class="cr-hud-row">⭐ <span id="hud-stars">0</span>/<span id="hud-stars-total">0</span></div>
-  <div class="cr-hud-row cr-hearts" id="hud-lives">❤❤❤</div>
-  <div class="cr-hud-row" style="opacity:.7; font-size:11px;">Recorde: <span id="hud-best">–</span></div>
+<div class="cr-hud" id="hud">
+  <div class="cr-hud-box" id="hud-box">
+    <div class="cr-hud-item">
+      <div class="cr-hud-label">Doces</div>
+      <div class="cr-hud-value" id="hud-score">0</div>
+    </div>
+    <div class="cr-hud-item">
+      <div class="cr-hud-label">Estrelas</div>
+      <div class="cr-hud-value"><span id="hud-stars">0</span>/<span id="hud-stars-total">0</span></div>
+    </div>
+    <div class="cr-hud-item">
+      <div class="cr-hud-label">Vidas</div>
+      <div class="cr-hud-value cr-hearts" id="hud-lives">❤❤❤</div>
+    </div>
+    <div class="cr-hud-item">
+      <div class="cr-hud-label">Recorde</div>
+      <div class="cr-hud-value" id="hud-best">–</div>
+    </div>
+  </div>
 </div>
 
 <div class="cr-wrap"><canvas id="game"></canvas></div>
 <div class="cr-banner" id="banner"></div>
 
-<div class="cr-overlay" id="hint">
-  <div class="cr-card">
-    <h2>🍬 Corta a Corda</h2>
-    <p>O Snorlax está com fome! Arraste o dedo sobre as cordas pra cortá-las e deixe a Rare Candy cair certinho na boca dele.</p>
-    <p>Pegue as estrelas no caminho, mas cuidado com os espinhos do Cacnea — se a bala cair fora ou bater neles, você perde uma vida.</p>
-    <button class="cr-btn" id="btn-start">Começar</button>
+<div class="cr-hint" id="hint">
+  <div class="cr-hint-card">
+    <div class="cr-hint-title">Como jogar</div>
+    <div class="cr-hint-row">
+      <div class="cr-hint-icon">🍬</div>
+      <div class="cr-hint-text">O <b>Snorlax</b> está com fome! <b>Arraste o dedo</b> sobre as cordas pra cortá-las e deixar a Rare Candy cair na boca dele</div>
+    </div>
+    <div class="cr-hint-row">
+      <div class="cr-hint-icon">⭐</div>
+      <div class="cr-hint-text">Pegue as <b>estrelas</b> no caminho pra somar pontos extras</div>
+    </div>
+    <div class="cr-hint-row">
+      <div class="cr-hint-icon">🌵</div>
+      <div class="cr-hint-text">Cuidado com os espinhos do <b>Cacnea</b> — se a bala cair fora ou bater neles, você perde uma vida</div>
+    </div>
+    <div class="cr-hint-dismiss">Toque em qualquer lugar para começar</div>
   </div>
 </div>
 
@@ -118,10 +177,15 @@
   </div>
 </div>
 
-<script src="games-common.js"></script>
+<script src="/games-common.js"></script>
 <script>
 (function(){
   "use strict";
+
+  window.addEventListener("error", function(e){
+    console.error("cuttherope global error:", e.error||e.message);
+    if(typeof showDebugError === "function") showDebugError(e.error||e.message);
+  });
 
   // ---------- infra opcional (games-common.js) ----------
   const GAME_ID = "cuttherope";
@@ -175,13 +239,18 @@
 
   function resize(){
     dpr = Math.max(1, window.devicePixelRatio||1);
-    canvas.width = Math.floor(window.innerWidth*dpr);
-    canvas.height = Math.floor(window.innerHeight*dpr);
+    const w = window.innerWidth || document.documentElement.clientWidth || 400;
+    const h = window.innerHeight || document.documentElement.clientHeight || 700;
+    canvas.width = Math.max(1, Math.floor(w*dpr));
+    canvas.height = Math.max(1, Math.floor(h*dpr));
     scale = Math.min(canvas.width/VW, canvas.height/VH);
+    if(!isFinite(scale) || scale <= 0) scale = 1; // nunca deixa a matriz de transformação virar singular
     offX = (canvas.width - VW*scale)/2;
     offY = (canvas.height - VH*scale)/2;
   }
   window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", resize);
+  window.addEventListener("load", resize);
   resize();
 
   function toVirtual(clientX, clientY){
@@ -193,10 +262,13 @@
 
   // ---------- sprites ----------
   const snorlaxImg = new Image();
+  snorlaxImg.crossOrigin = "anonymous";
   snorlaxImg.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/143.png";
   const candyImg = new Image();
+  candyImg.crossOrigin = "anonymous";
   candyImg.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png";
   const cacneaImg = new Image();
+  cacneaImg.crossOrigin = "anonymous";
   cacneaImg.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/332.png";
 
   // ---------- physics helpers ----------
@@ -370,9 +442,8 @@
 
   function startGame(){
     score = 0; lives = 3; levelIdx = 0;
-    document.getElementById("hint").classList.add("hidden");
+    document.getElementById("hint").classList.add("hide");
     document.getElementById("gameover").classList.add("hidden");
-    document.getElementById("hud").classList.remove("hidden");
     loadLevel(0);
     state = "playing";
   }
@@ -545,13 +616,15 @@
     }
 
     // bala / candy
-    if(candyImg.complete && candyImg.naturalWidth){
-      ctx.drawImage(candyImg, candy.x-candyRadius, candy.y-candyRadius, candyRadius*2, candyRadius*2);
-    }else{
-      ctx.beginPath();
-      ctx.arc(candy.x, candy.y, candyRadius, 0, Math.PI*2);
-      ctx.fillStyle = "#ff6f91";
-      ctx.fill();
+    if(candy){
+      if(candyImg.complete && candyImg.naturalWidth){
+        ctx.drawImage(candyImg, candy.x-candyRadius, candy.y-candyRadius, candyRadius*2, candyRadius*2);
+      }else{
+        ctx.beginPath();
+        ctx.arc(candy.x, candy.y, candyRadius, 0, Math.PI*2);
+        ctx.fillStyle = "#ff6f91";
+        ctx.fill();
+      }
     }
 
     // rastro do dedo
@@ -584,13 +657,31 @@
   }
 
   // ---------- loop ----------
+  function showDebugError(err){
+    let box = document.getElementById("cr-debug-error");
+    if(!box){
+      box = document.createElement("div");
+      box.id = "cr-debug-error";
+      box.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;"
+        + "background:rgba(120,20,30,.92);color:#fff;font:12px/1.4 monospace;"
+        + "padding:10px 12px;border-radius:10px;max-height:40vh;overflow:auto;white-space:pre-wrap;";
+      document.body.appendChild(box);
+    }
+    box.textContent = "Erro no jogo (me manda esse texto):\n" + (err && err.stack ? err.stack : String(err));
+  }
+
   function loop(t){
     if(lastTime==null) lastTime = t;
     let dt = (t-lastTime)/1000;
     lastTime = t;
     dt = Math.min(dt, 1/30);
-    update(dt);
-    draw();
+    try{
+      update(dt);
+      draw();
+    }catch(err){
+      console.error("cuttherope loop error:", err);
+      showDebugError(err);
+    }
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
@@ -602,7 +693,24 @@
   });
 
   // ---------- botões ----------
-  document.getElementById("btn-start").addEventListener("click", startGame);
+  document.getElementById("hint").addEventListener("pointerdown", dismissHint);
+  function dismissHint(){
+    const hintEl = document.getElementById("hint");
+    if(hintEl.classList.contains("hide")) return;
+    hintEl.classList.add("hide");
+    startGame();
+  }
+
+  // ---------- HUD: esconder/mostrar ao tocar na caixa (igual o Bounce Up) ----------
+  (function(){
+    const hudBox = document.getElementById("hud-box");
+    let hidden = false;
+    hudBox.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      hidden = !hidden;
+      hudBox.classList.toggle("cr-hud-hidden", hidden);
+    });
+  })();
   document.getElementById("btn-retry").addEventListener("click", ()=>{
     document.getElementById("gameover").classList.add("hidden");
     startGame();
