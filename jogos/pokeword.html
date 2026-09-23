@@ -166,16 +166,6 @@ const NOMES_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const DATA = { ok:false, pokemons:[], locais:[] };
 const usedMains = new Set();
 
-// Só usado se o Supabase falhar
-const FALLBACK_WORDS = [
-  {pool:"PIKACHU", words:["CAP","HIP","PIC","CHIP","PIKACHU"]},
-  {pool:"LUMINA",  words:["LIMA","MAIL","NAIL","MAIN","LUMINA"]},
-  {pool:"SNORLAX", words:["OARS","SOLAR","SNARL","SNORLAX"]},
-  {pool:"AZURE",   words:["EAR","ARE","RAZE","AZURE"]},
-  {pool:"TYRUNT",  words:["RUN","TRY","TURN","TYRUNT"]},
-  {pool:"SEAPORT", words:["SPORE","ROPES","PASTE","SEAPORT"]}
-];
-
 function baseChar(c){ return c.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); }
 // Cada caractere do nome vira {ch, letter}. Letras (A-Z, sem acento) vão para a roda;
 // espaços, hífens, pontos, números e demais símbolos são exibidos fixos na palavra.
@@ -216,24 +206,30 @@ function nomeLocal(n){
   }
   return t[0];
 }
-async function fetchNomes(sb, table){
-  const out = [], step = 1000;
-  for(let from=0;;from+=step){
-    const {data, error} = await sb.from(table).select('nome').order('nome').range(from, from+step-1);
-    if(error) throw error;
-    (data||[]).forEach(r=>{ if(r.nome && String(r.nome).trim()) out.push(String(r.nome)); });
-    if(!data || data.length < step) break;
+// Tenta cada coluna candidata; o Postgres devolve 42703 quando a coluna não existe
+async function fetchNomes(sb, table, cols){
+  let lastErr = null;
+  for(const col of cols){
+    const out = [], step = 1000;
+    let colMissing = false;
+    for(let from=0;;from+=step){
+      const {data, error} = await sb.from(table).select(col).order(col).range(from, from+step-1);
+      if(error){ if(error.code === '42703'){ colMissing = true; lastErr = error; break; } throw error; }
+      (data||[]).forEach(r=>{ if(r[col] && String(r[col]).trim()) out.push(String(r[col])); });
+      if(!data || data.length < step) break;
+    }
+    if(!colMissing) return out;
   }
-  return out;
+  throw lastErr;
 }
 async function loadNomes(){
   try{
     const sb = window.supabase.createClient(NOMES_URL, NOMES_KEY, {auth:{persistSession:false, autoRefreshToken:false}});
-    const [p,l] = await Promise.all([fetchNomes(sb,'pokemons'), fetchNomes(sb,'locais')]);
+    const [p,l] = await Promise.all([fetchNomes(sb,'pokemons',['name','nome']), fetchNomes(sb,'locais',['nome','name'])]);
     DATA.pokemons = toEntries(p);
     DATA.locais = toEntries(l.map(nomeLocal));
     DATA.ok = DATA.pokemons.length>0 || DATA.locais.length>0;
-  }catch(e){ console.warn('[loadNomes] falhou, usando níveis de reserva', e); }
+  }catch(e){ console.warn('[loadNomes] falhou', e); }
 }
 const GAME_KEY = 'pokeword';
 
@@ -255,10 +251,6 @@ let tiles = [], selected = [], dragging = false;
 
 function saveProgress(){ try{ localStorage.setItem('pw_coins', coins); localStorage.setItem('pw_level', curLevel); }catch(e){} }
 
-function fallbackLevel(){
-  const l = FALLBACK_WORDS[curLevel % FALLBACK_WORDS.length];
-  return {pool:l.pool, words:l.words.map(toEntry)};
-}
 function makeLevel(entries){
   const all = entries.filter(e=>e.key.length>=5 && e.key.length<=9);
   if(!all.length) return null;
@@ -277,11 +269,11 @@ function makeLevel(entries){
   return best;
 }
 function getLevel(){
-  if(!DATA.ok) return fallbackLevel();
+  if(!DATA.ok) return null;
   const cat = (curLevel % 2 === 0) ? 'pokemons' : 'locais';
   let list = DATA[cat];
   if(!list.length) list = DATA[cat==='pokemons' ? 'locais' : 'pokemons'];
-  return makeLevel(list) || fallbackLevel();
+  return makeLevel(list);
 }
 
 function buildLevel(){
@@ -292,6 +284,12 @@ function buildLevel(){
   titleEl.textContent = (curLevel+1);
 
   wordsEl.innerHTML = '';
+  if(!lvl){
+    wheelEl.querySelectorAll('.letter').forEach(e=>e.remove()); tiles = [];
+    wordsEl.innerHTML = '<div style="text-align:center;padding:24px 16px;font-weight:700;color:var(--muted)">Não foi possível carregar os nomes.<br><button class="pw-btn" id="pw-retry" style="margin-top:14px">Tentar novamente</button></div>';
+    document.getElementById('pw-retry').addEventListener('click', async ()=>{ await loadNomes(); buildLevel(); });
+    return;
+  }
   const sorted = [...lvl.words].sort((a,b)=>a.key.length-b.key.length);
   sorted.forEach(w=>{
     const row = document.createElement('div');
@@ -397,9 +395,10 @@ async function levelComplete(){
 document.getElementById('pw-next-btn').addEventListener('click', ()=>{
   curLevel = curLevel+1; saveProgress(); buildLevel();
 });
-document.getElementById('shuffleBtn').addEventListener('click', ()=>{ buildWheel(curLv.pool.split('')); });
+document.getElementById('shuffleBtn').addEventListener('click', ()=>{ if(curLv) buildWheel(curLv.pool.split('')); });
 document.getElementById('hintBtn').addEventListener('click', ()=>{
   const lvl = curLv;
+  if(!lvl) return;
   const remaining = lvl.words.filter(w=>!found.has(w.key));
   if(remaining.length && coins>=10){
     coins -= 10; saveProgress(); coinsEl.textContent = coins;
