@@ -223,22 +223,40 @@ function canForm(key, counts){
   return true;
 }
 
-const _UN=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
-const _DZ=['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
-function numToWords(n){
-  if(n<20) return _UN[n];
-  if(n<100) return _DZ[Math.floor(n/10)] + (n%10 ? '-'+_UN[n%10] : '');
-  if(n<1000) return _UN[Math.floor(n/100)] + ' hundred' + (n%100 ? ' '+numToWords(n%100) : '');
+const _UN_PT=['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','catorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+const _DZ_PT=['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+const _CENT_PT=['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+function numToWordsPT(n){
+  if(n<20) return _UN_PT[n];
+  if(n<100){ const d=Math.floor(n/10), u=n%10; return _DZ_PT[d] + (u ? ' e '+_UN_PT[u] : ''); }
+  if(n===100) return 'cem';
+  if(n<1000){ const c=Math.floor(n/100), r=n%100; return _CENT_PT[c] + (r ? ' e '+numToWordsPT(r) : ''); }
   return String(n);
 }
 const cap = w => w.charAt(0).toUpperCase() + w.slice(1);
-// Locais: só o primeiro nome (Kraka Town -> Kraka). Exceção: "Route 1" -> "Route One"
+// Locais: só o primeiro nome (Kraka Town -> Kraka). Exceção: "Route 1"/"Rota 1" -> "Rota Um" (extenso, em português)
 function nomeLocal(n){
   const t = String(n).trim().split(/\s+/);
-  if(/^route$/i.test(t[0]) && /^\d+$/.test(t[1]||'')){
-    return 'Route ' + numToWords(parseInt(t[1],10)).split(/(?=[ -])/).map(x=>{ const m=x.match(/^([ -]?)(.*)$/); return m[1]+cap(m[2]); }).join('');
+  if(/^(route|rota)$/i.test(t[0]) && /^\d+$/.test(t[1]||'')){
+    return 'Rota ' + cap(numToWordsPT(parseInt(t[1],10)));
   }
   return t[0];
+}
+// Converte um slug do PokeAPI (ex: "kanto-route-1", "eterna-forest") pro mesmo formato bruto
+// que nomeLocal() espera, reaproveitando a lógica acima.
+function pokeSlugToNome(slug){
+  const parts = String(slug).split('-');
+  const routeIdx = parts.findIndex(p=>/^route$/i.test(p));
+  if(routeIdx!==-1 && /^\d+$/.test(parts[routeIdx+1]||'')) return 'Route '+parts[routeIdx+1];
+  return cap(parts[0]);
+}
+async function fetchPokeApiLocais(){
+  try{
+    const res = await fetch('https://pokeapi.co/api/v2/location?limit=2000');
+    if(!res.ok) throw new Error('pokeapi http '+res.status);
+    const json = await res.json();
+    return (json.results||[]).map(r=>pokeSlugToNome(r.name));
+  }catch(e){ console.warn('[fetchPokeApiLocais] falhou', e); return []; }
 }
 // Tenta cada coluna candidata; o Postgres devolve 42703 quando a coluna não existe
 async function fetchNomes(sb, table, cols){
@@ -259,9 +277,9 @@ async function fetchNomes(sb, table, cols){
 async function loadNomes(){
   try{
     const sb = window.supabase.createClient(NOMES_URL, NOMES_KEY, {auth:{persistSession:false, autoRefreshToken:false}});
-    const [p,l] = await Promise.all([fetchNomes(sb,'pokemons',['name','nome']), fetchNomes(sb,'locais',['nome','name'])]);
+    const [p,l,pokeLocais] = await Promise.all([fetchNomes(sb,'pokemons',['name','nome']), fetchNomes(sb,'locais',['nome','name']), fetchPokeApiLocais()]);
     DATA.pokemons = toEntries(p);
-    DATA.locais = toEntries(l.map(nomeLocal));
+    DATA.locais = toEntries([...l, ...pokeLocais].map(nomeLocal));
     DATA.ok = DATA.pokemons.length>0 || DATA.locais.length>0;
   }catch(e){ console.warn('[loadNomes] falhou', e); }
 }
