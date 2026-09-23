@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>PokéWord · Pokégram</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+html,body{margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#0f2038;color:#fff;overflow:hidden;position:fixed;inset:0;display:flex;flex-direction:column;}
+:root{--brand:#1a3a5c;--brand-mid:#2563a8;--accent:#e8a020;--muted:#9db4cc;}
+
+.pw-nav{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;flex:0 0 calc(52px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:var(--brand);box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;}
+.pw-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+.pw-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.pw-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+.pw-title span{color:var(--accent)}
+
+.pw-wrap{flex:1 1 auto;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;background:linear-gradient(180deg,var(--brand-mid),var(--brand));}
+
+.pw-hud{display:flex;align-items:center;justify-content:center;gap:clamp(14px,5vw,28px);margin-top:12px;background:rgba(255,255,255,.1);border-radius:10px;padding:8px 22px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.pw-hud-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.pw-hud-label{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.pw-hud-value{font-family:'Cinzel',serif;font-size:17px;color:var(--accent);font-weight:700;}
+
+#words{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;width:100%;}
+.word-row{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-width:100%;padding:0 8px;}
+.tile{width:32px;height:32px;border-radius:7px;background:#3fae4e;border-bottom:3px solid #2f8a3c;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:16px;}
+.tile.empty{background:rgba(255,255,255,.12);border-bottom:3px solid rgba(0,0,0,.15);}
+.tile.fixed{background:rgba(255,255,255,.22);border-bottom:3px solid rgba(0,0,0,.2);}
+.tile.space{width:14px;background:none;border-bottom:none;}
+.word-row.long .tile{width:24px;height:28px;font-size:13px;border-radius:6px;}
+.word-row.long .tile.space{width:10px;}
+
+#banner{position:absolute;top:100px;left:0;right:0;text-align:center;color:#f6c6ff;font-weight:bold;font-size:22px;text-shadow:0 0 8px #c94fd6;opacity:0;transition:opacity .3s;pointer-events:none;z-index:15;}
+#banner.show{opacity:1;}
+
+#wheelWrap{position:relative;height:230px;flex:0 0 230px;display:flex;align-items:center;justify-content:center;touch-action:none;}
+#wheel{position:relative;width:210px;height:210px;}
+svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events:none;}
+.letter{position:absolute;width:54px;height:54px;margin:-27px;border-radius:50%;background:#fff;color:var(--brand);font-size:23px;font-weight:bold;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 6px rgba(0,0,0,.3);}
+.letter.sel{background:var(--accent);color:#fff;}
+
+.pw-sidebtns{position:absolute;right:14px;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:25;display:flex;flex-direction:column;gap:12px;}
+.pw-sidebtn{width:54px;height:54px;border-radius:16px;border:2px solid rgba(255,255,255,.25);background:linear-gradient(160deg,var(--brand-mid),var(--brand));color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 14px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25);}
+.pw-sidebtn:active{transform:scale(.92);}
+
+.pw-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:100;pointer-events:auto;background:rgba(10,10,20,.72);opacity:1;transition:opacity .35s ease;}
+.pw-hint.hide{opacity:0;pointer-events:none;}
+.pw-hint-card{background:rgba(20,20,38,.88);border:1.5px solid rgba(255,255,255,.12);border-radius:16px;padding:20px 22px;max-width:280px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.4);}
+.pw-hint-title{font-family:'Cinzel',serif;color:var(--accent);font-size:15px;font-weight:700;margin:0 0 12px;}
+.pw-hint-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;text-align:left;}
+.pw-hint-row:last-of-type{margin-bottom:0;}
+.pw-hint-icon{width:30px;height:30px;flex:none;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:15px;}
+.pw-hint-text{font-size:12px;color:#fff;line-height:1.35;}
+.pw-hint-text b{color:var(--accent);}
+.pw-hint-dismiss{margin-top:14px;font-size:11px;color:rgba(255,255,255,.55);font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+
+.pw-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:300;}
+.pw-overlay.show{display:flex;}
+.pw-modal{background:#fff;color:#1a1a1a;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;max-height:86vh;overflow:auto;}
+.pw-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px;}
+.pw-modal p{color:#6b7280;font-size:13px;margin:0 0 14px;}
+.pw-final-coins{font-family:'Cinzel',serif;font-size:36px;color:var(--accent);margin-bottom:6px;}
+.pw-best-line{font-size:12.5px;color:#6b7280;margin-bottom:18px;}
+.pw-best-line b{color:var(--brand);}
+.pw-panel-title{font-size:10px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left;}
+.pw-lb-box{text-align:left;margin-bottom:18px;}
+.pw-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px;}
+.pw-lb-pos{width:16px;font-weight:800;color:var(--brand-mid);}
+.pw-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pw-lb-score{font-weight:800;}
+.pw-lb-empty{font-size:11.5px;color:#6b7280;font-style:italic;}
+.pw-btn{padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;margin-top:8px;}
+.pw-btn:hover{background:var(--brand);}
+#pw-share-btn{background:var(--accent);}
+#pw-share-btn:hover{background:#c9861a;}
+</style>
+</head>
+<body>
+
+<nav class="pw-nav">
+  <a class="pw-back" href="/jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="pw-title">poké<span>WORD</span></div>
+  <div style="width:56px"></div>
+</nav>
+
+<div class="pw-wrap" id="pw-wrap">
+  <div class="pw-hud">
+    <div class="pw-hud-item">
+      <div class="pw-hud-label">Moedas</div>
+      <div class="pw-hud-value" id="coins">0</div>
+    </div>
+    <div class="pw-hud-item">
+      <div class="pw-hud-label">Nível</div>
+      <div class="pw-hud-value" id="level-title">1</div>
+    </div>
+    <div class="pw-hud-item">
+      <div class="pw-hud-label">Recorde</div>
+      <div class="pw-hud-value" id="best">–</div>
+    </div>
+  </div>
+
+  <div id="words"></div>
+  <div id="banner">Incrível!</div>
+
+  <div id="wheelWrap">
+    <div id="wheel">
+      <svg id="lines" viewBox="0 0 210 210"></svg>
+    </div>
+  </div>
+
+  <div class="pw-sidebtns">
+    <button class="pw-sidebtn" id="hintBtn" title="Dica (10 moedas)">💡</button>
+    <button class="pw-sidebtn" id="shuffleBtn" title="Embaralhar">🔄</button>
+  </div>
+
+  <div class="pw-hint" id="pw-hint">
+    <div class="pw-hint-card">
+      <div class="pw-hint-title">Como jogar</div>
+      <div class="pw-hint-row">
+        <div class="pw-hint-icon">👆</div>
+        <div class="pw-hint-text"><b>Arraste</b> entre as letras da roda pra formar uma palavra</div>
+      </div>
+      <div class="pw-hint-row">
+        <div class="pw-hint-icon">🔤</div>
+        <div class="pw-hint-text">Palavras válidas preenchem os espaços acima — misturam <b>Pokémon</b> e <b>cidades</b></div>
+      </div>
+      <div class="pw-hint-row">
+        <div class="pw-hint-icon">💡</div>
+        <div class="pw-hint-text">Use a <b>dica</b> (10 moedas) pra revelar a menor palavra que falta</div>
+      </div>
+      <div class="pw-hint-row">
+        <div class="pw-hint-icon">🔄</div>
+        <div class="pw-hint-text"><b>Embaralhe</b> a roda se estiver com dificuldade de enxergar as palavras</div>
+      </div>
+      <div class="pw-hint-dismiss">Toque em qualquer lugar para começar</div>
+    </div>
+  </div>
+</div>
+
+<div class="pw-overlay" id="pw-overlay">
+  <div class="pw-modal">
+    <h2>Nível completo!</h2>
+    <p>Suas moedas foram registradas no ranking.</p>
+    <div class="pw-final-coins" id="pw-final-coins">0</div>
+    <div class="pw-best-line">Seu recorde: <b id="pw-best-line-val">–</b></div>
+    <div class="pw-lb-box">
+      <div class="pw-panel-title">Top treinadores</div>
+      <div id="pw-leaderboard"><div class="pw-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="pw-btn" id="pw-next-btn">Próximo Nível ▶</button>
+    <button class="pw-btn" id="pw-share-btn">Compartilhar no Stories</button>
+  </div>
+</div>
+
+<script src="/games-common.js"></script>
+<script>
+// Fonte dos nomes: tabelas `pokemons` (coluna nome) e `locais` (coluna nome)
+const NOMES_URL = 'https://vnccljhhexlsthjaaorr.supabase.co';
+const NOMES_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuY2NsamhoZXhsc3RoamFhb3JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyOTI5NjEsImV4cCI6MjEwMDg2ODk2MX0.XtKUKNMq7MG_NAQo74nbIsvJCKFE-qhH4_AxULF7M1k';
+const DATA = { ok:false, pokemons:[], locais:[] };
+const usedMains = new Set();
+
+// Só usado se o Supabase falhar
+const FALLBACK_WORDS = [
+  {pool:"PIKACHU", words:["CAP","HIP","PIC","CHIP","PIKACHU"]},
+  {pool:"LUMINA",  words:["LIMA","MAIL","NAIL","MAIN","LUMINA"]},
+  {pool:"SNORLAX", words:["OARS","SOLAR","SNARL","SNORLAX"]},
+  {pool:"AZURE",   words:["EAR","ARE","RAZE","AZURE"]},
+  {pool:"TYRUNT",  words:["RUN","TRY","TURN","TYRUNT"]},
+  {pool:"SEAPORT", words:["SPORE","ROPES","PASTE","SEAPORT"]}
+];
+
+function baseChar(c){ return c.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); }
+// Cada caractere do nome vira {ch, letter}. Letras (A-Z, sem acento) vão para a roda;
+// espaços, hífens, pontos, números e demais símbolos são exibidos fixos na palavra.
+function toEntry(nome){
+  const chars = Array.from(String(nome).trim()).map(c=>{
+    const b = baseChar(c);
+    return /^[A-Z]$/.test(b) ? {ch:c.toUpperCase(), letter:b} : {ch:c, letter:null};
+  });
+  const key = chars.filter(c=>c.letter).map(c=>c.letter).join('');
+  return {nome, key, chars};
+}
+function toEntries(names){
+  const map = new Map();
+  names.forEach(n=>{ const e = toEntry(n); if(e.key.length>=3 && !map.has(e.key)) map.set(e.key,e); });
+  return [...map.values()];
+}
+function countLetters(k){ const m={}; for(const c of k) m[c]=(m[c]||0)+1; return m; }
+function canForm(key, counts){
+  const need = countLetters(key);
+  for(const c in need){ if((counts[c]||0) < need[c]) return false; }
+  return true;
+}
+
+const _UN=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+const _DZ=['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+function numToWords(n){
+  if(n<20) return _UN[n];
+  if(n<100) return _DZ[Math.floor(n/10)] + (n%10 ? '-'+_UN[n%10] : '');
+  if(n<1000) return _UN[Math.floor(n/100)] + ' hundred' + (n%100 ? ' '+numToWords(n%100) : '');
+  return String(n);
+}
+const cap = w => w.charAt(0).toUpperCase() + w.slice(1);
+// Locais: só o primeiro nome (Kraka Town -> Kraka). Exceção: "Route 1" -> "Route One"
+function nomeLocal(n){
+  const t = String(n).trim().split(/\s+/);
+  if(/^route$/i.test(t[0]) && /^\d+$/.test(t[1]||'')){
+    return 'Route ' + numToWords(parseInt(t[1],10)).split(/(?=[ -])/).map(x=>{ const m=x.match(/^([ -]?)(.*)$/); return m[1]+cap(m[2]); }).join('');
+  }
+  return t[0];
+}
+async function fetchNomes(sb, table){
+  const out = [], step = 1000;
+  for(let from=0;;from+=step){
+    const {data, error} = await sb.from(table).select('nome').order('nome').range(from, from+step-1);
+    if(error) throw error;
+    (data||[]).forEach(r=>{ if(r.nome && String(r.nome).trim()) out.push(String(r.nome)); });
+    if(!data || data.length < step) break;
+  }
+  return out;
+}
+async function loadNomes(){
+  try{
+    const sb = window.supabase.createClient(NOMES_URL, NOMES_KEY, {auth:{persistSession:false, autoRefreshToken:false}});
+    const [p,l] = await Promise.all([fetchNomes(sb,'pokemons'), fetchNomes(sb,'locais')]);
+    DATA.pokemons = toEntries(p);
+    DATA.locais = toEntries(l.map(nomeLocal));
+    DATA.ok = DATA.pokemons.length>0 || DATA.locais.length>0;
+  }catch(e){ console.warn('[loadNomes] falhou, usando níveis de reserva', e); }
+}
+const GAME_KEY = 'pokeword';
+
+let user = null, best = 0, coins = 0, curLevel = 0, found = new Set();
+try{ coins = parseInt(localStorage.getItem('pw_coins')||'0'); curLevel = parseInt(localStorage.getItem('pw_level')||'0'); }catch(e){}
+let curLv = null;
+
+const wordsEl = document.getElementById('words');
+const wheelEl = document.getElementById('wheel');
+const linesEl = document.getElementById('lines');
+const coinsEl = document.getElementById('coins');
+const titleEl = document.getElementById('level-title');
+const bestEl = document.getElementById('best');
+const bannerEl = document.getElementById('banner');
+const overlay = document.getElementById('pw-overlay');
+const hintOverlay = document.getElementById('pw-hint');
+
+let tiles = [], selected = [], dragging = false;
+
+function saveProgress(){ try{ localStorage.setItem('pw_coins', coins); localStorage.setItem('pw_level', curLevel); }catch(e){} }
+
+function fallbackLevel(){
+  const l = FALLBACK_WORDS[curLevel % FALLBACK_WORDS.length];
+  return {pool:l.pool, words:l.words.map(toEntry)};
+}
+function makeLevel(entries){
+  const all = entries.filter(e=>e.key.length>=5 && e.key.length<=9);
+  if(!all.length) return null;
+  let fresh = all.filter(e=>!usedMains.has(e.key));
+  if(!fresh.length){ usedMains.clear(); fresh = all; }
+  let best = null;
+  for(let n=0;n<60;n++){
+    const main = fresh[Math.floor(Math.random()*fresh.length)];
+    const counts = countLetters(main.key);
+    const others = shuffleArr(entries.filter(e=>e.key!==main.key && e.key.length>=3 && canForm(e.key,counts)));
+    const words = [main, ...others.slice(0,5)];
+    if(!best || words.length > best.words.length) best = {pool:main.key, words};
+    if(words.length >= 4) break;
+  }
+  if(best) usedMains.add(best.pool);
+  return best;
+}
+function getLevel(){
+  if(!DATA.ok) return fallbackLevel();
+  const cat = (curLevel % 2 === 0) ? 'pokemons' : 'locais';
+  let list = DATA[cat];
+  if(!list.length) list = DATA[cat==='pokemons' ? 'locais' : 'pokemons'];
+  return makeLevel(list) || fallbackLevel();
+}
+
+function buildLevel(){
+  overlay.classList.remove('show');
+  found = new Set();
+  const lvl = curLv = getLevel();
+  coinsEl.textContent = coins;
+  titleEl.textContent = (curLevel+1);
+
+  wordsEl.innerHTML = '';
+  const sorted = [...lvl.words].sort((a,b)=>a.key.length-b.key.length);
+  sorted.forEach(w=>{
+    const row = document.createElement('div');
+    row.className = 'word-row' + (w.chars.length > 11 ? ' long' : '');
+    row.dataset.word = w.key;
+    w.chars.forEach(c=>{
+      const t = document.createElement('div');
+      if(c.letter){ t.className = 'tile empty'; t.dataset.ch = c.ch; }
+      else if(/\s/.test(c.ch)){ t.className = 'tile space'; }
+      else { t.className = 'tile fixed'; t.textContent = c.ch; }
+      row.appendChild(t);
+    });
+    wordsEl.appendChild(row);
+  });
+  buildWheel(lvl.pool.split(''));
+}
+
+function shuffleArr(a){ a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function buildWheel(letters){
+  letters = shuffleArr(letters);
+  wheelEl.querySelectorAll('.letter').forEach(e=>e.remove());
+  tiles = [];
+  const n = letters.length, R = 85, cx=105, cy=105;
+  letters.forEach((L,i)=>{
+    const ang = (i/n)*2*Math.PI - Math.PI/2;
+    const x = cx + R*Math.cos(ang), y = cy + R*Math.sin(ang);
+    const el = document.createElement('div');
+    el.className = 'letter'; el.textContent = L;
+    el.style.left = x+'px'; el.style.top = y+'px';
+    wheelEl.appendChild(el);
+    tiles.push({el, letter:L, x, y});
+  });
+}
+
+function clearSelection(){ selected=[]; tiles.forEach(t=>t.el.classList.remove('sel')); linesEl.innerHTML=''; }
+
+function drawLines(){
+  linesEl.innerHTML = '';
+  for(let i=0;i<selected.length-1;i++){
+    const a=tiles[selected[i]], b=tiles[selected[i+1]];
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke','#e8a020'); line.setAttribute('stroke-width','6'); line.setAttribute('stroke-linecap','round');
+    linesEl.appendChild(line);
+  }
+}
+
+function tileIndexAtPoint(x,y){
+  const rect = wheelEl.getBoundingClientRect();
+  for(let i=0;i<tiles.length;i++){
+    const dx = x - tiles[i].x - rect.left, dy = y - tiles[i].y - rect.top;
+    if(Math.hypot(dx,dy) < 30) return i;
+  }
+  return -1;
+}
+
+function getXY(e){ if(e.touches && e.touches[0]) return [e.touches[0].clientX, e.touches[0].clientY]; return [e.clientX, e.clientY]; }
+function onDown(e){ dragging = true; handleMove(e); }
+function onMove(e){ if(!dragging) return; handleMove(e); }
+function onUp(){ if(!dragging) return; dragging=false; checkWord(); clearSelection(); }
+function handleMove(e){
+  const [x,y] = getXY(e);
+  const idx = tileIndexAtPoint(x,y);
+  if(idx===-1 || selected.includes(idx)) return;
+  selected.push(idx); tiles[idx].el.classList.add('sel'); drawLines();
+}
+
+function checkWord(){
+  if(selected.length<2) return;
+  const word = selected.map(i=>tiles[i].letter).join('');
+  const lvl = curLv;
+  const match = lvl.words.find(w=>w.key===word && !found.has(w.key));
+  if(match){
+    found.add(match.key); fillWord(match.key); coins += 5; saveProgress(); coinsEl.textContent = coins;
+    if(match.key.length === Math.max(...lvl.words.map(w=>w.key.length))) showBanner();
+    if(found.size === lvl.words.length) setTimeout(levelComplete, 700);
+  }
+}
+
+function fillWord(key){
+  const row = [...wordsEl.children].find(r=>r.dataset.word===key);
+  if(!row) return;
+  row.querySelectorAll('.tile.empty').forEach(t=>{ t.textContent = t.dataset.ch; t.classList.remove('empty'); });
+}
+
+function showBanner(){ bannerEl.classList.add('show'); setTimeout(()=>bannerEl.classList.remove('show'),1200); }
+
+async function levelComplete(){
+  coins += 20; saveProgress(); coinsEl.textContent = coins;
+  document.getElementById('pw-final-coins').textContent = coins;
+  overlay.classList.add('show');
+  await refreshBest();
+  await refreshLeaderboard();
+  try{
+    if(typeof gdb !== 'undefined' && user){
+      await gdb.from('game_scores').upsert({ game: GAME_KEY, user_id: user.id, score: coins }, { onConflict: 'game,user_id', ignoreDuplicates:false });
+    }
+  }catch(e){ console.warn('[levelComplete] falhou ao salvar score', e); }
+}
+
+document.getElementById('pw-next-btn').addEventListener('click', ()=>{
+  curLevel = curLevel+1; saveProgress(); buildLevel();
+});
+document.getElementById('shuffleBtn').addEventListener('click', ()=>{ buildWheel(curLv.pool.split('')); });
+document.getElementById('hintBtn').addEventListener('click', ()=>{
+  const lvl = curLv;
+  const remaining = lvl.words.filter(w=>!found.has(w.key));
+  if(remaining.length && coins>=10){
+    coins -= 10; saveProgress(); coinsEl.textContent = coins;
+    const w = remaining.sort((a,b)=>a.key.length-b.key.length)[0];
+    found.add(w.key); fillWord(w.key);
+    if(found.size === lvl.words.length) setTimeout(levelComplete,700);
+  }
+});
+
+wheelEl.addEventListener('mousedown', onDown);
+document.addEventListener('mousemove', onMove);
+document.addEventListener('mouseup', onUp);
+wheelEl.addEventListener('touchstart', onDown, {passive:true});
+document.addEventListener('touchmove', onMove, {passive:true});
+document.addEventListener('touchend', onUp);
+
+function dismissHint(){ hintOverlay.classList.add('hide'); }
+hintOverlay.addEventListener('click', dismissHint);
+hintOverlay.addEventListener('touchstart', dismissHint, {passive:true});
+
+async function refreshLeaderboard(){
+  const el = document.getElementById('pw-leaderboard');
+  try{
+    if(typeof gLoadTopScores !== 'function') throw new Error('no games-common');
+    const top = await gLoadTopScores(GAME_KEY, 5);
+    if(!top.length){ el.innerHTML = '<div class="pw-lb-empty">Nenhum recorde ainda.</div>'; return; }
+    el.innerHTML = top.map((row,i)=>`
+      <div class="pw-lb-row">
+        <span class="pw-lb-pos">${i+1}º</span>
+        <span class="pw-lb-name">${gEsc(row.author_name || '???')}</span>
+        <span class="pw-lb-score">${row.score}</span>
+      </div>`).join('');
+  }catch(e){ el.innerHTML = '<div class="pw-lb-empty">Ranking indisponível.</div>'; }
+}
+
+async function refreshBest(){
+  if(!user || typeof gLoadMyBest !== 'function') return;
+  try{
+    best = await gLoadMyBest(GAME_KEY, user.id);
+    bestEl.textContent = best || '–';
+    document.getElementById('pw-best-line-val').textContent = best || '–';
+  }catch(e){}
+}
+
+function shareResultToStories(){
+  const W=1080, H=1920;
+  const c = document.createElement('canvas'); c.width=W; c.height=H;
+  const c2 = c.getContext('2d');
+  const bg = c2.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#2563a8'); bg.addColorStop(1,'#1a3a5c');
+  c2.fillStyle = bg; c2.fillRect(0,0,W,H);
+  c2.textAlign='center'; c2.fillStyle='#e8a020'; c2.font="800 74px 'Cinzel', serif";
+  c2.fillText('pokéWORD', W/2, 320);
+  c2.fillStyle='rgba(255,255,255,.88)';
+  const cardW=760, cardH=220, cardX=(W-cardW)/2, cardY=760;
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX,cardY,cardW,cardH,28) : c2.rect(cardX,cardY,cardW,cardH);
+  c2.fill();
+  c2.fillStyle='#6b7280'; c2.font="800 34px 'Nunito', sans-serif"; c2.fillText('MOEDAS', W/2, cardY+70);
+  c2.fillStyle='#1a3a5c'; c2.font="800 130px 'Cinzel', serif"; c2.fillText(String(coins), W/2, cardY+210);
+  c2.fillStyle='#fff'; c2.font="800 52px 'Nunito', sans-serif"; c2.shadowColor='rgba(0,0,0,.35)'; c2.shadowBlur=10; c2.shadowOffsetY=2;
+  c2.fillText(`Nível ${curLevel+1} completo no pokéWORD!`, W/2, cardY+cardH+120);
+  c2.shadowColor='transparent'; c2.shadowBlur=0; c2.shadowOffsetY=0;
+  let dataUrl = null;
+  try{ dataUrl = c.toDataURL('image/png'); }catch(e){ console.warn('[shareResultToStories] toDataURL falhou', e); }
+  if(dataUrl){
+    try{ sessionStorage.setItem('pg_pending_story_image', JSON.stringify({ image:dataUrl, gameLink:'/pokeword.html' })); }
+    catch(e){ console.warn('[shareResultToStories] falhou ao guardar imagem', e); }
+  }
+  window.location.href = '/';
+}
+document.getElementById('pw-share-btn').addEventListener('click', shareResultToStories);
+
+function tryEnterFullscreenNow(){
+  try{
+    const el = document.documentElement;
+    if(document.fullscreenElement || !el.requestFullscreen) return;
+    if(typeof gIsMobileLike === 'function' && !gIsMobileLike()) return;
+    el.requestFullscreen().catch(()=>{});
+  }catch(e){}
+}
+tryEnterFullscreenNow();
+if(typeof gSetupFullscreenOnFirstInteraction === 'function') gSetupFullscreenOnFirstInteraction();
+
+(async function boot(){
+  if(typeof gRequireSession === 'function'){
+    user = await gRequireSession();
+    if(!user) return;
+  }
+  await loadNomes();
+  buildLevel();
+  await refreshBest();
+})();
+</script>
+</body>
+</html>
