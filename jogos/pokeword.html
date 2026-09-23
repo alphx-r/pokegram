@@ -227,7 +227,11 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
 const NOMES_URL = 'https://vnccljhhexlsthjaaorr.supabase.co';
 const NOMES_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuY2NsamhoZXhsc3RoamFhb3JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyOTI5NjEsImV4cCI6MjEwMDg2ODk2MX0.XtKUKNMq7MG_NAQo74nbIsvJCKFE-qhH4_AxULF7M1k';
 const DATA = { ok:false, pokemons:[], locais:[] };
+// Palavras principais já sorteadas (evita repetir o mesmo pokémon/local logo em seguida).
+// Persistido no localStorage pra sobreviver a reload de página, não só à sessão em memória.
 const usedMains = new Set();
+try{ JSON.parse(localStorage.getItem('pw_used_mains')||'[]').forEach(k=>usedMains.add(k)); }catch(e){}
+function saveUsedMains(){ try{ localStorage.setItem('pw_used_mains', JSON.stringify([...usedMains])); }catch(e){} }
 
 // Ranges de id (National Dex) por geração oficial — mesmo padrão usado no nationaldex do KP.
 // Ids com prefixo de letra (A/G/H/P/N) são formas regionais/fakemon; N = Nendo (customizados do RPG).
@@ -248,13 +252,16 @@ function regiaoPorId(id){
 function baseChar(c){ return c.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); }
 // Cada caractere do nome vira {ch, letter}. Letras (A-Z, sem acento) vão para a roda;
 // espaços, hífens, pontos, números e demais símbolos são exibidos fixos na palavra.
+// Símbolos de gênero (♂ ♀, ex: Nidoran) são removidos antes de tudo: não são letras nem
+// devem virar tile fixo na tela — assim "Nidoran♂"/"Nidoran♀" viram o mesmo "Nidoran".
 function toEntry(nome, regiao){
-  const chars = Array.from(String(nome).trim()).map(c=>{
+  const nomeLimpo = String(nome).replace(/[\u2640\u2642]/g,'').trim();
+  const chars = Array.from(nomeLimpo).map(c=>{
     const b = baseChar(c);
     return /^[A-Z]$/.test(b) ? {ch:c.toUpperCase(), letter:b} : {ch:c, letter:null};
   });
   const key = chars.filter(c=>c.letter).map(c=>c.letter).join('');
-  return {nome, key, chars, regioes: regiao ? [regiao] : []};
+  return {nome:nomeLimpo, key, chars, regioes: regiao ? [regiao] : []};
 }
 // names: array de [nome, regiao] ou apenas nome (sem região conhecida).
 // Nomes duplicados (mesma key) acumulam todas as regiões em que aparecem.
@@ -460,7 +467,7 @@ function makeLevel(entries){
   const all = entries.filter(e=>e.key.length>=5 && e.key.length<=9);
   if(!all.length) return null;
   let fresh = all.filter(e=>!usedMains.has(e.key));
-  if(!fresh.length){ usedMains.clear(); fresh = all; }
+  if(!fresh.length){ usedMains.clear(); saveUsedMains(); fresh = all; }
   let best = null;
   for(let n=0;n<60;n++){
     const main = fresh[Math.floor(Math.random()*fresh.length)];
@@ -470,7 +477,7 @@ function makeLevel(entries){
     if(!best || words.length > best.words.length) best = {pool:main.key, words};
     if(words.length >= 4) break;
   }
-  if(best) usedMains.add(best.pool);
+  if(best){ usedMains.add(best.pool); saveUsedMains(); }
   return best;
 }
 // Filtra uma lista de entries pelas regiões selecionadas (dificuldade fácil/médio).
@@ -818,7 +825,7 @@ diffConfirmBtn.addEventListener('click', ()=>{
   saveDiff();
   diffOverlay.classList.remove('show');
   diffOverlay.classList.remove('pw-diff-mandatory');
-  usedMains.clear();
+  usedMains.clear(); saveUsedMains();
   coins = 0; curLevel = 0; hintsUsed = 0; found = new Set();
   try{ localStorage.removeItem('pw_coins'); localStorage.removeItem('pw_level'); }catch(e){}
   saveProgress();
