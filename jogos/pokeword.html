@@ -46,7 +46,7 @@ html,body{margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',san
 #banner{position:absolute;top:100px;left:0;right:0;text-align:center;color:#f6c6ff;font-weight:bold;font-size:22px;text-shadow:0 0 8px #c94fd6;opacity:0;transition:opacity .3s;pointer-events:none;z-index:15;}
 #banner.show{opacity:1;}
 
-#wheelWrap{position:relative;height:230px;flex:0 0 230px;display:flex;align-items:center;justify-content:center;touch-action:none;}
+#wheelWrap{position:relative;height:230px;flex:0 0 230px;display:flex;align-items:center;justify-content:center;touch-action:none;margin-top:-10px;}
 #wheel{position:relative;width:210px;height:210px;}
 svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events:none;}
 .letter{position:absolute;width:54px;height:54px;margin:-27px;border-radius:50%;background:#fff;color:var(--brand);font-size:23px;font-weight:bold;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 6px rgba(0,0,0,.3);}
@@ -88,6 +88,17 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
 .pw-lb-empty{font-size:11.5px;color:#6b7280;font-style:italic;}
 .pw-btn{padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;margin-top:8px;}
 .pw-btn:hover{background:var(--brand);}
+.pw-btn:disabled{background:#c9c9c9;cursor:not-allowed;}
+.pw-diff-tabs{display:flex;gap:6px;margin-bottom:16px;}
+.pw-diff-tab{flex:1;border:2px solid #e5deec;border-radius:10px;background:#fff;padding:8px 4px;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;color:var(--brand);cursor:pointer;display:flex;flex-direction:column;gap:2px;}
+.pw-diff-tab span{font-weight:600;font-size:10px;color:#8a8a9a;}
+.pw-diff-tab.active{border-color:var(--brand-mid);background:#f3eaf9;}
+.pw-region-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;}
+.pw-region-chip{border:2px solid #e5deec;border-radius:10px;background:#fff;padding:9px 6px;font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;color:#3a3a45;cursor:pointer;}
+.pw-region-chip.selected{border-color:var(--accent);background:#fff6e6;color:var(--brand);}
+.pw-region-chip:disabled{opacity:.4;cursor:not-allowed;}
+.pw-region-single{grid-column:1/-1;}
+.pw-diff-count{font-size:12px;color:#8a8a9a;font-weight:700;margin:4px 0 2px;min-height:16px;}
 #pw-share-btn{background:var(--accent);}
 #pw-share-btn:hover{background:#c9861a;}
 </style>
@@ -133,6 +144,9 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
   </div>
 
   <div class="pw-sidebtns">
+    <button class="pw-sidebtn" id="difficultyBtn" title="Dificuldade">
+      <svg viewBox="0 0 24 24"><path d="M4 21V9"/><path d="M4 9l3-3 3 3 4-4 3 3 3-3v11"/></svg>
+    </button>
     <button class="pw-sidebtn forfeit" id="forfeitBtn" title="Desistir do nível">
       <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg>
     </button>
@@ -176,6 +190,21 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
   </div>
 </div>
 
+<div class="pw-overlay" id="pw-diff-overlay">
+  <div class="pw-modal">
+    <h2>Dificuldade</h2>
+    <p id="pw-diff-sub">Escolha o nível e as regiões que vão aparecer no jogo.</p>
+    <div class="pw-diff-tabs" id="pw-diff-tabs">
+      <button class="pw-diff-tab" data-diff="facil">Fácil<span>1 região</span></button>
+      <button class="pw-diff-tab" data-diff="medio">Médio<span>até 3 regiões</span></button>
+      <button class="pw-diff-tab" data-diff="dificil">Difícil<span>tudo</span></button>
+    </div>
+    <div class="pw-region-grid" id="pw-region-grid"></div>
+    <div class="pw-diff-count" id="pw-diff-count"></div>
+    <button class="pw-btn" id="pw-diff-confirm">Confirmar</button>
+  </div>
+</div>
+
 <div class="pw-overlay" id="pw-overlay">
   <div class="pw-modal">
     <h2>Nível completo!</h2>
@@ -200,20 +229,46 @@ const NOMES_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const DATA = { ok:false, pokemons:[], locais:[] };
 const usedMains = new Set();
 
+// Ranges de id (National Dex) por geração oficial — mesmo padrão usado no nationaldex do KP.
+// Ids com prefixo de letra (A/G/H/P/N) são formas regionais/fakemon; N = Nendo (customizados do RPG).
+const GR = {1:[1,151], 2:[152,251], 3:[252,386], 4:[387,493], 5:[494,649], 6:[650,721], 7:[722,809], 8:[810,905], 9:[906,1025]};
+const GEN_REGIAO = {1:'kanto', 2:'johto', 3:'hoenn', 4:'sinnoh', 5:'unova', 6:'kalos', 7:'alola', 8:'galar', 9:'paldea'};
+const PREFIX_REGIAO = {A:'alola', G:'galar', H:'hisui', P:'paldea', N:'nendo'};
+function idPrefix(id){ const m = String(id).match(/^([AGPHN])\d+$/i); return m ? m[1].toUpperCase() : null; }
+// Determina a região de um pokémon a partir do seu id (numérico = geração oficial; prefixo de letra = regional/fakemon).
+function regiaoPorId(id){
+  const pfx = idPrefix(id);
+  if(pfx) return PREFIX_REGIAO[pfx] || null;
+  const n = parseInt(id, 10);
+  if(!Number.isFinite(n)) return null;
+  for(const gen in GR){ const [ini,fim] = GR[gen]; if(n>=ini && n<=fim) return GEN_REGIAO[gen]; }
+  return null;
+}
+
 function baseChar(c){ return c.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); }
 // Cada caractere do nome vira {ch, letter}. Letras (A-Z, sem acento) vão para a roda;
 // espaços, hífens, pontos, números e demais símbolos são exibidos fixos na palavra.
-function toEntry(nome){
+function toEntry(nome, regiao){
   const chars = Array.from(String(nome).trim()).map(c=>{
     const b = baseChar(c);
     return /^[A-Z]$/.test(b) ? {ch:c.toUpperCase(), letter:b} : {ch:c, letter:null};
   });
   const key = chars.filter(c=>c.letter).map(c=>c.letter).join('');
-  return {nome, key, chars};
+  return {nome, key, chars, regioes: regiao ? [regiao] : []};
 }
+// names: array de [nome, regiao] ou apenas nome (sem região conhecida).
+// Nomes duplicados (mesma key) acumulam todas as regiões em que aparecem.
 function toEntries(names){
   const map = new Map();
-  names.forEach(n=>{ const e = toEntry(n); if(e.key.length>=3 && !map.has(e.key)) map.set(e.key,e); });
+  names.forEach(item=>{
+    const nome = Array.isArray(item) ? item[0] : item;
+    const regiao = Array.isArray(item) ? item[1] : null;
+    const e = toEntry(nome, regiao);
+    if(e.key.length<3) return;
+    if(map.has(e.key)){
+      if(regiao && !map.get(e.key).regioes.includes(regiao)) map.get(e.key).regioes.push(regiao);
+    } else map.set(e.key, e);
+  });
   return [...map.values()];
 }
 function countLetters(k){ const m={}; for(const c of k) m[c]=(m[c]||0)+1; return m; }
@@ -253,13 +308,40 @@ function pokeSlugToNome(slug){
   if(routeIdx!==-1 && /^\d+$/.test(parts[routeIdx+1]||'')) return 'Route '+parts[routeIdx+1];
   return cap(parts[0]);
 }
-async function fetchPokeApiLocais(){
+// Busca as regiões oficiais (PokeAPI) + locais de cada uma.
+// Retorna { regioes: ['kanto',...], locais: [[nome,regiao],...] }
+async function fetchLocaisPorRegiao(){
+  const out = { regioes: [], locais: [] };
   try{
-    const res = await fetch('https://pokeapi.co/api/v2/location?limit=2000');
+    const res = await fetch('https://pokeapi.co/api/v2/region');
     if(!res.ok) throw new Error('pokeapi http '+res.status);
     const json = await res.json();
-    return (json.results||[]).map(r=>pokeSlugToNome(r.name));
-  }catch(e){ console.warn('[fetchPokeApiLocais] falhou', e); return []; }
+    const regioes = (json.results||[]).map(r=>r.name).filter(n=>n!=='orre'); // orre não tem locais no formato usual
+    out.regioes = regioes;
+    await Promise.all(regioes.map(async (regName)=>{
+      try{
+        const r = await fetch(`https://pokeapi.co/api/v2/region/${regName}`);
+        if(!r.ok) throw new Error('region http '+r.status);
+        const rj = await r.json();
+        (rj.locations||[]).forEach(loc=> out.locais.push([pokeSlugToNome(loc.name), regName]));
+      }catch(e){ console.warn('[fetchLocaisPorRegiao] região falhou', regName, e); }
+    }));
+  }catch(e){ console.warn('[fetchLocaisPorRegiao] falhou', e); }
+  return out;
+}
+// Busca nome+id da tabela `pokemons`; tenta colunas candidatas pra nome (name/nome) e id (id).
+async function fetchPokemonsComId(sb){
+  const out = [], step = 1000;
+  for(let from=0;;from+=step){
+    const {data, error} = await sb.from('pokemons').select('id,name,nome').range(from, from+step-1);
+    if(error) throw error;
+    (data||[]).forEach(r=>{
+      const nome = r.name || r.nome;
+      if(nome && String(nome).trim()) out.push([String(nome), r.id]);
+    });
+    if(!data || data.length < step) break;
+  }
+  return out;
 }
 // Tenta cada coluna candidata; o Postgres devolve 42703 quando a coluna não existe
 async function fetchNomes(sb, table, cols){
@@ -277,16 +359,47 @@ async function fetchNomes(sb, table, cols){
   }
   throw lastErr;
 }
+const REGIOES = { ok:false, lista:[] }; // lista de {id, label}, preenchida em loadNomes
+const REGIAO_LABELS = {
+  kanto:'Kanto', johto:'Johto', hoenn:'Hoenn', sinnoh:'Sinnoh', unova:'Unova',
+  kalos:'Kalos', alola:'Alola', galar:'Galar', hisui:'Hisui', paldea:'Paldea', nendo:'Nendo'
+};
 async function loadNomes(){
   try{
     const sb = window.supabase.createClient(NOMES_URL, NOMES_KEY, {auth:{persistSession:false, autoRefreshToken:false}});
-    const [p,l,pokeLocais] = await Promise.all([fetchNomes(sb,'pokemons',['name','nome']), fetchNomes(sb,'locais',['nome','name']), fetchPokeApiLocais()]);
-    DATA.pokemons = toEntries(p);
-    DATA.locais = toEntries([...l, ...pokeLocais].map(nomeLocal));
+    const [pComId, l, locaisReg] = await Promise.all([
+      fetchPokemonsComId(sb),
+      fetchNomes(sb,'locais',['nome','name']),
+      fetchLocaisPorRegiao()
+    ]);
+    const pokemons = pComId.map(([nome,id])=> [nome, regiaoPorId(id)]);
+    DATA.pokemons = toEntries(pokemons);
+    DATA.locais = toEntries([...l.map(n=>[nomeLocal(n),'nendo']), ...locaisReg.locais.map(([n,r])=>[nomeLocal(n),r])]);
     DATA.ok = DATA.pokemons.length>0 || DATA.locais.length>0;
+    const idsComDados = new Set();
+    [...DATA.pokemons, ...DATA.locais].forEach(e=> e.regioes.forEach(r=>idsComDados.add(r)));
+    const ordem = [...Object.values(GEN_REGIAO), 'hisui', 'nendo'];
+    REGIOES.lista = ordem.filter(id=>idsComDados.has(id)).map(id=>({id, label: REGIAO_LABELS[id] || cap(id)}));
+    REGIOES.ok = REGIOES.lista.length>0;
   }catch(e){ console.warn('[loadNomes] falhou', e); }
 }
 const GAME_KEY = 'pokeword';
+
+// Dificuldade: 'facil' (1 região), 'medio' (até 3), 'dificil' (tudo, sem filtro).
+// Persistida em localStorage; 'dificil' sem regioes selecionadas é o padrão (comportamento original do jogo).
+const DIFF_LIMITS = { facil:1, medio:3, dificil:Infinity };
+let DIFF = { nivel:'dificil', regioes:[] };
+function loadDiff(){
+  try{
+    const raw = localStorage.getItem('pw_diff');
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && DIFF_LIMITS[parsed.nivel]) DIFF = { nivel:parsed.nivel, regioes:Array.isArray(parsed.regioes)?parsed.regioes:[] };
+    }
+  }catch(e){}
+}
+function saveDiff(){ try{ localStorage.setItem('pw_diff', JSON.stringify(DIFF)); }catch(e){} }
+loadDiff();
 
 let user = null, best = 0, coins = 0, curLevel = 0, found = new Set();
 try{ coins = parseInt(localStorage.getItem('pw_coins')||'0'); curLevel = parseInt(localStorage.getItem('pw_level')||'0'); }catch(e){}
@@ -339,11 +452,18 @@ function makeLevel(entries){
   if(best) usedMains.add(best.pool);
   return best;
 }
+// Filtra uma lista de entries pelas regiões selecionadas (dificuldade fácil/médio).
+// Entries sem região conhecida (regioes vazio) só aparecem no difícil, pra não sumir dados mas também não vazar pro fácil/médio sem controle.
+function filtrarPorRegiao(list){
+  if(DIFF.nivel === 'dificil' || !DIFF.regioes.length) return list;
+  return list.filter(e=> e.regioes.some(r=>DIFF.regioes.includes(r)));
+}
 function getLevel(){
   if(!DATA.ok) return null;
   const cat = (curLevel % 2 === 0) ? 'pokemons' : 'locais';
-  let list = DATA[cat];
-  if(!list.length) list = DATA[cat==='pokemons' ? 'locais' : 'pokemons'];
+  let list = filtrarPorRegiao(DATA[cat]);
+  if(!list.length) list = filtrarPorRegiao(DATA[cat==='pokemons' ? 'locais' : 'pokemons']);
+  if(!list.length){ list = DATA[cat]; if(!list.length) list = DATA[cat==='pokemons' ? 'locais' : 'pokemons']; }
   return makeLevel(list);
 }
 
@@ -600,6 +720,92 @@ function shareResultToStories(){
 }
 document.getElementById('pw-share-btn').addEventListener('click', shareResultToStories);
 
+// ---- Modal de dificuldade ----
+const diffOverlay = document.getElementById('pw-diff-overlay');
+const diffTabsEl = document.getElementById('pw-diff-tabs');
+const regionGridEl = document.getElementById('pw-region-grid');
+const diffCountEl = document.getElementById('pw-diff-count');
+const diffConfirmBtn = document.getElementById('pw-diff-confirm');
+// estado de rascunho da modal, só vira DIFF de verdade ao confirmar
+let diffDraft = { nivel:'dificil', regioes:[] };
+
+function renderDiffModal(){
+  diffDraft = { nivel:DIFF.nivel, regioes:[...DIFF.regioes] };
+  renderDiffTabs();
+  renderRegionGrid();
+  renderDiffCount();
+}
+function renderDiffTabs(){
+  diffTabsEl.querySelectorAll('.pw-diff-tab').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.diff === diffDraft.nivel);
+  });
+}
+function renderRegionGrid(){
+  regionGridEl.innerHTML = '';
+  if(diffDraft.nivel === 'dificil' || !REGIOES.ok){
+    regionGridEl.style.display = 'none';
+    return;
+  }
+  regionGridEl.style.display = 'grid';
+  REGIOES.lista.forEach(r=>{
+    const chip = document.createElement('button');
+    const selected = diffDraft.regioes.includes(r.id);
+    chip.className = 'pw-region-chip' + (selected ? ' selected' : '');
+    chip.textContent = r.label;
+    chip.dataset.regiao = r.id;
+    chip.addEventListener('click', ()=> toggleRegiao(r.id));
+    regionGridEl.appendChild(chip);
+  });
+}
+function toggleRegiao(id){
+  const limite = DIFF_LIMITS[diffDraft.nivel];
+  const idx = diffDraft.regioes.indexOf(id);
+  if(idx !== -1){
+    diffDraft.regioes.splice(idx,1);
+  } else {
+    if(limite === 1) diffDraft.regioes = [id];
+    else if(diffDraft.regioes.length < limite) diffDraft.regioes.push(id);
+    else return; // já atingiu o limite, ignora clique
+  }
+  renderRegionGrid();
+  renderDiffCount();
+}
+function renderDiffCount(){
+  if(diffDraft.nivel === 'dificil'){ diffCountEl.textContent = 'Todas as regiões, sem filtro.'; diffConfirmBtn.disabled = false; return; }
+  const limite = DIFF_LIMITS[diffDraft.nivel];
+  diffCountEl.textContent = `${diffDraft.regioes.length}/${limite} região${limite>1?'ões':''} selecionada${diffDraft.regioes.length===1?'':'s'}`;
+  diffConfirmBtn.disabled = diffDraft.regioes.length === 0;
+}
+diffTabsEl.querySelectorAll('.pw-diff-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    diffDraft.nivel = btn.dataset.diff;
+    if(diffDraft.nivel !== 'dificil'){
+      const limite = DIFF_LIMITS[diffDraft.nivel];
+      if(diffDraft.regioes.length > limite) diffDraft.regioes = diffDraft.regioes.slice(0,limite);
+    }
+    renderDiffTabs(); renderRegionGrid(); renderDiffCount();
+  });
+});
+diffConfirmBtn.addEventListener('click', ()=>{
+  const wasMandatory = diffOverlay.classList.contains('pw-diff-mandatory');
+  DIFF = { nivel:diffDraft.nivel, regioes:diffDraft.nivel==='dificil' ? [] : [...diffDraft.regioes] };
+  saveDiff();
+  diffOverlay.classList.remove('show');
+  diffOverlay.classList.remove('pw-diff-mandatory');
+  usedMains.clear();
+  coins = 0; curLevel = 0; hintsUsed = 0; found = new Set();
+  try{ localStorage.removeItem('pw_coins'); localStorage.removeItem('pw_level'); }catch(e){}
+  saveProgress();
+  buildLevel();
+  if(wasMandatory) refreshBest();
+});
+function openDiffModal(opts){
+  renderDiffModal();
+  diffOverlay.classList.add('show');
+  diffOverlay.classList.toggle('pw-diff-mandatory', !!(opts && opts.mandatory));
+}
+document.getElementById('difficultyBtn').addEventListener('click', ()=> openDiffModal());
+
 function tryEnterFullscreenNow(){
   try{
     const el = document.documentElement;
@@ -617,6 +823,11 @@ if(typeof gSetupFullscreenOnFirstInteraction === 'function') gSetupFullscreenOnF
     if(!user) return;
   }
   await loadNomes();
+  const isFirstVisit = !localStorage.getItem('pw_diff');
+  if(isFirstVisit && REGIOES.ok){
+    openDiffModal({mandatory:true});
+    return; // buildLevel()/refreshBest() rodam só após a confirmação (ver diffConfirmBtn)
+  }
   buildLevel();
   await refreshBest();
 })();
