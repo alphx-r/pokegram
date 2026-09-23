@@ -100,6 +100,10 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
       <div class="pw-hud-value" id="level-title">1</div>
     </div>
     <div class="pw-hud-item">
+      <div class="pw-hud-label">Tempo</div>
+      <div class="pw-hud-value" id="time">00:00</div>
+    </div>
+    <div class="pw-hud-item">
       <div class="pw-hud-label">Recorde</div>
       <div class="pw-hud-value" id="best">–</div>
     </div>
@@ -115,7 +119,7 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
   </div>
 
   <div class="pw-sidebtns">
-    <button class="pw-sidebtn" id="hintBtn" title="Dica (10 moedas)">💡</button>
+    <button class="pw-sidebtn" id="hintBtn" title="Dica: revela 1 letra (5 moedas, máx. 3 por nível)">💡</button>
     <button class="pw-sidebtn" id="shuffleBtn" title="Embaralhar">🔄</button>
   </div>
 
@@ -132,7 +136,7 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
       </div>
       <div class="pw-hint-row">
         <div class="pw-hint-icon">💡</div>
-        <div class="pw-hint-text">Use a <b>dica</b> (10 moedas) pra revelar a menor palavra que falta</div>
+        <div class="pw-hint-text">Use a <b>dica</b> (5 moedas, até 3 por nível) pra revelar uma letra</div>
       </div>
       <div class="pw-hint-row">
         <div class="pw-hint-icon">🔄</div>
@@ -148,6 +152,7 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
     <h2>Nível completo!</h2>
     <p>Suas moedas foram registradas no ranking.</p>
     <div class="pw-final-coins" id="pw-final-coins">0</div>
+    <div class="pw-best-line" style="margin-bottom:4px">Tempo: <b id="pw-time-val">–</b></div>
     <div class="pw-best-line">Seu recorde: <b id="pw-best-line-val">–</b></div>
     <div class="pw-lb-box">
       <div class="pw-panel-title">Top treinadores</div>
@@ -251,6 +256,22 @@ let tiles = [], selected = [], dragging = false;
 
 function saveProgress(){ try{ localStorage.setItem('pw_coins', coins); localStorage.setItem('pw_level', curLevel); }catch(e){} }
 
+// Cronômetro do nível (pausa com a aba oculta e enquanto o "Como jogar" está aberto)
+const timeEl = document.getElementById('time');
+let tStart = null, tElapsed = 0, tInt = null;
+function fmtTime(ms){ const t = Math.floor(ms/1000); return String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0'); }
+function timerNow(){ return tElapsed + (tStart ? Date.now()-tStart : 0); }
+function timerStart(){
+  if(tStart) return;
+  tStart = Date.now();
+  if(!tInt) tInt = setInterval(()=>{ timeEl.textContent = fmtTime(timerNow()); }, 250);
+}
+function timerPause(){ if(!tStart) return; tElapsed += Date.now()-tStart; tStart = null; }
+function timerStop(){ timerPause(); clearInterval(tInt); tInt = null; timeEl.textContent = fmtTime(tElapsed); return tElapsed; }
+function timerReset(){ timerStop(); tElapsed = 0; timeEl.textContent = '00:00'; }
+function levelActive(){ return !!curLv && !overlay.classList.contains('show') && hintOverlay.classList.contains('hide'); }
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) timerPause(); else if(levelActive()) timerStart(); });
+
 function makeLevel(entries){
   const all = entries.filter(e=>e.key.length>=5 && e.key.length<=9);
   if(!all.length) return null;
@@ -279,9 +300,12 @@ function getLevel(){
 function buildLevel(){
   overlay.classList.remove('show');
   found = new Set();
+  hintsUsed = 0;
+  timerReset();
   const lvl = curLv = getLevel();
   coinsEl.textContent = coins;
   titleEl.textContent = (curLevel+1);
+  updateHintBtn();
 
   wordsEl.innerHTML = '';
   if(!lvl){
@@ -305,6 +329,7 @@ function buildLevel(){
     wordsEl.appendChild(row);
   });
   buildWheel(lvl.pool.split(''));
+  if(levelActive()) timerStart();
 }
 
 function shuffleArr(a){ a=[...a]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
@@ -365,7 +390,7 @@ function checkWord(){
   const lvl = curLv;
   const match = lvl.words.find(w=>w.key===word && !found.has(w.key));
   if(match){
-    found.add(match.key); fillWord(match.key); coins += 5; saveProgress(); coinsEl.textContent = coins;
+    found.add(match.key); fillWord(match.key); coins += 5; saveProgress(); coinsEl.textContent = coins; updateHintBtn();
     if(match.key.length === Math.max(...lvl.words.map(w=>w.key.length))) showBanner();
     if(found.size === lvl.words.length) setTimeout(levelComplete, 700);
   }
@@ -380,6 +405,8 @@ function fillWord(key){
 function showBanner(){ bannerEl.classList.add('show'); setTimeout(()=>bannerEl.classList.remove('show'),1200); }
 
 async function levelComplete(){
+  const ms = timerStop();
+  document.getElementById('pw-time-val').textContent = fmtTime(ms);
   coins += 20; saveProgress(); coinsEl.textContent = coins;
   document.getElementById('pw-final-coins').textContent = coins;
   overlay.classList.add('show');
@@ -396,17 +423,31 @@ document.getElementById('pw-next-btn').addEventListener('click', ()=>{
   curLevel = curLevel+1; saveProgress(); buildLevel();
 });
 document.getElementById('shuffleBtn').addEventListener('click', ()=>{ if(curLv) buildWheel(curLv.pool.split('')); });
+const HINT_COST = 5, HINT_MAX = 3;
+let hintsUsed = 0;
 document.getElementById('hintBtn').addEventListener('click', ()=>{
   const lvl = curLv;
-  if(!lvl) return;
-  const remaining = lvl.words.filter(w=>!found.has(w.key));
-  if(remaining.length && coins>=10){
-    coins -= 10; saveProgress(); coinsEl.textContent = coins;
-    const w = remaining.sort((a,b)=>a.key.length-b.key.length)[0];
-    found.add(w.key); fillWord(w.key);
-    if(found.size === lvl.words.length) setTimeout(levelComplete,700);
+  if(!lvl || hintsUsed >= HINT_MAX || coins < HINT_COST) return;
+  // menor palavra que ainda não foi achada e tem letra oculta
+  const remaining = lvl.words.filter(w=>!found.has(w.key)).sort((a,b)=>a.key.length-b.key.length);
+  for(const w of remaining){
+    const row = [...wordsEl.children].find(r=>r.dataset.word===w.key);
+    const tile = row && row.querySelector('.tile.empty');
+    if(!tile) continue;
+    coins -= HINT_COST; hintsUsed++; saveProgress(); coinsEl.textContent = coins;
+    tile.textContent = tile.dataset.ch; tile.classList.remove('empty');
+    if(!row.querySelector('.tile.empty')){ // última letra revelada: palavra completa
+      found.add(w.key);
+      if(found.size === lvl.words.length) setTimeout(levelComplete,700);
+    }
+    updateHintBtn();
+    return;
   }
 });
+function updateHintBtn(){
+  const b = document.getElementById('hintBtn');
+  b.style.opacity = (hintsUsed >= HINT_MAX || coins < HINT_COST) ? '.45' : '1';
+}
 
 wheelEl.addEventListener('mousedown', onDown);
 document.addEventListener('mousemove', onMove);
@@ -415,7 +456,7 @@ wheelEl.addEventListener('touchstart', onDown, {passive:true});
 document.addEventListener('touchmove', onMove, {passive:true});
 document.addEventListener('touchend', onUp);
 
-function dismissHint(){ hintOverlay.classList.add('hide'); }
+function dismissHint(){ hintOverlay.classList.add('hide'); if(levelActive()) timerStart(); }
 hintOverlay.addEventListener('click', dismissHint);
 hintOverlay.addEventListener('touchstart', dismissHint, {passive:true});
 
