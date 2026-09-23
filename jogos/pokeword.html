@@ -33,6 +33,16 @@ html,body{margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',san
 .word-row.long .tile{width:24px;height:28px;font-size:13px;border-radius:6px;}
 .word-row.long .tile.space{width:10px;}
 
+@keyframes tileRevealPop{
+  0%{transform:scale(.35) rotate(-8deg);}
+  55%{transform:scale(1.28) rotate(4deg);}
+  100%{transform:scale(1) rotate(0deg);}
+}
+.tile.reveal{animation:tileRevealPop .42s cubic-bezier(.34,1.56,.64,1) both;}
+.tile.reveal-correct{box-shadow:0 0 0 3px rgba(63,174,78,.55),0 3px 6px rgba(0,0,0,.3);}
+.tile.reveal-hint{background:#e8a020!important;border-bottom:3px solid #c9861a!important;box-shadow:0 0 10px 2px rgba(232,160,32,.7);}
+.tile.reveal-forfeit{background:#6b6b78!important;border-bottom:3px solid #54545e!important;box-shadow:none;opacity:.85;}
+
 #banner{position:absolute;top:100px;left:0;right:0;text-align:center;color:#f6c6ff;font-weight:bold;font-size:22px;text-shadow:0 0 8px #c94fd6;opacity:0;transition:opacity .3s;pointer-events:none;z-index:15;}
 #banner.show{opacity:1;}
 
@@ -155,6 +165,14 @@ svg#lines{position:absolute;top:0;left:0;width:210px;height:210px;pointer-events
       </div>
       <div class="pw-hint-dismiss">Toque em qualquer lugar para começar</div>
     </div>
+  </div>
+</div>
+
+<div class="pw-overlay" id="pw-forfeit-overlay">
+  <div class="pw-modal">
+    <h2>Nível desistido</h2>
+    <p>As palavras foram reveladas. Quando quiser, recomece do zero.</p>
+    <button class="pw-btn" id="pw-restart-btn">Recomeçar</button>
   </div>
 </div>
 
@@ -407,10 +425,23 @@ function checkWord(){
   }
 }
 
-function fillWord(key){
+// Revela uma letra com efeito visual. type: 'correct' | 'hint' | 'forfeit'
+function revealTile(t, type, delayMs){
+  t.textContent = t.dataset.ch;
+  t.classList.remove('empty');
+  t.classList.add('reveal', 'reveal-'+type);
+  t.style.animationDelay = (delayMs||0)+'ms';
+  const cleanup = (delayMs||0) + 460;
+  setTimeout(()=>{
+    t.classList.remove('reveal');
+    t.style.animationDelay = '';
+    if(type !== 'forfeit') t.classList.remove('reveal-'+type);
+  }, cleanup);
+}
+function fillWord(key, type='correct'){
   const row = [...wordsEl.children].find(r=>r.dataset.word===key);
   if(!row) return;
-  row.querySelectorAll('.tile.empty').forEach(t=>{ t.textContent = t.dataset.ch; t.classList.remove('empty'); });
+  [...row.querySelectorAll('.tile.empty')].forEach((t,i)=> revealTile(t, type, i*35));
 }
 
 function showBanner(){ bannerEl.classList.add('show'); setTimeout(()=>bannerEl.classList.remove('show'),1200); }
@@ -436,13 +467,21 @@ document.getElementById('pw-next-btn').addEventListener('click', ()=>{
 document.getElementById('shuffleBtn').addEventListener('click', ()=>{ if(curLv) buildWheel(curLv.pool.split('')); });
 document.getElementById('forfeitBtn').addEventListener('click', ()=>{
   if(!curLv) return;
-  if(!confirm('Desistir deste nível? Seu progresso nele não será salvo.')) return;
+  if(!confirm('Desistir deste nível? O jogo será reiniciado do zero (moedas e nível perdidos).')) return;
   timerStop();
-  wordsEl.querySelectorAll('.tile.empty').forEach(t=>{ t.textContent = t.dataset.ch; t.classList.remove('empty'); });
+  const emptyTiles = [...wordsEl.querySelectorAll('.tile.empty')];
+  emptyTiles.forEach((t,i)=> revealTile(t, 'forfeit', i*35));
+  // Sem tempo fixo: as palavras ficam reveladas até o jogador tocar em "Recomeçar"
   setTimeout(()=>{
-    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
-    window.location.href = '/jogos.html';
-  }, 1800);
+    document.getElementById('pw-forfeit-overlay').classList.add('show');
+  }, emptyTiles.length*35 + 650);
+});
+document.getElementById('pw-restart-btn').addEventListener('click', ()=>{
+  document.getElementById('pw-forfeit-overlay').classList.remove('show');
+  coins = 0; curLevel = 0; hintsUsed = 0; found = new Set();
+  try{ localStorage.removeItem('pw_coins'); localStorage.removeItem('pw_level'); }catch(e){}
+  saveProgress();
+  buildLevel();
 });
 const HINT_COST = 5, HINT_MAX = 3;
 let hintsUsed = 0;
@@ -458,9 +497,8 @@ document.getElementById('hintBtn').addEventListener('click', ()=>{
   coins -= HINT_COST; hintsUsed++;
 
   // revela essa letra em TODAS as palavras onde ela aparece, não só na sorteada
-  wordsEl.querySelectorAll('.tile.empty').forEach(t=>{
-    if(t.dataset.ch === letter){ t.textContent = t.dataset.ch; t.classList.remove('empty'); }
-  });
+  const matches = [...wordsEl.querySelectorAll('.tile.empty')].filter(t=>t.dataset.ch === letter);
+  matches.forEach((t,i)=> revealTile(t, 'hint', i*35));
 
   // marca como encontrada qualquer palavra que ficou completa com isso
   lvl.words.forEach(w=>{
