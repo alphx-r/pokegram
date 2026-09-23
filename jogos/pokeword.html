@@ -234,13 +234,16 @@ function numToWordsPT(n){
   return String(n);
 }
 const cap = w => w.charAt(0).toUpperCase() + w.slice(1);
-// Locais: só o primeiro nome (Kraka Town -> Kraka). Exceção: "Route 1"/"Rota 1" -> "Rota Um" (extenso, em português)
+// Locais: nomes com mais de 9 letras (sem contar espaço) reduzem ao primeiro nome (Pallet Town -> Pallet).
+// Nomes com 9 letras ou menos ficam completos, com o espaço sempre presente na tela (Kraka Town continua Kraka Town).
+// Exceção: "Route 1"/"Rota 1" -> "Rota Um" (extenso, em português)
 function nomeLocal(n){
   const t = String(n).trim().split(/\s+/);
   if(/^(route|rota)$/i.test(t[0]) && /^\d+$/.test(t[1]||'')){
     return 'Rota ' + cap(numToWordsPT(parseInt(t[1],10)));
   }
-  return t[0];
+  const semEspacos = t.join('');
+  return semEspacos.length > 9 ? t[0] : t.join(' ');
 }
 // Converte um slug do PokeAPI (ex: "kanto-route-1", "eterna-forest") pro mesmo formato bruto
 // que nomeLocal() espera, reaproveitando a lógica acima.
