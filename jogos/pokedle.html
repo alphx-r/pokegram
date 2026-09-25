@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>pokeDLE · Pokégram</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+html,body{margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',sans-serif;background:#1c0f2e;color:#fff;overflow:hidden;position:fixed;inset:0;display:flex;flex-direction:column;}
+:root{--brand:#3a1a52;--brand-mid:#7d3ea3;--accent:#e8a020;--muted:#c6a8db;--ok:#3fae4e;--ok-dark:#2f8a3c;--warn:#e8a020;--warn-dark:#c9861a;}
+
+.pd-nav{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;flex:0 0 calc(52px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:var(--brand);box-shadow:0 2px 8px rgba(0,0,0,.15);position:relative;z-index:20;}
+.pd-back{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:700;font-size:13px}
+.pd-back svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.pd-title{font-family:'Cinzel',serif;font-size:15px;color:#fff}
+.pd-title span{color:var(--accent)}
+
+.pd-wrap{flex:1 1 auto;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;background:linear-gradient(180deg,var(--brand-mid),var(--brand));}
+
+.pd-hud{display:flex;align-items:center;justify-content:center;gap:clamp(14px,5vw,28px);margin-top:12px;background:rgba(255,255,255,.1);border-radius:10px;padding:8px 27px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.pd-hud-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.pd-hud-label{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.pd-hud-value{font-family:'Cinzel',serif;font-size:17px;color:var(--accent);font-weight:700;}
+
+#pd-board-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;width:100%;min-height:0;overflow:hidden;}
+.pd-row{display:flex;gap:5px;justify-content:center;}
+.pd-cell{width:38px;height:38px;border-radius:7px;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;text-transform:uppercase;}
+.pd-cell.filled{border-color:rgba(255,255,255,.5);}
+.pd-cell.correct{background:var(--ok);border-color:var(--ok-dark);}
+.pd-cell.present{background:var(--warn);border-color:var(--warn-dark);}
+.pd-cell.absent{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.08);color:rgba(255,255,255,.45);}
+.pd-row.long .pd-cell{width:28px;height:34px;font-size:14px;border-radius:6px;}
+
+@keyframes pdFlip{
+  0%{transform:rotateX(0);}
+  50%{transform:rotateX(90deg);}
+  100%{transform:rotateX(0);}
+}
+.pd-cell.flip{animation:pdFlip .5s ease both;}
+@keyframes pdShake{
+  10%,90%{transform:translateX(-1px);}
+  20%,80%{transform:translateX(2px);}
+  30%,50%,70%{transform:translateX(-4px);}
+  40%,60%{transform:translateX(4px);}
+}
+.pd-row.shake{animation:pdShake .5s both;}
+@keyframes pdPop{
+  0%{transform:scale(.9);}
+  40%{transform:scale(1.06);}
+  100%{transform:scale(1);}
+}
+.pd-cell.pop{animation:pdPop .12s ease both;}
+
+#pd-msg{position:absolute;top:100px;left:0;right:0;text-align:center;color:#fff;font-weight:800;font-size:14px;background:rgba(0,0,0,.7);margin:0 auto;padding:8px 16px;border-radius:8px;max-width:80%;width:fit-content;left:50%;transform:translateX(-50%);opacity:0;transition:opacity .25s;pointer-events:none;z-index:15;}
+#pd-msg.show{opacity:1;}
+
+#pd-keyboard{flex:0 0 auto;width:100%;max-width:480px;padding:8px 6px calc(10px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;align-items:center;}
+.pd-krow{display:flex;gap:5px;justify-content:center;width:100%;}
+.pd-key{flex:1;max-width:38px;height:44px;border-radius:6px;border:none;background:rgba(255,255,255,.16);color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;text-transform:uppercase;}
+.pd-key:active{background:rgba(255,255,255,.3);}
+.pd-key.correct{background:var(--ok);}
+.pd-key.present{background:var(--warn);}
+.pd-key.absent{background:rgba(0,0,0,.35);color:rgba(255,255,255,.4);}
+.pd-key.wide{max-width:60px;font-size:11px;}
+.pd-key svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+
+.pd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:300;}
+.pd-overlay.show{display:flex;}
+.pd-modal{background:#fff;color:#1a1a1a;border-radius:14px;padding:26px 24px;max-width:320px;width:88%;text-align:center;max-height:86vh;overflow:auto;}
+.pd-modal h2{font-family:'Cinzel',serif;color:var(--brand);margin:0 0 6px;font-size:20px;}
+.pd-modal p{color:#6b7280;font-size:13px;margin:0 0 14px;}
+.pd-hint-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;text-align:left;}
+.pd-hint-icon{width:32px;height:32px;flex:none;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;}
+.pd-hint-icon.correct{background:var(--ok);}
+.pd-hint-icon.present{background:var(--warn);}
+.pd-hint-icon.absent{background:#9ca3af;}
+.pd-hint-text{font-size:12.5px;color:#374151;line-height:1.35;}
+.pd-result-title{font-family:'Cinzel',serif;font-size:22px;color:var(--brand);margin-bottom:4px;}
+.pd-result-word{font-family:'Cinzel',serif;font-size:26px;color:var(--accent);letter-spacing:2px;margin-bottom:14px;}
+.pd-streak-box{display:flex;justify-content:center;gap:22px;margin-bottom:16px;}
+.pd-streak-item{display:flex;flex-direction:column;align-items:center;}
+.pd-streak-val{font-family:'Cinzel',serif;font-size:26px;color:var(--brand);font-weight:700;}
+.pd-streak-label{font-size:10px;color:#6b7280;font-weight:800;text-transform:uppercase;letter-spacing:.4px;}
+.pd-panel-title{font-size:10px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px;text-align:left;}
+.pd-lb-box{text-align:left;margin-bottom:14px;}
+.pd-lb-row{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12.5px;}
+.pd-lb-pos{width:16px;font-weight:800;color:var(--brand-mid);}
+.pd-lb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pd-lb-score{font-weight:800;}
+.pd-lb-empty{font-size:11.5px;color:#6b7280;font-style:italic;}
+.pd-btn{padding:11px 22px;border:none;border-radius:8px;background:var(--brand-mid);color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;width:100%;margin-top:8px;}
+.pd-btn:hover{background:var(--brand);}
+#pd-share-btn{background:var(--accent);}
+#pd-share-btn:hover{background:#c9861a;}
+.pd-countdown{font-size:12px;color:#6b7280;margin-top:10px;}
+.pd-countdown b{color:var(--brand);}
+</style>
+</head>
+<body>
+
+<nav class="pd-nav">
+  <a class="pd-back" href="/jogos.html" onclick="if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Jogos
+  </a>
+  <div class="pd-title">poké<span>DLE</span></div>
+  <button class="pd-back" id="helpBtn" style="background:none;border:none;">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2 1.7-2 3.3"/><path d="M12 17h.01"/></svg>
+  </button>
+</nav>
+
+<div class="pd-wrap">
+  <div class="pd-hud">
+    <div class="pd-hud-item">
+      <div class="pd-hud-label">Streak</div>
+      <div class="pd-hud-value" id="streakVal">0</div>
+    </div>
+    <div class="pd-hud-item">
+      <div class="pd-hud-label">Tentativa</div>
+      <div class="pd-hud-value" id="attemptVal">0/0</div>
+    </div>
+    <div class="pd-hud-item">
+      <div class="pd-hud-label">Recorde</div>
+      <div class="pd-hud-value" id="bestStreakVal">–</div>
+    </div>
+  </div>
+
+  <div id="pd-msg"></div>
+  <div id="pd-board-wrap"><div id="pd-board"></div></div>
+  <div id="pd-keyboard"></div>
+</div>
+
+<div class="pd-overlay" id="pd-help-overlay">
+  <div class="pd-modal">
+    <h2>Como jogar</h2>
+    <p>Descubra o Pokémon do dia. Todo mundo joga a mesma palavra.</p>
+    <div class="pd-hint-row">
+      <div class="pd-hint-icon correct">A</div>
+      <div class="pd-hint-text">Letra <b>certa</b>, na posição certa.</div>
+    </div>
+    <div class="pd-hint-row">
+      <div class="pd-hint-icon present">B</div>
+      <div class="pd-hint-text">A letra está no nome, mas em <b>outra posição</b>.</div>
+    </div>
+    <div class="pd-hint-row">
+      <div class="pd-hint-icon absent">C</div>
+      <div class="pd-hint-text">A letra <b>não</b> está no nome.</div>
+    </div>
+    <p style="margin-top:14px">O nome do dia define quantas tentativas você tem: letras + 1.</p>
+    <button class="pd-btn" id="pd-help-close">Entendi</button>
+  </div>
+</div>
+
+<div class="pd-overlay" id="pd-result-overlay">
+  <div class="pd-modal">
+    <div class="pd-result-title" id="pd-result-title">Você acertou!</div>
+    <div class="pd-result-word" id="pd-result-word">—</div>
+    <div class="pd-streak-box">
+      <div class="pd-streak-item">
+        <div class="pd-streak-val" id="pd-final-streak">0</div>
+        <div class="pd-streak-label">Streak</div>
+      </div>
+      <div class="pd-streak-item">
+        <div class="pd-streak-val" id="pd-final-best">0</div>
+        <div class="pd-streak-label">Recorde</div>
+      </div>
+    </div>
+    <div class="pd-lb-box">
+      <div class="pd-panel-title">Ranking de hoje</div>
+      <div id="pd-leaderboard"><div class="pd-lb-empty">Carregando...</div></div>
+    </div>
+    <button class="pd-btn" id="pd-share-btn">Compartilhar no Stories</button>
+    <div class="pd-countdown">Próxima palavra em <b id="pd-countdown-val">–</b></div>
+  </div>
+</div>
+
+<script src="/games-common.js"></script>
+<script>
+// ---- Fonte de dados: tabela `pokemons` do mesmo Supabase do pokeword ----
+const NOMES_URL = 'https://vnccljhhexlsthjaaorr.supabase.co';
+const NOMES_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuY2NsamhoZXhsc3RoamFhb3JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyOTI5NjEsImV4cCI6MjEwMDg2ODk2MX0.XtKUKNMq7MG_NAQo74nbIsvJCKFE-qhH4_AxULF7M1k';
+
+function baseChar(c){ return c.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase(); }
+// Nome "jogável": maiúsculas, sem acento, sem símbolos de gênero (♂♀, ex: Nidoran),
+// só letras A-Z (nomes com espaço/hífen não entram no pokedle — precisa ser uma palavra única).
+function nomeJogavel(nome){
+  const semGenero = String(nome).replace(/[\u2640\u2642]/g,'').trim();
+  const letras = Array.from(semGenero).map(baseChar).join('');
+  return /^[A-Z]+$/.test(letras) ? letras : null;
+}
+
+// Busca nome+id da tabela `pokemons`. Tenta name+nome juntas primeiro (caso ambas existam);
+// se alguma coluna não existir (42703), cai pra tentar cada uma isoladamente.
+async function fetchPokemonsComId(sb){
+  async function tentar(select, pick){
+    const out = [], step = 1000;
+    for(let from=0;;from+=step){
+      const {data, error} = await sb.from('pokemons').select(select).range(from, from+step-1);
+      if(error) return {ok:false, error};
+      (data||[]).forEach(r=>{
+        const nome = pick(r);
+        if(nome && String(nome).trim()) out.push(String(nome));
+      });
+      if(!data || data.length < step) break;
+    }
+    return {ok:true, out};
+  }
+  let r = await tentar('id,name,nome', r=>r.name||r.nome);
+  if(r.ok) return r.out;
+  if(r.error.code !== '42703') throw r.error;
+  r = await tentar('id,name', r=>r.name);
+  if(r.ok) return r.out;
+  if(r.error.code !== '42703') throw r.error;
+  r = await tentar('id,nome', r=>r.nome);
+  if(r.ok) return r.out;
+  throw r.error;
+}
+
+// Fallback: se o Supabase falhar, usa o pokemon.json hospedado na raiz do site (mesmo arquivo do KP).
+// O JSON do KP tem sufixos de exibição tipo "Rattata (Alola Form)" — removidos aqui, já que
+// nomeJogavel() já filtraria a versão com parênteses fora mesmo assim.
+async function fetchPokemonsJsonFallback(){
+  const res = await fetch('/pokemon.json');
+  if(!res.ok) throw new Error('pokemon.json http '+res.status);
+  const json = await res.json();
+  const out = [];
+  (Array.isArray(json) ? json : []).forEach(r=>{
+    let nome = r.name || r.nome;
+    if(!nome) return;
+    nome = String(nome).replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if(nome) out.push(nome);
+  });
+  return out;
+}
+
+const DATA = { ok:false, all:[], byLen:new Map() }; // all: nomes jogáveis únicos (maiúsculo, sem acento); byLen: tamanho -> [nomes]
+async function loadNomes(){
+  const sb = window.supabase.createClient(NOMES_URL, NOMES_KEY, {auth:{persistSession:false, autoRefreshToken:false}});
+  let raw;
+  try{
+    raw = await fetchPokemonsComId(sb);
+  }catch(e){
+    console.warn('[loadNomes] Supabase falhou, usando pokemon.json', e);
+    try{ raw = await fetchPokemonsJsonFallback(); }
+    catch(e2){ console.warn('[loadNomes] pokemon.json também falhou', e2); raw = []; }
+  }
+  const set = new Set();
+  raw.forEach(n=>{ const j = nomeJogavel(n); if(j && j.length>=3) set.add(j); });
+  DATA.all = [...set].sort();
+  DATA.byLen = new Map();
+  DATA.all.forEach(n=>{
+    if(!DATA.byLen.has(n.length)) DATA.byLen.set(n.length, []);
+    DATA.byLen.get(n.length).push(n);
+  });
+  DATA.ok = DATA.all.length>0;
+}
+
+// ---- Palavra do dia: determinística por data (mesma pra todo mundo), variando de tamanho ----
+function diaChaveLocal(d){
+  // Chave de dia no fuso do jogador (America/Sao_Paulo na prática, mas usamos o fuso local do navegador
+  // pra a virada acontecer à meia-noite de quem está jogando).
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function hashStr(s){
+  let h = 0;
+  for(let i=0;i<s.length;i++){ h = (Math.imul(31,h) + s.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+// Só tamanhos com pelo menos 1 nome disponível entram no sorteio; evita travar em tamanhos vazios.
+function palavraDoDia(dateKey){
+  const tamanhos = [...DATA.byLen.keys()].filter(len=>DATA.byLen.get(len).length>0).sort((a,b)=>a-b);
+  if(!tamanhos.length) return null;
+  const seed = hashStr(dateKey);
+  const tam = tamanhos[seed % tamanhos.length];
+  const opcoes = DATA.byLen.get(tam);
+  const idx = hashStr(dateKey+'|'+tam) % opcoes.length;
+  return opcoes[idx];
+}
+
+// ---- Estado do jogo ----
+const GAME_KEY = 'pokedle'; // streak acumulado (game_scores, score = streak atual)
+let user = null, streak = 0, bestStreak = 0;
+try{ streak = parseInt(localStorage.getItem('pd_streak')||'0'); }catch(e){}
+
+const boardEl = document.getElementById('pd-board');
+const keyboardEl = document.getElementById('pd-keyboard');
+const msgEl = document.getElementById('pd-msg');
+const streakValEl = document.getElementById('streakVal');
+const attemptValEl = document.getElementById('attemptVal');
+const bestStreakValEl = document.getElementById('bestStreakVal');
+
+let palavra = null, maxTentativas = 0, tentativas = [], atual = '', gameOver = false, venceu = false;
+let dateKey = null;
+
+function saveDailyState(){
+  if(!dateKey) return;
+  try{
+    localStorage.setItem('pd_daily', JSON.stringify({ dateKey, palavra, tentativas, gameOver, venceu }));
+  }catch(e){}
+}
+function loadDailyState(){
+  try{
+    const raw = JSON.parse(localStorage.getItem('pd_daily')||'null');
+    if(raw && raw.dateKey === dateKey && raw.palavra === palavra){
+      tentativas = raw.tentativas || [];
+      gameOver = !!raw.gameOver;
+      venceu = !!raw.venceu;
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+function saveStreak(){ try{ localStorage.setItem('pd_streak', streak); }catch(e){} }
+
+function showMsg(text, ms=1400){
+  msgEl.textContent = text;
+  msgEl.classList.add('show');
+  clearTimeout(showMsg._t);
+  showMsg._t = setTimeout(()=> msgEl.classList.remove('show'), ms);
+}
+
+// Avalia uma tentativa contra a palavra, seguindo a regra clássica de letras repetidas do Wordle:
+// primeiro marca os 'correct' (mesma posição), depois consome as letras restantes da palavra
+// pra decidir 'present' vs 'absent', sem contar a mesma letra duas vezes.
+function avaliarTentativa(tent){
+  const n = palavra.length;
+  const resultado = new Array(n).fill('absent');
+  const restante = {};
+  for(let i=0;i<n;i++){
+    if(tent[i] === palavra[i]) resultado[i] = 'correct';
+    else restante[palavra[i]] = (restante[palavra[i]]||0) + 1;
+  }
+  for(let i=0;i<n;i++){
+    if(resultado[i] === 'correct') continue;
+    const c = tent[i];
+    if(restante[c] > 0){ resultado[i] = 'present'; restante[c]--; }
+  }
+  return resultado;
+}
+
+function renderBoard(){
+  boardEl.innerHTML = '';
+  if(!palavra) return;
+  const n = palavra.length;
+  const long = n > 7;
+  const linhaRecemSubmetida = renderBoard._flipRow; // setado por submitTentativa antes de chamar renderBoard
+  for(let r=0;r<maxTentativas;r++){
+    const row = document.createElement('div');
+    row.className = 'pd-row' + (long ? ' long' : '');
+    row.dataset.row = r;
+    const tent = tentativas[r];
+    for(let c=0;c<n;c++){
+      const cell = document.createElement('div');
+      cell.className = 'pd-cell';
+      if(tent){
+        cell.textContent = tent[c];
+        cell.classList.add(avaliarTentativa(tent)[c]);
+        if(r === linhaRecemSubmetida){
+          cell.style.animationDelay = (c*90)+'ms';
+          cell.classList.add('flip');
+        }
+      } else if(r === tentativas.length && c < atual.length){
+        cell.textContent = atual[c];
+        cell.classList.add('filled');
+        if(c === atual.length-1) cell.classList.add('pop');
+      }
+      row.appendChild(cell);
+    }
+    boardEl.appendChild(row);
+  }
+  renderBoard._flipRow = null;
+}
+
+const TECLADO_LINHAS = ['QWERTYUIOP','ASDFGHJKL','ZXCVBNM'];
+const keyState = {}; // letra -> 'correct'|'present'|'absent' (melhor estado já visto)
+function atualizarKeyState(tent){
+  const res = avaliarTentativa(tent);
+  const ordem = {absent:0, present:1, correct:2};
+  for(let i=0;i<tent.length;i++){
+    const c = tent[i], novo = res[i];
+    if(!keyState[c] || ordem[novo] > ordem[keyState[c]]) keyState[c] = novo;
+  }
+}
+function renderKeyboard(){
+  keyboardEl.innerHTML = '';
+  TECLADO_LINHAS.forEach((linha, i)=>{
+    const row = document.createElement('div');
+    row.className = 'pd-krow';
+    if(i === 2){
+      const enterBtn = document.createElement('button');
+      enterBtn.className = 'pd-key wide';
+      enterBtn.textContent = 'OK';
+      enterBtn.addEventListener('click', ()=>submitTentativa());
+      row.appendChild(enterBtn);
+    }
+    [...linha].forEach(letra=>{
+      const btn = document.createElement('button');
+      btn.className = 'pd-key' + (keyState[letra] ? ' '+keyState[letra] : '');
+      btn.textContent = letra;
+      btn.addEventListener('click', ()=> digitarLetra(letra));
+      row.appendChild(btn);
+    });
+    if(i === 2){
+      const delBtn = document.createElement('button');
+      delBtn.className = 'pd-key wide';
+      delBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>';
+      delBtn.addEventListener('click', apagarLetra);
+      row.appendChild(delBtn);
+    }
+    keyboardEl.appendChild(row);
+  });
+}
+
+// ---- Input ----
+function digitarLetra(letra){
+  if(gameOver || !palavra) return;
+  if(atual.length >= palavra.length) return;
+  atual += letra;
+  renderBoard();
+}
+function apagarLetra(){
+  if(gameOver || !palavra) return;
+  atual = atual.slice(0,-1);
+  renderBoard();
+}
+function shakeLinhaAtual(){
+  const row = boardEl.querySelector(`.pd-row[data-row="${tentativas.length}"]`);
+  if(!row) return;
+  row.classList.add('shake');
+  setTimeout(()=> row.classList.remove('shake'), 500);
+}
+function submitTentativa(){
+  if(gameOver || !palavra) return;
+  if(atual.length < palavra.length){ showMsg('Faltam letras'); shakeLinhaAtual(); return; }
+  if(!DATA.all.includes(atual)){ showMsg('Não é um Pokémon conhecido'); shakeLinhaAtual(); return; }
+  tentativas.push(atual);
+  atualizarKeyState(atual);
+  const acertou = atual === palavra;
+  atual = '';
+  renderBoard._flipRow = tentativas.length - 1;
+  renderBoard();
+  renderKeyboard();
+  saveDailyState();
+  if(acertou){
+    venceu = true; gameOver = true;
+    setTimeout(()=> finalizarJogo(true), 550);
+  } else if(tentativas.length >= maxTentativas){
+    venceu = false; gameOver = true;
+    setTimeout(()=> finalizarJogo(false), 550);
+  }
+  saveDailyState();
+  attemptValEl.textContent = `${tentativas.length}/${maxTentativas}`;
+}
+document.addEventListener('keydown', (ev)=>{
+  if(gameOver || !palavra) return;
+  const k = ev.key.toUpperCase();
+  if(k === 'ENTER') submitTentativa();
+  else if(k === 'BACKSPACE') apagarLetra();
+  else if(/^[A-Z]$/.test(k)) digitarLetra(k);
+});
+
+// ---- Fim de jogo: streak, salvar, ranking do dia ----
+async function finalizarJogo(venceuAgora){
+  if(venceuAgora){
+    streak += 1;
+    if(streak > bestStreak) bestStreak = streak;
+  } else {
+    streak = 0;
+  }
+  saveStreak();
+  streakValEl.textContent = streak;
+  await salvarStreakRemoto();
+  await salvarScoreDoDia();
+  abrirResultado(venceuAgora);
+}
+async function salvarStreakRemoto(){
+  try{
+    if(!user || typeof gdb === 'undefined') return;
+    await gdb.from('game_scores').upsert({ game: GAME_KEY, user_id: user.id, score: streak }, { onConflict: 'game,user_id', ignoreDuplicates:false });
+  }catch(e){ console.warn('[salvarStreakRemoto] falhou', e); }
+}
+// Ranking do dia: reaproveita game_scores com uma chave que muda todo dia (sem precisar de tabela nova).
+// score = tentativas usadas pra acertar (menor é melhor); quem não acerta não entra no ranking do dia.
+function gameKeyDoDia(){ return `${GAME_KEY}-${dateKey}`; }
+async function salvarScoreDoDia(){
+  try{
+    if(!user || !venceu || typeof gdb === 'undefined') return;
+    await gdb.from('game_scores').upsert({ game: gameKeyDoDia(), user_id: user.id, score: tentativas.length }, { onConflict: 'game,user_id', ignoreDuplicates:false });
+  }catch(e){ console.warn('[salvarScoreDoDia] falhou', e); }
+}
+async function refreshBestStreak(){
+  if(!user || typeof gLoadMyBest !== 'function') return;
+  try{
+    const v = await gLoadMyBest(GAME_KEY, user.id);
+    bestStreak = v || 0;
+    bestStreakValEl.textContent = bestStreak || '–';
+  }catch(e){}
+}
+// gEsc vem de games-common.js (mesmo padrão usado no pokeword); fallback local se por algum motivo não existir.
+function escHtml(s){
+  if(typeof gEsc === 'function') return gEsc(s);
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+async function refreshLeaderboardDoDia(){
+  const el = document.getElementById('pd-leaderboard');
+  try{
+    if(typeof gLoadTopScores !== 'function') throw new Error('no games-common');
+    // Ranking do dia: menos tentativas é melhor, mas gLoadTopScores normalmente ordena por score desc
+    // (como no pokeword, onde score=moedas). Buscamos mais linhas e ordenamos localmente por score asc.
+    const top = await gLoadTopScores(gameKeyDoDia(), 20);
+    const ordenado = [...top].sort((a,b)=>a.score-b.score).slice(0,5);
+    if(!ordenado.length){ el.innerHTML = '<div class="pd-lb-empty">Ninguém acertou hoje ainda.</div>'; return; }
+    el.innerHTML = ordenado.map((row,i)=>`
+      <div class="pd-lb-row">
+        <span class="pd-lb-pos">${i+1}º</span>
+        <span class="pd-lb-name">${escHtml(row.author_name || '???')}</span>
+        <span class="pd-lb-score">${row.score}/${maxTentativas}</span>
+      </div>`).join('');
+  }catch(e){ el.innerHTML = '<div class="pd-lb-empty">Ranking indisponível.</div>'; }
+}
+
+function proximaMeiaNoite(){
+  const d = new Date();
+  d.setHours(24,0,0,0);
+  return d;
+}
+function atualizarContagem(){
+  const el = document.getElementById('pd-countdown-val');
+  if(!el) return;
+  const diff = proximaMeiaNoite() - new Date();
+  if(diff <= 0){ el.textContent = 'agora'; return; }
+  const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+  el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+let countdownInt = null;
+
+function abrirResultado(venceuAgora){
+  document.getElementById('pd-result-title').textContent = venceuAgora ? 'Você acertou!' : 'Não foi dessa vez';
+  document.getElementById('pd-result-word').textContent = palavra;
+  document.getElementById('pd-final-streak').textContent = streak;
+  document.getElementById('pd-final-best').textContent = bestStreak || streak;
+  document.getElementById('pd-result-overlay').classList.add('show');
+  refreshLeaderboardDoDia();
+  atualizarContagem();
+  clearInterval(countdownInt);
+  countdownInt = setInterval(atualizarContagem, 1000);
+}
+
+// ---- Compartilhar (grade estilo Wordle, sem revelar a palavra) ----
+function gridEmoji(){
+  return tentativas.map(t=>{
+    return avaliarTentativa(t).map(r=> r==='correct' ? '🟩' : r==='present' ? '🟨' : '⬛').join('');
+  }).join('\n');
+}
+function shareResultToStories(){
+  const W=1080, H=1920;
+  const c = document.createElement('canvas'); c.width=W; c.height=H;
+  const c2 = c.getContext('2d');
+  const bg = c2.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#7d3ea3'); bg.addColorStop(1,'#3a1a52');
+  c2.fillStyle = bg; c2.fillRect(0,0,W,H);
+  c2.textAlign='center'; c2.fillStyle='#e8a020'; c2.font="800 74px 'Cinzel', serif";
+  c2.fillText('pokéDLE', W/2, 300);
+  c2.fillStyle='rgba(255,255,255,.88)';
+  const cardW=760, cardH=tentativas.length*90+120, cardX=(W-cardW)/2, cardY=460;
+  c2.beginPath();
+  c2.roundRect ? c2.roundRect(cardX,cardY,cardW,cardH,28) : c2.rect(cardX,cardY,cardW,cardH);
+  c2.fill();
+  c2.fillStyle='#6b7280'; c2.font="800 30px 'Nunito', sans-serif";
+  c2.fillText(venceu ? `Acertei em ${tentativas.length}/${maxTentativas}` : `Não consegui hoje (${maxTentativas} tentativas)`, W/2, cardY+56);
+  const cellSize=58, gap=10;
+  tentativas.forEach((t,ri)=>{
+    const res = avaliarTentativa(t);
+    const rowW = res.length*cellSize + (res.length-1)*gap;
+    const startX = W/2 - rowW/2;
+    res.forEach((r,ci)=>{
+      c2.fillStyle = r==='correct' ? '#3fae4e' : r==='present' ? '#e8a020' : '#c9c9d4';
+      const x = startX + ci*(cellSize+gap), y = cardY+90+ri*(cellSize+gap);
+      if(c2.roundRect){ c2.beginPath(); c2.roundRect(x,y,cellSize,cellSize,8); c2.fill(); }
+      else c2.fillRect(x,y,cellSize,cellSize);
+    });
+  });
+  c2.fillStyle='#fff'; c2.font="800 46px 'Nunito', sans-serif"; c2.shadowColor='rgba(0,0,0,.35)'; c2.shadowBlur=10; c2.shadowOffsetY=2;
+  c2.fillText(`Streak: ${streak} dias`, W/2, cardY+cardH+90);
+  c2.shadowColor='transparent'; c2.shadowBlur=0; c2.shadowOffsetY=0;
+
+  let dataUrl = null;
+  try{ dataUrl = c.toDataURL('image/png'); }catch(e){ console.warn('[shareResultToStories] toDataURL falhou', e); }
+  if(dataUrl){
+    try{ sessionStorage.setItem('pg_pending_story_image', JSON.stringify({ image:dataUrl, gameLink:'/pokedle.html' })); }
+    catch(e){ console.warn('[shareResultToStories] falhou ao guardar imagem', e); }
+  }
+  window.location.href = '/';
+}
+document.getElementById('pd-share-btn').addEventListener('click', shareResultToStories);
+
+// ---- Ajuda ----
+const helpOverlay = document.getElementById('pd-help-overlay');
+document.getElementById('helpBtn').addEventListener('click', ()=> helpOverlay.classList.add('show'));
+document.getElementById('pd-help-close').addEventListener('click', ()=> helpOverlay.classList.remove('show'));
+['pd-help-overlay','pd-result-overlay'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('click', (ev)=>{ if(ev.target === el) el.classList.remove('show'); });
+});
+
+function tryEnterFullscreenNow(){
+  try{
+    const el = document.documentElement;
+    if(document.fullscreenElement || !el.requestFullscreen) return;
+    if(typeof gIsMobileLike === 'function' && !gIsMobileLike()) return;
+    el.requestFullscreen().catch(()=>{});
+  }catch(e){}
+}
+tryEnterFullscreenNow();
+if(typeof gSetupFullscreenOnFirstInteraction === 'function') gSetupFullscreenOnFirstInteraction();
+
+(async function boot(){
+  if(typeof gRequireSession === 'function'){
+    user = await gRequireSession();
+    if(!user) return;
+  }
+  await loadNomes();
+  if(!DATA.ok){
+    boardEl.innerHTML = '<div style="text-align:center;padding:24px 16px;font-weight:700;color:var(--muted)">Não foi possível carregar os nomes.<br><button class="pd-btn" id="pd-retry" style="margin-top:14px">Tentar novamente</button></div>';
+    document.getElementById('pd-retry').addEventListener('click', ()=> location.reload());
+    return;
+  }
+  dateKey = diaChaveLocal(new Date());
+  palavra = palavraDoDia(dateKey);
+  if(!palavra){
+    boardEl.innerHTML = '<div style="text-align:center;padding:24px 16px;font-weight:700;color:var(--muted)">Nenhum nome jogável disponível hoje.</div>';
+    return;
+  }
+  maxTentativas = palavra.length + 1;
+  loadDailyState();
+  tentativas.forEach(t=> atualizarKeyState(t));
+  streakValEl.textContent = streak;
+  attemptValEl.textContent = `${tentativas.length}/${maxTentativas}`;
+  renderBoard();
+  renderKeyboard();
+  await refreshBestStreak();
+  if(gameOver) abrirResultado(venceu);
+  // Ajuda automática na primeira visita
+  if(!localStorage.getItem('pd_seen_help')){
+    helpOverlay.classList.add('show');
+    try{ localStorage.setItem('pd_seen_help','1'); }catch(e){}
+  }
+})();
+</script>
+</body>
+</html>
