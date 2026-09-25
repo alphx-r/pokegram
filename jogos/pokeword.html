@@ -19,7 +19,7 @@ html,body{margin:0;height:100%;height:100dvh;width:100%;font-family:'Nunito',san
 
 .pw-wrap{flex:1 1 auto;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow:hidden;background:linear-gradient(180deg,var(--brand-mid),var(--brand));}
 
-.pw-hud{display:flex;align-items:center;justify-content:center;gap:clamp(14px,5vw,28px);margin-top:12px;background:rgba(255,255,255,.1);border-radius:10px;padding:8px 22px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.pw-hud{display:flex;align-items:center;justify-content:center;gap:clamp(14px,5vw,28px);margin-top:12px;background:rgba(255,255,255,.1);border-radius:10px;padding:8px 27px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
 .pw-hud-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
 .pw-hud-label{font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
 .pw-hud-value{font-family:'Cinzel',serif;font-size:17px;color:var(--accent);font-weight:700;}
@@ -378,6 +378,32 @@ async function fetchNomes(sb, table, cols){
   }
   throw lastErr;
 }
+// Fallback: se o Supabase falhar, usa o pokemon.json hospedado na raiz do site
+// (mesmo arquivo usado no KP, id no mesmo padrão: número = geração oficial, prefixo A/G/H/P/N = regional/fakemon).
+// O JSON do KP tem sufixos de exibição tipo "Rattata (Alola Form)" — removidos aqui pra ficar
+// só o nome jogável, já que a região vem do id (prefixo), não do texto do nome.
+async function fetchPokemonsJsonFallback(){
+  const res = await fetch('/pokemon.json');
+  if(!res.ok) throw new Error('pokemon.json http '+res.status);
+  const json = await res.json();
+  const out = [];
+  (Array.isArray(json) ? json : []).forEach(r=>{
+    let nome = r.name || r.nome;
+    if(!nome || !r.id) return;
+    nome = String(nome).replace(/\s*\([^)]*\)\s*$/, '').trim();
+    if(nome) out.push([nome, r.id]);
+  });
+  return out;
+}
+// Tenta o Supabase primeiro; se falhar (erro de rede, RLS, tabela fora do ar), cai pro pokemon.json.
+async function fetchPokemonsComIdComFallback(sb){
+  try{
+    return await fetchPokemonsComId(sb);
+  }catch(e){
+    console.warn('[fetchPokemonsComIdComFallback] Supabase falhou, usando pokemon.json', e);
+    return await fetchPokemonsJsonFallback();
+  }
+}
 const REGIOES = { ok:false, lista:[] }; // lista de {id, label}, preenchida em loadNomes
 const REGIAO_LABELS = {
   kanto:'Kanto', johto:'Johto', hoenn:'Hoenn', sinnoh:'Sinnoh', unova:'Unova',
@@ -386,9 +412,10 @@ const REGIAO_LABELS = {
 async function loadNomes(){
   const sb = window.supabase.createClient(NOMES_URL, NOMES_KEY, {auth:{persistSession:false, autoRefreshToken:false}});
   // Cada fonte é isolada: se a PokeAPI falhar (rede/CORS/fora do ar), o jogo continua
-  // funcionando só com os dados do Supabase, sem derrubar tudo.
+  // funcionando só com os dados do Supabase, sem derrubar tudo. Pokémons têm fallback pro
+  // pokemon.json (raiz do site) se o Supabase falhar.
   const [pRes, lRes, locaisRegRes] = await Promise.allSettled([
-    fetchPokemonsComId(sb),
+    fetchPokemonsComIdComFallback(sb),
     fetchNomes(sb,'locais',['nome','name']),
     fetchLocaisPorRegiao()
   ]);
@@ -750,6 +777,17 @@ document.getElementById('pw-share-btn').addEventListener('click', shareResultToS
 
 // ---- Modal de dificuldade ----
 const diffOverlay = document.getElementById('pw-diff-overlay');
+
+// Fecha o overlay ao tocar fora do card (.pw-modal), exceto o de dificuldade
+// enquanto estiver marcado como obrigatório (primeira escolha, sem nível montado por trás).
+['pw-forfeit-overlay','pw-diff-overlay','pw-overlay'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('click', (ev)=>{
+    if(ev.target !== el) return; // só conta clique no fundo, não dentro do .pw-modal
+    if(el === diffOverlay && el.classList.contains('pw-diff-mandatory')) return;
+    el.classList.remove('show');
+  });
+});
 const diffTabsEl = document.getElementById('pw-diff-tabs');
 const regionGridEl = document.getElementById('pw-region-grid');
 const diffCountEl = document.getElementById('pw-diff-count');
