@@ -1577,7 +1577,7 @@ a:focus, a:active,
 
         <!-- LOGIN POR PLAYER DO KP -->
         <div class="auth-form" id="auth-form-kp">
-          <input type="text" id="login-kp-player" placeholder="Player" autocomplete="off" oninput="sanitizeKpPlayerInput(this)" onkeydown="if(event.key==='Enter')doKpLogin()">
+          <input type="text" id="login-kp-player" placeholder="Player" autocomplete="off" onkeydown="if(event.key==='Enter')doKpLogin()">
           <input type="password" id="login-kp-senha" placeholder="Senha" onkeydown="if(event.key==='Enter')doKpLogin()">
           <div id="auth-kp-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
           <button class="btn-primary" id="auth-kp-btn" onclick="doKpLogin()">Entrar</button>
@@ -4351,14 +4351,9 @@ function setAuthLoginMode(mode) {
 }
 
 function sanitizeKpPlayerInput(el) {
-  // mesma normalização que o KP usa: sem espaço/acento, minúsculo
-  const pos = el.selectionStart;
-  const original = el.value;
-  const sanitized = original.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').toLowerCase();
-  if (sanitized !== original) {
-    el.value = sanitized;
-    try { el.setSelectionRange(Math.min(pos, sanitized.length), Math.min(pos, sanitized.length)); } catch(e) {}
-  }
+  // nomes de player aceitam maiúsculas, minúsculas, acentos e espaços (sem espaços duplicados)
+  const o = el.value, v = o.replace(/\s{2,}/g, ' ');
+  if (v !== o) el.value = v;
 }
 
 async function kpRpc(fn, args = {}) {
