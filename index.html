@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pokégram</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#ffffff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pokégram">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
@@ -1424,9 +1431,32 @@ a:focus, a:active,
   // sobrescreva a sessão de auth (auth.uid()) de uma aba do app aberta
   // como player/personagem, e vice-versa. Sem isso, RLS de tabelas como
   // `messages` filtra tudo silenciosamente pro usuário errado.
+  // fetch com timeout: se o banco estiver saturado ("Too many connections")
+  // a requisição não fica pendurada para sempre — falha em até 15s (uploads: 60s)
+  function fetchWithTimeout(url, opts) {
+    opts = opts || {};
+    const isUpload = /\/storage\/v1\/object\//.test(String(url)) && opts.method && opts.method !== 'GET';
+    const ms = isUpload ? 60000 : 15000;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    if (opts.signal) { try { opts.signal.addEventListener('abort', () => ctrl.abort()); } catch(e) {} }
+    return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(t));
+  }
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-    auth: { storageKey: IS_ADM ? 'sb-pokegram-adm-auth' : 'sb-pokegram-player-auth' }
+    auth: { storageKey: IS_ADM ? 'sb-pokegram-adm-auth' : 'sb-pokegram-player-auth' },
+    global: { fetch: fetchWithTimeout },
+    realtime: { params: { eventsPerSecond: 5 } }
   });
+
+  // Converte erros técnicos do banco em mensagens que o usuário entende
+  function friendlyDbError(msg) {
+    const m = String(msg || '').toLowerCase();
+    if (m.includes('too many connections') || m.includes('max client') || m.includes('remaining connection slots'))
+      return 'O servidor está sobrecarregado no momento. Aguarde alguns segundos e tente de novo.';
+    if (m.includes('abort') || m.includes('timeout') || m.includes('failed to fetch') || m.includes('networkerror'))
+      return 'A conexão demorou demais. Verifique a internet e tente de novo.';
+    return msg;
+  }
 
   // ── Banco do Kingdom Platinum (login por player) ──────────
   const KP_URL = 'https://ucbkodkjlbatttiuqjtv.supabase.co';
@@ -1476,7 +1506,7 @@ a:focus, a:active,
   // Aguarda DOM pronto antes de tentar acessar elementos do splash
   async function applyFavicon() {
     try {
-      const { data } = await supabase.from('settings').select('value').eq('key','favicon_url').maybeSingle();
+      const { data } = await db.from('settings').select('value').eq('key','favicon_url').maybeSingle();
       if (data?.value) {
         // remove qualquer favicon existente e recria para forçar reload
         document.querySelectorAll("link[rel*='icon']").forEach(l => l.remove());
@@ -5369,7 +5399,7 @@ async function saveEditPost() {
   if (_editPostPendingImageFile) {
     const path = `${currentUser.id}_${Date.now()}.png`;
     const { error: upErr } = await db.storage.from('posts').upload(path, _editPostPendingImageFile, { upsert: false, contentType: 'image/png' });
-    if (upErr) { toast('Erro ao enviar foto: ' + upErr.message); return; }
+    if (upErr) { toast('Erro ao enviar foto: ' + friendlyDbError(upErr.message)); return; }
     const { data: urlData } = db.storage.from('posts').getPublicUrl(path);
     newImageUrl = urlData.publicUrl;
     updatePayload.image_url = newImageUrl;
@@ -9601,9 +9631,26 @@ async function initApp(user) {
   } else {
     showView('feed').catch((e) => console.error('[initApp routing] fallback feed', e));
   }
-  loadNotifBadge();
-  chatRefreshUnreadBadge();
-  setInterval(() => { loadNotifBadge(); chatRefreshUnreadBadge(); }, 5000);
+  loadNotifBadge().catch(() => {});
+  chatRefreshUnreadBadge().catch(() => {});
+  // Antes: a cada 5s por usuário/aba (e empilhava a cada troca de conta),
+  // o que esgotava as conexões do banco. Agora: 45s, só com a aba visível,
+  // um único timer, e falhas não geram erro não tratado.
+  if (window._badgePollTimer) clearInterval(window._badgePollTimer);
+  window._badgePollTimer = setInterval(() => {
+    if (document.hidden || !navigator.onLine) return;
+    loadNotifBadge().catch(() => {});
+    chatRefreshUnreadBadge().catch(() => {});
+  }, 45000);
+  if (!window._badgeVisBound) {
+    window._badgeVisBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && currentUser) {
+        loadNotifBadge().catch(() => {});
+        chatRefreshUnreadBadge().catch(() => {});
+      }
+    });
+  }
 }
 
 function renderSidebarAvatar() {
@@ -13175,7 +13222,7 @@ async function submitPost() {
   const path = `${currentUser.id}_${Date.now()}.png`;
   const { error: upErr } = await db.storage.from('posts').upload(path, _postPendingImageFile, { upsert: false, contentType: 'image/png' });
   if (upErr) {
-    toast('Erro ao enviar foto: ' + upErr.message);
+    toast('Erro ao enviar foto: ' + friendlyDbError(upErr.message));
     if (shareBtn) { shareBtn.textContent = 'Compartilhar'; shareBtn.disabled = false; }
     return;
   }
@@ -13410,7 +13457,32 @@ if (IS_ADM) {
   initAdm();
 } else {
   applyLogos();
-  initPokegram();
+  // Watchdog: se algo na inicialização travar (banco saturado, rede lenta),
+  // a splash "Carregando..." não fica presa para sempre.
+  const _splashWatchdog = setTimeout(() => {
+    const sp = document.getElementById('pg-splash');
+    if (!sp || sp.style.display === 'none') return;
+    console.warn('[watchdog] inicialização demorou demais — liberando a tela');
+    hideSplash();
+    const saved = (typeof loadSession === 'function') ? loadSession() : null;
+    const appEl = document.getElementById('app');
+    const appVisible = appEl && !appEl.classList.contains('hidden');
+    const manut = document.getElementById('manutencao-overlay');
+    const emManut = manut && manut.style.display === 'flex';
+    if (!appVisible && !emManut && !saved) {
+      const a = document.getElementById('auth-screen');
+      if (a) a.style.display = 'flex';
+    }
+  }, 12000);
+  initPokegram()
+    .catch(e => {
+      console.error('[initPokegram]', e);
+      hideSplash();
+      const a = document.getElementById('auth-screen');
+      const appEl = document.getElementById('app');
+      if (a && appEl && appEl.classList.contains('hidden')) a.style.display = 'flex';
+    })
+    .finally(() => clearTimeout(_splashWatchdog));
 }
 </script>
 
@@ -16295,7 +16367,7 @@ async function pkSaveProfile() {
       }
       _pkProfTemp._avatarFile = null;
     } catch(e) {
-      toast('Erro ao enviar foto: ' + (e.message || e));
+      toast('Erro ao enviar foto: ' + friendlyDbError(e.message || e));
       btn.disabled = false; btn.textContent = orig;
       return;
     }
