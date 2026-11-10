@@ -1436,7 +1436,7 @@ a:focus, a:active,
   function fetchWithTimeout(url, opts) {
     opts = opts || {};
     const isUpload = /\/storage\/v1\/object\//.test(String(url)) && opts.method && opts.method !== 'GET';
-    const ms = isUpload ? 60000 : 15000;
+    const ms = isUpload ? 60000 : 10000;
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ms);
     if (opts.signal) { try { opts.signal.addEventListener('abort', () => ctrl.abort()); } catch(e) {} }
@@ -4178,6 +4178,7 @@ function hideSplash() {
 }
 
 function enterApp(user) {
+  if (window._watchdogEntered === user.id) { window._watchdogEntered = null; return; }
   if (!user.avatar_color) user.avatar_color = user.color;
   if (!user.display_name) user.display_name = user.name || user.username;
   document.getElementById('auth-screen').style.display = 'none';
@@ -4387,7 +4388,7 @@ function sanitizeKpPlayerInput(el) {
 }
 
 async function kpRpc(fn, args = {}) {
-  const res = await fetch(`${KP_URL}/rest/v1/rpc/${fn}`, {
+  const res = await fetchWithTimeout(`${KP_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: { 'apikey': KP_KEY, 'Authorization': 'Bearer ' + KP_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify(args)
@@ -4400,7 +4401,7 @@ async function kpRpc(fn, args = {}) {
 }
 
 async function kpFetch(path) {
-  const res = await fetch(`${KP_URL}/rest/v1/${path}`, {
+  const res = await fetchWithTimeout(`${KP_URL}/rest/v1/${path}`, {
     headers: { 'apikey': KP_KEY, 'Authorization': 'Bearer ' + KP_KEY }
   });
   const text = await res.text();
@@ -4822,7 +4823,8 @@ async function blockIfLinkedToKpPlayer(user) {
   // Sessão criada pelo próprio fluxo "Player" (enterKpProfile) é legítima —
   // não faz sentido bloquear a pessoa que acabou de entrar corretamente.
   try { if (localStorage.getItem('pg_via_kp_player') === '1') return false; } catch(e) {}
-  const linkedPlayer = await getKpPlayerForPokegramUsername(user.username);
+  let linkedPlayer = null;
+  try { linkedPlayer = await getKpPlayerForPokegramUsername(user.username); } catch(e) { return false; } // banco KP fora do ar: não trava a entrada
   if (!linkedPlayer) return false;
 
   // Perfil vinculado — encerra qualquer sessão ativa/local e força volta à tela de login
@@ -5085,7 +5087,10 @@ async function doLogout() {
 // ── Manutenção ────────────────────────────────────────────
 async function checkManutencao() {
   try {
-    const { data } = await db.from('settings').select('value').eq('key', 'manutencao').maybeSingle();
+    const { data } = await Promise.race([
+      db.from('settings').select('value').eq('key', 'manutencao').maybeSingle(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))
+    ]);
     if (data && data.value === 'true') {
       const { data: msgData } = await db.from('settings').select('value').eq('key', 'manutencao_msg').maybeSingle();
       const msg = (msgData && msgData.value) ? msgData.value : 'Estamos em Atualização.';
@@ -10037,7 +10042,7 @@ async function renderPosts() {
       .order('created_at', { ascending: false })
       .limit(30);
 
-    if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
+    if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Não foi possível carregar os posts.<br><button onclick="renderPosts()" style="margin-top:14px;padding:8px 18px;border:1px solid #dbdbdb;border-radius:8px;background:#fff;font-weight:700;cursor:pointer">Tentar novamente</button></div>'; return; }
     if (!posts.length)   {
       appPosts = [];
       container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>As pessoas que você segue ainda não postaram. 🎉</div>';
@@ -10067,7 +10072,7 @@ async function renderPosts() {
       .limit(30));
   }
 
-  if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Erro ao carregar posts.</div>'; return; }
+  if (error || !posts) { container.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e8e">Não foi possível carregar os posts.<br><button onclick="renderPosts()" style="margin-top:14px;padding:8px 18px;border:1px solid #dbdbdb;border-radius:8px;background:#fff;font-weight:700;cursor:pointer">Tentar novamente</button></div>'; return; }
   if (!posts.length)   {
     appPosts = [];
     container.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#8e8e8e;font-size:16px">Nenhuma publicação ainda.<br>Seja o primeiro a postar! 🎉</div>';
@@ -13463,17 +13468,27 @@ if (IS_ADM) {
     const sp = document.getElementById('pg-splash');
     if (!sp || sp.style.display === 'none') return;
     console.warn('[watchdog] inicialização demorou demais — liberando a tela');
-    hideSplash();
-    const saved = (typeof loadSession === 'function') ? loadSession() : null;
     const appEl = document.getElementById('app');
     const appVisible = appEl && !appEl.classList.contains('hidden');
     const manut = document.getElementById('manutencao-overlay');
     const emManut = manut && manut.style.display === 'flex';
-    if (!appVisible && !emManut && !saved) {
+    const kpScreen = document.getElementById('perfis-screen');
+    const kpVisible = kpScreen && kpScreen.style.display && kpScreen.style.display !== 'none';
+    if (!appVisible && !emManut && !kpVisible) {
+      const saved = (typeof loadSession === 'function') ? loadSession() : null;
+      if (saved) {
+        // entra de forma otimista com o usuário salvo localmente
+        window._watchdogEntered = saved.id;
+        currentUser = saved;
+        enterApp(saved);
+        window._watchdogEntered = saved.id; // ignora um enterApp tardio do fluxo normal
+        return;
+      }
       const a = document.getElementById('auth-screen');
       if (a) a.style.display = 'flex';
     }
-  }, 12000);
+    hideSplash();
+  }, 10000);
   initPokegram()
     .catch(e => {
       console.error('[initPokegram]', e);
