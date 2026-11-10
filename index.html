@@ -1435,12 +1435,24 @@ a:focus, a:active,
   // a requisição não fica pendurada para sempre — falha em até 15s (uploads: 60s)
   function fetchWithTimeout(url, opts) {
     opts = opts || {};
-    const isUpload = /\/storage\/v1\/object\//.test(String(url)) && opts.method && opts.method !== 'GET';
-    const ms = isUpload ? 60000 : 10000;
+    const u = String(url);
+    const isUpload  = /\/storage\/v1\/object\//.test(u) && opts.method && opts.method !== 'GET';
+    const isRefresh = /\/auth\/v1\/token\?grant_type=refresh_token/.test(u);
+    const ms = isUpload ? 60000 : (isRefresh ? 6000 : 10000);
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), ms);
     if (opts.signal) { try { opts.signal.addEventListener('abort', () => ctrl.abort()); } catch(e) {} }
-    return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(t));
+    const p = fetch(u, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(t));
+    if (!isRefresh) return p;
+    // Renovação de token que trava: o supabase-js segura TODAS as consultas
+    // (feed, stories, notificações...) até ela terminar e fica tentando de novo.
+    // Se o servidor de Auth não responde em 6s, devolvemos um erro "definitivo"
+    // para ele soltar a fila e seguir como visitante — o app então refaz o
+    // login em segundo plano (reestablishAuthSessionInBackground).
+    return p.catch(() => new Response(
+      JSON.stringify({ error: 'invalid_grant', error_code: 'refresh_token_not_found', error_description: 'Auth timeout' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    ));
   }
   const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { storageKey: IS_ADM ? 'sb-pokegram-adm-auth' : 'sb-pokegram-player-auth' },
