@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Pokégram">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="icon" type="image/x-icon" href="https://64.media.tumblr.com/ebcb74c1a7982e70a9feb6397aaa94cd/8b7e825ce38dd763-27/s1280x1920/dd6884a0d225b480e7cf3d87993f1aa09ee3cbc4.png">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css"/>
@@ -1520,16 +1520,17 @@ a:focus, a:active,
     try {
       const { data } = await db.from('settings').select('value').eq('key','favicon_url').maybeSingle();
       if (data?.value) {
-        // remove qualquer favicon existente e recria para forçar reload
-        document.querySelectorAll("link[rel*='icon']").forEach(l => l.remove());
+        // remove só os favicons normais (preserva apple-touch-icon) e recria para forçar reload
+        document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']").forEach(l => l.remove());
         const link = document.createElement('link');
         link.rel  = 'icon';
-        link.type = data.value.match(/\.png/i) ? 'image/png'
+        const isData = data.value.startsWith('data:');
+        link.type = isData ? data.value.split(';')[0].replace('data:','')
                   : data.value.match(/\.svg/i) ? 'image/svg+xml'
                   : data.value.match(/\.ico/i) ? 'image/x-icon'
-                  : data.value.startsWith('data:') ? data.value.split(';')[0].replace('data:','')
                   : 'image/png';
-        link.href = data.value + (data.value.includes('?') ? '&' : '?') + '_t=' + Date.now();
+        // cache-buster só em URLs http(s) — em data: URL o "?_t=" corrompe o base64
+        link.href = isData ? data.value : data.value + (data.value.includes('?') ? '&' : '?') + '_t=' + Date.now();
         document.head.appendChild(link);
       }
     } catch(e) {}
@@ -8794,7 +8795,7 @@ async function removerFavicon() {
   okEl.style.display = errEl.style.display = 'none';
   await db.from('settings').delete().eq('key', 'favicon_url');
   let link = document.querySelector("link[rel~='icon']");
-  if (link) link.href = '/favicon.ico';
+  if (link) { link.href = '/assets/favicon.png'; link.type = 'image/png'; }
   document.getElementById('favicon-preview-adm').style.display = 'none';
   document.getElementById('favicon-preview-empty').style.display = 'inline';
   document.getElementById('favicon-file-input').value = '';
@@ -10505,6 +10506,7 @@ async function openComments(postId) {
         </button>
       </div>
       <div class="cab-likes" id="modal-like-count-${postId}">${likeCount === 1 ? '1 curtida' : likeCount > 1 ? `${likeCount} curtidas` : ''}</div>
+      ${post.created_at ? `<div class="cab-date" title="${toRpgDate(post.created_at).toLocaleString('pt-BR')}" style="padding:2px 16px 8px;font-size:11px;color:var(--muted,#8e8e8e);text-transform:uppercase;letter-spacing:.3px">${fmtPostDate(post.created_at)}</div>` : ''}
     `;
   }
 
@@ -13293,6 +13295,23 @@ function fmtNum(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
   if (n >= 1000)    return (n / 1000).toFixed(1) + 'K';
   return String(n);
+}
+
+// O RPG se passa 10 anos no futuro: datas absolutas exibidas somam esse deslocamento ao ano real
+const RPG_YEAR_OFFSET = 10;
+function toRpgDate(d) { const r = new Date(d); r.setFullYear(r.getFullYear() + RPG_YEAR_OFFSET); return r; }
+
+// Data de publicação para o modal do post: relativa até 7 dias, depois data por extenso (ano do RPG)
+function fmtPostDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const diff = Math.floor((Date.now() - d) / 1000);
+  if (diff < 60)        return 'agora mesmo';
+  if (diff < 3600)      { const m = Math.floor(diff / 60);    return 'há ' + m + (m === 1 ? ' minuto' : ' minutos'); }
+  if (diff < 86400)     { const h = Math.floor(diff / 3600);  return 'há ' + h + (h === 1 ? ' hora'   : ' horas'); }
+  if (diff < 7 * 86400) { const n = Math.floor(diff / 86400); return 'há ' + n + (n === 1 ? ' dia'    : ' dias'); }
+  return toRpgDate(d).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function fmtTimeAgo(iso) {
