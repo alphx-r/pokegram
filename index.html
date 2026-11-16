@@ -1546,7 +1546,6 @@ a:focus, a:active,
   }
 
   // Estado de autenticação — declarado aqui para evitar "before initialization"
-  var isRegisterMode = false;
   var currentUser    = null;
   // Incrementado toda vez que currentUser é trocado de forma definitiva
   // (login, troca de conta, logout). Tarefas em background que buscam dados
@@ -1611,13 +1610,6 @@ a:focus, a:active,
             <img class="brand-logo-img" src="" alt="Pokégram" style="display:none;max-height:54px;max-width:200px;object-fit:contain;vertical-align:middle;">
           </h1>
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:10px;background:#f0f0f0;border-radius:10px;padding:3px">
-          <button type="button" id="auth-tab-kp" onclick="setAuthLoginMode('kp')"
-            style="flex:1;padding:8px 0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#262626;box-shadow:0 1px 3px rgba(0,0,0,.1)">Player</button>
-          <button type="button" id="auth-tab-legacy" onclick="setAuthLoginMode('legacy')"
-            style="flex:1;padding:8px 0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:#8e8e8e">Usuário</button>
-        </div>
-
         <!-- LOGIN POR PLAYER DO KP -->
         <div class="auth-form" id="auth-form-kp">
           <input type="text" id="login-kp-player" placeholder="Player" autocomplete="off" onkeydown="if(event.key==='Enter')doKpLogin()">
@@ -1626,30 +1618,6 @@ a:focus, a:active,
           <button class="btn-primary" id="auth-kp-btn" onclick="doKpLogin()">Entrar</button>
         </div>
 
-        <!-- LOGIN LEGADO (usuário/senha do Pokégram — PChapters e contas ainda não vinculadas) -->
-        <div class="auth-form" id="auth-form" style="display:none">
-          <div id="auth-hint" class="auth-hint" style="margin-bottom:4px;display:none"></div>
-          <input type="text" id="login-username" placeholder="Usuário" autocomplete="off" oninput="onAuthInput()">
-          <input type="password" id="login-password" placeholder="Senha">
-          <div id="register-fields" style="display:none;flex-direction:column;gap:6px;">
-            <input type="password" id="login-confirm" placeholder="Confirmar senha">
-            <select id="login-rpg">
-              <option value="">Selecione seu RPG...</option>
-              <option value="kingdom_platinum">Kingdom Platinum</option>
-              <option value="pchapters">PChapters</option>
-            </select>
-            <select id="login-pronoun">
-              <option value="">Pronomes *</option>
-              <option value="ele/dele">ele/dele</option>
-              <option value="ela/dela">ela/dela</option>
-              <option value="elu/delu">elu/delu</option>
-              <option value="ele/ela">ele/ela</option>
-              <option value="qualquer pronome">qualquer pronome</option>
-            </select>
-          </div>
-          <div id="auth-error" style="display:none;color:#e53935;font-size:12px;text-align:center;margin-top:2px;"></div>
-          <button class="btn-primary" id="auth-btn" onclick="doAuth()">Entrar</button>
-        </div>
       </div>
     </div>
   </div>
@@ -4084,100 +4052,7 @@ function sanitizeUsername(val) {
     .toLowerCase()
     .replace(/[^a-z0-9_.]/g, ''); // bloqueia qualquer outro char especial
 }
-async function onAuthInput() {
-  const raw      = document.getElementById('login-username').value;
-  const username = sanitizeUsername(raw);
-  // reflecte o valor normalizado no campo
-  if (raw !== username) document.getElementById('login-username').value = username;
-  clearTimeout(authCheckTimeout);
-  const hintEl = document.getElementById('auth-hint');
-  if (username.length < 2) { setAuthMode('login'); hintEl.textContent = ''; hintEl.style.display = 'none'; return; }
-  authCheckTimeout = setTimeout(async () => {
-    const exists = await dbCheckUserExists(username);
-    setAuthMode(exists ? 'login' : 'register');
-    hintEl.textContent = exists ? 'Bem-vindo de volta!' : 'Usuário não encontrado — complete o cadastro abaixo.';
-    hintEl.style.display = 'block';
-  }, 500);
-}
-
-function setAuthMode(mode) {
-  isRegisterMode = mode === 'register';
-  const rf  = document.getElementById('register-fields');
-  const btn = document.getElementById('auth-btn');
-  rf.style.display  = isRegisterMode ? 'flex' : 'none';
-  btn.textContent   = isRegisterMode ? 'Cadastrar' : 'Entrar';
-  hideAuthError();
-}
-
-function showAuthError(msg) { const e = document.getElementById('auth-error'); e.textContent = msg; e.style.display = 'block'; }
-function hideAuthError()    { document.getElementById('auth-error').style.display = 'none'; }
-
-async function doAuth() {
-  hideAuthError();
-  const username = sanitizeUsername(document.getElementById('login-username').value);
-  const password = document.getElementById('login-password').value;
-  const btn      = document.getElementById('auth-btn');
-  if (!username || !password) { showAuthError('Preencha usuário e senha.'); return; }
-  btn.disabled = true; btn.textContent = 'Aguarde...';
-
-  // Reconfirma o modo real antes de agir (evita falso "register" por timeout ou digitação rápida)
-  try {
-    const exists = await dbCheckUserExists(username);
-    if (exists && isRegisterMode) setAuthMode('login');
-    if (!exists && !isRegisterMode) {
-      setAuthMode('register');
-      showAuthError('Usuário não encontrado. Complete o cadastro abaixo.');
-      btn.disabled = false; btn.textContent = 'Cadastrar';
-      return;
-    }
-  } catch(e) { /* ignora erro de rede na revalidação e continua */ }
-
-  try {
-    if (isRegisterMode) {
-      const confirm = document.getElementById('login-confirm').value;
-      const rpg     = document.getElementById('login-rpg').value;
-      const pronoun = document.getElementById('login-pronoun').value;
-      if (password !== confirm) { showAuthError('As senhas não coincidem.'); return; }
-      if (!rpg)                 { showAuthError('Selecione seu RPG.'); return; }
-      if (!pronoun)             { showAuthError('Selecione seus pronomes.'); return; }
-      if (password.length < 6)  { showAuthError('Senha deve ter ao menos 6 caracteres.'); return; }
-      const user = await dbRegister(username, password, rpg, null, pronoun);
-      if (!user) { showAuthError('Erro ao cadastrar. Tente novamente.'); return; }
-      // Se já existe uma sessão de player do KP ativa em memória (ex: veio da aba
-      // "Player" e voltou), vincula automaticamente o perfil recém-criado a ela —
-      // best-effort, não bloqueia o cadastro se o vínculo falhar.
-      if (_kpSession && _kpSession.id && _kpSession.senha) {
-        try {
-          const perfisAtualizados = await kpRpc('player_link_pokegram_perfil', {
-            p_nome: _kpSession.nome, p_senha: _kpSession.senha, p_username: username
-          });
-          if (Array.isArray(perfisAtualizados)) _kpSession.perfis = perfisAtualizados;
-        } catch (linkErr) {
-          console.error('[doAuth] falha ao vincular novo perfil ao player do KP logado', linkErr);
-        }
-      }
-      currentUser = user; saveSession(user); enterApp(user);
-    } else {
-      const user = await dbLogin(username, password);
-      if (!user) { showAuthError('Usuário ou senha incorretos.'); return; }
-      if (await blockIfLinkedToKpPlayer(user)) return;
-      // re-fetch para garantir avatar_url e todos os campos atualizados
-      const { data: fresh } = await db.from('users').select('*').eq('id', user.id).maybeSingle();
-      const finalUser = fresh || user;
-      currentUser = finalUser; saveSession(finalUser); enterApp(finalUser);
-    }
-  } catch(err) {
-    console.error(err);
-    if (err && err.message === 'network') {
-      showAuthError('Erro de conexão. Verifique sua internet e tente novamente.');
-    } else if (err && err.message) {
-      showAuthError('Erro: ' + err.message);
-    } else {
-      showAuthError('Erro inesperado. Tente novamente.');
-    }
-  }
-  finally { btn.disabled = false; btn.textContent = isRegisterMode ? 'Cadastrar' : 'Entrar'; }
-}
+function showAuthError(msg) { const e = document.getElementById('auth-kp-error'); if (!e) return; e.textContent = msg; e.style.display = 'block'; }
 
 function hideSplash() {
   // A partir daqui o app já está "dentro" — trocas de aba passam a mostrar
@@ -4378,21 +4253,7 @@ function closeInstructionsModal() { closeModal('modal-instructions'); }
 // ════════════════════════════════════════════════════════════
 let _kpSession = null; // {id, nome, senha, perfis} — só em memória, nunca vai pro localStorage
 
-function setAuthLoginMode(mode) {
-  const kpTab = document.getElementById('auth-tab-kp');
-  const legacyTab = document.getElementById('auth-tab-legacy');
-  const kpForm = document.getElementById('auth-form-kp');
-  const legacyForm = document.getElementById('auth-form');
-  const isKp = mode === 'kp';
-  kpForm.style.display = isKp ? 'flex' : 'none';
-  legacyForm.style.display = isKp ? 'none' : 'flex';
-  kpTab.style.background = isKp ? '#fff' : 'transparent';
-  kpTab.style.boxShadow = isKp ? '0 1px 3px rgba(0,0,0,.1)' : 'none';
-  kpTab.style.color = isKp ? '#262626' : '#8e8e8e';
-  legacyTab.style.background = isKp ? 'transparent' : '#fff';
-  legacyTab.style.boxShadow = isKp ? 'none' : '0 1px 3px rgba(0,0,0,.1)';
-  legacyTab.style.color = isKp ? '#8e8e8e' : '#262626';
-}
+function setAuthLoginMode() { /* só existe login por player do KP */ }
 
 function sanitizeKpPlayerInput(el) {
   // nomes de player aceitam maiúsculas, minúsculas, acentos e espaços (sem espaços duplicados)
@@ -4437,8 +4298,47 @@ const KP_ADMIN_SERVICE_KEY = '054e5ce5-ff43-47fc-8c2b-192c027622d8';
 //    essa senha e a posse do perfil direto no banco do KP antes de resetar
 //    a senha real no Supabase Auth, então é seguro chamar sem confirmação. ──
 const REPAIR_AUTH_ENDPOINT = "https://cofqapsaxrqlmxzpzbkr.supabase.co/functions/v1/repair-profile-auth";
+// Entrando pelo link do KP (handoff) a senha do player não fica em memória,
+// e sem ela o reparo abaixo nunca roda — a troca de perfil falhava com
+// "Não foi possível trocar de conta". Pede a senha uma vez, valida no KP e guarda.
+function askKpPasswordModal() {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Nunito,sans-serif';
+    ov.innerHTML = `<div style="background:#fff;border-radius:16px;padding:22px;width:100%;max-width:340px;display:flex;flex-direction:column;gap:10px">
+      <div style="font-weight:800;font-size:16px">Confirme sua senha do KP</div>
+      <div style="font-size:12.5px;color:#8e8e8e;line-height:1.4">Necessária uma vez para reparar o acesso deste perfil.</div>
+      <input type="password" id="kp-pw-fix" placeholder="Senha do player" autocomplete="current-password" style="padding:11px 12px;border:1.5px solid #efefef;border-radius:10px;font-size:14px;font-family:inherit">
+      <div id="kp-pw-err" style="color:#e53935;font-size:12px;display:none"></div>
+      <div style="display:flex;gap:8px">
+        <button id="kp-pw-cancel" style="flex:1;padding:10px;border:none;border-radius:10px;background:#efefef;font-weight:700;font-family:inherit">Cancelar</button>
+        <button id="kp-pw-ok" style="flex:1;padding:10px;border:none;border-radius:10px;background:#0095f6;color:#fff;font-weight:700;font-family:inherit">Confirmar</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('#kp-pw-fix'), err = ov.querySelector('#kp-pw-err');
+    const close = v => { ov.remove(); resolve(v); };
+    ov.querySelector('#kp-pw-cancel').onclick = () => close(null);
+    ov.querySelector('#kp-pw-ok').onclick = async () => {
+      const senha = inp.value || '';
+      if (!senha) return;
+      try {
+        const r = await kpRpc('player_login', { p_nome: _kpSession.nome, p_senha: senha });
+        const m = Array.isArray(r) ? r[0] : r;
+        if (!m) { err.textContent = 'Senha incorreta.'; err.style.display = 'block'; return; }
+        close(senha);
+      } catch (e) { err.textContent = 'Erro: ' + (e.message || 'falha de conexão.'); err.style.display = 'block'; }
+    };
+    setTimeout(() => inp.focus(), 50);
+  });
+}
+
 async function repairProfileAuthViaKp(username) {
-  if (!_kpSession || !_kpSession.senha) return null;
+  if (!_kpSession) return null;
+  if (!_kpSession.senha) {
+    const senha = await askKpPasswordModal();
+    if (!senha) return null;
+    _kpSession.senha = senha;
+  }
   try {
     const resp = await fetch(REPAIR_AUTH_ENDPOINT, {
       method: 'POST',
@@ -4653,7 +4553,7 @@ async function criarNovoPerfilKp() {
   // (por design — vide enterKpPlayerSession). Sem senha, a RPC de vínculo
   // sempre falha, então nem tenta criar o perfil: pede pra logar manual.
   if (!_kpSession.senha) {
-    errEl.textContent = 'Para criar um novo perfil é preciso ter entrado com player e senha do KP (não pelo link direto). Volte e faça login manual na aba "Player".';
+    errEl.textContent = 'Para criar um novo perfil é preciso ter entrado com player e senha do KP (não pelo link direto). Volte e faça login manual com player e senha.';
     errEl.style.display = 'block';
     return;
   }
@@ -4850,7 +4750,7 @@ async function blockIfLinkedToKpPlayer(user) {
   if (perfisScreenEl) perfisScreenEl.style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
   setAuthLoginMode('kp');
-  showAuthError(`Este perfil já está vinculado ao player "${linkedPlayer}". Faça login pela aba "Player".`);
+  showAuthError(`Este perfil já está vinculado ao player "${linkedPlayer}". Faça login com o seu player.`);
   return true;
 }
 
@@ -5579,17 +5479,6 @@ function pkColorAlpha(hex, alpha) {
   const [r,g,b] = pkHexToRgb(hex);
   return `rgba(${r},${g},${b},${alpha})`;
 }
-
-document.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    if (document.getElementById('auth-screen').style.display === 'none') return;
-    // Se a aba "Player (KP)" estiver ativa, o campo de senha já tem seu próprio
-    // handler de Enter (doKpLogin). Chamar doAuth() aqui também disparava o
-    // login legado em paralelo e derrubava a tela de escolher perfil.
-    const kpForm = document.getElementById('auth-form-kp');
-    if (kpForm && kpForm.style.display !== 'none') return;
-    doAuth();
-  });
 
 // ════════════════════════════════════════════════════════════
 // ADM
