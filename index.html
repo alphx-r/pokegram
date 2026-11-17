@@ -1571,31 +1571,46 @@ a:focus, a:active,
   <div id="pg-splash" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
     <!-- GIF customizado (se configurado no ADM) -->
     <img id="splash-custom-gif" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain">
-    <span class="splash-title">Boas Festas!</span>
-    <svg class="splash-tree" viewBox="0 0 100 100" width="124" height="124" aria-label="Pokébola com gorro de Natal">
-      <path d="M12 62 A38 38 0 0 1 88 62 Z" fill="#ee1515"/>
-      <path d="M12 62 A38 38 0 0 0 88 62 Z" fill="#f7f7f7"/>
-      <circle cx="50" cy="62" r="38" fill="none" stroke="#111" stroke-width="5"/>
-      <line x1="12" y1="62" x2="88" y2="62" stroke="#111" stroke-width="6"/>
-      <circle cx="50" cy="62" r="11" fill="#fff" stroke="#111" stroke-width="5"/>
-      <path d="M30 30 C34 8 54 0 74 8 C64 14 62 24 72 30 Z" fill="#c1121f" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
-      <rect x="25" y="26" width="52" height="12" rx="6" fill="#fff" stroke="#111" stroke-width="3"/>
-      <circle cx="74" cy="8" r="7" fill="#fff" stroke="#111" stroke-width="3"/>
+    <div class="splash-title">
+      <div class="splash-hello">O
+        <img class="brand-logo-img" src="" alt="Pokégram" style="display:none">
+        <span class="brand-logo-placeholder">Pokégram</span>
+        te deseja</div>
+      <div class="splash-big">Boas Festas!</div>
+    </div>
+    <svg class="splash-tree" viewBox="0 0 120 120" width="124" height="124" overflow="visible" aria-label="Pokébola com gorro de Natal">
+      <circle cx="60" cy="70" r="40" fill="none" stroke="#fff" stroke-width="5"/>
+      <line x1="20" y1="70" x2="100" y2="70" stroke="#fff" stroke-width="5"/>
+      <circle cx="60" cy="70" r="11" fill="#0b2418" stroke="#fff" stroke-width="5"/>
+      <path d="M36 38 C40 14 60 4 84 10 C72 16 72 30 86 38 Z" fill="#fff"/>
+      <circle cx="84" cy="10" r="7" fill="#e5252a"/>
     </svg>
     <span class="splash-text" style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
+    <div class="splash-garland"></div>
+    <div class="splash-ground"></div>
   </div>
   <style>
     /* ===== Modo Natal: o mês de dezembro inteiro substitui o loading do Pikachu =====
        Teste fora de dezembro com ?natal=1 | force o normal com ?natal=0 */
-    .splash-title,.splash-tree,.splash-snow{display:none}
+    .splash-title,.splash-tree,.splash-snow,.splash-garland,.splash-ground,.splash-pine{display:none}
     html.natal #pg-splash{background:radial-gradient(ellipse at 50% 35%,#14402a 0%,#0b2418 55%,#06120c 100%) !important;overflow:hidden}
     html.natal #pg-splash .splash-text{color:#f3e9d2 !important}
     html.natal #splash-custom-gif,html.natal #tab-loading-gif,html.natal #tab-loading-pokeball{display:none !important}
-    html.natal .splash-title{display:block;font-family:'Nunito',sans-serif;font-weight:800;font-size:30px;color:#fff;letter-spacing:.5px;text-shadow:0 2px 10px rgba(0,0,0,.45)}
+    html.natal .splash-title{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;font-family:'Nunito',sans-serif}
+    html.natal .splash-hello{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:700;color:#f3e9d2}
+    html.natal .splash-hello .brand-logo-img{max-height:34px;max-width:140px;object-fit:contain;filter:brightness(0) invert(1)}
+    html.natal .splash-hello .brand-logo-placeholder{font-weight:800;color:#fff}
+    html.natal .splash-big{font-weight:800;font-size:30px;color:#fff;letter-spacing:.5px;text-shadow:0 2px 10px rgba(0,0,0,.45)}
+    html.natal .splash-text{position:absolute;left:0;right:0;text-align:center;bottom:calc(12px + clamp(120px,19vh,210px) / 2);font-size:15px !important;letter-spacing:.3px}
     html.natal .splash-tree{display:block;animation:splashBob 1.6s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(0,0,0,.4))}
     html.natal .splash-snow{display:block;position:absolute;top:-12px;color:#fff;opacity:.85;pointer-events:none;animation:splashFall linear infinite}
     html.natal #tab-loading-overlay{background:radial-gradient(ellipse at 50% 35%,#14402a 0%,#0b2418 55%,#06120c 100%) !important}
     html.natal #tab-loading-overlay::before{content:"❄";color:#fff;font-size:48px;line-height:1;animation:spin 1.6s linear infinite}
+    html.natal .splash-garland{display:block;position:absolute;top:0;left:0;right:0;height:56px;background:url("data:image/svg+xml;utf8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22120%22%20height=%2256%22%20viewBox=%220%200%20120%2056%22%3E%3Cpath%20d=%22M-2%204%20Q60%2056%20122%204%22%20fill=%22none%22%20stroke=%22%232f8f5b%22%20stroke-width=%226%22%20stroke-linecap=%22round%22/%3E%3Cpath%20d=%22M-2%204%20Q60%2056%20122%204%22%20fill=%22none%22%20stroke=%22%236fcf97%22%20stroke-width=%222%22%20stroke-dasharray=%223%205%22%20stroke-linecap=%22round%22/%3E%3Cg%20stroke=%22%239bd5b3%22%20stroke-width=%221.2%22%3E%3Cline%20x1=%2230%22%20y1=%2223.5%22%20x2=%2230%22%20y2=%2228%22/%3E%3Cline%20x1=%2260%22%20y1=%2230%22%20x2=%2260%22%20y2=%2235%22/%3E%3Cline%20x1=%2290%22%20y1=%2223.5%22%20x2=%2290%22%20y2=%2228%22/%3E%3C/g%3E%3Ccircle%20cx=%2230%22%20cy=%2232%22%20r=%224.5%22%20fill=%22%23ff4d4d%22/%3E%3Ccircle%20cx=%2260%22%20cy=%2239%22%20r=%224.5%22%20fill=%22%23ffd166%22/%3E%3Ccircle%20cx=%2290%22%20cy=%2232%22%20r=%224.5%22%20fill=%22%23ffffff%22/%3E%3Ccircle%20cx=%220%22%20cy=%225%22%20r=%223.5%22%20fill=%22%23ff4d4d%22/%3E%3Ccircle%20cx=%22120%22%20cy=%225%22%20r=%223.5%22%20fill=%22%23ff4d4d%22/%3E%3C/svg%3E") repeat-x 0 0;pointer-events:none;animation:splashTwinkle 2.4s ease-in-out infinite}
+    html.natal .splash-ground{display:block;position:absolute;left:-6%;right:-6%;bottom:-20px;height:48px;background:#e9f3ee;border-radius:50% 50% 0 0;opacity:.95;pointer-events:none}
+    html.natal .splash-pine{display:block;position:absolute;bottom:12px;aspect-ratio:80/120;overflow:visible;pointer-events:none}
+    @media (max-width:600px){html.natal .splash-pine.sm{display:none}}
+    @keyframes splashTwinkle{50%{opacity:.7}}
     @keyframes splashFall{to{transform:translate3d(var(--dx,20px),110vh,0)}}
     @keyframes splashBob{50%{transform:translateY(-6px)}}
     @media (prefers-reduced-motion:reduce){html.natal .splash-snow,html.natal .splash-tree{animation:none}}
@@ -1610,6 +1625,14 @@ a:focus, a:active,
         if(!on) return;
         document.documentElement.classList.add('natal');
         var sp=document.getElementById('pg-splash'); if(!sp) return;
+        var T='<svg class="splash-pine __C__" viewBox="0 0 80 120" style="__S__" aria-hidden="true">'
+          +'<rect x="34" y="108" width="12" height="12" fill="#6b4423"/>'
+          +'<polygon points="40,62 76,110 4,110" fill="#1f7a4d"/><polygon points="40,36 72,84 8,84" fill="#2a9560"/><polygon points="40,14 66,52 14,52" fill="#37ae72"/>'
+          +'<polygon points="40,0 43.5,7.5 51.5,8 45.5,13.5 47.5,21.5 40,17 32.5,21.5 34.5,13.5 28.5,8 36.5,7.5" fill="#ffd166"/>'
+          +'<circle cx="34" cy="44" r="3" fill="#ff4d4d"/><circle cx="48" cy="32" r="3" fill="#fff"/><circle cx="26" cy="72" r="3" fill="#ffd166"/><circle cx="54" cy="70" r="3" fill="#ff4d4d"/><circle cx="40" cy="92" r="3" fill="#fff"/><circle cx="58" cy="100" r="3" fill="#ffd166"/><circle cx="22" cy="100" r="3" fill="#ff4d4d"/></svg>';
+        [['left:2%','clamp(120px,19vh,210px)','big'],['left:calc(2% + clamp(120px,19vh,210px)*.64)','clamp(70px,10vh,120px)','sm'],['right:2%','clamp(120px,19vh,210px)','big'],['right:calc(2% + clamp(120px,19vh,210px)*.64)','clamp(70px,10vh,120px)','sm']].forEach(function(t){
+          sp.insertAdjacentHTML('beforeend',T.replace('__S__',t[0]+';height:'+t[1]).replace('__C__',t[2]));
+        });
         for(var i=0;i<34;i++){
           var f=document.createElement('span'); f.className='splash-snow'; f.textContent='❄';
           f.style.left=(Math.random()*100)+'%';
