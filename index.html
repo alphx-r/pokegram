@@ -1573,8 +1573,8 @@ a:focus, a:active,
     <img id="splash-custom-gif" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain">
     <div class="splash-title">
       <div class="splash-hello">O
-        <img class="brand-logo-img" src="" alt="Pokégram" style="display:none">
-        <span class="brand-logo-placeholder">Pokégram</span>
+        <img class="splash-logo" src="" alt="Pokégram">
+        <span class="splash-fallback">Pokégram</span>
         te deseja</div>
       <div class="splash-big">Boas Festas!</div>
     </div>
@@ -1597,9 +1597,13 @@ a:focus, a:active,
     html.natal #pg-splash .splash-text{color:#f3e9d2 !important}
     html.natal #splash-custom-gif,html.natal #tab-loading-gif,html.natal #tab-loading-pokeball{display:none !important}
     html.natal .splash-title{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;font-family:'Nunito',sans-serif}
-    html.natal .splash-hello{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:700;color:#f3e9d2}
-    html.natal .splash-hello .brand-logo-img{max-height:34px;max-width:140px;object-fit:contain;filter:brightness(0) invert(1)}
-    html.natal .splash-hello .brand-logo-placeholder{font-weight:800;color:#fff}
+    html.natal .splash-hello{display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:700;color:#f3e9d2;opacity:0;transition:opacity .4s}
+    html.natal .splash-hello.ready{opacity:1}
+    .splash-logo,.splash-fallback{display:none}
+    html.natal .splash-hello.logo .splash-logo{display:block}
+    html.natal .splash-hello.nologo .splash-fallback{display:inline}
+    html.natal .splash-hello .splash-logo{max-height:34px;max-width:140px;object-fit:contain;filter:brightness(0) invert(1)}
+    html.natal .splash-hello .splash-fallback{font-weight:800;color:#fff}
     html.natal .splash-big{font-weight:800;font-size:30px;color:#fff;letter-spacing:.5px;text-shadow:0 2px 10px rgba(0,0,0,.45)}
     html.natal .splash-text{position:absolute;left:0;right:0;text-align:center;bottom:calc(12px + clamp(120px,19vh,210px) / 2);font-size:15px !important;letter-spacing:.3px}
     html.natal .splash-tree{display:block;animation:splashBob 1.6s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(0,0,0,.4))}
@@ -1625,6 +1629,21 @@ a:focus, a:active,
         if(!on) return;
         document.documentElement.classList.add('natal');
         var sp=document.getElementById('pg-splash'); if(!sp) return;
+        // ---- tempo mínimo na tela (usado pelo hideSplash) + logo carregada durante o splash ----
+        window._natalSplashStart=Date.now();
+        window._natalLogoDone=false;
+        var hello=sp.querySelector('.splash-hello'), logo=sp.querySelector('.splash-logo'), KEY='pg_network_logo_cache';
+        var finish=function(ok){ if(window._natalLogoDone) return; window._natalLogoDone=true; hello.classList.add(ok?'logo':'nologo','ready'); };
+        var useUrl=function(url){ logo.onload=function(){finish(true)}; logo.onerror=function(){finish(false)}; logo.src=url; };
+        var cached=null; try{ cached=localStorage.getItem(KEY); }catch(e){}
+        if(cached) useUrl(cached);
+        if(window.getNetworkLogo){
+          window.getNetworkLogo().then(function(url){
+            if(url){ try{ localStorage.setItem(KEY,url); }catch(e){} if(!cached) useUrl(url); }
+            else if(!cached) finish(false);
+          }).catch(function(){ if(!cached) finish(false); });
+        } else if(!cached){ finish(false); }
+        setTimeout(function(){ finish(false); },7000);
         var T='<svg class="splash-pine __C__" viewBox="0 0 80 120" style="__S__" aria-hidden="true">'
           +'<rect x="34" y="108" width="12" height="12" fill="#6b4423"/>'
           +'<polygon points="40,62 76,110 4,110" fill="#1f7a4d"/><polygon points="40,36 72,84 8,84" fill="#2a9560"/><polygon points="40,14 66,52 14,52" fill="#37ae72"/>'
@@ -4132,6 +4151,16 @@ function hideSplash() {
   _appEntered = true;
   const s = document.getElementById('pg-splash');
   if (!s || s.style.display === 'none') return;
+  // Modo Natal: a tela fica no mínimo 5s e espera a logo carregar (teto de 8s)
+  if (document.documentElement.classList.contains('natal') && window._natalSplashStart) {
+    const el = Date.now() - window._natalSplashStart;
+    let rest = 5000 - el;
+    if (!window._natalLogoDone && el < 8000) rest = Math.max(rest, 150);
+    if (rest > 0) {
+      if (!s._natalWait) s._natalWait = setTimeout(() => { s._natalWait = null; hideSplash(); }, rest);
+      return;
+    }
+  }
   s.style.transition = 'opacity .35s';
   s.style.opacity = '0';
   setTimeout(() => { s.style.display = 'none'; }, 380);
