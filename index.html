@@ -1571,8 +1571,46 @@ a:focus, a:active,
   <div id="pg-splash" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
     <!-- GIF customizado (se configurado no ADM) -->
     <img id="splash-custom-gif" src="" alt="" style="display:none;width:80px;height:80px;object-fit:contain">
-    <span style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
+    <span class="splash-tree">🎄</span>
+    <span class="splash-text" style="font-family:'Nunito',sans-serif;font-size:14px;color:#8e8e8e;font-weight:600">Carregando...</span>
   </div>
+  <style>
+    /* ===== Modo Natal: o mês de dezembro inteiro substitui o loading do Pikachu =====
+       Teste fora de dezembro com ?natal=1 | force o normal com ?natal=0 */
+    .splash-tree,.splash-snow{display:none}
+    html.natal #pg-splash{background:radial-gradient(ellipse at 50% 35%,#14402a 0%,#0b2418 55%,#06120c 100%) !important;overflow:hidden}
+    html.natal #pg-splash .splash-text{color:#f3e9d2 !important}
+    html.natal #splash-custom-gif,html.natal #tab-loading-gif,html.natal #tab-loading-pokeball{display:none !important}
+    html.natal .splash-tree{display:block;font-size:64px;line-height:1;animation:splashBob 1.6s ease-in-out infinite}
+    html.natal .splash-snow{display:block;position:absolute;top:-12px;color:#fff;opacity:.85;pointer-events:none;animation:splashFall linear infinite}
+    html.natal #tab-loading-overlay{background:radial-gradient(ellipse at 50% 35%,#14402a 0%,#0b2418 55%,#06120c 100%) !important}
+    html.natal #tab-loading-overlay::before{content:"❄";color:#fff;font-size:48px;line-height:1;animation:spin 1.6s linear infinite}
+    @keyframes splashFall{to{transform:translate3d(var(--dx,20px),110vh,0)}}
+    @keyframes splashBob{50%{transform:translateY(-6px)}}
+    @media (prefers-reduced-motion:reduce){html.natal .splash-snow,html.natal .splash-tree{animation:none}}
+  </style>
+  <script>
+    (function(){
+      try{
+        var q=new URLSearchParams(location.search).get('natal');
+        var on=(new Date().getMonth()===11);              // dezembro inteiro
+        if(q==='1') on=true; else if(q==='0') on=false;
+        if(!on) return;
+        document.documentElement.classList.add('natal');
+        var sp=document.getElementById('pg-splash'); if(!sp) return;
+        sp.querySelector('.splash-text').textContent='Boas Festas! Carregando...';
+        for(var i=0;i<34;i++){
+          var f=document.createElement('span'); f.className='splash-snow'; f.textContent='❄';
+          f.style.left=(Math.random()*100)+'%';
+          f.style.fontSize=(8+Math.random()*14)+'px';
+          f.style.animationDuration=(5+Math.random()*7)+'s';
+          f.style.animationDelay=(-Math.random()*10)+'s';
+          f.style.setProperty('--dx',((Math.random()*60)-30)+'px');
+          sp.appendChild(f);
+        }
+      }catch(e){}
+    })();
+  </script>
 
   <!-- LOADING AO TROCAR DE ABA (Pokégram, Pokeet, Explorar, Perfil...) -->
   <div id="tab-loading-overlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:6500;flex-direction:column;align-items:center;justify-content:center;gap:16px">
